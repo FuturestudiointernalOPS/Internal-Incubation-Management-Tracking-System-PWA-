@@ -393,3 +393,19 @@
 .jy-facts div > b { font-size: 13px; }
 .jy-book { margin: 0; }
 .jy-act > .jy-facts.in { border-top: 0; padding-top: 0; margin-top: 12px; }
+
+/* Journey: reports (internal notes) with their full trail */
+.jy-note { background: var(--bg-secondary); border: 2px solid var(--jy-line, var(--border-primary)); border-radius: 14px; padding: 14px 16px; display: grid; gap: 10px; }
+.jy-note-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.jy-note-head b { font-size: 14px; font-weight: 700; color: var(--text-primary); }
+.jy-note-body { margin: 0; font-size: 13px; line-height: 1.55; color: var(--text-secondary); white-space: pre-line; }
+.jy-note-att { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--brand-orange); }
+.jy-note-facts { margin: 0; padding-top: 10px; border-top: 2px solid var(--jy-line, var(--border-primary)); display: grid; gap: 8px 16px; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.jy-note-facts dt { font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-secondary); }
+.jy-note-facts dd { margin: 2px 0 0; font-size: 12.5px; font-weight: 600; color: var(--text-primary); word-break: break-word; }
+.jy-btns { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
+.jy-btns > .jy-book { flex: 0 1 auto; }
+.jy-btns > .jy-book:has(form) { flex: 1 1 100%; }
+.jy-act.jy-plain { display: grid; }
+.jy-act.jy-plain > * + * { margin-top: 0; padding-top: 0; border-top: 0; }
+.jy-note { width: 100%; box-sizing: border-box; }

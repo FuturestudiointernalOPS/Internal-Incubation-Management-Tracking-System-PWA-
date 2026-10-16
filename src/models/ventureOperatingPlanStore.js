@@ -14,6 +14,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Access ───────────────────────────────────────────────────────────────────
 
@@ -23,12 +24,13 @@ export function selectVentureCodeByIdText(ventureId) {
 }
 
 /** The actor's active assignments on one Venture (id + responsibility + scope). */
-export function selectActivePlanAssignments(code, cid) {
+export async function selectActivePlanAssignments(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT a.id, a.responsibility_code, a.scope_type
           FROM venture_staff_assignments a
           WHERE a.venture_id = ? AND a.staff_contact_id = ? AND a.status = 'active'`,
-    args: [code, cid],
+    args: [ventureId, cid],
   });
 }
 
@@ -91,10 +93,11 @@ export function selectActivePlanTemplateById(templateId) {
 }
 
 /** Create a draft operating plan, returning its id. */
-export function insertOperatingPlanFromTemplate(ventureCode, name, description, actorCid) {
+export async function insertOperatingPlanFromTemplate(ventureRef, name, description, actorCid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "INSERT INTO venture_operating_plans (venture_id, name, objective, status, created_by) VALUES (?,?,?,?,?) RETURNING id",
-    args: [ventureCode, name, description, "draft", actorCid],
+    args: [ventureId, name, description, "draft", actorCid],
   });
 }
 

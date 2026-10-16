@@ -15,6 +15,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 /**
  * Create the table. The database layer already runs each CREATE at most once per
@@ -65,7 +66,8 @@ export async function ensureVentureDocumentTypesTable(database = db) {
 }
 
 /** How many types a Venture already has. */
-export function countVentureDocumentTypes(ventureId, database = db) {
+export async function countVentureDocumentTypes(ventureRef, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
     sql: "SELECT COUNT(*) AS n FROM venture_document_types WHERE venture_id = ?",
     args: [ventureId],
@@ -73,10 +75,11 @@ export function countVentureDocumentTypes(ventureId, database = db) {
 }
 
 /** Seed a Venture's list with the built-in set, in one statement. */
-export function insertVentureDocumentTypeSeeds(ventureId, seeds, database = db) {
+export async function insertVentureDocumentTypeSeeds(ventureRef, seeds, database = db) {
   // The built-in types are the ones the readiness engine was written against, so
   // they all count for readiness. A type an admin creates later does not (see
   // `insertVentureDocumentTypeRow`).
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   const values = seeds.map(() => "(?, ?, ?, ?, ?, ?, ?, TRUE, TRUE)").join(", ");
   const args = seeds.flatMap((seed) => [
     ventureId,
@@ -97,8 +100,9 @@ export function insertVentureDocumentTypeSeeds(ventureId, seeds, database = db) 
 }
 
 /** One Venture's document types, in the order the Data bank must show them. */
-export async function listVentureDocumentTypes({ ventureId, includeInactive = false, database = db } = {}) {
-  if (!ventureId) return [];
+export async function listVentureDocumentTypes({ ventureId: ventureRef, includeInactive = false, database = db } = {}) {
+  if (!ventureRef) return [];
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   const result = await database.execute({
     sql: `SELECT id, venture_id, code, label_en, label_fr, description, required,
                  verification_method, sort_order, is_active, is_readiness, created_at, updated_at
@@ -111,7 +115,8 @@ export async function listVentureDocumentTypes({ ventureId, includeInactive = fa
 }
 
 /** One type's identity within a Venture (or null). */
-export async function selectDocumentTypeMeta(ventureId, id, database = db) {
+export async function selectDocumentTypeMeta(ventureRef, id, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   const result = await database.execute({
     sql: "SELECT id, code, is_active FROM venture_document_types WHERE id = ? AND venture_id = ?",
     args: [id, ventureId],
@@ -120,7 +125,8 @@ export async function selectDocumentTypeMeta(ventureId, id, database = db) {
 }
 
 /** Whether a code is already taken WITHIN a Venture. */
-export function selectDocumentTypeCode(ventureId, code, database = db) {
+export async function selectDocumentTypeCode(ventureRef, code, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
     sql: "SELECT id FROM venture_document_types WHERE venture_id = ? AND code = ?",
     args: [ventureId, code],
@@ -129,7 +135,7 @@ export function selectDocumentTypeCode(ventureId, code, database = db) {
 
 /** Insert one document type. */
 export async function insertVentureDocumentTypeRow({
-  ventureId,
+  ventureId: ventureRef,
   code,
   label_en,
   label_fr,
@@ -140,6 +146,7 @@ export async function insertVentureDocumentTypeRow({
   is_readiness = false,
   created_by,
 }, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   const result = await database.execute({
     sql: `INSERT INTO venture_document_types
             (venture_id, code, label_en, label_fr, description, required, verification_method, sort_order, is_active, is_readiness, created_by)
@@ -166,7 +173,8 @@ export async function insertVentureDocumentTypeRow({
  * deliberately not editable: it is what uploaded documents are filed under.
  * `changes` is already validated and trimmed by the service.
  */
-export function updateVentureDocumentTypeRow({ ventureId, id, changes }, database = db) {
+export async function updateVentureDocumentTypeRow({ ventureId: ventureRef, id, changes }, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   const sets = [];
   const args = [];
 
@@ -217,7 +225,8 @@ export function updateVentureDocumentTypeRow({ ventureId, id, changes }, databas
  * that holds documents would hide them from the Data bank without deleting the
  * files, so the delete is refused instead.
  */
-export async function countVentureDocumentsForType(ventureId, code, database = db) {
+export async function countVentureDocumentsForType(ventureRef, code, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   const result = await database.execute({
     sql: `SELECT COUNT(*) AS n
           FROM venture_verification_documents d
@@ -229,7 +238,8 @@ export async function countVentureDocumentsForType(ventureId, code, database = d
 }
 
 /** Delete one document type. */
-export function deleteVentureDocumentTypeRow(ventureId, id, database = db) {
+export async function deleteVentureDocumentTypeRow(ventureRef, id, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
     sql: "DELETE FROM venture_document_types WHERE id = ? AND venture_id = ?",
     args: [id, ventureId],
@@ -237,10 +247,14 @@ export function deleteVentureDocumentTypeRow(ventureId, id, database = db) {
 }
 
 /**
- * The active `lead_manager` assignment of a person ON a Venture. Assignments are
- * stored by the Venture CODE, never by the internal id.
+ * The active `lead_manager` assignment of a person ON a Venture.
+ *
+ * `ventureRef` is the access key OR the internal id — the assignment table keys
+ * on the internal id (Phase 0), resolved on the SAME connection that runs the
+ * statement so an injected connection stays in control.
  */
-export function selectLeadManagerAssignment(ventureId, cid, database = db) {
+export async function selectLeadManagerAssignment(ventureRef, cid, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
     sql: `SELECT 1 FROM venture_staff_assignments
           WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'

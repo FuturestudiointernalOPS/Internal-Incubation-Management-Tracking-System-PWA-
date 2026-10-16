@@ -2,6 +2,9 @@
   "status": {
     "active": "Actif",
     "pending": "En attente",
+    "prospect": "Prospect",
+    "paused": "En pause",
+    "graduated": "Diplômée",
     "inProgress": "En cours",
     "planned": "Planifié",
     "completed": "Terminé",

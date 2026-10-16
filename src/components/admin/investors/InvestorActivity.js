@@ -33,6 +33,12 @@ const row = (key, title, subtitle, side, onClick) => (
  * (a click opens the request), the other live pipelines and the information
  * requests. Read-only: the request detail only displays.
  */
+// The API returns DECIMAL columns as strings ("50000.00"): show whole dollars.
+const money = (value) => {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? `$${Math.round(n).toLocaleString("en-US")}` : "";
+};
+
 export default function InvestorActivity({ workspaces, pipelines, requests }) {
   const { t } = useI18n();
   const [detail, setDetail] = useState(null);
@@ -62,7 +68,7 @@ export default function InvestorActivity({ workspaces, pipelines, requests }) {
         [t("investorAdmin.overview.industries"), (detail.industries || []).join(", ")],
         [t("investorAdmin.overview.countries"), (detail.countries || []).join(", ")],
         [t("investorAdmin.overview.stages"), (detail.startup_stages || []).join(", ")],
-        [t("investorAdmin.overview.ticket"), detail.ticket_size_min || detail.ticket_size_max ? `$${detail.ticket_size_min || "0"}–$${detail.ticket_size_max || "∞"}` : ""],
+        [t("investorAdmin.overview.ticket"), detail.ticket_size_min || detail.ticket_size_max ? `${money(detail.ticket_size_min) || "$0"}–${money(detail.ticket_size_max) || "∞"}` : ""],
       ].filter(([, value]) => value)
     : [];
 

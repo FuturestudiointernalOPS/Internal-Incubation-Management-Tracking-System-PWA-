@@ -28,6 +28,25 @@ import { canEditStartupProfile,
   submitStartupProfile,
   uploadProfileDocument } from "@/services/ventures/profile";
 
+/**
+ * Every function in `ventureProfileStore` resolves its Venture reference before it
+ * binds one (Phase 0: the stored columns hold the INTERNAL id, while the callers —
+ * routes, controllers — carry the VNT code). So a store call now issues one lookup
+ * the test is not about, and a queue of `mockResolvedValueOnce` would be shifted by
+ * it: the lookup would swallow the first business response.
+ *
+ * This answers THAT lookup and hands the rest over in order, so a test lists only
+ * the statements it actually asserts on.
+ */
+const IDENTITY_LOOKUP = { rows: [{ id: "34314a8b-044a-41ce-99ab-88d22413bd4c" }] };
+function mockStatements(...responses) {
+  db.execute.mockImplementation(async ({ sql }) => {
+    if (/FROM ventures/i.test(String(sql))) return IDENTITY_LOOKUP;
+    if (responses.length === 0) return { rows: [] };
+    return responses.shift();
+  });
+}
+
 describe("Startup Profile Wizard — read access and writes", () => {
   beforeEach(() => {
     // resetAllMocks (not clearAllMocks): clearAllMocks only clears call
@@ -51,9 +70,7 @@ describe("Startup Profile Wizard — read access and writes", () => {
     });
 
     it("should reject non-founders without super_admin", async () => {
-      db.execute
-        .mockResolvedValueOnce({ rows: [] }) // founder check
-        .mockResolvedValueOnce({ rows: [] }); // member check
+      mockStatements({ rows: [] }, { rows: [] }); // founder check, member check
       const result = await canEditStartupProfile("VNT-001", {
         role: "staff",
         email: "staff@test.com",
@@ -63,9 +80,7 @@ describe("Startup Profile Wizard — read access and writes", () => {
     });
 
     it("should allow founders to edit", async () => {
-      db.execute
-        .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // founder check matches
-        .mockResolvedValueOnce({ rows: [] });
+      mockStatements({ rows: [{ id: 1 }] }); // founder check matches
       const result = await canEditStartupProfile("VNT-001", {
         role: "founder",
         email: "founder@test.com",
@@ -133,9 +148,9 @@ describe("Startup Profile Wizard — read access and writes", () => {
     });
 
     it("should update step data and return completion", async () => {
-      db.execute
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE startup_profiles
-        .mockResolvedValueOnce({
+      mockStatements(
+        { rows: [] }, // UPDATE startup_profiles
+        {
           rows: [{
             id: 1,
             venture_id: "VNT-001",
@@ -146,8 +161,9 @@ describe("Startup Profile Wizard — read access and writes", () => {
             step_5_data: "{}",
             is_submitted: false,
           }],
-        }) // SELECT after update
-        .mockResolvedValueOnce({ rows: [] }); // UPDATE progress
+        }, // SELECT after update
+        { rows: [] }, // UPDATE progress
+      );
 
       const result = await updateWizardStep({
         ventureId: "VNT-001",
@@ -171,7 +187,7 @@ describe("Startup Profile Wizard — read access and writes", () => {
     });
 
     it("should throw error if validation fails", async () => {
-      db.execute.mockResolvedValueOnce({
+      mockStatements({
         rows: [{
           id: 1,
           venture_id: "VNT-001",
@@ -199,15 +215,16 @@ describe("Startup Profile Wizard — read access and writes", () => {
         is_submitted: false,
       };
 
-      db.execute
-        .mockResolvedValueOnce({ rows: [fullProfile] }) // SELECT profile
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE submitted
-        .mockResolvedValueOnce({ rows: [] }) // UPDATE progress
-        .mockResolvedValueOnce({ rows: [] }) // logVentureActivity
-        .mockResolvedValueOnce({ rows: [] }) // addVentureHistory
-        .mockResolvedValueOnce({ rows: [] }) // logVentureActivity internal import
-        .mockResolvedValueOnce({ rows: [] }) // addVentureHistory internal import
-        .mockResolvedValueOnce({ rows: [] }); // createVentureNotification internal import
+      mockStatements(
+        { rows: [fullProfile] }, // SELECT profile
+        { rows: [] }, // UPDATE submitted
+        { rows: [] }, // UPDATE progress
+        { rows: [] }, // logVentureActivity
+        { rows: [] }, // addVentureHistory
+        { rows: [] }, // logVentureActivity internal import
+        { rows: [] }, // addVentureHistory internal import
+        { rows: [] }, // createVentureNotification internal import
+      );
 
       const result = await submitStartupProfile({
         ventureId: "VNT-001",
@@ -247,7 +264,11 @@ describe("Startup Profile Wizard — read access and writes", () => {
         uploadedBy: "founder-001",
       });
       expect(result.success).toBe(true);
-      expect(db.execute).toHaveBeenCalledTimes(1);
+      // ONE statement writes the document. Counting every call would now also count
+      // the identity lookup that precedes it, which is not what this test is about.
+      expect(
+        db.execute.mock.calls.some(([call]) => /INSERT INTO startup_profile_documents/.test(String(call.sql))),
+      ).toBe(true);
     });
   });
 });

@@ -22,13 +22,14 @@ import {
   selectNextTaskDisplayOrder,
   insertTask,
   updateTaskColumns,
-  deleteTaskRow,
+  deleteTaskRowInTransaction,
   selectVentureDependencies,
   selectVentureTaskEdges,
   selectUnmetTaskDependencies,
   countTaskBlockersRows,
   selectTasksBlockedByRows,
   deleteTaskDependencyEdges,
+  deleteDependencyEdgesForTask,
   insertTaskDependencyEdge,
   releaseBlockedTaskRow,
   selectTaskComments,
@@ -111,8 +112,22 @@ export async function updateTask(taskId, updates) {
   return { updated: true };
 }
 
+/**
+ * Delete a task AND the dependency edges that name it.
+ *
+ * The edges go in the same transaction as the row: an edge left behind points at
+ * a task that no longer exists, and the graph is read by the Projects view (and
+ * by the block-state sync, which would otherwise hold a task "blocked" by a
+ * deleted blocker). The task is read first because the edge table is scoped by
+ * Venture.
+ */
 export async function deleteTask(taskId) {
-  await deleteTaskRow(taskId);
+  const existing = await selectTaskById(taskId).catch(() => ({ rows: [] }));
+  const task = existing.rows?.[0] || null;
+  await runInTransaction(async (query) => {
+    if (task?.venture_id) await deleteDependencyEdgesForTask(query, task.venture_id, taskId);
+    await deleteTaskRowInTransaction(query, taskId);
+  });
   return { success: true };
 }
 

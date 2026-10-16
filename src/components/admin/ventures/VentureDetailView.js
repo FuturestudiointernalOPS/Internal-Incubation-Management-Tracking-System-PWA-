@@ -194,12 +194,6 @@ export default function VentureDetailView({ ctx }) {
           </div>
             <div className="flex shrink-0 gap-2 pb-2">
               <button
-                onClick={() => router.push(`/admin/ventures/${id}/notes`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2 whitespace-nowrap"
-              >
-                <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
-              </button>
-              <button
                 onClick={() => router.push(`/admin/ventures/${id}/projects`)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2 whitespace-nowrap"
               >

@@ -14,6 +14,7 @@
 
 import db from "@/lib/db";
 import { listVentureMembers } from "@/models/ventureMembers";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Reads ────────────────────────────────────────────────────────────────────
 
@@ -100,7 +101,8 @@ export function promoteVentureMember(memberId) {
 }
 
 /** Append a lead-change ownership-history row. */
-export function insertLeadOwnershipHistory(ventureId, newOwnerId, newOwnerName, actorCid) {
+export async function insertLeadOwnershipHistory(ventureRef, newOwnerId, newOwnerName, actorCid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO ownership_history (venture_id, previous_owner_id, previous_owner_email, previous_owner_name,
           new_owner_id, new_owner_email, new_owner_name, transferred_by_id, transferred_by_email)

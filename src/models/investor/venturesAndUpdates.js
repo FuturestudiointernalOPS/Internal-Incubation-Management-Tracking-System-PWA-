@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── GET /api/investor/ventures ──────────────────────────────────────────────
 
@@ -94,7 +95,9 @@ export async function listVentureUpdatesByVentureId(ventureId) {
 }
 
 /** updates POST — create a venture update. */
-export async function createVentureUpdate({ venture_id, title, content, update_type, created_by }) {
+export async function createVentureUpdate({ venture_id: ventureRef, title, content, update_type, created_by }) {
+  // venture_updates holds the INTERNAL id (Phase 0).
+  const venture_id = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "INSERT INTO venture_updates (venture_id, title, content, update_type, created_by) VALUES (?, ?, ?, ?, ?) RETURNING *",
     args: [venture_id, title, content, update_type || "general", created_by],

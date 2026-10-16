@@ -18,6 +18,7 @@
     "test:watch": "jest --watch",
     "i18n:parity": "node scripts/i18n-parity.mjs",
     "db:align": "node scripts/db-audit/apply-align-migration.mjs",
+    "db:venture-identity": "node scripts/migrations/apply_venture_identity_phase0.mjs",
     "backfill:founder-ledger": "node scripts/backfill-founder-ledger.mjs",
     "backfill:milestone-status": "node scripts/backfill-milestone-status.mjs",
     "migrate:journey-held-states": "node scripts/migrate-journey-held-states.mjs",

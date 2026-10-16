@@ -7,7 +7,7 @@ import {
   revokeVentureMemberInvitation,
 } from "@/models/ventureMemberInvitations";
 import {
-  resolveVentureCode,
+  resolveVentureTableId,
   checkVentureMemberViewAccess,
   checkVentureMemberMutateAccess,
 } from "@/models/ventureMemberAccess";
@@ -30,12 +30,12 @@ export async function GET(req, { params }) {
     const userCid = session?.cid || "";
     const userRole = session?.role || "";
 
-    const code = await resolveVentureCode(db, id);
-    if (!(await checkVentureMemberViewAccess(db, code, userRole, userCid))) {
+    const ventureId = await resolveVentureTableId(db, id);
+    if (!(await checkVentureMemberViewAccess(db, ventureId, userRole, userCid))) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
-    const invitations = await listVentureMemberInvitations(code);
+    const invitations = await listVentureMemberInvitations(ventureId);
     return NextResponse.json({ success: true, invitations });
   } catch (error) {
     console.error("GET /api/ventures/[id]/member-invitations error:", error);
@@ -62,15 +62,15 @@ export async function DELETE(req, { params }) {
     const userCid = session?.cid || "";
     const userRole = session?.role || "";
 
-    const code = await resolveVentureCode(db, id);
-    if (!(await checkVentureMemberMutateAccess(db, code, userRole, userCid))) {
+    const ventureId = await resolveVentureTableId(db, id);
+    if (!(await checkVentureMemberMutateAccess(db, ventureId, userRole, userCid))) {
       return NextResponse.json(
         { success: false, error: "Only founders can manage venture members." },
         { status: 403 },
       );
     }
 
-    const result = await revokeVentureMemberInvitation({ id: invitationId, ventureId: code });
+    const result = await revokeVentureMemberInvitation({ id: invitationId, ventureId });
     if (!result.ok) {
       return NextResponse.json(
         { success: false, error: "This invitation is no longer pending." },

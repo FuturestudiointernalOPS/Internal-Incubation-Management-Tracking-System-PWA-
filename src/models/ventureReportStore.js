@@ -16,25 +16,29 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Report CRUD ──────────────────────────────────────────────────────────────
 
 /** Insert one report (the 14 args are assembled by the service). */
-export function insertVentureReportRow(args) {
+export async function insertVentureReportRow(args) {
+  const [ventureRef, ...rest] = args;
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_reports
             (venture_id, title, reporting_period, summary, current_journey, current_milestone,
              completed_items, outstanding_items, support_delivered, challenges, recommendation,
              journey_stage_id, report_kind, status, created_by)
           VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, ?::jsonb, ?, ?, ?, ?, ?, 'draft', ?) RETURNING id`,
-    args,
+    args: [ventureId, ...rest],
   });
 }
 
 /** A Venture's reports, newest first, with the optional status / journey filters. */
-export function selectVentureReports(code, { status = null, journeyStageId = null } = {}) {
+export async function selectVentureReports(ventureRef, { status = null, journeyStageId = null } = {}) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   let sql = "SELECT * FROM venture_reports WHERE venture_id = ?";
-  const args = [code];
+  const args = [ventureId];
   if (status) {
     sql += " AND status = ?";
     args.push(status);
@@ -48,21 +52,23 @@ export function selectVentureReports(code, { status = null, journeyStageId = nul
 }
 
 /** One report by id, scoped to its Venture. */
-export function selectVentureReport(id, code) {
+export async function selectVentureReport(id, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM venture_reports WHERE id = ? AND venture_id = ?",
-    args: [id, code],
+    args: [id, ventureId],
   });
 }
 
 /** Move a report to a new status (optionally stamping submitted_at). */
-export function updateVentureReportStatusRow(id, code, status, markSubmitted) {
+export async function updateVentureReportStatusRow(id, ventureRef, status, markSubmitted) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   const fields = ["status = ?", "updated_at = NOW()"];
   const args = [status];
   if (markSubmitted) {
     fields.push("submitted_at = COALESCE(submitted_at, NOW())");
   }
-  args.push(id, code);
+  args.push(id, ventureId);
   return db.execute({
     sql: `UPDATE venture_reports SET ${fields.join(", ")} WHERE id = ? AND venture_id = ?`,
     args,
@@ -95,13 +101,13 @@ export function selectJourneysMissingClosingReport(ventureDbId) {
 
 /** Every journey report across every Venture (optional status filter + limit). */
 export function selectPortfolioReports(status, limit) {
-  let sql = `SELECT r.id AS report_id, r.venture_id AS venture_code, r.title AS report_title,
+  let sql = `SELECT r.id AS report_id, v.venture_id AS venture_code, r.title AS report_title,
                     r.reporting_period AS report_period, r.status AS report_status,
                     r.report_kind AS report_kind, r.submitted_at AS report_submitted_at,
                     r.created_at AS report_created_at, r.journey_stage_id AS report_journey_stage_id,
                     s.name AS journey_name, v.*
              FROM venture_reports r
-             LEFT JOIN ventures v ON v.venture_id = r.venture_id
+             LEFT JOIN ventures v ON r.venture_id::text = v.id::text
              LEFT JOIN venture_journey_stages s ON s.id = r.journey_stage_id`;
   const args = [];
   if (status) {

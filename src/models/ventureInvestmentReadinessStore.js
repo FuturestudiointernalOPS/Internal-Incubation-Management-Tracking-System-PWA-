@@ -14,16 +14,19 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Category probes ──────────────────────────────────────────────────────────
 
 /** A Venture's startup profile row. */
-export function selectReadinessStartupProfile(ventureId) {
+export async function selectReadinessStartupProfile(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT * FROM startup_profiles WHERE venture_id = ?", args: [ventureId] });
 }
 
 /** A Venture's verification status. */
-export function selectReadinessVerificationStatus(ventureId) {
+export async function selectReadinessVerificationStatus(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT status FROM venture_verifications WHERE venture_id = ?", args: [ventureId] });
 }
 
@@ -81,12 +84,14 @@ export function selectReadinessBusinessStage(ventureId) {
 }
 
 /** Count the Venture's completed sessions. */
-export function countReadinessCompletedSessions(ventureId) {
+export async function countReadinessCompletedSessions(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND status='completed'", args: [ventureId] });
 }
 
 /** Count the Venture's completed pitch-review sessions. */
-export function countReadinessPitchReviews(ventureId) {
+export async function countReadinessPitchReviews(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_sessions WHERE venture_id=? AND session_type='pitch_review' AND status='completed'", args: [ventureId] });
 }
 
@@ -111,17 +116,20 @@ export function countVentureVerificationDocuments() {
 // ── Assessment reads / writes ────────────────────────────────────────────────
 
 /** The most recent stored assessment's score + level. */
-export function selectLatestAssessmentSummary(ventureId) {
+export async function selectLatestAssessmentSummary(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT overall_score, investment_level FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1", args: [ventureId] });
 }
 
 /** The most recent stored assessment row. */
-export function selectLatestAssessment(ventureId) {
+export async function selectLatestAssessment(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: `SELECT * FROM investment_assessments WHERE venture_id=? ORDER BY calculated_at DESC LIMIT 1`, args: [ventureId] });
 }
 
 /** Insert one assessment, returning its id. */
-export function insertAssessment(ventureId, overallScore, investmentLevel) {
+export async function insertAssessment(ventureRef, overallScore, investmentLevel) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: `INSERT INTO investment_assessments (venture_id, overall_score, investment_level, calculated_at) VALUES (?, ?, ?, NOW()) RETURNING id`, args: [ventureId, overallScore, investmentLevel] });
 }
 

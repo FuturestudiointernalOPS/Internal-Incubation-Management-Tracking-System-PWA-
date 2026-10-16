@@ -12,6 +12,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Investor catalogue ───────────────────────────────────────────────────────
 
@@ -59,12 +60,18 @@ export function selectLatestReadinessScore(ventureId) {
 }
 
 /** Task totals (total / done) for match scoring. */
-export function selectMatchingTaskTotals(ventureId) {
+export async function selectMatchingTaskTotals(ventureRef) {
+  // venture_tasks holds the INTERNAL id (Phase 0), so a code has to be resolved
+  // before it is bound — otherwise the probe counts a Venture that is not there.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] });
 }
 
 /** Count a Venture's accepted founders (match scoring). */
-export function countMatchingAcceptedFounders(ventureId) {
+export async function countMatchingAcceptedFounders(ventureRef) {
+  // venture_founders is uuid since Phase 0; a bound code RAISES here rather than
+  // counting zero, which took the whole generate_matches action down.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] });
 }
 

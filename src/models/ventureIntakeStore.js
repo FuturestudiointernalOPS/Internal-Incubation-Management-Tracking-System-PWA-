@@ -12,6 +12,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Promotion members ────────────────────────────────────────────────────────
 
@@ -77,7 +78,8 @@ export function insertVentureLegacy({
 }
 
 /** Insert one pending founder row. */
-export function insertFounderRecord(ventureId, email, name, phone, title, invitationToken) {
+export async function insertFounderRecord(ventureRef, email, name, phone, title, invitationToken) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_founders (venture_id, email, name, phone, title, invitation_token, invitation_sent_at, status)
           VALUES (?, ?, ?, ?, ?, ?, NOW(), 'pending')`,

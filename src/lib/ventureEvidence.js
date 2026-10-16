@@ -103,6 +103,28 @@ export async function signEvidencePath(path, expiresIn = EVIDENCE_URL_TTL_SECOND
 }
 
 /**
+ * Read one stored file's BYTES. Returns `{ content, contentType }` or null.
+ *
+ * Signing a URL is what a VIEWER needs; attaching a file to an email needs the
+ * bytes themselves, so the mail transport can carry them. Used for reminder
+ * attachments, which are downloaded at send time rather than kept in memory.
+ */
+export async function downloadEvidenceBytes(path) {
+  const clean = evidenceStoragePath(path);
+  if (!clean) return null;
+  try {
+    const client = serviceClient();
+    if (!client) return null;
+    const { data, error } = await client.storage.from(EVIDENCE_BUCKET).download(clean);
+    if (error || !data) return null;
+    const content = Buffer.from(await data.arrayBuffer());
+    return { content, contentType: data.type || "application/octet-stream" };
+  } catch (_) {
+    return null;
+  }
+}
+
+/**
  * What the UI should link to: external links pass through, storage paths are
  * signed. Returns null when there is nothing usable (UI falls back to the raw
  * stored value only if it is an external link).
@@ -140,4 +162,4 @@ export async function signSessionMaterials(raw) {
   );
 }
 
-export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR, signSessionMaterials };
+export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, downloadEvidenceBytes, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR, signSessionMaterials };

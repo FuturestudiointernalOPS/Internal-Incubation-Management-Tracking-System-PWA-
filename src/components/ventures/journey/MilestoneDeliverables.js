@@ -1,5 +1,6 @@
 "use client";
 
+import ActivityReport from "@/components/ventures/journey/ActivityReport";
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { datePickerFloor, groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
@@ -61,6 +62,7 @@ export default function MilestoneDeliverables({
   setBookFor,
   setBookForm,
   stage,
+  ventureId,
 }) {
   const { t } = useI18n();
   // The deliverable whose detail dialog is open (id only, so the dialog reads
@@ -265,6 +267,7 @@ export default function MilestoneDeliverables({
           </div>
 
           {/* Book a session AGAINST THIS ACTIVITY (date + exact time) */}
+          <div className="jy-btns">
           {canBook && (
             <MilestoneSessionBooking
               autoGrow={autoGrow}
@@ -282,6 +285,8 @@ export default function MilestoneDeliverables({
               stage={stage}
             />
           )}
+            <ActivityReport ventureId={ventureId} milestone={milestone} activity={group.activity} />
+          </div>
         </div>
       ))}
 

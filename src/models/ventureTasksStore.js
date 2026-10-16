@@ -73,6 +73,11 @@ export function deleteTaskRow(taskId) {
   return db.execute({ sql: "DELETE FROM venture_tasks WHERE id = ?", args: [taskId] });
 }
 
+/** Delete one task row (cursor form, so it commits with its edge cleanup). */
+export function deleteTaskRowInTransaction(query, taskId) {
+  return query("DELETE FROM venture_tasks WHERE id = ?", [taskId]);
+}
+
 // ── Task-to-task dependency graph ────────────────────────────────────────────
 
 /** Every dependency row of a Venture (all types), source→target. */
@@ -130,6 +135,24 @@ export function deleteTaskDependencyEdges(query, ventureId, targetId) {
     `DELETE FROM venture_dependencies
      WHERE venture_id::text = ?::text AND source_type = 'task' AND target_type = 'task' AND target_id = ?`,
     [String(ventureId), targetId],
+  );
+}
+
+/**
+ * Delete every edge that names a task, in BOTH directions (transaction runner).
+ *
+ * A deleted task must take its edges with it: an edge whose end no longer exists
+ * is a dangling record, and the dependency graph is read by the Projects view and
+ * by the block-state sync. `deleteTaskDependencyEdges` above only removes the
+ * INBOUND edges, because it belongs to "replace this task's blockers" — this one
+ * removes both ends, which is what deleting the task itself means.
+ */
+export function deleteDependencyEdgesForTask(query, ventureId, taskId) {
+  return query(
+    `DELETE FROM venture_dependencies
+     WHERE venture_id::text = ?::text
+       AND ((source_type = 'task' AND source_id = ?) OR (target_type = 'task' AND target_id = ?))`,
+    [String(ventureId), String(taskId), String(taskId)],
   );
 }
 

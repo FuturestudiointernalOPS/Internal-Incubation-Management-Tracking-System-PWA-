@@ -9,15 +9,16 @@ import React, {
 } from "react";
 
 const ThemeContext = createContext({
-  theme: "dark",
-  resolvedTheme: "dark",
+  theme: "light",
+  resolvedTheme: "light",
   setTheme: () => {},
   toggleTheme: () => {},
   mounted: false,
 });
 
 const STORAGE_KEY = "impactos_theme";
-const DEFAULT_PREFERENCE = "dark";
+// Light is the default; a person who picked dark (or "system") keeps that choice.
+const DEFAULT_PREFERENCE = "light";
 const PREFERENCES = ["dark", "light", "system"];
 
 /**
@@ -27,7 +28,7 @@ const PREFERENCES = ["dark", "light", "system"];
 function resolveTheme(preference, osPrefersDark) {
   if (preference === "system") return osPrefersDark ? "dark" : "light";
   if (preference === "dark" || preference === "light") return preference;
-  return "dark";
+  return "light";
 }
 
 // ─── The stored preference, as a store ───────────────────────────────────────

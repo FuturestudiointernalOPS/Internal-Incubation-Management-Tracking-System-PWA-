@@ -2,25 +2,46 @@ import db from "@/lib/db";
 
 // ── GET/POST/PUT /api/ventures ───────────────────────────────────────────────
 
-/** Ventures list with founder/member counts and optional directory filters. */
-export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search }) {
+/**
+ * Ventures list with founder/member counts and optional directory filters.
+ *
+ * A DELETED Venture is not a project. `is_archived` is this schema's soft-delete
+ * marker for a Venture and `status = 'archived'` is the same fact written the
+ * other way; either one means the Venture must not be offered as active work.
+ * Both are excluded unless the caller explicitly asks for them
+ * (`includeArchived`, i.e. the history/archived views).
+ *
+ * `is_archived::int` IS NOT DECORATION. On `ventures` this column is an INTEGER
+ * (a legacy generation of the DDL), while the work tables' same-named column is
+ * a BOOLEAN. `COALESCE(v.is_archived, FALSE) = FALSE` therefore does not merely
+ * mis-filter — PostgreSQL refuses to plan it at all ("COALESCE types integer
+ * and boolean cannot be matched"), which takes the whole Venture list down. The
+ * cast to int is what makes the predicate work for either column type, and it is
+ * verified against the live schema, not assumed.
+ */
+export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search, includeArchived = false }) {
   let sql = `
       SELECT v.*,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.venture_id AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.id::text AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.id::text AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
       FROM ventures v WHERE 1=1
     `;
   const args = [];
 
+  if (!includeArchived) {
+    sql += " AND COALESCE(v.is_archived::int, 0) = 0 AND COALESCE(LOWER(v.status), '') <> 'archived'";
+  }
+
   if (effectiveContactId) {
-    sql += " AND v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
+    sql += " AND v.id::text IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
     args.push(effectiveContactId, effectiveContactId);
   }
 
   // Delegated staff/program_manager: assigned Ventures OR Ventures they are a
-  // member of — never the whole directory.
+  // member of — never the whole directory. Membership/assignment columns hold
+  // the internal id, so the comparison is on `v.id`.
   if (assignedStaffId) {
-    sql += " AND (v.venture_id IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.venture_id IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
+    sql += " AND (v.id::text IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.id::text IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
     args.push(assignedStaffId, assignedStaffId, assignedStaffId);
   }
 

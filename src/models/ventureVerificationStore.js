@@ -12,11 +12,13 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Verification record + its parts ──────────────────────────────────────────
 
 /** The verification row of a Venture, or empty rows if none exists yet. */
-export function selectVerification(ventureId) {
+export async function selectVerification(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM venture_verifications WHERE venture_id = ?",
     args: [ventureId],
@@ -24,7 +26,8 @@ export function selectVerification(ventureId) {
 }
 
 /** Create the draft verification row for a Venture. */
-export function insertVerification(ventureId) {
+export async function insertVerification(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "INSERT INTO venture_verifications (venture_id, status) VALUES (?, 'draft')",
     args: [ventureId],
@@ -32,7 +35,8 @@ export function insertVerification(ventureId) {
 }
 
 /** One verification row by id within its Venture. */
-export function selectVerificationByIdAndVenture(verificationId, ventureId) {
+export async function selectVerificationByIdAndVenture(verificationId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM venture_verifications WHERE id = ? AND venture_id = ?",
     args: [verificationId, ventureId],
