@@ -105,9 +105,28 @@ SELECT * FROM user_responsibilities;
 SELECT * FROM profiles;
 SELECT * FROM profile_capabilities;
 SELECT * FROM role_profile_defaults;
+-- Last snapshot of the retired per-role table: needed only to roll back this
+-- deploy. The new build no longer reads or creates it.
 SELECT * FROM role_capabilities;
 SELECT * FROM venture_staff_assignments;
 ```
+
+### 4.1b Pre-flight before dropping `role_capabilities`
+
+The build no longer reads the table, but the destructive migration must wait
+until every account still resolves a base PROFILE. Run, read-only:
+
+```sql
+SELECT c.role, COUNT(*) AS people
+FROM contacts c
+LEFT JOIN role_profile_defaults rpd ON rpd.role_name = c.role
+LEFT JOIN contacts o ON o.cid = c.cid AND o.profile_key IS NOT NULL
+WHERE o.cid IS NULL AND rpd.role_name IS NULL
+GROUP BY c.role;
+```
+
+Expect **zero rows**. Any row names an identity that would lose its base rights.
+Only then run `migrations/drop_role_capabilities.sql`.
 
 ### 4.2 Confirm the access vocabulary landed
 

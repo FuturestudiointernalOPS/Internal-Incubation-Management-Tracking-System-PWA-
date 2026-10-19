@@ -1,5 +1,10 @@
 # Layer split — View → Controller → Service → Repository
 
+> **2026-10-19.** The retired permission editor (`permission-center/**`) and the
+> standalone preview centre were deleted. References to those paths below are
+> historical: they describe the split as it was performed, not files that still
+> exist. The active centre is `src/components/permissions/center/**`.
+
 > Status: **authorization + finance complete; programs models done; controller
 > frontier complete (after a correction — see slice 26)**. Slices 1–9 finished
 > authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered

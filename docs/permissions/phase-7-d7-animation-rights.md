@@ -30,14 +30,14 @@ un backfill de niveaux — hors périmètre de ce lot.
 
 ## 2. Ce qui a changé (code, sans données)
 
-Trois déclarations d'**un même vocabulaire**, normalement tenues en synchronie
-exacte par le test de contrat :
+Une seule **définition** et deux vues qui en dérivent, tenues en synchronie
+par le test de contrat :
 
 | Fichier | Élément |
 |---|---|
-| `src/lib/facilitator-permissions.js` | `FACILITATOR_CAPABILITY_KEYS` |
-| `src/server/authz/capabilities.js` | `PERMISSION_MODULES.facilitator.capabilities` |
-| `src/models/authorization/capability-catalog.js` | `CAPABILITY_CATALOG.facilitator.capabilities` |
+| `src/models/authorization/constants/facilitator-capabilities.js` | `FACILITATOR_MODULE` (définition source) et `FACILITATOR_CAPABILITY_KEYS` (dérivée) |
+| `src/models/authorization/constants/feature-module-capability.js` | importe `FACILITATOR_MODULE` comme module `facilitator` |
+| `src/server/authz/capabilities.js` | `PERMISSION_MODULES.facilitator.capabilities` (vue dérivée) |
 
 Deux listes d'**interface** (les cases à cocher d'un programme) :
 
