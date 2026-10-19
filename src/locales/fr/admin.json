@@ -5,13 +5,11 @@
     "internalOperations": "Opérations internes",
     "teamAccountability": "Responsabilité d'équipe",
     "risksAndBlockers": "Risques et blocages",
-    "historicalIntelligence": "Renseignements historiques",
     "activePrograms": "Programmes actifs",
     "totalParticipants": "Nombre total de participants",
     "operationalStaff": "Personnel opérationnel",
     "mondayStandups": "Points du lundi",
     "fridayRetros": "Rétrospectives du vendredi",
-    "blockersReported": "Blocages signalés",
     "blockerRate": "Taux de blocage",
     "activeBlockerRate": "Taux de blocages actifs",
     "consistent": "Régulier",
@@ -22,9 +20,6 @@
     "quickActions": "Actions rapides",
     "viewAllBlockers": "Voir tous les blocages",
     "blockerReports": "Rapports de blocage",
-    "reportArchive": "Archives des rapports",
-    "reportsHub": "Centre des rapports",
-    "reportResponses": "Réponses aux rapports",
     "programName": "Nom du programme",
     "programType": "Type de programme",
     "programTypes": {
@@ -70,11 +65,8 @@
     "awaitingAction": "en attente d'action",
     "assignedBy": "Assigné par :",
     "approveAccess": "Approuver l'accès",
-    "ofAllReports": "de tous les rapports",
-    "activeReporters": "rapporteurs actifs",
     "latestBlockers": "Blocages récents",
     "noActiveBlockers": "Aucun blocage actif",
-    "fullArchive": "Archives complètes",
     "ownerLabel": "Propriétaire :",
     "taskLabel": "Tâche :",
     "sectionSubtitles": {
@@ -83,17 +75,13 @@
       "activeInternalProjects": "Projets internes actifs",
       "staffReporting": "Rapports du personnel et activité opérationnelle",
       "reportingReliability": "Fiabilité des rapports et responsabilité d'équipe",
-      "recurringProblems": "Problèmes opérationnels récurrents",
-      "longTermVisibility": "Visibilité opérationnelle à long terme"
+      "recurringProblems": "Problèmes opérationnels récurrents"
     },
     "descriptions": {
       "workHub": "Centre centralisé pour les tâches, blocages et suivi d'exécution",
       "trackTasks": "Suivre l'exécution de toutes les tâches dans l'organisation",
       "monitorBlockers": "Surveiller les blocages actifs et la progression des résolutions",
-      "viewProjects": "Consulter le portefeuille de projets et les jalons",
-      "browseArchive": "Parcourir tous les rapports soumis et données historiques",
-      "historicalReports": "Rapports historiques des programmes et soumissions de formulaires",
-      "pmReportResponses": "Toutes les réponses aux rapports des gestionnaires de programme"
+      "viewProjects": "Consulter le portefeuille de projets et les jalons"
     },
     "programsList": "Programmes",
     "all": "Tout",
@@ -145,6 +133,18 @@
       "deleteSuccess": "Équipe supprimée avec succès",
       "deleteConfirm": "Êtes-vous sûr de vouloir supprimer cette équipe ? Cette action est irréversible.",
       "backToPrograms": "Retour aux programmes"
+    },
+    "accountability": {
+      "window": "4 dernières semaines",
+      "notDue": "Pas encore dû",
+      "missing": "Manquant",
+      "activeBlockers": "Blocages actifs",
+      "regularity": "Régularité",
+      "lastReport": "Dernier rapport",
+      "doneOfDue": "{done}/{due} sur 4 semaines",
+      "ofStandups": "des points du lundi, 4 dernières semaines",
+      "thisWeek": "Cette semaine · S{week}",
+      "dueFriday": "Attendu vendredi"
     }
   }
 }

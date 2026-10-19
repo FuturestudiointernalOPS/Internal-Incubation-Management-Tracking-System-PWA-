@@ -12,11 +12,17 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Profile + progress ───────────────────────────────────────────────────────
+//
+// `startup_profiles` / `startup_profile_progress` key on the INTERNAL id since
+// Phase 0; every function below resolves its reference, so the service keeps
+// passing whatever identifier it holds.
 
 /** One startup_profiles row for a Venture, or empty rows if none exists yet. */
-export function selectStartupProfile(ventureId) {
+export async function selectStartupProfile(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM startup_profiles WHERE venture_id = ?",
     args: [ventureId],
@@ -24,7 +30,8 @@ export function selectStartupProfile(ventureId) {
 }
 
 /** Create the empty startup_profiles row for a Venture. */
-export function insertStartupProfile(ventureId) {
+export async function insertStartupProfile(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "INSERT INTO startup_profiles (venture_id) VALUES (?)",
     args: [ventureId],
@@ -32,7 +39,8 @@ export function insertStartupProfile(ventureId) {
 }
 
 /** One startup_profile_progress row for a Venture, or empty rows if none. */
-export function selectProfileProgress(ventureId) {
+export async function selectProfileProgress(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM startup_profile_progress WHERE venture_id = ?",
     args: [ventureId],
@@ -40,7 +48,8 @@ export function selectProfileProgress(ventureId) {
 }
 
 /** Create the initial progress row (step 1, 0%). */
-export function insertProfileProgress(ventureId) {
+export async function insertProfileProgress(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "INSERT INTO startup_profile_progress (venture_id, current_step, completion_percentage) VALUES (?, 1, 0)",
     args: [ventureId],
@@ -48,7 +57,8 @@ export function insertProfileProgress(ventureId) {
 }
 
 /** Persist one wizard step's JSON payload (column name chosen by the service). */
-export function updateProfileStepColumn(ventureId, stepColumn, serialized) {
+export async function updateProfileStepColumn(ventureRef, stepColumn, serialized) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `UPDATE startup_profiles SET ${stepColumn} = ?::jsonb, updated_at = NOW() WHERE venture_id = ?`,
     args: [serialized, ventureId],
@@ -56,7 +66,8 @@ export function updateProfileStepColumn(ventureId, stepColumn, serialized) {
 }
 
 /** Move the progress row to the worked-on step and its recomputed completion. */
-export function updateProfileProgress(ventureId, step, completionPercentage, lastCompletedStep) {
+export async function updateProfileProgress(ventureRef, step, completionPercentage, lastCompletedStep) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `UPDATE startup_profile_progress
           SET current_step = ?, completion_percentage = ?, last_completed_step = ?, last_updated = NOW()
@@ -66,7 +77,8 @@ export function updateProfileProgress(ventureId, step, completionPercentage, las
 }
 
 /** Flag the profile as submitted at the given timestamp. */
-export function markProfileSubmitted(ventureId, now) {
+export async function markProfileSubmitted(ventureRef, now) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "UPDATE startup_profiles SET is_submitted = TRUE, submitted_at = ? WHERE venture_id = ?",
     args: [now, ventureId],
@@ -74,7 +86,8 @@ export function markProfileSubmitted(ventureId, now) {
 }
 
 /** Mark the progress row fully complete (step `step`, 100%). */
-export function completeProfileProgress(ventureId, step) {
+export async function completeProfileProgress(ventureRef, step) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `UPDATE startup_profile_progress
           SET current_step = ?, completion_percentage = 100, last_completed_step = ?, is_completed = TRUE, last_updated = NOW()
@@ -86,7 +99,8 @@ export function completeProfileProgress(ventureId, step) {
 // ── Documents ────────────────────────────────────────────────────────────────
 
 /** A Venture's profile documents, newest first. */
-export function selectProfileDocuments(ventureId) {
+export async function selectProfileDocuments(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT * FROM startup_profile_documents WHERE venture_id = ? ORDER BY uploaded_at DESC",
     args: [ventureId],
@@ -94,9 +108,10 @@ export function selectProfileDocuments(ventureId) {
 }
 
 /** Upsert one profile document (unique on venture/type/name). */
-export function upsertProfileDocument({
-  ventureId, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy,
+export async function upsertProfileDocument({
+  ventureId: ventureRef, documentType, fileName, fileSize, fileType, fileUrl, uploadedBy,
 }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO startup_profile_documents (venture_id, document_type, file_name, file_size, file_type, file_url, uploaded_by)
           VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -107,7 +122,8 @@ export function upsertProfileDocument({
 }
 
 /** Delete one profile document by id within its Venture. */
-export function deleteProfileDocumentRow(ventureId, documentId) {
+export async function deleteProfileDocumentRow(ventureRef, documentId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "DELETE FROM startup_profile_documents WHERE id = ? AND venture_id = ?",
     args: [documentId, ventureId],
@@ -117,7 +133,8 @@ export function deleteProfileDocumentRow(ventureId, documentId) {
 // ── Access probes ────────────────────────────────────────────────────────────
 
 /** Whether an email is a registered founder of the Venture. */
-export function selectFounderIdByEmail(ventureId, email) {
+export async function selectFounderIdByEmail(ventureRef, email) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_founders WHERE venture_id = ? AND LOWER(email) = LOWER(?)",
     args: [ventureId, email],
@@ -125,7 +142,8 @@ export function selectFounderIdByEmail(ventureId, email) {
 }
 
 /** Whether a contact is a founder-like member of the Venture. */
-export function selectFounderMemberIdByCid(ventureId, cid) {
+export async function selectFounderMemberIdByCid(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_members WHERE venture_id = ? AND user_cid = ? AND role IN ('founder', 'co-founder')",
     args: [ventureId, cid],

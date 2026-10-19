@@ -18,7 +18,7 @@ export default function VentureStatusBadge({ status }) {
   const meta = STATUS_META[key] || STATUS_META.active;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/5 border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-wider ${meta.text}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--surface-2)] border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-wider ${meta.text}`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${meta.dot}`} />
       {t(meta.key)}

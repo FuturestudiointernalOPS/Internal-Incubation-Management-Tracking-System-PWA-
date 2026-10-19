@@ -28,7 +28,7 @@ import PlanReview from "./plan-import/PlanReview";
  * the form appears only when someone clicks to upload. A stored draft, on the
  * other hand, is active work and stays open.
  */
-export default function PlanImportPanel({ ventureId }) {
+export default function PlanImportPanel({ ventureId, onImported }) {
   const { t } = useI18n();
   const { confirm } = useDialogs();
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -54,9 +54,9 @@ export default function PlanImportPanel({ ventureId }) {
   };
 
   return (
-    <div className="card mb-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+    <div className="jy-box">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h3 className="jy-h">
           <FileSpreadsheet className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           {t("venture.planImport.title")}
           {draft && (
@@ -69,7 +69,7 @@ export default function PlanImportPanel({ ventureId }) {
           <button
             type="button"
             onClick={discard}
-            className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border border-rose-500/30 text-rose-400 hover:bg-rose-500/10 flex items-center gap-1.5"
+            className="stf-btn sm rj"
           >
             <Trash2 className="w-3 h-3" />
             {t("venture.planImport.discard")}
@@ -79,7 +79,7 @@ export default function PlanImportPanel({ ventureId }) {
             type="button"
             onClick={() => setUploadOpen((open) => !open)}
             aria-expanded={uploadOpen}
-            className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black hover:opacity-90 flex items-center gap-1.5"
+            className="stf-btn sm pr"
           >
             {uploadOpen ? <ChevronUp className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
             {t(uploadOpen ? "venture.planImport.hideUpload" : "venture.planImport.showUpload")}
@@ -94,7 +94,7 @@ export default function PlanImportPanel({ ventureId }) {
       ) : draft ? (
         // `key` so a replaced draft remounts with its own working copy rather
         // than editing the draft that is no longer there.
-        <PlanReview key={draft.id} ventureId={ventureId} draft={draft} onSaved={refreshDraft} />
+        <PlanReview key={draft.id} ventureId={ventureId} draft={draft} onSaved={refreshDraft} onApplied={onImported} />
       ) : uploadOpen ? (
         <PlanUpload
           ventureId={ventureId}

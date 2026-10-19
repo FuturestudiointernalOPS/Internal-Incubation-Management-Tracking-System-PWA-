@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── GET/POST/PATCH /api/ventures/[id]/milestones ─────────────────────────────
 
@@ -18,9 +19,17 @@ export async function getVentureDbIdForMilestoneCreate(venture_id) {
   });
 }
 
-/** All milestones of a Venture db id, newest first. */
+/**
+ * All milestones of a Venture db id, in roadmap order. A journey that was
+ * imported or generated creates all its milestones in one go (same
+ * `created_at`), so "newest first" left their order to chance — the first
+ * milestone could be listed last. `display_order` is the roadmap's own order.
+ */
 export async function listVentureMilestonesByDbId(ventureDbId) {
-  return db.execute({ sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY created_at DESC", args: [ventureDbId] });
+  return db.execute({
+    sql: "SELECT * FROM venture_milestones WHERE venture_id = ? ORDER BY display_order ASC NULLS LAST, created_at ASC, id ASC",
+    args: [ventureDbId],
+  });
 }
 
 /** Whether a journey stage belongs to a Venture db id. */
@@ -160,13 +169,15 @@ export async function listVenturesAssignedToStaff(staffCid, ventureFilter) {
              a.scope_type, a.scope_ref_type, a.scope_ref_id, a.notes, a.created_at AS assigned_at,
              v.venture_id, v.company_name, v.name, v.status, v.business_stage, v.industry, v.country
       FROM venture_staff_assignments a
-      JOIN ventures v ON v.venture_id = a.venture_id
+      JOIN ventures v ON a.venture_id::text = v.id::text
       LEFT JOIN venture_responsibilities vr ON vr.code = a.responsibility_code
       WHERE a.staff_contact_id = ? AND a.status = 'active'
     `;
   const args = [staffCid];
   if (ventureFilter) {
-    sql += " AND a.venture_id = ?";
+    // `ventureFilter` is the VNT code (the access key), which lives on the
+    // Venture — the assignment column holds the internal id.
+    sql += " AND v.venture_id = ?";
     args.push(ventureFilter);
   }
   sql += " ORDER BY v.company_name NULLS LAST, v.name NULLS LAST, a.id DESC";
@@ -185,12 +196,13 @@ export async function getVentureCodeByIdOrCode(id) {
 }
 
 /** A contact's active assignment rows for one Venture (my-access facts). */
-export async function listActiveVentureAssignmentsForAccess(ventureCode, cid) {
+export async function listActiveVentureAssignmentsForAccess(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT responsibility_code, scope_type, scope_ref_type, scope_ref_id
                 FROM venture_staff_assignments
                 WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active'`,
-    args: [ventureCode, cid],
+    args: [ventureId, cid],
   });
 }
 
@@ -388,13 +400,13 @@ export async function updateVentureMemberFields(updates, args) {
 
 // ── POST /api/ventures/[id]/milestones/archive ───────────────────────────────
 
-/** Milestones of a Venture (by code-or-uuid) among the given ids, with the Venture's db id. */
+/** Milestones of a Venture (by VNT code) among the given ids, with the Venture's db id. */
 export async function listMilestonesForArchive(id, ids) {
   return db.execute({
     sql: `SELECT m.id, m.title, m.journey_stage_id, v.id AS venture_db_id FROM venture_milestones m
-          JOIN ventures v ON (m.venture_id::text = v.id::text OR m.venture_id::text = v.venture_id)
-          WHERE (v.venture_id = ? OR v.id::text = ?)
+          JOIN ventures v ON m.venture_id::text = v.id::text
+          WHERE v.venture_id = ?
             AND m.id::text = ANY(?)`,
-    args: [id, id, ids],
+    args: [id, ids],
   });
 }

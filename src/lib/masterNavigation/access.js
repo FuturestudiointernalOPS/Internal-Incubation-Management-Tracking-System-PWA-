@@ -28,14 +28,14 @@ export const ROLE_ACCESS = {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
       communication: ["messages", "announcements", "forms"],
       programs: ["all_programs", "create_program", "progress"],
-      ventures: ["all_ventures", "venture_projects"],
-      investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_overview", "investors_campaigns", "investors_relationships"],
+      ventures: ["all_ventures"],
+      investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_campaigns", "investors_relationships"],
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],
       knowledge: ["knowledge_base"],
       lms: ["lms_courses", "lms_registrations"],
       security: ["security", "audit_logs", "access_summary", "permissions"],
-      settings: ["integrations", "system"],
+      settings: ["system"],
     },
     hrefs: {},
     icons: {},
@@ -128,11 +128,6 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   lms: { module: "lms", capability: "view" },
   reports: { module: "reports", capability: "view" },
   ventures: { module: "ventures", capability: "view" },
-  // The Project Management view reads the Venture's work through the SAME
-  // capability that already means "may read this Venture" — the scope half of
-  // requireVentureScopedAccess is what keeps one Venture Manager out of another
-  // Venture's work. No new permission model.
-  venture_projects: { module: "ventures", capability: "view" },
   investors: { module: "investor", capability: "view" },
   communication: { module: "messaging", capability: "view" },
   weekly_ops: { module: "reports", capability: "create" },

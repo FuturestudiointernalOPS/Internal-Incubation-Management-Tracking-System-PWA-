@@ -3,6 +3,7 @@ import { resolveAppUrl } from "@/lib/appUrl";
 import { hashToken } from "@/lib/token-hashing";
 import {
   buildGoogleAuthUrl,
+  describeGoogleRedirect,
   emailFromIdToken,
   exchangeGoogleCode,
   isGoogleOAuthConfigured,
@@ -35,13 +36,11 @@ import {
   listConnections,
   listEventLinks,
   listImportedEvents,
-  listSyncableTasksForUser,
   listTaskLinks,
   updateConnection,
   upsertConnection,
   upsertEventLink,
   upsertImportedEvent,
-  upsertTaskLink,
 } from "@/models/integrations/googleCalendar";
 import { getContactIdentityByCid } from "@/models/contacts/contactStore";
 import {
@@ -49,10 +48,9 @@ import {
   isPlatformEvent,
   normalizeGoogleEvent,
   planEventSync,
-  planTaskSync,
   toDashboardItem,
 } from "./mapping";
-import { listUserTimedEvents } from "./timedEvents";
+import { listUserCalendarEvents } from "./timedEvents";
 
 /**
  * Google Calendar integration — use cases (SERVICE layer).
@@ -200,46 +198,6 @@ async function resetCalendar(connection) {
 
 // ── Platform → Google ───────────────────────────────────────────────────────
 
-async function pushTasks(connection, accessToken) {
-  const userId = connection.user_id;
-  const calendarId = connection.calendar_id;
-  const [tasks, links] = await Promise.all([
-    listSyncableTasksForUser(userId),
-    listTaskLinks(userId),
-  ]);
-  const plan = planTaskSync(tasks, links, { appUrl: resolveAppUrl() });
-  const stats = { created: 0, updated: 0, deleted: 0 };
-
-  for (const { task, body, fingerprint } of plan.creates) {
-    const created = await insertEvent(accessToken, calendarId, body);
-    await upsertTaskLink(userId, task.id, created.id, fingerprint);
-    stats.created++;
-  }
-  for (const { task, eventId, body, fingerprint } of plan.updates) {
-    try {
-      await patchEvent(accessToken, calendarId, eventId, body);
-      await upsertTaskLink(userId, task.id, eventId, fingerprint);
-    } catch (error) {
-      if (!isGone(error)) throw error;
-      // Deleted by hand in Google: the platform is the source of truth for
-      // tasks, so the copy is recreated.
-      const created = await insertEvent(accessToken, calendarId, body);
-      await upsertTaskLink(userId, task.id, created.id, fingerprint);
-    }
-    stats.updated++;
-  }
-  for (const { taskId, eventId } of plan.deletes) {
-    try {
-      await deleteEvent(accessToken, calendarId, eventId);
-    } catch (error) {
-      if (!isGone(error)) throw error;
-    }
-    await deleteTaskLink(userId, taskId);
-    stats.deleted++;
-  }
-  return stats;
-}
-
 async function resolveUserRole(userId) {
   const res = await getContactIdentityByCid(userId).catch(() => ({ rows: [] }));
   return res.rows?.[0]?.role || null;
@@ -247,36 +205,47 @@ async function resolveUserRole(userId) {
 
 // ── Platform timed objects → Google (sessions, follow-ups) ───────────────────
 
-async function pushTimedEvents(connection, accessToken, role) {
+/**
+ * Ask Google to e-mail the guests of an event we write.
+ *
+ * `sendUpdates` defaults to sending NOTHING, so a session with attendees would
+ * land on the organiser's calendar and reach nobody — the silent half of the
+ * invitation. "all" only matters when an event HAS attendees; an event without
+ * them sends nothing.
+ */
+const NOTIFY_ATTENDEES = { sendUpdates: "all" };
+
+async function pushCalendarEvents(connection, accessToken, role) {
   const userId = connection.user_id;
   const calendarId = connection.calendar_id;
   const [events, links] = await Promise.all([
-    listUserTimedEvents({ userId, role }),
+    listUserCalendarEvents({ userId, role }),
     listEventLinks(userId),
   ]);
   const plan = planEventSync(events, links, { appUrl: resolveAppUrl() });
   const stats = { created: 0, updated: 0, deleted: 0 };
 
   for (const { event, body, fingerprint } of plan.creates) {
-    const created = await insertEvent(accessToken, calendarId, body);
+    const created = await insertEvent(accessToken, calendarId, body, NOTIFY_ATTENDEES);
     await upsertEventLink(userId, event.source, event.sourceId, created.id, fingerprint);
     stats.created++;
   }
   for (const { event, eventId, body, fingerprint } of plan.updates) {
     try {
-      await patchEvent(accessToken, calendarId, eventId, body);
+      await patchEvent(accessToken, calendarId, eventId, body, NOTIFY_ATTENDEES);
       await upsertEventLink(userId, event.source, event.sourceId, eventId, fingerprint);
     } catch (error) {
       if (!isGone(error)) throw error;
       // Deleted by hand in Google: recreate it.
-      const created = await insertEvent(accessToken, calendarId, body);
+      const created = await insertEvent(accessToken, calendarId, body, NOTIFY_ATTENDEES);
       await upsertEventLink(userId, event.source, event.sourceId, created.id, fingerprint);
     }
     stats.updated++;
   }
   for (const { source, sourceId, eventId } of plan.deletes) {
     try {
-      await deleteEvent(accessToken, calendarId, eventId);
+      // A cancelled session must also leave the guests' calendars.
+      await deleteEvent(accessToken, calendarId, eventId, NOTIFY_ATTENDEES);
     } catch (error) {
       if (!isGone(error)) throw error;
     }
@@ -382,8 +351,7 @@ async function ensureWatch(connection, accessToken) {
 async function runSync(connection, { push = true, role = null } = {}) {
   const accessToken = await getAccessToken(connection);
   await ensureCalendar(connection, accessToken);
-  const pushed = push ? await pushTasks(connection, accessToken) : null;
-  const pushedEvents = push ? await pushTimedEvents(connection, accessToken, role) : null;
+  const pushedEvents = push ? await pushCalendarEvents(connection, accessToken, role) : null;
   const pulled = await pullEvents(connection, accessToken);
   let watching = false;
   try {
@@ -391,7 +359,7 @@ async function runSync(connection, { push = true, role = null } = {}) {
   } catch (error) {
     console.warn("[Google Calendar] watch channel not opened:", error.message);
   }
-  return { pushed, pushedEvents, pulled, watching };
+  return { pushedEvents, pulled, watching };
 }
 
 /** Full two-way sync of one user. Returns { ok, ...stats } or { ok:false, error }. */
@@ -467,13 +435,30 @@ export async function handleNotification({ channelId, channelToken, resourceStat
 // ── Status, dashboard items, disconnect ─────────────────────────────────────
 
 export async function getStatus(userId) {
+  // The callback we actually send Google, so the screen can be compared with
+  // the authorized redirect URIs in the Google console. Not a secret: it is
+  // already visible in the browser during consent.
+  const redirect = describeGoogleRedirect();
   const configured = isGoogleCalendarConfigured();
   if (!configured) {
-    return { configured: false, connected: false, missing: missingGoogleCalendarConfig() };
+    return {
+      configured: false,
+      connected: false,
+      missing: missingGoogleCalendarConfig(),
+      redirectUri: redirect.redirectUri,
+      redirectUriSource: redirect.source,
+    };
   }
   await ensureGoogleCalendarSchema();
   const connection = await findConnectionByUser(userId);
-  if (!connection) return { configured: true, connected: false };
+  if (!connection) {
+    return {
+      configured: true,
+      connected: false,
+      redirectUri: redirect.redirectUri,
+      redirectUriSource: redirect.source,
+    };
+  }
   return {
     configured: true,
     connected: true,
@@ -482,6 +467,8 @@ export async function getStatus(userId) {
     lastSyncedAt: connection.last_synced_at,
     lastError: connection.last_error,
     realtime: Boolean(connection.channel_id),
+    redirectUri: redirect.redirectUri,
+    redirectUriSource: redirect.source,
   };
 }
 

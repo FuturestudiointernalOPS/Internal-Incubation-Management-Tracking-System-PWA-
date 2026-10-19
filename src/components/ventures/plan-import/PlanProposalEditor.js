@@ -58,7 +58,9 @@ export default function PlanProposalEditor({
               <input
                 type="date"
                 value={journey.start_date || ""}
-                onChange={(event) => patchJourney(ji, { start_date: event.target.value || null })}
+                onChange={(event) =>
+                  patchJourney(ji, { start_date: event.target.value || null, dates_derived: null })
+                }
                 className={inputClass}
               />
             </label>
@@ -119,6 +121,22 @@ export default function PlanProposalEditor({
                     <input
                       value={milestone.name || ""}
                       onChange={(event) => patchMilestone(ji, mi, { name: event.target.value })}
+                      className={inputClass}
+                    />
+                  </label>
+                  {/* Start and Target sit together: a milestone the tracker dated
+                      only on one side is common, and either has to be typeable by
+                      hand — the import cannot read every tracker's date shape. */}
+                  <label className="space-y-1">
+                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">
+                      {t("venture.planImport.start")}
+                    </span>
+                    <input
+                      type="date"
+                      value={milestone.start_date || ""}
+                      onChange={(event) =>
+                        patchMilestone(ji, mi, { start_date: event.target.value || null, dates_derived: null })
+                      }
                       className={inputClass}
                     />
                   </label>

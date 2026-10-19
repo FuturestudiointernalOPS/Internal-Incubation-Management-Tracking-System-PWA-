@@ -147,6 +147,14 @@ export async function resolveBlocker({ id, resolvedBy }) {
   });
 }
 
+/** The same person's active blocker with the same title on the same task, if any. */
+export async function findActiveDuplicateBlocker(task_id, user_id, title) {
+  return db.execute({
+    sql: "SELECT id FROM blockers WHERE task_id = ? AND user_id = ? AND status = 'active' AND LOWER(TRIM(title)) = LOWER(TRIM(?)) LIMIT 1",
+    args: [parseInt(task_id), user_id, title],
+  });
+}
+
 /** Any other active blockers on the same task (before reverting task status). */
 export async function getOtherActiveBlockersForTask(task_id, exclude_id) {
   return db.execute({

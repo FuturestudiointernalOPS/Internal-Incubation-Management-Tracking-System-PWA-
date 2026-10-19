@@ -33,19 +33,19 @@ export default function FounderMilestoneTasks({
         const isTaskOpen = openTaskId === task.id;
         const canSubmit = stage.status === 'active' && !task.dependency_blocked && !['done', 'completed', 'accepted', 'cancelled'].includes(task.status);
         return (
-          <div key={task.id} className="rounded-lg border p-2.5" style={{ borderColor: 'rgb(255 255 255 / 0.08)' }}>
+          <div key={task.id} className="rounded-lg border p-2.5" style={{ borderColor: 'var(--border-primary)' }}>
             <button type="button" onClick={() => toggleTask(task.id)} className="w-full flex items-center gap-2 text-left">
               <span className={`w-2 h-2 rounded-full shrink-0 ${['done', 'completed', 'accepted'].includes(task.status) ? 'bg-green-500' : task.status === 'in_progress' || task.status === 'review' ? 'bg-amber-400' : 'bg-slate-500'}`} />
               <span className="flex-1 min-w-0">
                 <span className="block text-xs font-medium truncate">{task.title}</span>
                 {task.due_date && <span className="block text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.deadline') || 'Deadline'}: {new Date(task.due_date).toLocaleDateString()}</span>}
               </span>
-              <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-white/10 text-slate-400">{label(task.status, TASK_LABEL_KEYS)}</span>
+              <span className="text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-[var(--surface-3)] text-slate-400">{label(task.status, TASK_LABEL_KEYS)}</span>
               {submissionChip(task.id)}
               {isTaskOpen ? <ChevronDown size={14} className="shrink-0" /> : <ChevronRight size={14} className="shrink-0" />}
             </button>
             {isTaskOpen && (
-              <div className="mt-2 pt-2 border-t space-y-2" style={{ borderColor: 'rgb(255 255 255 / 0.06)' }}>
+              <div className="mt-2 pt-2 border-t space-y-2" style={{ borderColor: 'var(--border-primary)' }}>
                 {task.description && <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{task.description}</p>}
                 {task.dependency_blocked && (
                   <p className="text-[10px] px-2 py-1 rounded-lg bg-rose-500/10 text-rose-400">

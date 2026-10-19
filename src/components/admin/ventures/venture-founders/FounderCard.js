@@ -92,7 +92,7 @@ export default function FounderCard({
         <div className="relative shrink-0">
           <button
             onClick={() => setOpenMenuId(isMenuOpen ? null : founder.id)}
-            className="p-2 hover:bg-white/5 rounded-lg transition-all"
+            className="p-2 hover:bg-[var(--surface-2)] rounded-lg transition-all"
           >
             <MoreVertical className="w-4 h-4 text-slate-500" />
           </button>

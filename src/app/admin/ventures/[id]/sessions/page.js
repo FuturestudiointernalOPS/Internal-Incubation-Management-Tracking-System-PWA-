@@ -284,7 +284,7 @@ export default function VentureSessionsPage() {
           <div className="w-full max-w-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-3xl p-8 space-y-6 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-black text-[var(--text-primary)]">{t("vadmin.sessions.scheduleSession")}</h2>
-              <button onClick={()=>setShowCreateModal(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
+              <button onClick={()=>setShowCreateModal(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
             </div>
             <div className="space-y-4">
               <div>
@@ -402,7 +402,7 @@ export default function VentureSessionsPage() {
             <div className="p-6 space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-sm font-black text-[var(--text-primary)]">{selectedSession.title}</h2>
-                <button onClick={()=>setShowDetail(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
+                <button onClick={()=>setShowDetail(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500"/></button>
               </div>
               <div className="grid grid-cols-2 gap-3 text-[10px]">
                 <div className="p-3 bg-primary rounded-xl"><p className="text-[7px] font-black text-slate-500 uppercase">{t("vadmin.sessions.date")}</p><p className="font-bold mt-0.5">{new Date(selectedSession.start_time).toLocaleString()}</p></div>

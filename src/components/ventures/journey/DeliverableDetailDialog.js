@@ -67,7 +67,7 @@ export default function DeliverableDetailDialog({ deliverable, activity, onClose
               className="rounded-xl border p-3 space-y-1"
               style={{ borderColor: "var(--border-primary)", backgroundColor: "var(--surface-2)" }}
             >
-              <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+              <p className="jy-lbl" style={{ color: "var(--text-secondary)" }}>
                 {t("venture.manager.activityLabel")}
               </p>
               <p className="text-xs font-semibold whitespace-normal break-words" style={{ color: "var(--text-primary)" }}>
@@ -96,7 +96,7 @@ export default function DeliverableDetailDialog({ deliverable, activity, onClose
 
           {/* EVIDENCE — what was submitted, if anything */}
           <div className="space-y-1.5">
-            <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+            <p className="jy-lbl" style={{ color: "var(--text-secondary)" }}>
               {t("venture.manager.evidence")}
             </p>
             {deliverable.attachment_url ? (
@@ -122,7 +122,7 @@ export default function DeliverableDetailDialog({ deliverable, activity, onClose
               className="rounded-xl border p-3 space-y-2"
               style={{ borderColor: "var(--border-primary)", backgroundColor: "var(--surface-2)" }}
             >
-              <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+              <p className="jy-lbl" style={{ color: "var(--text-secondary)" }}>
                 {t("venture.submitForReview")}
               </p>
               <input
@@ -175,7 +175,7 @@ export default function DeliverableDetailDialog({ deliverable, activity, onClose
 function DetailField({ label, value }) {
   return (
     <div className="space-y-1">
-      <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+      <p className="jy-lbl" style={{ color: "var(--text-secondary)" }}>
         {label}
       </p>
       <p className="text-xs whitespace-pre-line break-words" style={{ color: "var(--text-primary)" }}>

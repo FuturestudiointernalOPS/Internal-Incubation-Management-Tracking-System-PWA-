@@ -1,5 +1,5 @@
 /**
- * External integrations, API keys, webhooks and system monitoring.
+ * The retired external API surface (keys, webhooks) and system monitoring.
  *
  * One part of the Venture schema bootstrap; concatenated, in order, by
  * `../schema.js`. Statement order across parts is significant.
@@ -13,18 +13,15 @@ export default [
 "DROP TABLE IF EXISTS integration_configs",
 "DROP TABLE IF EXISTS integration_providers",
 "ALTER TABLE platform_form_submissions DROP COLUMN IF EXISTS notion_page_id",
-// API keys & webhooks (Enhancement 5.4)
-"CREATE TABLE IF NOT EXISTS api_keys (id SERIAL PRIMARY KEY, key_id TEXT NOT NULL UNIQUE, key_hash TEXT NOT NULL, name TEXT NOT NULL, description TEXT, scopes JSONB DEFAULT '[]'::jsonb, created_by TEXT NOT NULL, expires_at TIMESTAMP, last_used_at TIMESTAMP, is_active BOOLEAN DEFAULT TRUE, allowed_ips JSONB DEFAULT '[]'::jsonb, rate_limit INTEGER DEFAULT 100, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
-"CREATE INDEX IF NOT EXISTS idx_api_keys_key_id ON api_keys(key_id)",
-"CREATE INDEX IF NOT EXISTS idx_api_keys_created_by ON api_keys(created_by)",
-"CREATE INDEX IF NOT EXISTS idx_api_keys_active ON api_keys(is_active)",
-"CREATE TABLE IF NOT EXISTS webhooks (id SERIAL PRIMARY KEY, name TEXT NOT NULL, url TEXT NOT NULL, secret TEXT, events JSONB DEFAULT '[]'::jsonb, venture_id TEXT REFERENCES ventures(venture_id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT TRUE, retry_count INTEGER DEFAULT 3, timeout_ms INTEGER DEFAULT 10000, last_triggered_at TIMESTAMP, last_status TEXT, failure_count INTEGER DEFAULT 0, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
-"CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(is_active)",
-"CREATE INDEX IF NOT EXISTS idx_webhooks_venture ON webhooks(venture_id)",
-"CREATE TABLE IF NOT EXISTS webhook_delivery_logs (id SERIAL PRIMARY KEY, webhook_id INTEGER REFERENCES webhooks(id) ON DELETE CASCADE, event_type TEXT NOT NULL, payload JSONB, response_status INTEGER, response_body TEXT, duration_ms INTEGER, status TEXT DEFAULT 'pending', attempt INTEGER DEFAULT 1, error_message TEXT, created_at TIMESTAMP DEFAULT NOW())",
-"CREATE INDEX IF NOT EXISTS idx_webhook_delivery_webhook ON webhook_delivery_logs(webhook_id)",
-"CREATE INDEX IF NOT EXISTS idx_webhook_delivery_status ON webhook_delivery_logs(status)",
-"CREATE INDEX IF NOT EXISTS idx_webhook_delivery_created ON webhook_delivery_logs(created_at DESC)",
+// The external API surface — API keys, the outbound webhooks and their
+// delivery logs — was never reachable from any screen and is gone from the
+// code. Retired the same way as the objects above: children first, so the
+// delivery log's foreign key to `webhooks` never blocks the drop.
+"DROP TABLE IF EXISTS webhook_delivery_logs",
+"DROP TABLE IF EXISTS webhooks",
+"DROP TABLE IF EXISTS api_keys",
+// API usage log — the counters the system monitoring still reads. Kept even
+// though the API keys that fed it are gone; only the writers disappeared.
 "CREATE TABLE IF NOT EXISTS api_usage_logs (id SERIAL PRIMARY KEY, api_key_id INTEGER, endpoint TEXT NOT NULL, method TEXT, ip_address TEXT, response_status INTEGER, duration_ms INTEGER, user_agent TEXT, created_at TIMESTAMP DEFAULT NOW())",
 "CREATE INDEX IF NOT EXISTS idx_api_usage_logs_key ON api_usage_logs(api_key_id)",
 "CREATE INDEX IF NOT EXISTS idx_api_usage_logs_created ON api_usage_logs(created_at DESC)",

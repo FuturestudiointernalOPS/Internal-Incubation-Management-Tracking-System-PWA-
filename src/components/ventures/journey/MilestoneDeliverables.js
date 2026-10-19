@@ -1,10 +1,12 @@
 "use client";
 
+import ActivityReport from "@/components/ventures/journey/ActivityReport";
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { datePickerFloor, groupDeliverablesByActivity } from "@/components/ventures/journey/journeyShapers";
+import { datePickerFloor, groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
+import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
-import { statusChipClass, statusDotClass, statusLabel } from "@/lib/ventureStatuses";
+import { statusDotClass, statusLabel } from "@/lib/ventureStatuses";
 import { Loader2, Plus, Save } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
@@ -18,6 +20,9 @@ import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDe
  * value of the same name (state, setter, handler or loop value), so the markup
  * and its behaviour are unchanged. The panel keeps all state and all writes.
  */
+// The kit tag for a status word (same tones as everywhere else).
+const TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes_requested: "r", completed: "g", approved: "g" };
+
 export default function MilestoneDeliverables({
   DELIVERABLE_TYPES,
   addDeliverable,
@@ -46,12 +51,24 @@ export default function MilestoneDeliverables({
   setDeliverableNewUrl,
   setDeliverableText,
   submitDeliverableEvidence,
+  autoGrow,
+  bookFor,
+  bookForm,
+  bookSaving,
+  bookSession,
+  canBook,
+  coachOptions,
+  openBooking,
+  setBookFor,
+  setBookForm,
+  stage,
+  ventureId,
 }) {
   const { t } = useI18n();
   // The deliverable whose detail dialog is open (id only, so the dialog reads
   // the current row from props and a review/approval shows up live).
   const [detailId, setDetailId] = useState(null);
-  const groups = groupDeliverablesByActivity(deliverableList);
+  const groups = groupActivitiesWithDeliverables(milestone.activities || [], deliverableList);
   const detailGroup =
     detailId == null
       ? null
@@ -60,29 +77,31 @@ export default function MilestoneDeliverables({
     detailGroup?.deliverables.find((item) => item.id === detailId) || null;
 
   return (
-    <div className="mt-2 ml-5 space-y-1.5">
-      <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+    <div className="jy-del">
+      <p className="jy-lbl">
         {t("venture.manager.deliverables")}
       </p>
       {groups.map((group, groupIndex) => (
-        <div key={group.activity?.id ?? `group-${groupIndex}`} className="rounded-lg border border-divider/70 px-2.5 py-2 space-y-2">
+        <div key={group.activity?.id ?? `group-${groupIndex}`} className="jy-act">
           {/* ACTIVITY — the work that produces what follows */}
           <div>
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.activityLabel")}</p>
-            <p className="text-[11px] font-bold text-[var(--text-primary)] mt-0.5">
+            <p className="jy-lbl">{t("venture.manager.activityLabel")}</p>
+            <p className="text-[13px] font-semibold text-[var(--text-primary)] mt-0.5">
               {group.activity?.source_ref && (
-                <span className="mr-1.5 px-1 py-0.5 rounded bg-tertiary text-[8px] font-black text-slate-500 align-middle">{group.activity.source_ref}</span>
+                <span className="stf-tag mr-1.5 align-middle">{group.activity.source_ref}</span>
               )}
               {group.activity?.title || t("venture.manager.notProvided")}
             </p>
             {group.activity?.description && (
-              <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity.description}</p>
+              <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">{group.activity.description}</p>
             )}
           </div>
 
           {/* DELIVERABLE(S) — the output, underneath its activity */}
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.deliverableLabel")}</p>
+            {group.deliverables.length > 0 && (
+              <p className="jy-lbl">{t("venture.manager.deliverableLabel")}</p>
+            )}
             {group.deliverables.map((deliverable) => {
               const status = deliverableStatus(deliverable);
               const mode = deliverableAction?.id === deliverable.id ? deliverableAction.mode : null;
@@ -133,10 +152,10 @@ export default function MilestoneDeliverables({
                   </select>
                 </div>
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setDeliverableAction(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                  <button type="button" onClick={() => setDeliverableAction(null)} className="stf-btn sm">
                     {t("common.cancel")}
                   </button>
-                  <button type="submit" disabled={deliverableSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
+                  <button type="submit" disabled={deliverableSaving} className="stf-btn sm pr">
                     {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {t("common.save")}
                   </button>
                 </div>
@@ -148,7 +167,7 @@ export default function MilestoneDeliverables({
                 <input
                   type="file"
                   onChange={(event) => setDeliverableFile(event.target.files?.[0] || null)}
-                  className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-[var(--brand-orange)] file:text-black"
+                  className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-[var(--brand-orange)] file:text-black"
                 />
                 <p className="text-[9px] uppercase tracking-widest text-slate-500">{t("venture.manager.orPasteLink")}</p>
                 <input
@@ -158,10 +177,10 @@ export default function MilestoneDeliverables({
                   className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                 />
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => { setDeliverableAction(null); setDeliverableFile(null); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                  <button type="button" onClick={() => { setDeliverableAction(null); setDeliverableFile(null); }} className="stf-btn sm">
                     {t("common.cancel")}
                   </button>
-                  <button type="button" onClick={submitDeliverableEvidence} disabled={deliverableSaving || (!deliverableFile && !deliverableText.trim())} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black disabled:opacity-50">
+                  <button type="button" onClick={submitDeliverableEvidence} disabled={deliverableSaving || (!deliverableFile && !deliverableText.trim())} className="stf-btn sm pr">
                     {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null} {t("venture.manager.submitEvidence")}
                   </button>
                 </div>
@@ -177,33 +196,33 @@ export default function MilestoneDeliverables({
                   className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                 />
                 <div className="flex justify-end gap-2">
-                  <button type="button" onClick={() => setDeliverableAction(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+                  <button type="button" onClick={() => setDeliverableAction(null)} className="stf-btn sm">
                     {t("common.cancel")}
                   </button>
-                  <button type="button" onClick={() => reviewDeliverable(deliverable, "changes_requested")} disabled={deliverableBusy === deliverable.id || !deliverableText.trim()} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-rose-500/15 text-rose-400 border border-rose-500/30 disabled:opacity-50">
+                  <button type="button" onClick={() => reviewDeliverable(deliverable, "changes_requested")} disabled={deliverableBusy === deliverable.id || !deliverableText.trim()} className="stf-btn sm rj">
                     {t("venture.manager.requestChanges")}
                   </button>
                 </div>
               </div>
             ) : (
               <>
-              <div className="flex items-center gap-2">
-                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass(status)}`} />
+              <div className="jy-drow">
+                <span className={`jy-dot ${statusDotClass(status)}`} />
                 <button
                   type="button"
                   onClick={() => setDetailId(deliverable.id)}
                   aria-label={`${t("venture.manager.viewDetails")}: ${deliverable.title}`}
-                  className="flex-1 min-w-0 text-left text-[11px] font-bold whitespace-normal break-words text-[var(--text-primary)] hover:text-[var(--brand-orange)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded"
+                  className="t whitespace-normal break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded"
                 >
                   {deliverable.title}
                 </button>
-                {deliverable.due_date && <span className="hidden sm:inline text-[9px] text-slate-500">{fmtDate(deliverable.due_date)}</span>}
+                {deliverable.due_date && <span className="hidden sm:inline text-[11.5px] text-[var(--text-secondary)]">{fmtDate(deliverable.due_date)}</span>}
                 {deliverable.attachment_url && (
-                  <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[9px] font-bold text-sky-300 hover:underline shrink-0">
+                  <a href={deliverable.evidence_download_url || deliverable.attachment_url} target="_blank" rel="noreferrer" className="text-[11.5px] font-semibold text-[var(--brand-orange)] hover:underline shrink-0">
                     {deliverable.attachment_name || t("venture.manager.viewEvidence")}
                   </a>
                 )}
-                <span className={`text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${statusChipClass(status)}`}>
+                <span className={`stf-tag ${TAG_TONE[status?.tone] || ""} shrink-0`}>
                   {statusLabel(status, t)}
                 </span>
                 {milestoneAuthority && (
@@ -219,7 +238,7 @@ export default function MilestoneDeliverables({
               </>
             )}
                   {!mode && deliverable.description && (
-                    <p className="text-[10px] text-[var(--text-secondary)] mt-1 whitespace-pre-line break-words">
+                    <p className="text-[12px] text-[var(--text-secondary)] mt-1.5 whitespace-pre-line break-words">
                       {deliverable.description}
                     </p>
                   )}
@@ -235,28 +254,38 @@ export default function MilestoneDeliverables({
 
           {/* DEFINITION OF DONE — what makes the activity complete */}
           <div>
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">{t("venture.manager.definitionOfDone")}</p>
-            <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{group.activity?.definition_of_done || t("venture.manager.notProvided")}</p>
+            <p className="jy-lbl">{t("venture.manager.definitionOfDone")}</p>
+            <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">{group.activity?.definition_of_done || t("venture.manager.notProvided")}</p>
           </div>
 
           {/* METADATA — people and timing, kept out of the prose */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px]">
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}:</span>{" "}
-              <span className="text-[var(--text-primary)]">{group.activity?.owner_name || group.deliverables[0]?.assigned_name || "—"}</span>
-            </span>
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.supporting")}:</span>{" "}
-              <span className="text-[var(--text-primary)]">{group.activity?.support_name || "—"}</span>
-            </span>
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}:</span>{" "}
-              <span className="text-[var(--text-primary)]">{group.activity?.start_date ? fmtDate(group.activity.start_date) : "—"}</span>
-            </span>
-            <span>
-              <span className="font-bold text-[var(--text-secondary)]">{t("venture.manager.finishDate")}:</span>{" "}
-              <span className="text-[var(--text-primary)]">{(group.activity?.due_date || group.deliverables[0]?.due_date) ? fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date) : "—"}</span>
-            </span>
+          <div className="jy-facts in">
+            <div><span>{t("venture.manager.milestoneOwner")}</span><b>{group.activity?.owner_name || group.deliverables[0]?.assigned_name || "—"}</b></div>
+            <div><span>{t("venture.manager.supporting")}</span><b>{group.activity?.support_name || "—"}</b></div>
+            <div><span>{t("venture.manager.startDate")}</span><b>{group.activity?.start_date ? fmtDate(group.activity.start_date) : "—"}</b></div>
+            <div><span>{t("venture.manager.finishDate")}</span><b>{(group.activity?.due_date || group.deliverables[0]?.due_date) ? fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date) : "—"}</b></div>
+          </div>
+
+          {/* Book a session AGAINST THIS ACTIVITY (date + exact time) */}
+          <div className="jy-btns">
+          {canBook && (
+            <MilestoneSessionBooking
+              autoGrow={autoGrow}
+              bookFor={bookFor}
+              bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+              bookForm={bookForm}
+              bookSaving={bookSaving}
+              bookSession={bookSession}
+              coachOptions={coachOptions}
+              deliverableList={group.deliverables}
+              milestone={milestone}
+              onOpen={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+              setBookFor={setBookFor}
+              setBookForm={setBookForm}
+              stage={stage}
+            />
+          )}
+            <ActivityReport ventureId={ventureId} milestone={milestone} activity={group.activity} />
           </div>
         </div>
       ))}
@@ -311,7 +340,7 @@ export default function MilestoneDeliverables({
             <input
               type="file"
               onChange={(event) => setDeliverableNewFile(event.target.files?.[0] || null)}
-              className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[9px] file:font-black file:uppercase file:tracking-widest file:bg-[var(--brand-orange)] file:text-black"
+              className="w-full text-[10px] text-slate-400 file:mr-2 file:px-2.5 file:py-1 file:rounded-lg file:border-0 file:text-[11px] file:font-semibold file:bg-[var(--brand-orange)] file:text-black"
             />
             <input
               value={deliverableNewUrl}
@@ -320,10 +349,10 @@ export default function MilestoneDeliverables({
               className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
             />
             <div className="flex justify-end gap-2">
-              <button type="button" onClick={() => { setDeliverableAddFor(null); setDeliverableForm(emptyDeliverableForm); setDeliverableNewFile(null); setDeliverableNewUrl(""); }} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+              <button type="button" onClick={() => { setDeliverableAddFor(null); setDeliverableForm(emptyDeliverableForm); setDeliverableNewFile(null); setDeliverableNewUrl(""); }} className="stf-btn sm">
                 {t("common.cancel")}
               </button>
-              <button type="submit" disabled={deliverableSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1 disabled:opacity-50">
+              <button type="submit" disabled={deliverableSaving} className="stf-btn sm pr">
                 {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Save className="w-3 h-3" />} {t("venture.manager.addDeliverable")}
               </button>
             </div>
@@ -331,7 +360,7 @@ export default function MilestoneDeliverables({
         ) : (
           <button
             onClick={() => { setDeliverableAddFor(milestone.id); setDeliverableForm(emptyDeliverableForm); setDeliverableNewFile(null); setDeliverableNewUrl(""); }}
-            className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-[8px] font-black uppercase tracking-widest text-slate-400 border border-[var(--border-primary)] hover:text-[var(--brand-orange)]"
+            className="stf-btn sm"
           >
             <Plus className="w-3 h-3" /> {t("venture.manager.addDeliverable")}
           </button>

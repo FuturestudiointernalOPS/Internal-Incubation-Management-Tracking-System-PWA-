@@ -72,7 +72,7 @@ function dynamicKeys() {
       "restriction",
     ],
     "engineering.permissions.prototype.risk": ["critical", "high", "normal"],
-    "engineering.permissions.prototype.tabs": ["history", "rights", "why"],
+    "engineering.permissions.prototype.tabs": ["history", "profiles", "rights", "why"],
     "engineering.permissions.prototype.sections": PROTOTYPE_SECTIONS,
     "engineering.permissions.prototype.intro": PROTOTYPE_SECTIONS,
     "engineering.permissions": [
@@ -187,7 +187,7 @@ describe("the navigation vocabulary", () => {
       expect(firstTab(section)).toBe(PROTOTYPE_TABS[section][0] || "");
     }
     expect(PROTOTYPE_TABS.journal).toEqual([]);
-    expect(PERSON_TABS).toEqual(["rights", "why", "scope", "responsibilities", "history"]);
+    expect(PERSON_TABS).toEqual(["rights", "profiles", "why", "scope", "responsibilities", "history"]);
   });
 
   test("each door of the real routing maps onto a section", () => {

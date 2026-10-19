@@ -110,7 +110,6 @@ describe("repositories stay HTTP-free", () => {
     "models/ventureSystemAdminStore.js",
     "models/ventureNotificationsStore.js",
     "models/ventureAuditStore.js",
-    "models/ventureIntegrationsStore.js",
     "models/ventureMonitoringStore.js",
     "models/ventureSchemaStore.js",
     "models/ventureIntakeStore.js",

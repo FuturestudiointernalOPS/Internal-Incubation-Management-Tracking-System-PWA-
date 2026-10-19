@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { deliverableStatusWord, statusChipClass, statusLabel } from "@/lib/ventureStatuses";
-import { groupDeliverablesByActivity } from "@/components/ventures/journey/journeyShapers";
+import { groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
+import FounderSessionBooking from "@/components/ventures/journey/FounderSessionBooking";
 import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
 import { ChevronRight } from "lucide-react";
 
@@ -25,13 +26,13 @@ import { ChevronRight } from "lucide-react";
  * ONE vocabulary, shared with the Venture Manager and Super Admin views
  * (`lib/ventureStatuses`) — the status chip is resolved through the same words.
  */
-export default function FounderMilestoneDeliverables({ milestone, stage, dvDrafts, setDvDrafts, submitDeliverable }) {
+export default function FounderMilestoneDeliverables({ milestone, stage, dvDrafts, setDvDrafts, submitDeliverable, canBook, bookFor, bookForm, bookSaving, bookSession, openBooking, setBookFor, setBookForm }) {
   const { t } = useI18n();
   // Only the id is kept: the dialog then reads the CURRENT deliverable from
   // props, so a just-submitted status shows without reopening it.
   const [openId, setOpenId] = useState(null);
 
-  const groups = groupDeliverablesByActivity(milestone.deliverables || []);
+  const groups = groupActivitiesWithDeliverables(milestone.activities || [], milestone.deliverables || []);
   const openGroup = openId == null ? null : groups.find((group) => group.deliverables.some((item) => item.id === openId));
   const openDeliverable = openGroup?.deliverables.find((item) => item.id === openId) || null;
   const openStatus = openDeliverable ? deliverableStatusWord(openDeliverable) : null;
@@ -41,7 +42,7 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
 
   return (
     <>
-      {(milestone.deliverables || []).length > 0 && (
+      {((milestone.deliverables || []).length > 0 || (milestone.activities || []).length > 0) && (
         <div className="space-y-2 pt-1">
           <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
             {t("venture.manager.deliverables")}
@@ -73,9 +74,11 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
 
               {/* DELIVERABLE(S) — the output, underneath its activity */}
               <div className="space-y-1.5">
-                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-                  {t("venture.manager.deliverableLabel")}
-                </p>
+                {group.deliverables.length > 0 && (
+                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+                    {t("venture.manager.deliverableLabel")}
+                  </p>
+                )}
                 {group.deliverables.map((deliverable) => {
                   const status = deliverableStatusWord(deliverable);
                   return (
@@ -137,6 +140,23 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
                     : "—"}
                 </span>
               </div>
+
+              {/* Book a session AGAINST THIS ACTIVITY — the Venture books its
+                  own sessions, strictly against the milestone that is open. */}
+              {canBook && (
+                <FounderSessionBooking
+                  bookFor={bookFor}
+                  bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+                  bookForm={bookForm}
+                  bookSaving={bookSaving}
+                  bookSession={bookSession}
+                  milestone={milestone}
+                  onOpen={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+                  setBookFor={setBookFor}
+                  setBookForm={setBookForm}
+                  stage={stage}
+                />
+              )}
             </div>
           ))}
         </div>

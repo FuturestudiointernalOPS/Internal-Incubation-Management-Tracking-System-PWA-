@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── /api/ventures/[id]/notes ─────────────────────────────────────────────────
 
@@ -16,17 +17,19 @@ export async function getInternalNotesViewPermission(responsibilityCode) {
 }
 
 /** A contact's active assignment rows on a Venture, by id desc. */
-export async function listActiveStaffAssignmentsByCode(ventureCode, cid) {
+export async function listActiveStaffAssignmentsByCode(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id, scope_type, scope_ref_type, scope_ref_id, responsibility_code FROM venture_staff_assignments WHERE venture_id = ? AND staff_contact_id = ? AND status = 'active' ORDER BY id DESC",
-    args: [ventureCode, cid],
+    args: [ventureId, cid],
   });
 }
 
 /** A Venture's live notes, optionally narrowed to a scope reference. */
-export function listVentureNotes({ ventureCode, scopeType, scopeId }) {
+export async function listVentureNotes({ ventureCode: ventureRef, scopeType, scopeId }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   let sql = "SELECT * FROM venture_notes WHERE venture_id = ? AND is_archived = FALSE";
-  const args = [ventureCode];
+  const args = [ventureId];
   if (scopeType) {
     sql += " AND scope_ref_type = ?";
     args.push(String(scopeType));
@@ -40,19 +43,21 @@ export function listVentureNotes({ ventureCode, scopeType, scopeId }) {
 }
 
 /** Insert an internal note (with optional attachments), returning the new id. */
-export function insertVentureNote({ ventureCode, authorCid, authorName, title, body, scopeRefType, scopeRefId, attachments }) {
+export async function insertVentureNote({ ventureCode: ventureRef, authorCid, authorName, title, body, scopeRefType, scopeRefId, attachments }) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id${attachments ? ", attachments" : ""})
             VALUES (?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
     args: attachments
-      ? [ventureCode, authorCid, authorName, title, body, scopeRefType, scopeRefId, JSON.stringify(attachments)]
-      : [ventureCode, authorCid, authorName, title, body, scopeRefType, scopeRefId],
+      ? [ventureId, authorCid, authorName, title, body, scopeRefType, scopeRefId, JSON.stringify(attachments)]
+      : [ventureId, authorCid, authorName, title, body, scopeRefType, scopeRefId],
   });
 }
 
 /** One note of a Venture, by id. */
-export async function getVentureNote(noteId, ventureCode) {
-  return db.execute({ sql: "SELECT * FROM venture_notes WHERE id = ? AND venture_id = ?", args: [noteId, ventureCode] });
+export async function getVentureNote(noteId, ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({ sql: "SELECT * FROM venture_notes WHERE id = ? AND venture_id = ?", args: [noteId, ventureId] });
 }
 
 /** Soft-archive one note. */

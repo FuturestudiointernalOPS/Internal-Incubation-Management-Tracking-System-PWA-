@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeAlerts, journalKpis } from "./prototypeAlerts";
-import { buildEligibilityMatrix } from "./personAccess";
+import { buildEligibilityMatrix, buildProfileEligibilityMatrix } from "./personAccess";
 
 const AUDIT_PAGE_SIZE = 100;
 
@@ -30,12 +30,16 @@ const EMPTY = {
   profiles: [],
   profileCapsById: {},
   roleDefaults: {},
+  // The profile catalogue's own vocabularies (create-form context + baseline roles).
+  contexts: [],
+  baselineRoles: [],
   catalog: {},
   groupDefaults: [],
   moduleToFeature: {},
   features: [],
   eligibility: null,
   eligibilityMatrix: {},
+  profileEligibilityMatrix: {},
   canConfigure: false,
   contextRoles: [],
   contextRoleProfiles: [],
@@ -111,7 +115,14 @@ export default function usePrototypeData() {
                 profileName: byKey[key]?.name || key,
               };
             }
-            patch({ profiles, profileCapsById, roleDefaults });
+            patch({
+              profiles,
+              profileCapsById,
+              roleDefaults,
+              // The create form's vocabularies travel with the catalogue read.
+              contexts: result?.contexts || [],
+              baselineRoles: result?.baseline_roles || [],
+            });
           }),
         );
       }
@@ -133,6 +144,7 @@ export default function usePrototypeData() {
               moduleToFeature: result?.moduleToFeature || {},
               features: result?.features || [],
               eligibilityMatrix: buildEligibilityMatrix(result?.rows || []),
+              profileEligibilityMatrix: buildProfileEligibilityMatrix(result?.rows || []),
               canConfigure: Boolean(result?.canConfigure),
             }),
           ),

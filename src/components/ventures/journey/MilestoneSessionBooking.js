@@ -2,8 +2,9 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { SESSION_MATERIALS_MAX, toDateInput } from "@/lib/ventureSessionRules";
+import { SESSION_MATERIALS_MAX, sessionTimeFloor, toDateInput } from "@/lib/ventureSessionRules";
 import { CalendarPlus, Loader2, X } from "lucide-react";
+import GuestEmailField from "./GuestEmailField";
 
 /**
  * Book a session on a milestone (date + exact time, coach, deliverable,
@@ -16,23 +17,24 @@ import { CalendarPlus, Loader2, X } from "lucide-react";
 export default function MilestoneSessionBooking({
   autoGrow,
   bookFor,
+  bookForKey,
   bookForm,
   bookSaving,
   bookSession,
   coachOptions,
   deliverableList,
   milestone,
-  openBooking,
+  onOpen,
   setBookFor,
   setBookForm,
   stage,
 }) {
   const { t } = useI18n();
   return (
-    <div className="mt-2 ml-5">
-      {bookFor === milestone.id ? (
+    <div className="jy-book">
+      {bookFor === bookForKey ? (
         <form onSubmit={(event) => bookSession(event, stage, milestone)} className="rounded-lg border border-[var(--border-primary)] p-2.5 space-y-2">
-          <p className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] flex items-center gap-1.5">
+          <p className="jy-lbl">
             <CalendarPlus className="w-3.5 h-3.5" /> {t("venture.manager.bookSession")}
           </p>
           <input
@@ -51,7 +53,7 @@ export default function MilestoneSessionBooking({
             className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)] resize-none overflow-hidden min-h-[72px]"
           />
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+            <p className="jy-lbl">
               {t("venture.manager.sessionMaterials")}
             </p>
             <input
@@ -88,7 +90,7 @@ export default function MilestoneSessionBooking({
             <p className="text-[9px] text-slate-500">{t("venture.manager.sessionMaterialsHint")}</p>
           </div>
           <div className="space-y-1">
-            <p className="text-[8px] font-black uppercase tracking-widest text-slate-500">
+            <p className="jy-lbl">
               {t("venture.manager.sessionDeliverable")}
             </p>
             <select
@@ -114,7 +116,9 @@ export default function MilestoneSessionBooking({
             <input
               type="time"
               required
-              min={bookForm.min_time || undefined}
+              // The floor is today's; tomorrow's clock time is free (09:00
+              // tomorrow is later than now, even though 09:00 < 14:35).
+              min={sessionTimeFloor(bookForm.date, bookForm.min_time) || undefined}
               value={bookForm.time}
               onChange={(event) => setBookForm({ ...bookForm, time: event.target.value })}
               className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -124,7 +128,7 @@ export default function MilestoneSessionBooking({
               onChange={(event) => setBookForm({ ...bookForm, duration: event.target.value })}
               className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
             >
-              {["30", "45", "60", "90"].map((durationOption) => (
+              {["15", "20", "30", "45", "60", "90"].map((durationOption) => (
                 <option key={durationOption} value={durationOption}>{t("venture.manager.minutes", { n: durationOption })}</option>
               ))}
             </select>
@@ -140,12 +144,23 @@ export default function MilestoneSessionBooking({
             </select>
           </div>
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionLeadHint")}</p>
+          <div className="space-y-1">
+            <p className="jy-lbl">
+              {t("venture.manager.inviteGuests")}
+            </p>
+            <GuestEmailField
+              value={bookForm.inviteesText || ""}
+              onChange={(next) => setBookForm({ ...bookForm, inviteesText: next })}
+              className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+            />
+            <p className="text-[9px] text-slate-500">{t("venture.manager.inviteGuestsHint")}</p>
+          </div>
           <p className="text-[9px] text-slate-500">{t("venture.manager.sessionNotifyHint")}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" onClick={() => setBookFor(null)} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg border border-[var(--border-primary)] text-slate-500">
+            <button type="button" onClick={() => setBookFor(null)} className="stf-btn sm">
               {t("common.cancel")}
             </button>
-            <button type="submit" disabled={bookSaving} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5 disabled:opacity-50">
+            <button type="submit" disabled={bookSaving} className="stf-btn sm pr">
               {bookSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <CalendarPlus className="w-3 h-3" />} {t("venture.manager.bookSession")}
             </button>
           </div>
@@ -153,8 +168,8 @@ export default function MilestoneSessionBooking({
       ) : (
         <button
           type="button"
-          onClick={() => openBooking(milestone)}
-          className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+          onClick={onOpen}
+          className="stf-btn sm"
         >
           <CalendarPlus className="w-3 h-3" /> {t("venture.manager.bookSession")}
         </button>

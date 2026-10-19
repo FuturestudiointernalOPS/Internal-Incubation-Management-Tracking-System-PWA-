@@ -52,11 +52,14 @@ export async function findLeadFounderMembership(ventureId, contactCid) {
   });
 }
 
-/** Audit a lead change in venture_activity_log. */
-export async function logVentureLeadChanged(ventureId, actorCid, actorName, detailsJson) {
+/**
+ * Audit a lead change in venture_activity_log. `ventureRef` is the access key OR
+ * the internal id — resolved in the same statement (Phase 0).
+ */
+export async function logVentureLeadChanged(ventureRef, actorCid, actorName, detailsJson) {
   return db.execute({
     sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details, created_at)
-              VALUES (?, 'LEAD_CHANGED', ?, ?, ?::jsonb, NOW())`,
-    args: [ventureId, actorCid, actorName, detailsJson],
+              VALUES ((SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?), 'LEAD_CHANGED', ?, ?, ?::jsonb, NOW())`,
+    args: [ventureRef, ventureRef, actorCid, actorName, detailsJson],
   });
 }

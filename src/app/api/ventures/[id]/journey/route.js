@@ -116,6 +116,9 @@ export async function GET(req, { params }) {
     };
     const { templateSource, deliverablesUnavailable } = await attachJourneyWork({
       ventureParam: id, dbId, stages, signEvidence,
+      // Same rule as the stage read above: archived milestones come back only
+      // for a manager who explicitly asked for archived content.
+      includeArchived: wantArchived && Boolean(access && access.manage),
     });
 
     // Guided experience (Vinance 3): a member sees the WHOLE map — every

@@ -16,6 +16,7 @@ import {
   toDateInput,
   toTimeInput,
 } from "@/lib/ventureSessionRules";
+import { sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 
 export function sessionBooking({
   setBookFor,
@@ -25,6 +26,7 @@ export function sessionBooking({
   setCoachOptions,
   bookForm,
   notify,
+  notifyPopup,
   t,
   setBookSaving,
   refreshSessions,
@@ -33,12 +35,20 @@ export function sessionBooking({
   setNoteEditFor,
   setNoteDraft,
 }) {
-  const openBooking = async (milestone) => {
-    setBookFor(milestone.id);
+  const openBooking = async (milestone, activity = null, deliverableId = null) => {
+    // One booking slot per ACTIVITY of the milestone (see journeyShapers): the
+    // control sits in the activity's own block, and its title/prefill follow it.
+    setBookFor(sessionBookingKey(milestone, activity, deliverableId));
     // Prefill the earliest bookable slot (30 minutes from now) — never an empty picker.
     // One instant drives both the floor and the prefill, so the prefilled slot is always valid.
     const min = minSessionStartInput();
-    setBookForm({ date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45", coach_id: "", title: milestone.title || "", deliverable_id: "", note: "", files: [] });
+    setBookForm({
+      date: toDateInput(min), time: toTimeInput(min), min_time: toTimeInput(min), duration: "45",
+      coach_id: "", title: activity?.title || milestone.title || "",
+      deliverable_id: deliverableId != null ? String(deliverableId) : "",
+      activity_id: activity?.id != null ? activity.id : "",
+      note: "", files: [], inviteesText: "",
+    });
     if (coachOptions.length === 0) {
       try {
         const res = await fetch(`/api/ventures/${ventureId}/coaches`);
@@ -85,6 +95,13 @@ export function sessionBooking({
       const minutes = Number(bookForm.duration) || 45;
       const end = new Date(start.getTime() + minutes * 60000);
       const coach = coachOptions.find((option) => String(option.coach_id) === String(bookForm.coach_id));
+      // Guests typed as a comma-separated list: any address is kept, on ImpactOS
+      // or not — the server tells an account apart and reaches its calendar.
+      const invitees = String(bookForm.inviteesText || "")
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((email) => ({ email }));
       const res = await fetch(`/api/ventures/${ventureId}/sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,13 +119,36 @@ export function sessionBooking({
           venture_facing: true,
           journey_stage_id: stage.id,
           milestone_ref: String(milestone.id),
+          // The session is anchored to an ACTIVITY (a task) of the milestone,
+          // not to the milestone alone — that is the work it supports.
+          task_id: bookForm.activity_id || null,
           deliverable_id: bookForm.deliverable_id || null,
+          invitees,
           materials,
         }),
       });
       const payload = await res.json();
       if (payload.success) {
-        notify(t("venture.manager.sessionBooked"));
+        // A booking is the moment the person just spent effort on: it is worth
+        // stopping for, so it is said in a popup instead of a banner at the top
+        // of a long panel that scrolls away unnoticed. The popup says what
+        // actually HAPPENED to the invitations — a guest whose invitation could
+        // not be sent is named, and guests who were invited are acknowledged. A
+        // confirmation that claims an inbox was reached when it was not is worse
+        // than no confirmation at all.
+        const invitations = payload.invitations || {};
+        const failed = (invitations.failed || []).filter(Boolean);
+        const invited = Number(invitations.attempted) || 0;
+        const message = failed.length
+          ? t("venture.manager.sessionBookedEmailFailed", { emails: failed.join(", ") })
+          : invited > 0
+            ? t("venture.manager.sessionBookedInvited")
+            : t("venture.manager.sessionBooked");
+        if (typeof notifyPopup === "function") {
+          await notifyPopup({ message });
+        } else {
+          notify(message);
+        }
         setBookFor(null);
         // Surface the new session inside its milestone right away.
         refreshSessions();

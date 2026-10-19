@@ -22,9 +22,9 @@ import { getSession } from "@/server/auth/session";
 import { changeVentureLead } from "@/services/ventures/record";
 import {
   findLeadFounderMembership,
-  getLeadVentureCodeByUuid,
   logVentureLeadChanged,
 } from "@/models/ventureJourney";
+import { resolveVentureInternalId } from "@/services/ventures/identity";
 
 export async function POST(req, { params }) {
   await initDb();
@@ -43,12 +43,10 @@ export async function POST(req, { params }) {
       return NextResponse.json({ success: false, error: "member_id is required." }, { status: 400 });
     }
 
-    // Resolve the venture's VNT code (the members table keys on it)
-    let ventureId = id;
-    if (!/^VNT-/i.test(id)) {
-      const ventureByUuid = await getLeadVentureCodeByUuid(id);
-      if (ventureByUuid.rows.length > 0) ventureId = ventureByUuid.rows[0].venture_id;
-    }
+    // Resolve the Venture's INTERNAL id ONCE. Since Phase 0 the members table,
+    // the staff assignments and the activity log all key on it — the VNT code is
+    // only the access key carried by the URL (docs/VENTURE_IDENTITY_PHASE0.md).
+    const ventureId = (await resolveVentureInternalId(id)) || id;
 
     // ── Authorization: privileged roles OR the current lead founder ──
     const privileged = ["super_admin"];

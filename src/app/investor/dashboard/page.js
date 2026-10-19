@@ -7,6 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import ParticipantDashboardHome from "@/components/dashboard/ParticipantDashboardHome";
 import DashboardStats from "@/components/investor/dashboard-page/DashboardStats";
 import DashboardTabs from "@/components/investor/dashboard-page/DashboardTabs";
 import CampaignsSection from "@/components/investor/dashboard-page/CampaignsSection";
@@ -230,6 +231,8 @@ export default function InvestorDashboard() {
     <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
+
+        <ParticipantDashboardHome />
 
         {/* HEADER */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">

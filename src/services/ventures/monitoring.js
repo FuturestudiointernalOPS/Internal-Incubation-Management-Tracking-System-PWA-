@@ -27,6 +27,13 @@ import {
   countOpenAlerts,
   countCriticalAlerts,
   selectAlertsByType,
+  selectAlertById,
+  selectUnresolvedAlertByType,
+  insertSystemAlert,
+  updateOpenAlertDetails,
+  acknowledgeAlertRow,
+  resolveAlertRow,
+  resolveAlertsByType,
   selectJobs,
   countJobsRunning,
   countJobsQueued,
@@ -105,6 +112,9 @@ export async function runHealthChecks() {
     await insertHealthCheck(result.component, result.status, result.response_time_ms, result.message, JSON.stringify(result.details)).catch(() => {});
   }
 
+  // Health failures must surface as system_alerts (Alerts tab), not only health rows.
+  await syncAlertsFromHealthResults(results).catch(() => {});
+
   await logAuditEvent({
     eventType: "HEALTH_CHECK_EXECUTED", actorCid: "system",
     description: `Health check completed: ${results.filter(result => result.status === "healthy").length} healthy, ${results.filter(result => result.status !== "healthy").length} issues`,
@@ -112,6 +122,49 @@ export async function runHealthChecks() {
   });
 
   return results;
+}
+
+/**
+ * Upsert / auto-resolve system_alerts from a health-check run.
+ * One open alert per component (alert_type = health_<component>); no duplicates.
+ */
+export async function syncAlertsFromHealthResults(results = []) {
+  for (const result of results) {
+    const alertType = `health_${result.component}`;
+    if (result.status === "healthy") {
+      await resolveAlertsByType(alertType, "system").catch(() => {});
+      continue;
+    }
+
+    const severity = result.status === "unhealthy" ? "critical" : "warning";
+    const title = `${result.component} is ${result.status}`;
+    const message = result.message || `Health check reported ${result.status}`;
+    const metricName = "response_time_ms";
+    const metricValue = result.response_time_ms ?? null;
+
+    const existing = await selectUnresolvedAlertByType(alertType).catch(() => ({ rows: [] }));
+    const open = existing.rows?.[0];
+    if (open) {
+      await updateOpenAlertDetails(open.id, {
+        severity,
+        title,
+        message,
+        metricName,
+        metricValue,
+        threshold: null,
+      }).catch(() => {});
+    } else {
+      await insertSystemAlert({
+        alertType,
+        severity,
+        title,
+        message,
+        metricName,
+        metricValue,
+        threshold: null,
+      }).catch(() => {});
+    }
+  }
 }
 
 /**
@@ -204,6 +257,42 @@ export async function getAlertStats() {
     critical: parseInt(critical.rows[0]?.c || 0),
     by_type: byType.rows || [],
   };
+}
+
+export async function acknowledgeAlert(alertId, actorCid) {
+  const id = parseInt(alertId, 10);
+  if (!Number.isFinite(id)) throw new Error("Invalid alert id.");
+  const row = (await selectAlertById(id)).rows[0];
+  if (!row) throw new Error("Alert not found.");
+  if (row.status !== "open") throw new Error("Alert is not open.");
+  await acknowledgeAlertRow(id, actorCid || "system");
+  await logAuditEvent({
+    eventType: "SYSTEM_ALERT_ACKNOWLEDGED",
+    actorCid: actorCid || "system",
+    entityType: "system_alert",
+    entityId: String(id),
+    description: `Alert acknowledged: ${row.title}`,
+    severity: "info",
+  });
+  return { success: true };
+}
+
+export async function resolveAlert(alertId, actorCid) {
+  const id = parseInt(alertId, 10);
+  if (!Number.isFinite(id)) throw new Error("Invalid alert id.");
+  const row = (await selectAlertById(id)).rows[0];
+  if (!row) throw new Error("Alert not found.");
+  if (row.status === "resolved") throw new Error("Alert already resolved.");
+  await resolveAlertRow(id, actorCid || "system");
+  await logAuditEvent({
+    eventType: "SYSTEM_ALERT_RESOLVED",
+    actorCid: actorCid || "system",
+    entityType: "system_alert",
+    entityId: String(id),
+    description: `Alert resolved: ${row.title}`,
+    severity: "info",
+  });
+  return { success: true };
 }
 
 // ─── Jobs ───────────────────────────────────────────────────────────────────

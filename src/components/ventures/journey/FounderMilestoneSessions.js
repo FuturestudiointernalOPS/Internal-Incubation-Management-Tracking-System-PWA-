@@ -24,7 +24,7 @@ export default function FounderMilestoneSessions({
   const { lang, t } = useI18n();
   return (
     <div className="space-y-1 pt-1">
-      <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.milestoneSessions', { n: (sessionsByMilestone[String(milestone.id)] || []).length })}</p>
+      <p className="jy-lbl" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.milestoneSessions', { n: (sessionsByMilestone[String(milestone.id)] || []).length })}</p>
       {(sessionsByMilestone[String(milestone.id)] || []).map((session) => (
         <div key={session.id} className="space-y-0.5">
           <div className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>
@@ -50,8 +50,8 @@ export default function FounderMilestoneSessions({
                 className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-[11px] text-[var(--text-primary)]"
               />
               <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg border" style={{ borderColor: 'rgb(255 255 255 / 0.15)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
-                <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(session.id)} className="text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg text-black disabled:opacity-50" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
+                <button type="button" onClick={() => { setNoteEditFor(null); setNoteDraft(""); }} className="stf-btn sm" style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)' }}>{t('common.cancel')}</button>
+                <button type="button" disabled={noteSaving || !noteDraft.trim()} onClick={() => saveSessionNote(session.id)} className="stf-btn sm" style={{ backgroundColor: 'var(--brand-orange)' }}>{t('common.save')}</button>
               </div>
             </div>
           ) : (

@@ -8,7 +8,7 @@
 
 import {
   selectDeliverablesAwaitingReview,
-  selectLastActivityByVentureCodes,
+  selectLastActivityByVentureIds,
   selectLeadManagerVentures,
   selectMilestonesForLeadVentures,
   selectPendingJourneyReports,
@@ -115,12 +115,12 @@ export async function buildLeadManagerHome(staffCid) {
     selectReviewQueueForLeadVentures(dbIds).catch(() => ({ rows: [] })),
     selectDeliverablesAwaitingReview(dbIds).catch(() => ({ rows: [] })),
     selectSessionsForLeadVentures({
-      codes,
+      ventureIds: dbIds,
       fromIso: today.toISOString(),
       toIso: weekEnd.toISOString(),
     }).catch(() => ({ rows: [] })),
-    selectLastActivityByVentureCodes(codes).catch(() => ({ rows: [] })),
-    selectPendingJourneyReports(codes).catch(() => ({ rows: [] })),
+    selectLastActivityByVentureIds(dbIds).catch(() => ({ rows: [] })),
+    selectPendingJourneyReports(dbIds).catch(() => ({ rows: [] })),
   ]);
 
   const milestones = milestonesResult.rows || [];

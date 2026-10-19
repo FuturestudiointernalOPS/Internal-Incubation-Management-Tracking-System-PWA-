@@ -53,7 +53,6 @@ export const FEATURE_SUBSECTIONS = {
     { id: "investors_manage", labelKey: "navigation.investorsManage", module: "investor" },
     { id: "investors_dashboard", labelKey: "navigation.investorsDashboard" },
     { id: "investors_review", labelKey: "navigation.investorsReview" },
-    { id: "investors_overview", labelKey: "navigation.investorsOverview" },
     { id: "investors_campaigns", labelKey: "navigation.investorsCampaigns" },
     { id: "investors_relationships", labelKey: "navigation.investorsRelationships" },
   ],
@@ -86,7 +85,6 @@ export const FEATURE_SUBSECTIONS = {
     { id: "permissions", labelKey: "navigation.permissions", module: "permissions" },
   ],
   settings: [
-    { id: "integrations", labelKey: "navigation.integrations" },
     { id: "engineering_dashboard", labelKey: "navigation.engineering", module: "engineering" },
     { id: "system", labelKey: "navigation.system", module: "settings" },
   ],

@@ -15,21 +15,28 @@ import db from "@/lib/db";
 
 // ── Activity log + history ───────────────────────────────────────────────────
 
-/** Append one venture_activity_log row. */
-export function insertVentureActivity(ventureId, action, actorCid, actorName, detailsJson) {
+/**
+ * Append one venture_activity_log row.
+ *
+ * `ventureRef` is the access key ("VNT-…") OR the internal id — the statement
+ * resolves it against `ventures` in the SAME call, so a producer never has to
+ * know which one it is holding (Phase 0 — docs/VENTURE_IDENTITY_PHASE0.md). An
+ * unresolvable reference inserts NULL and the NOT NULL constraint reports it.
+ */
+export function insertVentureActivity(ventureRef, action, actorCid, actorName, detailsJson) {
   return db.execute({
     sql: `INSERT INTO venture_activity_log (venture_id, action, actor_cid, actor_name, details)
-          VALUES (?, ?, ?, ?, ?::jsonb)`,
-    args: [ventureId, action, actorCid, actorName, detailsJson],
+          VALUES ((SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?), ?, ?, ?, ?::jsonb)`,
+    args: [ventureRef, ventureRef, action, actorCid, actorName, detailsJson],
   });
 }
 
-/** Append one venture_history row. */
-export function insertVentureHistory(ventureId, eventType, description, metadataJson) {
+/** Append one venture_history row (same self-resolving reference as above). */
+export function insertVentureHistory(ventureRef, eventType, description, metadataJson) {
   return db.execute({
     sql: `INSERT INTO venture_history (venture_id, event_type, description, metadata)
-          VALUES (?, ?, ?, ?::jsonb)`,
-    args: [ventureId, eventType, description, metadataJson],
+          VALUES ((SELECT id FROM ventures WHERE venture_id = ? OR id::text = ?), ?, ?, ?::jsonb)`,
+    args: [ventureRef, ventureRef, eventType, description, metadataJson],
   });
 }
 
@@ -58,10 +65,10 @@ export function selectActivityVentureCode(dbId) {
   return db.execute({ sql: "SELECT venture_id FROM ventures WHERE id = ?", args: [dbId] });
 }
 
-/** A Venture's live founder contact ids (code-keyed). */
-export function selectFounderContactIds(code) {
+/** A Venture's live founder contact ids (internal id keyed, Phase 0). */
+export function selectFounderContactIds(ventureId) {
   return db.execute({
     sql: "SELECT contact_id FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [code],
+    args: [ventureId],
   });
 }

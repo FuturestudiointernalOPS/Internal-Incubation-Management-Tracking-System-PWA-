@@ -94,7 +94,7 @@ export default function CrmActivitiesPage() {
           <AppSelect
             label={t("crm.activities.typeLabel")}
             value={filterType}
-            onChange={setFilterType}
+            onChange={(event) => setFilterType(event.target.value)}
             options={typeOptions}
           />
         </div>
@@ -109,8 +109,8 @@ export default function CrmActivitiesPage() {
         </div>
       ) : filtered.length === 0 ? (
         <AppEmptyState
-          message={t("crm.activities.noActivities")}
-          hint={t("crm.activities.noActivitiesHint")}
+          title={t("crm.activities.noActivities")}
+          description={t("crm.activities.noActivitiesHint")}
         />
       ) : (
         <div className="space-y-2">

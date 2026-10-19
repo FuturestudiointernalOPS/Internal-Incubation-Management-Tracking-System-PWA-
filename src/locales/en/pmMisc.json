@@ -580,6 +580,7 @@
       "kpiRequired": "At least one KPI must be assigned.",
       "added": "Added",
       "addFailed": "Add failed.",
+      "endBeforeStart": "The end date is before the start date. Please review the dates.",
       "resourcesNotSaved": "{count} session resource(s) could not be saved — open the session to add them again.",
       "kpiLinkRequired": "Please link at least one KPI. Grading parameters are derived from linked KPIs.",
       "failed": "Failed.",

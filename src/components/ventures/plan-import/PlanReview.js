@@ -23,7 +23,7 @@ const isEmpty = (value) => !String(value ?? "").trim();
  * recomputes them on save, and one definition of "how much is in this" is the
  * whole reason the screen can be trusted.
  */
-export default function PlanReview({ ventureId, draft, onSaved }) {
+export default function PlanReview({ ventureId, draft, onSaved, onApplied }) {
   const { t } = useI18n();
   const { confirm, alert } = useDialogs();
   const [proposal, setProposal] = useState(() => clone(draft.proposal));
@@ -248,6 +248,10 @@ export default function PlanReview({ ventureId, draft, onSaved }) {
         hint: (payload.warnings || []).join("\n") || undefined,
       });
       await onSaved();
+      // The apply CREATED the journey, but the Journey read is a separate hook and
+      // nothing told it so — the milestones stayed invisible until a manual reload.
+      // Refresh that read now, so the new work appears the moment it is built.
+      await onApplied?.();
     } catch (_) {
       setError(t("venture.planImport.applyFailed"));
     } finally {

@@ -2,7 +2,42 @@
   "rootMisc": {
     "landing": {
       "brand": "ImpactOS Terminal",
-      "connecting": "Connecting Secure Session..."
+      "connecting": "Connecting Secure Session...",
+      "kicker": "Future Studio",
+      "title": "Your journey from idea to impact starts here.",
+      "intro": "Access the programs, mentorship, resources, and opportunities you need to develop your ideas, build your venture, connect with the right people, and turn your ambitions into measurable progress.",
+      "whatTitle": "What you can do here",
+      "pillars": {
+        "programs": {
+          "title": "Join Programs & Cohorts",
+          "body": "Discover your program activities, access learning sessions, follow your curriculum, and track your progress from onboarding to completion."
+        },
+        "ventures": {
+          "title": "Build Your Venture",
+          "body": "Develop your ideas, organize your business activities, complete milestones, and access the guidance and support needed to grow your startup."
+        },
+        "mentorship": {
+          "title": "Access Mentorship & Networks",
+          "body": "Connect with mentors, collaborate with peers, participate in sessions, and benefit from relationships that support your professional and entrepreneurial growth."
+        },
+        "progress": {
+          "title": "Track Your Progress",
+          "body": "Stay on top of your tasks, monitor your achievements, submit deliverables, and see how far you have progressed toward your goals."
+        },
+        "funding": {
+          "title": "Explore Funding Opportunities",
+          "body": "Follow relevant funding opportunities, prepare for investment readiness, and track your venture's progress toward accessing capital."
+        },
+        "impact": {
+          "title": "Showcase Your Impact",
+          "body": "Document your achievements, highlight your milestones, and demonstrate the progress and impact of your work."
+        }
+      },
+      "signIn": "Sign In →",
+      "signInHint": "For registered participants, founders, mentors, and authorized partners.",
+      "language": "Language",
+      "switchTheme": "Switch theme",
+      "footer": "© 2026 Future Studio · Empowering Innovation & Entrepreneurship"
     },
     "terminal": {
       "title": "Terminal Unification",

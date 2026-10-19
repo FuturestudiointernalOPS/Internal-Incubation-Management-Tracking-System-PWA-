@@ -20,7 +20,7 @@ export default function WidgetCard({ title, icon: Icon, iconColor, children, loa
           <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{title}</h3>
         </div>
         {onRefresh && (
-          <button onClick={onRefresh} className="p-1.5 hover:bg-white/5 rounded-lg transition-all">
+          <button onClick={onRefresh} className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg transition-all">
             <RefreshCw className={`w-3 h-3 text-slate-500 ${loading ? "animate-spin" : ""}`} />
           </button>
         )}

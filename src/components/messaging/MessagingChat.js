@@ -10,6 +10,7 @@ import { useI18n } from "@/lib/i18n";
 import { useEffect } from "react";
 import { Send, Users, Briefcase, User } from "lucide-react";
 
+import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useMessagingState } from "./hooks/useMessagingState";
 import { useMessagingData } from "./hooks/useMessagingData";
 import { useDerivedData } from "./hooks/useDerivedData";
@@ -41,7 +42,10 @@ export default function MessagingChat({
 
   const state = useMessagingState();
 
-  const { user: sessionUser } = useDerivedData;
+  // The signed-in identity comes from the shell's session cache. It used to be
+  // read off `useDerivedData` (the hook FUNCTION, which has no `user`) — so it was
+  // always undefined, `uid` was never set, and the inbox loaded forever.
+  const { user: sessionUser } = useSessionUser();
   const user = sessionUser || EMPTY_USER;
   const uid = user?.cid || user?.id;
   const groupName = user?.group_name;

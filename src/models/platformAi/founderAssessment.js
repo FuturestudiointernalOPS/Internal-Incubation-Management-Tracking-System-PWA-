@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { selectFormRowById } from "@/models/forms/platform";
 
 /**
  * Platform AI model — the Founder Fit Score form seed (REPOSITORY layer).
@@ -188,10 +189,7 @@ export async function getFormFieldsForSnapshot(formId) {
 
 /** Full form row (version snapshot settings). */
 export async function getFormForSnapshot(formId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_forms WHERE id = ?",
-    args: [formId],
-  });
+  return selectFormRowById(formId);
 }
 
 /** Publish the seeded form structure as version 1 snapshot. */

@@ -67,16 +67,33 @@ export function selectWorkTasks(dbId, ventureCode) {
   });
 }
 
-/** The Deliverables of a Venture, with the Activity that produces them. */
+/**
+ * The Deliverables of a Venture, with the Activity that produces them.
+ *
+ * A deliverable has no archive flag of its own, so it is hidden with the parent
+ * it belongs to: archiving a milestone (or the activity that produces it) used
+ * to leave its deliverables behind as orphan rows the Projects view still
+ * offered as active work. A deliverable with NO parent — or with a parent that
+ * no longer exists — is not hidden by this: only a parent that is explicitly
+ * archived takes its children with it.
+ */
 export function selectWorkDeliverables(dbId, ventureCode) {
   return db.execute({
     sql: `SELECT id, milestone_id::text AS milestone_id, task_id, title, description,
                  status, approval_status, assigned_cid, assigned_name,
                  rejection_reason, reviewer_name,
                  to_char(due_date, 'YYYY-MM-DD') AS finish_date
-          FROM venture_deliverables
-          WHERE venture_id::text IN (?, ?)
-          ORDER BY created_at, id`,
+          FROM venture_deliverables d
+          WHERE d.venture_id::text IN (?, ?)
+            AND NOT EXISTS (
+              SELECT 1 FROM venture_milestones m
+               WHERE m.id = d.milestone_id AND COALESCE(m.is_archived, FALSE) = TRUE
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM venture_tasks t
+               WHERE t.id = d.task_id AND COALESCE(t.is_archived, FALSE) = TRUE
+            )
+          ORDER BY d.created_at, d.id`,
     args: [String(dbId), String(ventureCode)],
   });
 }

@@ -210,7 +210,13 @@ export async function createLearningPath({ name, description, level, categoryId,
 }
 
 export async function getVentureLearningPaths(ventureId) {
-  const res = await selectVentureLearningPaths(ventureId);
+  // The learning-path tables come from migration 022. On a database that has not
+  // had it applied, the whole Knowledge Hub answered 500; with no tables there
+  // are simply no paths yet, so the hub shows its empty state instead.
+  const res = await selectVentureLearningPaths(ventureId).catch((error) => {
+    if (error?.code === "42P01") return { rows: [] };
+    throw error;
+  });
   const paths = [];
   for (const row of res.rows || []) {
     const resourceIds = typeof row.resource_ids === "string" ? JSON.parse(row.resource_ids) : (row.resource_ids || []);

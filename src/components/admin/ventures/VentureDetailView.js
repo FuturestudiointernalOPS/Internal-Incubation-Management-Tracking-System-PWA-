@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -13,6 +14,7 @@ import {
   Edit3,
   ExternalLink,
   FileText,
+  FolderKanban,
   Layers,
   Loader2,
   Rocket,
@@ -28,6 +30,7 @@ import VentureDashboard from "@/components/ventures/VentureDashboard";
 import VentureWizardTab from "./VentureWizardTab";
 import VentureTeamTab from "./VentureTeamTab";
 import VentureActivityTab from "./VentureActivityTab";
+import AddLeadManagerModal from "./AddLeadManagerModal";
 
 const WIZARD_STEPS = [
   { step: 1, name: "vadmin.detail.startupIdentity", icon: Building2 },
@@ -56,6 +59,10 @@ export default function VentureDetailView({ ctx }) {
     t,
     venture,
   } = ctx;
+
+  // The header's "Staff" button opens this: bind a Lead Manager from here,
+  // without leaving the Venture.
+  const [showLeadManager, setShowLeadManager] = useState(false);
 
   if (loading) {
     return (
@@ -91,7 +98,7 @@ export default function VentureDetailView({ ctx }) {
 
   const TABS = [
     { id: "dashboard", label: "vadmin.detail.dashboard", icon: Rocket },
-    { id: "journey", label: "vadmin.detail.journey", icon: Route },
+    { id: "journey", label: "vadmin.detail.journeyTab", icon: Route },
     { id: "investment", label: "vadmin.detail.investmentReadiness", icon: TrendingUp },
     { id: "timeline", label: "vadmin.detail.timeline", icon: BarChart3 },
     { id: "reports", label: "vadmin.detail.reports", icon: FileText },
@@ -146,25 +153,22 @@ export default function VentureDetailView({ ctx }) {
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3">
+              {/* Staff assignment: who manages/coaches this Venture and at what
+                  scope — where a staff member is bound as Lead Manager. */}
               <button
-                onClick={() => router.push(`/admin/ventures/${id}/notes`)}
+                onClick={() => setShowLeadManager(true)}
                 className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                title={t("vadmin.detail.staffTitle")}
               >
-                <FileText className="w-3 h-3" /> {t("vadmin.detail.notes")}
-              </button>
-              <button
-                onClick={() => router.push(`/admin/ventures/${id}/journey`)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-              >
-                <Route className="w-3 h-3" /> {t("vadmin.detail.journey")}
+                <Users className="w-3 h-3" /> {t("vadmin.detail.staff")}
               </button>
             </div>
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-1 mt-8 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
+          <div className="flex items-center gap-3 mt-8 border-b border-[var(--border-primary)]">
+          <div className="flex flex-1 min-w-0 gap-1 overflow-x-auto scrollbar-thin">
             {TABS.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -187,6 +191,15 @@ export default function VentureDetailView({ ctx }) {
                 </button>
               );
             })}
+          </div>
+            <div className="flex shrink-0 gap-2 pb-2">
+              <button
+                onClick={() => router.push(`/admin/ventures/${id}/projects`)}
+                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2 whitespace-nowrap"
+              >
+                <FolderKanban className="w-3 h-3" /> {t("vadmin.detail.journey")}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -397,6 +410,13 @@ export default function VentureDetailView({ ctx }) {
         )}
 
       </div>
+
+      {showLeadManager && (
+        <AddLeadManagerModal
+          onClose={() => setShowLeadManager(false)}
+          ventureId={id}
+        />
+      )}
     </>
   );
 }

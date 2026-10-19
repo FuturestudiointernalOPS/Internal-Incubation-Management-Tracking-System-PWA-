@@ -14,7 +14,7 @@ import {
   planEventSync,
   planTaskSync,
   taskToGoogleEvent,
-  timedEventToGoogleEvent,
+  eventToGoogleEvent,
   toDashboardItem,
 } from "@/services/integrations/googleCalendar/mapping";
 import {
@@ -99,7 +99,7 @@ describe("timed objects (sessions, follow-ups)", () => {
   });
 
   it("makes a TIMED (busy) event carrying a real start and end instant", () => {
-    const body = timedEventToGoogleEvent(session(), { appUrl: "https://app.test" });
+    const body = eventToGoogleEvent(session(), { appUrl: "https://app.test" });
     expect(body.start).toEqual({ dateTime: "2026-10-12T09:00:00.000Z" });
     expect(body.end).toEqual({ dateTime: "2026-10-12T10:00:00.000Z" });
     expect(body.transparency).toBe("opaque"); // a session occupies the person's time
@@ -108,9 +108,9 @@ describe("timed objects (sessions, follow-ups)", () => {
   });
 
   it("falls back to the start when there is no end, and skips a missing start", () => {
-    const body = timedEventToGoogleEvent(session({ endsAt: null }));
+    const body = eventToGoogleEvent(session({ endsAt: null }));
     expect(body.end).toEqual({ dateTime: "2026-10-12T09:00:00.000Z" });
-    expect(timedEventToGoogleEvent(session({ startsAt: null }))).toBeNull();
+    expect(eventToGoogleEvent(session({ startsAt: null }))).toBeNull();
   });
 
   it("keys a timed source by source + id", () => {
@@ -134,8 +134,69 @@ describe("timed objects (sessions, follow-ups)", () => {
     expect(plan.deletes).toEqual([{ source: "session", sourceId: "9", eventId: "e9" }]);
   });
 
+  it("keeps ONE event when the same object reaches the list twice (scope + invitation)", () => {
+    // A Venture session can be both in the person's scope and in their
+    // invitations; the first occurrence wins, so no second Google event is made.
+    const scoped = session({ source: "venture_session", sourceId: "5", title: "Coaching" });
+    const invited = session({ source: "venture_session", sourceId: "5", title: "Coaching" });
+    const plan = planEventSync([scoped, invited], []);
+    expect(plan.creates).toHaveLength(1);
+    expect(plan.creates[0].event.sourceId).toBe("5");
+  });
+
+  it("carries the guests of a session into the event Google sends them", () => {
+    const body = eventToGoogleEvent(
+      session({
+        source: "venture_session",
+        attendees: [{ email: "coach@external.com", displayName: "External Coach" }],
+      }),
+    );
+    expect(body.attendees).toEqual([
+      { email: "coach@external.com", displayName: "External Coach" },
+    ]);
+  });
+
+  it("omits the guests entirely when there are none", () => {
+    // An empty array would be a field Google has to be told about; the absence
+    // of the key is what "no guests" means.
+    expect(eventToGoogleEvent(session())).not.toHaveProperty("attendees");
+    expect(eventToGoogleEvent(session({ attendees: [] }))).not.toHaveProperty("attendees");
+  });
+
+  it("invites a guest added later: the guest list is part of the fingerprint", () => {
+    const withoutGuest = session({ source: "venture_session", sourceId: "7" });
+    const withGuest = session({
+      source: "venture_session",
+      sourceId: "7",
+      attendees: [{ email: "guest@example.org" }],
+    });
+    const fingerprint = planEventSync([withoutGuest], []).creates[0].fingerprint;
+    const plan = planEventSync(
+      [withGuest],
+      [{ source: "venture_session", source_id: "7", google_event_id: "e7", fingerprint }],
+    );
+    // Same session, same time — only the guest is new, and that must reach Google.
+    expect(plan.updates).toHaveLength(1);
+    expect(plan.updates[0].body.attendees).toEqual([{ email: "guest@example.org" }]);
+  });
+
   it("our own timed copies are recognised and skipped on the way back", () => {
-    expect(isPlatformEvent(timedEventToGoogleEvent(session()))).toBe(true);
+    expect(isPlatformEvent(eventToGoogleEvent(session()))).toBe(true);
+  });
+
+  it("makes a venture milestone an ALL-DAY, free event with an exclusive end", () => {
+    const body = eventToGoogleEvent({
+      source: "venture_milestone",
+      sourceId: "42",
+      title: "Market Expansion (milestone)",
+      allDay: true,
+      startDate: "2026-11-02",
+      endDate: "2026-11-02",
+    });
+    expect(body.start).toEqual({ date: "2026-11-02" });
+    expect(body.end).toEqual({ date: "2026-11-03" }); // Google's end is exclusive
+    expect(body.transparency).toBe("transparent");
+    expect(body.extendedProperties.private.fs_ref).toBe("venture_milestone:42");
   });
 });
 

@@ -43,7 +43,7 @@ jest.mock("@/models/ventureMemberInvitations", () => ({
 }));
 
 jest.mock("@/models/ventureMemberAccess", () => ({
-  resolveVentureCode: jest.fn(async (_db, id) => id),
+  resolveVentureTableId: jest.fn(async (_db, id) => id),
   getVentureFounderCount: jest.fn().mockResolvedValue(2),
   checkVentureMemberViewAccess: jest.fn().mockResolvedValue(true),
   checkVentureMemberMutateAccess: jest.fn().mockResolvedValue(true),

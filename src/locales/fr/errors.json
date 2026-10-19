@@ -2,6 +2,7 @@
   "errors": {
     "required": "Ce champ est requis.",
     "invalidEmail": "Adresse email invalide.",
+    "invalidAttachment": "Ce fichier ne peut pas être joint à ce rappel.",
     "minLength": "Doit contenir au moins {min} caractères.",
     "maxLength": "Doit contenir au maximum {max} caractères.",
     "passwordTooShort": "Le mot de passe doit contenir au moins 4 caractères.",
@@ -21,6 +22,7 @@
     "ineligibleTemplateCaps": "Le modèle contient des capacités pour lesquelles l'identité n'est pas éligible.",
     "eligibilityImpactsTemplates": "Ce changement retire l'éligibilité, mais des modèles d'accès accordent encore les capacités concernées. Confirmation requise.",
     "roleConflictParticipantFacilitator": "Conflit de rôle : cette personne est déjà participante dans ce programme et ne peut pas également être affectée comme facilitateur.",
+    "roleConflictPmFacilitator": "Conflit de rôle : un chef de programme ne peut pas également être affecté comme facilitateur.",
     "roleConflictFacilitatorParticipant": "Conflit de rôle : cette personne est déjà affectée comme facilitateur pour ce programme et ne peut pas également être ajoutée comme participante.",
     "programCompletedViewOnly": "Ce programme est terminé et en lecture seule. Les soumissions sont fermées.",
     "authSystemFailure": "Échec du système d'authentification.",

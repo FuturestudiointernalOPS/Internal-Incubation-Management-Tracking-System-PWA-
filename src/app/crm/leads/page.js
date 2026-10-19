@@ -4,35 +4,23 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Target, Plus, Search, FileText } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
 import AppButton from "@/components/ui/AppButton";
-import AppInput from "@/components/ui/AppInput";
-import AppModal from "@/components/ui/AppModal";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
+import CrmLeadCreateModal from "@/components/crm/CrmLeadCreateModal";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
-const LEAD_TYPES = ["partnership", "investor", "program", "ecosystem", "client", "sponsor", "mentor", "other"];
-const STATUS_OPTIONS = ["new", "contacted", "engaged", "qualified", "unqualified", "nurturing", "converted", "lost"];
-const QUALIFICATION_OPTIONS = ["not_assessed", "needs_review", "qualified", "unqualified"];
-
 export default function CrmLeadsPage() {
   const { t } = useI18n();
-  const { alert } = useDialogs();
+  const { can } = useCrmCapabilities();
 
   const [leads, setLeads]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
   const [search, setSearch]       = useState("");
   const [showModal, setShowModal] = useState(false);
-  const [saving, setSaving]       = useState(false);
-  const [canCreate, setCanCreate] = useState(false);
-
-  // New lead form state
-  const [form, setForm] = useState({
-    title: "", lead_type: "other", status: "new", qualification_state: "not_assessed", source: "", description: ""
-  });
 
   async function fetchLeads() {
     try {
@@ -47,19 +35,6 @@ export default function CrmLeadsPage() {
     }
   }
 
-  useEffect(() => {
-    let alive = true;
-    fetch("/api/me/permissions")
-      .then((r) => r.json())
-      .then((d) => {
-        if (alive && d.success) {
-          setCanCreate(Number(d.effective?.crm?.create ?? 0) >= 1);
-        }
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, []);
-
   useEffect(() => { fetchLeads(); }, []);
 
   const filtered = useMemo(() => {
@@ -73,41 +48,11 @@ export default function CrmLeadsPage() {
     );
   }, [leads, search]);
 
-  async function handleCreate(e) {
-    e.preventDefault();
-    if (!form.title.trim()) {
-      await alert({ message: t("crm.leads.titleRequired") });
-      return;
-    }
-    // Phase 2 prevents creating without a target, though our simplified UI form doesn't yet wire a picker for person/org.
-    // For this list view mockup, we will pass an error if backend rejects.
-    setSaving(true);
-    try {
-      const res  = await fetch("/api/crm/leads", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setShowModal(false);
-        setForm({ title: "", lead_type: "other", status: "new", qualification_state: "not_assessed", source: "", description: "" });
-        await fetchLeads();
-      } else {
-        await alert({ message: t(data.error || "errors.somethingWrong") });
-      }
-    } catch {
-      await alert({ message: t("errors.somethingWrong") });
-    } finally {
-      setSaving(false);
-    }
-  }
-
   const columns = [
     {
       key: "title",
-      header: t("crm.leads.titleLabel"),
-      render: (row) => (
+      label: t("crm.leads.titleLabel"),
+      render: (_value, row) => (
         <div>
           <a href={`/crm/leads/${row.id}`} className="font-semibold text-[var(--brand-orange)] hover:underline">
             {row.title}
@@ -120,22 +65,22 @@ export default function CrmLeadsPage() {
     },
     {
       key: "status",
-      header: t("crm.leads.statusLabel"),
-      render: (row) => (
+      label: t("crm.leads.statusLabel"),
+      render: (_value, row) => (
         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-[var(--surface-3)] text-[var(--text-primary)]">
-          {t(`crm.leads.statuses.${row.status}`) || row.status}
+          {t(`crm.leads.statuses.${row.status}`)}
         </span>
       ),
     },
     {
       key: "qualification_state",
-      header: t("crm.leads.qualificationLabel"),
-      render: (row) => t(`crm.leads.qualifications.${row.qualification_state}`) || row.qualification_state,
+      label: t("crm.leads.qualificationLabel"),
+      render: (_value, row) => t(`crm.leads.qualifications.${row.qualification_state}`),
     },
     {
       key: "owner_name",
-      header: t("crm.leads.ownerLabel"),
-      render: (row) => row.owner_name || "—",
+      label: t("crm.leads.ownerLabel"),
+      render: (_value, row) => row.owner_name || "—",
     },
   ];
 
@@ -154,9 +99,8 @@ export default function CrmLeadsPage() {
               </p>
             </div>
           </div>
-          {canCreate && (
-            <AppButton onClick={() => setShowModal(true)} className="shrink-0">
-              <Plus className="w-4 h-4" />
+          {can("create") && (
+            <AppButton icon={Plus} onClick={() => setShowModal(true)} className="shrink-0">
               {t("crm.leads.createLead")}
             </AppButton>
           )}
@@ -186,33 +130,18 @@ export default function CrmLeadsPage() {
             description={!search ? t("crm.leads.noLeadsHint") : undefined}
           />
         ) : (
-          <AppTable columns={columns} rows={filtered} rowKey="id" />
+          <AppTable columns={columns} data={filtered} />
         )}
       </div>
 
-      <AppModal open={showModal} onClose={() => setShowModal(false)} title={t("crm.leads.createLead")}>
-        <form onSubmit={handleCreate} className="space-y-4">
-          <AppInput
-            label={t("crm.leads.titleLabel")}
-            value={form.title}
-            onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-            placeholder={t("crm.leads.titlePlaceholder")}
-            required
-          />
-          <div className="text-xs text-[var(--text-secondary)] italic">
-            Note: Associating a contact or organization is required, but omitted from this basic form view for brevity. 
-            Integration with contact picker belongs in a dedicated UI component.
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <AppButton type="button" variant="secondary" onClick={() => setShowModal(false)} disabled={saving}>
-              {t("common.cancel")}
-            </AppButton>
-            <AppButton type="submit" disabled={saving}>
-              {saving ? t("common.saving") : t("crm.leads.createLead")}
-            </AppButton>
-          </div>
-        </form>
-      </AppModal>
+      <CrmLeadCreateModal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        onCreated={async () => {
+          setShowModal(false);
+          await fetchLeads();
+        }}
+      />
     </>
   );
 }

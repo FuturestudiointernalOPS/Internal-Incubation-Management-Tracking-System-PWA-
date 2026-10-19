@@ -28,9 +28,9 @@ export default function VentureTaskDrawer({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1 min-w-0">
                 <h2 className="text-sm font-black text-[var(--text-primary)] truncate">{selectedTask.title}</h2>
-                <button onClick={() => openEditTask(selectedTask)} title={t("vadmin.tasks.edit")} className="p-2 hover:bg-white/5 rounded-lg shrink-0"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
+                <button onClick={() => openEditTask(selectedTask)} title={t("vadmin.tasks.edit")} className="p-2 hover:bg-[var(--surface-2)] rounded-lg shrink-0"><Pencil className="w-3.5 h-3.5 text-slate-500" /></button>
               </div>
-              <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+              <button onClick={() => setShowDrawer(false)} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
             </div>
 
             {selectedTask.dependency_blocked && (

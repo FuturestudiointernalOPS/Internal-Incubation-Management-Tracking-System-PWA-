@@ -7,7 +7,7 @@ import { hasHistoricalVentureAccess } from "@/services/authorization/historicalR
 import { notifyVentureFounders } from "@/services/ventures/activity";
 import { listDocuments, getDocument, uploadDocument, updateDocument, deleteDocument, createShareLink, revokeShare, getAccessLogs, getDocumentShares } from "@/services/ventures/documents";
 import {
-  getVentureIdByCode, getVentureCodeById, isFounderForDocumentVisibility,
+  getVentureIdByCode, isFounderForDocumentVisibility,
   isFounderForDocumentStatusTransition, updateDocumentApprovalStatus,
 } from "@/models/ventureAssets";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
@@ -21,27 +21,16 @@ async function resolveVentureDbId(ventureId) {
   return ventureResult.rows?.[0]?.id || null;
 }
 
-// venture_members stores venture_id as the VNT code (TEXT) — resolve the code from a UUID if needed
-async function resolveVentureCode(idOrCode) {
-  if (!idOrCode || (typeof idOrCode === "string" && !idOrCode.startsWith("VNT-") && idOrCode.includes("-"))) {
-    try {
-      const ventureResult = await getVentureCodeById(idOrCode);
-      return ventureResult.rows?.[0]?.venture_id || idOrCode;
-    } catch { return idOrCode; }
-  }
-  return idOrCode;
-}
-
 // Returns which approval_statuses a user is allowed to see
 async function getVisibilityStatuses(dbId, session, historyOnly = false) {
   // D1 — an ex-manager's historical read is bounded: NON-private documents only.
   if (historyOnly) return ["pending_review", "approved", "shared_with_investor"];
   // Super admins, staff, program managers see everything
   if (PRIVILEGED.includes(session.role)) return null;
-  // Founders see everything
+  // Founders see everything. `dbId` is the internal id, which is what the
+  // membership table keys on since Phase 0 — the code is not resolved back.
   if (session.cid) {
-    const code = await resolveVentureCode(dbId);
-    const founder = await isFounderForDocumentVisibility(code, session.cid);
+    const founder = await isFounderForDocumentVisibility(dbId, session.cid);
     if (founder.rows?.length) return null;
   }
   // Investors only see shared documents
@@ -130,8 +119,7 @@ export async function POST(req, { params }) {
     if (body.action === "transition") {
       // Check: only founders/privileged can transition
       if (!PRIVILEGED.includes(session.role)) {
-        const code = await resolveVentureCode(dbId);
-        const founder = await isFounderForDocumentStatusTransition(code, session.cid);
+        const founder = await isFounderForDocumentStatusTransition(dbId, session.cid);
         if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can transition document status." }, { status: 403 });
       }
       const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];

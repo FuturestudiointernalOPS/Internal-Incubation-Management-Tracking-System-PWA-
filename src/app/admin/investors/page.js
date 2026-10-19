@@ -11,6 +11,7 @@ import AppButton from "@/components/ui/AppButton";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import { notify } from "@/components/staff/notify";
 
 const STATUS_ICONS = {
   pending_review: { icon: Clock, color: "text-amber-400" },
@@ -29,6 +30,12 @@ const STATUS_LABELS = {
 // The filter tabs. `?status=` in the address (e.g. from the executive
 // dashboard's "Verified Investors" card) preselects one of them.
 const STATUS_FILTERS = ["all", "pending_review", "approved"];
+
+const CONFIRM_KEYS = {
+  approve: "investorAdmin.list.confirmApprove",
+  reject: "investorAdmin.list.confirmReject",
+  suspend: "investorAdmin.list.confirmSuspend",
+};
 
 const ACTION_LABELS = {
   approve: "investorAdmin.list.actionApproved",
@@ -50,7 +57,6 @@ export default function AdminInvestorsPage() {
   const [search, setSearch] = useState("");
   const [acting, setActing] = useState(null);
   const [detail, setDetail] = useState(null);
-  const [, setToast] = useState(null);
   const { t } = useI18n();
   const { role } = useSessionUser();
   const { confirm } = useDialogs();
@@ -71,7 +77,20 @@ export default function AdminInvestorsPage() {
     { defaultValue: [], transform: pickInvestors, deps: [statusFilter, search] },
   );
 
+  // Every unfiltered row feeds the tab counts, so they stay right whichever tab
+  // is open (the filtered list above only holds the current tab's rows).
+  const { data: allInvestors, refresh: refreshAll } = useApi("/api/investor/approval?status=all", {
+    defaultValue: [],
+    transform: pickInvestors,
+  });
+
   const handleAction = async (profileId, action) => {
+    // Approve / reject / suspend e-mail the investor: never fire on a stray click.
+    const ok = await confirm({
+      message: t(CONFIRM_KEYS[action]),
+      tone: action === "approve" ? undefined : "danger",
+    });
+    if (!ok) return;
     setActing(profileId);
     try {
       const res = await fetch("/api/investor/approval", {
@@ -81,19 +100,22 @@ export default function AdminInvestorsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setToast({ type: "success", message: t("investorAdmin.list.actionDone", { action: t(ACTION_LABELS[action]) }) });
+        notify("success", t("investorAdmin.list.actionDone", { action: t(ACTION_LABELS[action]) }));
         refresh();
+        refreshAll();
       } else {
-        setToast({ type: "error", message: t(data.error || "") || data.error });
+        notify("error", (data.error && t(data.error)) || t("investorAdmin.list.actionFailed"));
       }
-    } catch (_) {}
+    } catch (_) {
+      notify("error", t("errors.networkError"));
+    }
     setActing(null);
   };
 
   const counts = {
-    all: investors.length,
-    pending_review: investors.filter(i => i.approval_status === "pending_review").length,
-    approved: investors.filter(i => i.approval_status === "approved").length,
+    all: allInvestors.length,
+    pending_review: allInvestors.filter(i => i.approval_status === "pending_review").length,
+    approved: allInvestors.filter(i => i.approval_status === "approved").length,
   };
 
   const openInvestorLink = async () => {

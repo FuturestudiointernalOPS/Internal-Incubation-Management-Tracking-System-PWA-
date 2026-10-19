@@ -12,7 +12,6 @@ import {
   AlertTriangle,
   BarChart3,
   ChevronDown,
-  Clock,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import DashboardHeader from "@/components/admin/dashboard-page/DashboardHeader";
@@ -33,7 +32,6 @@ import KpiProgressSection from "@/components/admin/dashboard-page/KpiProgressSec
 import {
   BlockerRateCard,
   InternalOpsNavCards,
-  ArchiveNavCards,
 } from "@/components/admin/dashboard-page/NavCards";
 import {
   TeamSummaryStats,
@@ -59,6 +57,7 @@ export default function AdminDashboard() {
   const { t, lang } = useI18n();
 
   const dashboardData = useAdminDashboardData({ router, t, lang });
+  const { accountability } = dashboardData;
   const googleCalendar = useGoogleCalendar({ t, withEvents: true });
   const widgetData = useAdminWidgetData({ t, lang, externalItems: googleCalendar.events });
   const sections = useAdminSections();
@@ -224,34 +223,39 @@ export default function AdminDashboard() {
           <div className="stf-grid g3">
             <StatCard
               title={t("admin.mondayStandups")}
-              value={dashboardData.opStats.standups}
+              value={`${accountability.standupsThisWeek}/${accountability.expected}`}
               icon={Calendar}
               color="text-[var(--brand-orange)]"
-              subtitle={`${dashboardData.opStats.totalUsers} ${t("admin.activeReporters")}`}
+              subtitle={t("admin.accountability.thisWeek", { week: accountability.week.week })}
               loading={dashboardData.loading}
               onClick={() => router.push("/admin/op-reports")}
             />
             <StatCard
               title={t("admin.fridayRetros")}
-              value={dashboardData.opStats.retros}
+              value={`${accountability.retrosThisWeek}/${accountability.expected}`}
               icon={CheckCircle2}
               color="text-emerald-500"
+              subtitle={
+                accountability.retroDue
+                  ? t("admin.accountability.thisWeek", { week: accountability.week.week })
+                  : t("admin.accountability.dueFriday")
+              }
               loading={dashboardData.loading}
               onClick={() => router.push("/admin/op-reports")}
             />
             <StatCard
-              title={t("admin.blockersReported")}
-              value={dashboardData.opStats.blockers}
+              title={t("admin.accountability.activeBlockers")}
+              value={widgetData.activeBlockers.length}
               icon={AlertTriangle}
               color="text-rose-500"
-              badge={dashboardData.opStats.blockers > 0 ? t("status.action") : ""}
+              badge={widgetData.activeBlockers.length > 0 ? t("status.action") : ""}
               loading={dashboardData.loading}
-              onClick={() => router.push("/admin/op-reports")}
+              onClick={() => router.push("/admin/blockers")}
             />
           </div>
 
           <BlockerRateCard
-            opStats={dashboardData.opStats}
+            accountability={accountability}
             onOpen={() => router.push("/admin/op-reports")}
           />
         </div>
@@ -280,19 +284,16 @@ export default function AdminDashboard() {
             }
           />
 
-          <TeamSummaryStats
-            staffReports={dashboardData.staffReports}
-            totalStaff={dashboardData.stats.totalStaff}
-          />
+          <TeamSummaryStats accountability={accountability} />
 
-          {(sections.expandedSections.teamTable || dashboardData.staffReports.length <= 6) && (
+          {(sections.expandedSections.teamTable || accountability.rows.length <= 6) && (
             <StaffReportTable
-              staffReports={dashboardData.staffReports}
+              accountability={accountability}
               loading={dashboardData.loading}
               lang={lang}
             />
           )}
-          {sections.expandedSections.teamTable && dashboardData.staffReports.length > 6 && (
+          {sections.expandedSections.teamTable && accountability.rows.length > 6 && (
             <CollapseTableButton onCollapse={() => sections.toggleSection("teamTable")} />
           )}
         </div>
@@ -308,32 +309,12 @@ export default function AdminDashboard() {
           <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))" }}>
             <LatestBlockersCard
               blockers={widgetData.activeBlockers}
-              resolvingBlocker={widgetData.resolvingBlocker}
-              onResolve={widgetData.handleResolveBlocker}
+              lang={lang}
+              onOpenAll={() => router.push("/admin/blockers")}
             />
 
             <QuickActionsCard onNavigate={(path) => router.push(path)} />
           </div>
-        </div>
-
-        <div className="stf-sec">
-          <SectionHeader
-            number="E"
-            title={t("admin.historicalIntelligence")}
-            subtitle={t("admin.sectionSubtitles.longTermVisibility")}
-            icon={Clock}
-            color="bg-blue-500/10 text-blue-500"
-            action={
-              <button
-                onClick={() => router.push("/admin/op-reports")}
-                className="text-[10px] font-bold text-blue-400 uppercase hover:underline"
-              >
-                {t("admin.fullArchive")}
-              </button>
-            }
-          />
-
-          <ArchiveNavCards onNavigate={(path) => router.push(path)} />
         </div>
       </div>
 

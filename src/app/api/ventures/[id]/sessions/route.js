@@ -8,6 +8,15 @@ import { signSessionMaterials } from "@/lib/ventureEvidence";
 import { checkSessionBooking } from "@/services/ventures/sessionBooking";
 import { resolveSessionBookingTargets } from "@/services/ventures/sessionBookingTargets";
 import { checkSessionManagement } from "@/services/ventures/sessionAuthority";
+import { pushSessionToCalendars } from "@/services/ventures/sessionCalendarPush";
+import {
+  addSessionInvitee,
+  getSessionInvitee,
+  listInviteesBySessionIds,
+  listSessionInvitees,
+  removeSessionInvitee,
+} from "@/services/ventures/sessionInvitees";
+import { getVentureIdAndCode, getVentureDisplayNameByCode } from "@/models/ventureWorkspace";
 import {
   notifySessionScheduled,
   notifySessionUpdated,
@@ -15,6 +24,19 @@ import {
   notifySessionRescheduled,
 } from "@/services/ventures/sessionNotices";
 
+
+/** The Venture's display name (company_name-first), or null — best-effort. */
+async function resolveVentureLabel(ventureParam) {
+  try {
+    const resolved = await getVentureIdAndCode(ventureParam);
+    const code = resolved.rows?.[0]?.venture_id;
+    if (!code) return null;
+    const label = await getVentureDisplayNameByCode(code);
+    return label.rows?.[0]?.venture_name || null;
+  } catch (_) {
+    return null;
+  }
+}
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -34,7 +56,21 @@ export const GET = createHandler(async (req, { params }) => {
       materials: await signSessionMaterials(session.materials),
     })),
   );
-  return NextResponse.json({ success: true, sessions: signed });
+  // The invitees travel with the session: the panel shows who was told, and an
+  // invited guest has no other place to be seen. Read through the invitee service
+  // so this panel is never the first thing to touch a table nobody created yet.
+  const invitees = await listInviteesBySessionIds((sessions || []).map((session) => session.id));
+  const inviteesBySession = new Map();
+  for (const invitee of invitees) {
+    const key = String(invitee.session_id);
+    if (!inviteesBySession.has(key)) inviteesBySession.set(key, []);
+    inviteesBySession.get(key).push(invitee);
+  }
+  const withInvitees = signed.map((session) => ({
+    ...session,
+    invitees: inviteesBySession.get(String(session.id)) || [],
+  }));
+  return NextResponse.json({ success: true, sessions: withInvitees });
 });
 
 export const POST = createHandler(async (req, { params }) => {
@@ -115,7 +151,54 @@ export const POST = createHandler(async (req, { params }) => {
         ventureParam: id, body, sessionNote, createdSession, coachContactId,
         actorCid: req.session?.cid,
       });
-      return NextResponse.json({ success: true, session_id: createdSession.id });
+      // Guests entered while booking are invited as soon as the session exists.
+      const invited = Array.isArray(body.invitees) ? body.invitees : [];
+      const emailFailed = [];
+      if (invited.length > 0) {
+        const session = await getSession(createdSession.id);
+        const ventureLabel = await resolveVentureLabel(id);
+        for (const invitee of invited) {
+          const address = String(invitee?.email || "").trim();
+          let invited1 = null;
+          try {
+            invited1 = await addSessionInvitee({
+              sessionId: createdSession.id,
+              session,
+              ventureLabel,
+              email: address,
+              name: invitee?.name,
+              actorCid: req.session?.cid,
+              // Who invited them: the signed-in person, so the guest sees a
+              // name in the e-mail and in their own calendar, not the platform.
+              actorName: req.session?.name,
+              actorEmail: req.session?.email,
+            });
+          } catch (error) {
+            // This used to be `.catch(() => null)`, and null was never reported:
+            // an invitation the platform could not even RECORD (production had no
+            // `venture_session_invitees` table at all) came back to the booker as
+            // "notified by email". Nothing about a failed invitation is discarded.
+            console.error(`[session-invitation] could not invite ${address}:`, error?.message || error);
+          }
+          // Only an invitation the transport reported as SENT counts as delivered.
+          const delivered = invited1?.ok === true && invited1?.emailResult?.sent === true;
+          if (address && !delivered) emailFailed.push(address);
+        }
+      }
+      // The people a session concerns get it on their OWN calendars now, not on
+      // whatever the next sync happens to be: the booking is what just happened,
+      // and the confirmation says the session appears on their calendar. The
+      // booker and the coach, best-effort — a calendar that cannot be reached
+      // never fails the booking.
+      await pushSessionToCalendars([req.session?.cid, coachContactId]);
+      return NextResponse.json({
+        success: true,
+        session_id: createdSession.id,
+        // What happened to the invitations: how many were ATTEMPTED, and which
+        // addresses could not be reached — empty in the normal case. Without the
+        // count, "nobody was invited" and "everybody was invited" look the same.
+        invitations: { attempted: invited.length, failed: emailFailed.filter(Boolean) },
+      });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
   }
 
@@ -131,6 +214,9 @@ export const POST = createHandler(async (req, { params }) => {
         const changed = (["start_time", "end_time", "meeting_link", "location"]).some((field) => body.updates && body.updates[field] !== undefined && String(body.updates[field]) !== String(before[field]));
         if (changed) {
           await notifySessionUpdated({ ventureParam: id, session });
+          // The calendar follows the change immediately: a moved session that
+          // keeps its old slot is worse than no entry at all.
+          await pushSessionToCalendars([req.session?.cid, session.coach_contact_id]);
         }
       }
       return NextResponse.json({ success: true, session });
@@ -169,6 +255,8 @@ export const POST = createHandler(async (req, { params }) => {
     await cancelSession(parseInt(body.session_id));
     if (session) {
       await notifySessionCancelled({ ventureParam: id, session, actorCid: req.session?.cid });
+      // A cancelled session must leave the calendars too.
+      await pushSessionToCalendars([req.session?.cid, session.coach_contact_id]);
     }
     return NextResponse.json({ success: true });
   }
@@ -182,6 +270,7 @@ export const POST = createHandler(async (req, { params }) => {
       const session = await getSession(parseInt(body.session_id));
       if (session) {
         await notifySessionRescheduled({ ventureParam: id, session, actorCid: req.session?.cid });
+        await pushSessionToCalendars([req.session?.cid, session.coach_contact_id]);
       }
       return NextResponse.json({ success: true });
     } catch (error) { return NextResponse.json({ success: false, error: error.message }, { status: 400 }); }
@@ -191,7 +280,11 @@ export const POST = createHandler(async (req, { params }) => {
     const denied = await deniedSessionManagement();
     if (denied) return denied;
     if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
+    // Read the row BEFORE deleting: once it is gone, the coach it names is
+    // unknown, and their calendar would keep a session that no longer exists.
+    const doomed = await getSession(parseInt(body.session_id));
     await deleteSession(parseInt(body.session_id));
+    await pushSessionToCalendars([req.session?.cid, doomed?.coach_contact_id]);
     return NextResponse.json({ success: true });
   }
 
@@ -223,6 +316,40 @@ export const POST = createHandler(async (req, { params }) => {
   if (action === "update_action_item") {
     const dbId = await resolveVentureDbId(id);
     await updateActionItem(parseInt(body.action_item_id), body.updates, [id, dbId]);
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === "list_invitees") {
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
+    const invitees = await listSessionInvitees(parseInt(body.session_id));
+    return NextResponse.json({ success: true, invitees });
+  }
+
+  if (action === "add_invitee") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
+    if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
+    const session = await getSession(parseInt(body.session_id));
+    const result = await addSessionInvitee({
+      sessionId: parseInt(body.session_id),
+      session,
+      ventureLabel: await resolveVentureLabel(id),
+      email: body.email,
+      name: body.name,
+      actorCid: req.session?.cid,
+      actorName: req.session?.name,
+      actorEmail: req.session?.email,
+    });
+    if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: 400 });
+    return NextResponse.json({ success: true, invitee: result.invitee });
+  }
+
+  if (action === "remove_invitee") {
+    const denied = await deniedSessionManagement();
+    if (denied) return denied;
+    const invitee = await getSessionInvitee(parseInt(body.invitee_id));
+    if (!invitee || !(await sessionBelongsToVenture(invitee.session_id))) return ventureNotFound();
+    await removeSessionInvitee(parseInt(body.invitee_id));
     return NextResponse.json({ success: true });
   }
 

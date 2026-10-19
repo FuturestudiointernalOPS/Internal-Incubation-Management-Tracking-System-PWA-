@@ -52,11 +52,12 @@ const FIXTURE = {
       ],
     },
     {
+      // PROJECT MANAGEMENT (ventures → projects) is retired from the sidebar;
+      // the page still exists and is reached from a Venture and from reminders.
       id: "ventures",
       href: null,
       subItems: [
         { id: "all_ventures", href: "/admin/ventures", subItems: null },
-        { id: "venture_projects", href: "/admin/ventures/projects", subItems: null },
       ],
     },
     {
@@ -66,7 +67,6 @@ const FIXTURE = {
         { id: "investors_manage", href: "/admin/investors", subItems: null },
         { id: "investors_dashboard", href: "/admin/investors/dashboard", subItems: null },
         { id: "investors_review", href: "/admin/investors/review", subItems: null },
-        { id: "investors_overview", href: "/admin/investors/overview", subItems: null },
         { id: "investors_campaigns", href: "/admin/investors/campaigns", subItems: null },
         { id: "investors_relationships", href: "/admin/investors/relationships", subItems: null },
       ],
@@ -128,7 +128,6 @@ const FIXTURE = {
       id: "settings",
       href: null,
       subItems: [
-        { id: "integrations", href: "/admin/integrations", subItems: null },
         { id: "system", href: "/admin/system", subItems: null },
       ],
     },

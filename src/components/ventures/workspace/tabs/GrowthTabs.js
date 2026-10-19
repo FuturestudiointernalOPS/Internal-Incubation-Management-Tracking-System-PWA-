@@ -19,7 +19,7 @@ export function InvestmentTab() {
           <div className={`rounded-xl p-6 border ${investmentReadiness.is_investment_ready ? 'border-green-500/30 bg-green-500/10' : 'border-amber-500/30 bg-amber-500/10'}`} style={cardStyle}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-lg font-bold" style={{ color: investmentReadiness.is_investment_ready ? '#22c55e' : '#f59e0b' }}>
+                <p className="text-lg font-bold" style={{ color: investmentReadiness.is_investment_ready ? 'var(--chart-success)' : 'var(--chart-warning)' }}>
                   {investmentReadiness.is_investment_ready ? (t('venture.investmentReady') || '✅ Investment Ready') : (t('venture.notReady') || '⏳ Not Yet Ready')}
                 </p>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
@@ -27,22 +27,22 @@ export function InvestmentTab() {
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-3xl font-bold" style={{ color: investmentReadiness.is_investment_ready ? '#22c55e' : 'var(--brand-orange)' }}>
+                <p className="text-3xl font-bold" style={{ color: investmentReadiness.is_investment_ready ? 'var(--chart-success)' : 'var(--brand-orange)' }}>
                   {investmentReadiness.readiness_percent}%
                 </p>
               </div>
             </div>
-            <div className="mt-3 w-full bg-gray-700 rounded-full h-2">
+            <div className="mt-3 w-full bg-[var(--surface-3)] rounded-full h-2">
               <div className="h-2 rounded-full transition-all" style={{
                 width: `${investmentReadiness.readiness_percent}%`,
-                backgroundColor: investmentReadiness.is_investment_ready ? '#22c55e' : 'var(--brand-orange)'
+                backgroundColor: investmentReadiness.is_investment_ready ? 'var(--chart-success)' : 'var(--brand-orange)'
               }} />
             </div>
           </div>
           <div className="space-y-2">
             {investmentReadiness.checklist.map(item => (
               <div key={item.key} className={`rounded-xl p-4 border flex items-center gap-4 ${item.status === 'approved' ? 'border-green-500/20 bg-green-500/5' : item.status === 'submitted' ? 'border-amber-500/20 bg-amber-500/5' : 'opacity-60'}`} style={cardStyle}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${item.status === 'approved' ? 'bg-green-600/30' : item.status === 'submitted' ? 'bg-amber-600/30' : 'bg-gray-700'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${item.status === 'approved' ? 'bg-green-600/30' : item.status === 'submitted' ? 'bg-amber-600/30' : 'bg-[var(--surface-3)]'}`}>
                   {item.icon}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -92,7 +92,7 @@ export function RoadmapReadinessCard() {
               <span style={{ color: 'var(--text-secondary)' }}>{row.pct === null ? '—' : `${row.pct}%`}</span>
             </div>
             {row.pct !== null && (
-              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: 'rgb(255 255 255 / 0.08)' }}>
+              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: 'var(--surface-3)' }}>
                 <div className="h-full rounded-full" style={{ width: `${Math.min(row.pct, 100)}%`, backgroundColor: 'var(--brand-orange)' }} />
               </div>
             )}

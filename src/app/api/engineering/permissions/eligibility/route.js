@@ -30,6 +30,7 @@ import {
 } from "@/models/authorization";
 import { listProfiles, ensureProfilesSchema } from "@/models/authorization/profilesStore";
 import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
+import { ensureProfileCapabilitiesSchema } from "@/models/authorization/profileCapabilitiesStore";
 
 export const dynamic = "force-dynamic";
 
@@ -129,8 +130,11 @@ export async function GET() {
 
     // The profiles come from the DATABASE (the catalogue table is the source of
     // truth), never from a hardcoded list: a profile created, renamed or deleted
-    // from the profiles screen is offered here on the next read.
+    // from the profiles screen is offered here on the next read. The capabilities
+    // schema is ensured too — `profiles.label` is added by it, and `listProfiles`
+    // selects that column, so a drifted database must not make this read 500.
     await ensureProfilesSchema();
+    await ensureProfileCapabilitiesSchema();
     const profilesRes = await listProfiles();
     const profiles = (profilesRes.rows || [])
       .map((row) => row.key)

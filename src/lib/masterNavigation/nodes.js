@@ -61,12 +61,6 @@ export const MASTER_NAVIGATION = [
     icon: "rocket",
     children: [
       { id: "all_ventures", name: "ALL VENTURES", href: "/admin/ventures" },
-      // The operational view of the same work the Journey screen structures:
-      // every milestone, activity and deliverable, with owner, support and dates.
-      // Named PROJECT MANAGEMENT rather than PROJECTS so it cannot be mistaken
-      // for the platform's separate top-level PROJECTS section (Future Studio's
-      // own internal projects, which is a different table and a different idea).
-      { id: "venture_projects", name: "PROJECT MANAGEMENT", href: "/admin/ventures/projects" },
     ],
   },
 
@@ -78,7 +72,6 @@ export const MASTER_NAVIGATION = [
       { id: "investors_manage", name: "INVESTOR MANAGEMENT", href: "/admin/investors" },
       { id: "investors_dashboard", name: "DASHBOARD", href: "/admin/investors/dashboard" },
       { id: "investors_review", name: "REVIEW", href: "/admin/investors/review" },
-      { id: "investors_overview", name: "OVERVIEW", href: "/admin/investors/overview" },
       { id: "investors_campaigns", name: "CAMPAIGNS", href: "/admin/investors/campaigns" },
       { id: "investors_relationships", name: "RELATIONSHIPS", href: "/admin/investors/relationships" },
     ],
@@ -154,7 +147,6 @@ export const MASTER_NAVIGATION = [
     name: "SETTINGS",
     icon: "wrench",
     children: [
-      { id: "integrations", name: "INTEGRATIONS", href: "/admin/integrations" },
       { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
     ],
   },

@@ -8,6 +8,7 @@ import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/Skeleton";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
+import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 import VentureRemindersPanel from "@/components/ventures/projects/VentureRemindersPanel";
 
 /**
@@ -55,6 +56,14 @@ export default function ProjectWorkItemsPage() {
       </div>
 
       {ventureId && <ProjectsWorkItemsView ventureId={ventureId} />}
+
+      {/* WHO the work stands on comes before chasing it: identifying a name is
+          what makes a reminder reach the right address. */}
+      {ventureId && (
+        <div className="pt-2">
+          <VenturePeoplePanel ventureId={ventureId} />
+        </div>
+      )}
 
       {ventureId && (
         <div className="pt-2">

@@ -54,3 +54,57 @@ export const EMAIL_PRIMARY_DEFAULT =
 export function gmailCredentialsAvailable() {
   return !!(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);
 }
+
+/**
+ * Whether a given transport can CARRY a file attachment.
+ *
+ * Only the workspace mailbox can; the transactional service has no attachment
+ * support. A sender that attached a file must therefore be able to tell, after
+ * the fact, that the fallback went out without it — a dropped attachment is a
+ * silent loss otherwise, which is exactly what this platform refuses to do.
+ */
+export function transportSupportsAttachments(provider) {
+  return provider === "gmail";
+}
+
+/**
+ * What the mail configuration IS — for diagnosing a send from the running
+ * environment (production included) without ever revealing a secret.
+ *
+ * Only presence is reported: which credential NAMES are missing, which provider
+ * is primary and why, and the sender addresses (already visible on every mail
+ * we send). No key, token or secret is ever returned.
+ */
+export function describeEmailConfig() {
+  const gmailMissing = [
+    ["GMAIL_CLIENT_ID", GMAIL_CLIENT_ID],
+    ["GMAIL_CLIENT_SECRET", GMAIL_CLIENT_SECRET],
+    ["GMAIL_REFRESH_TOKEN", GMAIL_REFRESH_TOKEN],
+  ]
+    .filter(([, value]) => !value)
+    .map(([name]) => name);
+
+  return {
+    primaryProvider: EMAIL_PRIMARY_DEFAULT,
+    // Set `EMAIL_PRIMARY_PROVIDER=resend` and Gmail stops being chosen first,
+    // however complete its credentials are.
+    forcedByEnv:
+      process.env.EMAIL_PRIMARY_PROVIDER === "resend" ? "EMAIL_PRIMARY_PROVIDER=resend" : null,
+    gmail: {
+      configured: gmailCredentialsAvailable(),
+      senderEmail: GMAIL_SENDER_EMAIL,
+      missing: gmailMissing,
+      redirectUri: GMAIL_REDIRECT_URI || null,
+    },
+    resend: {
+      configured: Boolean(RESEND_API_KEY),
+      fromEmail: FROM_EMAIL,
+    },
+    attachments: {
+      // An .ics attachment only travels on the Gmail transport: the Resend
+      // sender in this codebase has no attachment support.
+      supportedBy: ["gmail"],
+      note: "Resend has no attachment support — a fallback send drops the .ics",
+    },
+  };
+}

@@ -77,7 +77,8 @@
       "stageIntroRequested": "Intro demandée",
       "stageDueDiligence": "Due Diligence",
       "stageNegotiation": "Négociation",
-      "stageDeclined": "Décliné"
+      "stageDeclined": "Décliné",
+      "executiveSection": "Vue exécutive"
     },
     "list": {
       "title": "Gestion des investisseurs",
@@ -114,6 +115,10 @@
       "reviewedBy": "Examiné par :",
       "noReviewNotes": "Aucune note de révision pour l'instant",
       "actionDone": "Investisseur {action}",
+      "confirmApprove": "Approuver cet investisseur ?\nIl sera notifié par e-mail et obtiendra l'accès.",
+      "confirmReject": "Rejeter cet investisseur ?\nIl sera notifié par e-mail.",
+      "confirmSuspend": "Suspendre cet investisseur ?\nSon accès est retiré jusqu'à réactivation.",
+      "actionFailed": "L'action n'a pas pu être effectuée",
       "actionApproved": "approuvé",
       "actionRejected": "rejeté",
       "actionSuspended": "suspendu"

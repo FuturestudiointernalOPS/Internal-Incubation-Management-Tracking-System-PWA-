@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield, FolderKanban } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
@@ -15,8 +15,8 @@ import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 import DataBankPanel from "@/components/ventures/DataBankPanel";
-
-const TAB_IDS = new Set(["overview", "journey", "tasks", "sessions", "notes", "dataBank", "plan", "documents"]);
+import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
+import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -38,6 +38,9 @@ const TAB_IDS = new Set(["overview", "journey", "tasks", "sessions", "notes", "d
 const TABS = [
   { id: "overview", label: "venture.overview", icon: Rocket },
   { id: "journey", label: "venture.journey", icon: Route },
+  // The Project lens on the same work: every milestone, activity and deliverable
+  // in one row each — the Super Admin's "Project" button, for the Lead Manager.
+  { id: "projects", label: "venture.projects.pageTitle", icon: FolderKanban, leadManagerOnly: true },
   { id: "tasks", label: "venture.tasks", icon: ListTodo },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
@@ -78,8 +81,12 @@ export default function StaffVentureWorkspace() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const tabFromUrl = String(searchParams?.get("tab") || "");
-  const activeTab = TAB_IDS.has(tabFromUrl) ? tabFromUrl : "overview";
   const isLeadManager = myRoles.some((role) => role.responsibility_code === "lead_manager");
+  // A tab the viewer is not entitled to is not a tab they can stand on: a
+  // hand-typed ?tab=projects falls back to Overview instead of an empty pane.
+  // (The SERVER is still the authority — this only decides what is rendered.)
+  const visibleTabs = TABS.filter((tab) => !tab.leadManagerOnly || isLeadManager);
+  const activeTab = visibleTabs.some((tab) => tab.id === tabFromUrl) ? tabFromUrl : "overview";
 
   const selectTab = (tabId) => {
     const params = new URLSearchParams(searchParams?.toString?.() || "");
@@ -226,7 +233,7 @@ export default function StaffVentureWorkspace() {
 
       {/* Tabs — same bar as the Super Admin venture hub, for consistency */}
       <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
-        {TABS.map((tab) => {
+        {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
@@ -403,6 +410,20 @@ export default function StaffVentureWorkspace() {
       )}
 
       {activeTab === "journey" && <JourneyManagerPanel ventureId={id} />}
+
+      {/* Projects — the same read the Super Admin's venture "Project" page shows.
+          The server gate is `ventures.view` + venture scope, which already admits
+          the Venture's own Lead Manager; this is the surface that was missing. */}
+      {activeTab === "projects" && isLeadManager && <ProjectsWorkItemsView ventureId={id} />}
+
+      {/* WHO the work stands on: the same linking the Super Admin's Project page
+          offers, so a Lead Manager can name the people their Venture's work
+          mentions and their reminders reach them. */}
+      {activeTab === "projects" && isLeadManager && (
+        <div className="pt-2">
+          <VenturePeoplePanel ventureId={id} />
+        </div>
+      )}
 
       {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}
 

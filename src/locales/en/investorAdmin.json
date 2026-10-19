@@ -77,7 +77,8 @@
       "stageIntroRequested": "Intro Requested",
       "stageDueDiligence": "Due Diligence",
       "stageNegotiation": "Negotiation",
-      "stageDeclined": "Declined"
+      "stageDeclined": "Declined",
+      "executiveSection": "Executive overview"
     },
     "list": {
       "title": "Investor Management",
@@ -114,6 +115,10 @@
       "reviewedBy": "Reviewed by:",
       "noReviewNotes": "No review notes yet",
       "actionDone": "Investor {action}",
+      "confirmApprove": "Approve this investor?\nThey will be notified by email and gain access.",
+      "confirmReject": "Reject this investor?\nThey will be notified by email.",
+      "confirmSuspend": "Suspend this investor?\nTheir access is removed until reactivated.",
+      "actionFailed": "The action could not be completed",
       "actionApproved": "approved",
       "actionRejected": "rejected",
       "actionSuspended": "suspended"

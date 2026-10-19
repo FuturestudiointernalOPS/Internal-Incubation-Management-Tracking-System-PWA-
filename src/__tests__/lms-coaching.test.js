@@ -175,6 +175,24 @@ describe("lms coaching requests — service", () => {
     expect(recipients).toEqual(["U-COACH", "U-PM"]);
   });
 
+  test("the coaching table is created on first use when the migration never ran", async () => {
+    seedCourse();
+    seedEnrollment();
+    // A fresh module graph: the schema promise is cached once per process.
+    let freshCreate;
+    jest.isolateModules(() => {
+      freshCreate = require("@/services/lms/coaching").createCoachingRequest;
+    });
+    await freshCreate({ cid: LEARNER, courseId: COURSE, timing: "after" });
+    const statements = mockFake.executed.map((entry) => entry.sql.replace(/\s+/g, " "));
+    const ddlIndex = statements.findIndex((sql) =>
+      /CREATE TABLE IF NOT EXISTS lms_coaching_requests/i.test(sql),
+    );
+    const firstRequestRead = statements.findIndex((sql) => /FROM lms_coaching_requests/i.test(sql));
+    expect(ddlIndex).toBeGreaterThanOrEqual(0);
+    expect(ddlIndex).toBeLessThan(firstRequestRead);
+  });
+
   test("a second ask returns the open request instead of duplicating it", async () => {
     seedProgram();
     seedCourse();

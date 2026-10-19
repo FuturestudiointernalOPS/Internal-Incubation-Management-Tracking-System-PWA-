@@ -26,7 +26,7 @@ export default function ReviewModal({
               <p className="text-[10px] text-[var(--text-secondary)]">{venture.company_name}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
+          <button onClick={onClose} className="p-2 hover:bg-[var(--surface-2)] rounded-lg"><X className="w-4 h-4 text-slate-500" /></button>
         </div>
 
         <div className="space-y-4">

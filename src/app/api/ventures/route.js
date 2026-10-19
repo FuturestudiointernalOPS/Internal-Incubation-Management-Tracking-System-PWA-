@@ -26,6 +26,10 @@ export const GET = createHandler(async (req) => {
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const search = searchParams.get("search");
+  // Deleted/archived Ventures are NOT part of the active directory: the listing
+  // excludes them unless a history surface asks for them explicitly. This is a
+  // server-side default, not a screen's opinion — every caller inherits it.
+  const includeArchived = searchParams.get("include_archived") === "1";
 
   const contactId = searchParams.get("contact_id");
 
@@ -65,22 +69,26 @@ export const GET = createHandler(async (req) => {
     assignedStaffId,
     status,
     search,
+    includeArchived,
   });
 
   // Document-driven readiness (Ready / %), computed live — spread onto each
   // Venture row so list screens can render it without a second round-trip.
+  // Keyed on the INTERNAL id (`v.id`), which is what the readiness rows carry
+  // and what the row is looked up by below — the code (`v.venture_id`) is the
+  // decorative alias, so keying on it would silently match nothing.
   let readinessByVenture = new Map();
   try {
     const readiness = await listVentureDocumentReadiness(
-      (result.rows || []).map((row) => row.venture_id),
+      (result.rows || []).map((row) => row.id),
     );
-    readinessByVenture = new Map(readiness.map((row) => [row.venture_id, row]));
+    readinessByVenture = new Map(readiness.map((row) => [String(row.venture_id), row]));
   } catch (_) {
     readinessByVenture = new Map();
   }
 
   const ventures = (result.rows || []).map((venture) => {
-    const readiness = readinessByVenture.get(venture.venture_id);
+    const readiness = readinessByVenture.get(String(venture.id));
     if (!readiness) return venture;
     return {
       ...venture,

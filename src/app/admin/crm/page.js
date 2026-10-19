@@ -144,8 +144,10 @@ export default function CrmDashboardPage() {
         </div>
 
         {/* Quick Links */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
+            // The CRM workspace: organizations, leads, opportunities, pipelines…
+            { label: t("crm.hub.title"), href: "/crm" },
             { label: t("crm.overview.allPeople"), href: "/admin/communications/contacts" },
             { label: t("crm.overview.pendingApprovals"), href: "/admin/pending-users" },
             { label: t("crm.overview.bulkImport"), href: "/admin/bulk-upload" },

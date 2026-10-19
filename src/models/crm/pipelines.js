@@ -137,3 +137,26 @@ export async function updateCrmPipelineStage(id, { name, description, position, 
     ],
   });
 }
+
+/**
+ * Put a pipeline's stages in the given order (ids, first to last).
+ *
+ * (pipeline_id, position) is unique and checked row by row, so the stages are
+ * first moved out of the way — above every position in use — and then numbered
+ * 1..n. One transaction: a failure leaves the previous order untouched.
+ */
+export async function reorderCrmPipelineStages(pipelineId, orderedStageIds) {
+  await db.transaction(async (query) => {
+    await query(
+      "UPDATE crm_pipeline_stages SET position = position + 100000 WHERE pipeline_id = ?",
+      [pipelineId],
+    );
+    for (const [index, stageId] of orderedStageIds.entries()) {
+      await query(
+        "UPDATE crm_pipeline_stages SET position = ?, updated_at = NOW() WHERE id = ? AND pipeline_id = ?",
+        [index + 1, stageId, pipelineId],
+      );
+    }
+  });
+  return getCrmPipelineStages(pipelineId, { includeInactive: true });
+}

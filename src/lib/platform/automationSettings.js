@@ -62,9 +62,14 @@ export function effectiveAutomation(formSettings, runSettings) {
   return flags;
 }
 
+/** Does the run itself decide this one flag (an explicit boolean at run level)? */
+export function isRunAutomationFlagOverride(runSettings, path) {
+  return typeof read(runSettings?.automation, path) === "boolean";
+}
+
 /** Does this run override anything at all? Used by the run settings screen. */
 export function hasRunAutomationOverride(runSettings) {
   const automation = runSettings?.automation;
   if (!automation || typeof automation !== "object") return false;
-  return AUTOMATION_FLAG_PATHS.some((path) => typeof read(automation, path) === "boolean");
+  return AUTOMATION_FLAG_PATHS.some((path) => isRunAutomationFlagOverride(runSettings, path));
 }
