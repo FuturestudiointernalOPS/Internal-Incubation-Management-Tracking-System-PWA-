@@ -270,10 +270,16 @@ export const POST = withRequestContext(async function POST(req) {
     //   everything else keeps its role (participant default).
     // The membership layer decides which groups are currently effective —
     // expired/ended FUTURE STUDIO memberships no longer produce staff.
-    const activeGroups = await getEffectiveGroupsForUser(userCid || user.id);
+    let activeGroups = [];
+    try {
+      activeGroups = await getEffectiveGroupsForUser(userCid || user.id);
+    } catch (_) {}
     let finalRole = resolveEffectiveRole({
       role: user.role,
       groups: activeGroups,
+      // Same fallback as the session-login path: a legacy row whose effective
+      // group list is unavailable still carries its raw group_name.
+      group_name: user.group_name,
       isTeam: isTeamLogin,
       isFamily: isFamilyLogin,
       legacySa: user.id === "sa",

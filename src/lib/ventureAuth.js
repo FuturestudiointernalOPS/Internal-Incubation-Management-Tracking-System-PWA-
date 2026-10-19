@@ -1,9 +1,18 @@
 import { getSession } from "@/server/auth/session";
 import { getVentureFacts, getViewerRelationship, ventureAccessFacts } from "@/services/ventures/accessFacts";
+import {
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 
 /** Roles that may always access Venture records (incl. archived, historical). */
 export function roleIsPrivileged(role) {
-  return ["staff", "super_admin", "program_manager"].includes(role);
+  return (
+    isPlatformOwnerRole(role) ||
+    isInternalStaffRole(role) ||
+    isLegacyProgramManagerRole(role)
+  );
 }
 
 /**
@@ -15,7 +24,7 @@ export function roleIsPrivileged(role) {
  */
 export async function isStaffActorForVenture(ventureId, session) {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  if (isPlatformOwnerRole(session.role)) return true;
   if (!session.cid) return false;
   try {
     // `venture_staff_assignments` keys on the INTERNAL id (Phase 0), resolved
@@ -112,8 +121,7 @@ export async function requireVentureAccess(ventureId) {
   if (!session) return { ventureId, session: null };
 
   // Global Venture authority (Phase 2: narrowed from all staff/PM roles).
-  const globalRoles = ["super_admin"];
-  if (globalRoles.includes(session.role)) {
+  if (isPlatformOwnerRole(session.role)) {
     return { ventureId, session };
   }
 

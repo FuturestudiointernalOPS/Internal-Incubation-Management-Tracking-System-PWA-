@@ -24,6 +24,7 @@ import {
   evaluateFacilitatorProgramAccess,
   evaluateParticipantFacilitatorConflict,
   evaluateAssignmentAccess,
+  evaluateProgramManagerAccess,
 } from "@/services/authorization/resourceGuards";
 
 /** Map a decision to the refusal response, or null when it is allowed. */
@@ -93,4 +94,13 @@ export async function assertNoParticipantFacilitatorConflict(
  */
 export async function requireAssignmentAccess(params) {
   return toResponse(await evaluateAssignmentAccess(params));
+}
+
+/**
+ * D-1 — platform owner, legacy program-manager session, or baseline staff
+ * holding the `program_manager` PROFILE. Used by the actions that were gated
+ * on the `program_manager` role before the identity unification.
+ */
+export async function requireProgramManagerAccess(session = undefined) {
+  return toResponse(await evaluateProgramManagerAccess(session));
 }

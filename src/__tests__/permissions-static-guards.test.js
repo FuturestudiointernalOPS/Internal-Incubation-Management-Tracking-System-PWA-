@@ -12,13 +12,14 @@
  *     échouer le test ; toute exception qui n'existe plus fait aussi échouer
  *     (entrée périmée à retirer). La liste ne peut que diminuer.
  *
- *     Motifs mesurés le 2026-10-10 (production, hors moteur, hors tests) :
- *       M1 requireAuth([...])          :  83 lignes
- *       M2 roles: [...]                : 108 lignes
- *       M3 role === / role !==         : 218 lignes
- *       M4 .includes(... role ...)     :  81 lignes
- *       total occurrences              : 490
- *       paires fichier#motif distinctes :  296
+ *     Motifs mesurés le 2026-10-19 après le Lot 1.1 (production, hors moteur,
+ *     hors tests) :
+ *       M1 requireAuth([...])          :  80 lignes
+ *       M2 roles: [...]                : 107 lignes
+ *       M3 role === / role !==         : 205 lignes
+ *       M4 .includes(... role ...)     :  73 lignes
+ *       total occurrences              : 465
+ *       paires fichier#motif distinctes : 284
  *
  *   GARDE 2 — toute route API porte une décision de permission OU est
  *     déclarée publique dans `src/proxy.js` (ou est un hub de ré-export, ou
@@ -117,7 +118,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/auth/invite/route.js#M1",
   "src/app/api/auth/resend-invite/[cid]/route.js#M2",
   "src/app/api/auth/revoke/[cid]/route.js#M2",
-  "src/app/api/auth/session-login/route.js#M3",
+
   "src/app/api/campaigns/[id]/route.js#M1",
   "src/app/api/campaigns/route.js#M2",
   "src/app/api/contacts/[cid]/emails/route.js#M3",
@@ -186,7 +187,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/platform/import/execute/route.js#M1",
   "src/app/api/platform/import/preview/route.js#M1",
   "src/app/api/platform/import/review-flags/route.js#M1",
-  "src/app/api/platform/integrations/calendar/route.js#M1",
+
   "src/app/api/platform/investor-run/route.js#M1",
   "src/app/api/platform/seed/founder-assessment/route.js#M1",
   "src/app/api/platform/seed/investor-application/route.js#M1",
@@ -229,7 +230,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/upload/route.js#M4",
   "src/app/api/user-groups/route.js#M3",
   "src/app/api/v2/groups/route.js#M1",
-  "src/app/api/v2/kpis/route.js#M1",
+
   "src/app/api/v2/program-staff/route.js#M1",
   "src/app/api/venture-options/route.js#M4",
   "src/app/api/venture-templates/route.js#M4",
@@ -293,8 +294,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/lib/identity.js#M4",
   "src/lib/masterNavigation/builders.js#M3",
   "src/lib/notificationLinks.js#M4",
-  "src/lib/ventureAuth.js#M3",
-  "src/lib/ventureAuth.js#M4",
+
   "src/lib/ventureDeliverables.js#M3",
   "src/models/communications/followups.js#M3",
   "src/models/contacts/directory.js#M3",
@@ -352,10 +352,9 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/ventures/founders.js#M3",
   "src/services/ventures/founders.js#M4",
   "src/services/ventures/memberRoster.js#M3",
-  "src/services/ventures/milestoneEngine/authority.js#M3",
+
   "src/services/ventures/operatingPlans.js#M4",
-  "src/services/ventures/profile/access.js#M3",
-  "src/services/ventures/profile/access.js#M4",
+
   "src/services/ventures/scope.js#M4",
   "src/services/ventures/submissions/createSubmission.js#M3",
   "src/services/ventures/submissions/createSubmission.js#M4",
@@ -441,6 +440,7 @@ const ROUTE_MECHANISMS = [
   "requireAssignmentAccess",
   "requireProjectAccess",
   "requireProgramFacilitator",
+  "requireProgramManagerAccess",
   "x-cron-secret",
   "verifyWebhookSignature",
   "getSession(",

@@ -23,9 +23,55 @@
 
 export const BASELINE_IDENTITIES = ["super_admin", "staff", "member"];
 
+export const PLATFORM_OWNER_ROLE = "super_admin";
+export const INTERNAL_STAFF_ROLE = "staff";
+export const PROGRAM_MANAGER_ROLE = "program_manager";
+export const PROGRAM_MANAGER_PROFILE = "program_manager";
+
+/** Normalized role label. */
+export function normalizeRole(role) {
+  return String(role || "").trim().toLowerCase();
+}
+
 /** True when the stored role is one of the three baseline identities. */
 export function isBaselineIdentity(role) {
-  return BASELINE_IDENTITIES.includes(role);
+  return BASELINE_IDENTITIES.includes(normalizeRole(role));
+}
+
+/** D-2 — the platform owner family. */
+export function isPlatformOwnerRole(role) {
+  return normalizeRole(role) === PLATFORM_OWNER_ROLE;
+}
+
+/** D-2 — the internal staff family. */
+export function isInternalStaffRole(role) {
+  return normalizeRole(role) === INTERNAL_STAFF_ROLE;
+}
+
+/** D-2 — transitional value: a legacy session or an unaligned contact row. */
+export function isLegacyProgramManagerRole(role) {
+  return normalizeRole(role) === PROGRAM_MANAGER_ROLE;
+}
+
+/**
+ * D-1 — should a program-manager identity be resolved as baseline STAFF?
+ *
+ * The target is `staff` + the `program_manager` PROFILE. The switch stays
+ * reversible because several role-only call sites (program management, task
+ * portfolio, etc.) still read the label; they are migrated lot by lot. The
+ * default therefore keeps the legacy role until the profile coverage has been
+ * verified (Lot 1, step 1.4). Enable with AUTHZ_PM_IDENTITY=staff.
+ */
+export function programManagerIdentityMode() {
+  return process.env.AUTHZ_PM_IDENTITY === "staff" ? "staff" : "role";
+}
+
+/** The resolved identity for a stored `program_manager` role. */
+export function resolveProgramManagerIdentity(role) {
+  if (!isLegacyProgramManagerRole(role)) return role;
+  return programManagerIdentityMode() === "staff"
+    ? INTERNAL_STAFF_ROLE
+    : PROGRAM_MANAGER_ROLE;
 }
 
 /** Read a Phase-I2 identity flag (default OFF). */

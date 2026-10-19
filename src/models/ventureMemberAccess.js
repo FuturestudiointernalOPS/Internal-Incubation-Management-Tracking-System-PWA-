@@ -5,8 +5,8 @@
  * drift apart. Kept in the model layer because it is a domain rule about the
  * Venture, not an HTTP concern.
  *
- *   view   — GLOBAL staff see the roster; otherwise an active membership OR an
- *            active staff assignment on this Venture is required.
+ *   view   — the platform owner sees the roster; otherwise an active membership
+ *            OR an active staff assignment on this Venture is required.
  *   mutate — founders manage the roster. Staff may too, but only when their
  *            assignment grants `founders:manage` (Lead Manager by default;
  *            Coach / Facilitator do not).
@@ -14,6 +14,7 @@
 
 import { hasVentureCapability, hasAnyVentureAssignment } from "@/services/ventures/permissions";
 import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
+import { isPlatformOwnerRole } from "@/lib/identity";
 
 /**
  * The identifier every Venture table keys on since Phase 0 (`ventures.id`),
@@ -53,7 +54,7 @@ export async function isVentureFounder(db, ventureId, cid) {
 }
 
 export async function checkVentureMemberViewAccess(db, ventureId, userRole, userCid) {
-  if (["super_admin"].includes(userRole)) return true;
+  if (isPlatformOwnerRole(userRole)) return true;
   if (!userCid) return false;
   if (await isVentureMember(db, ventureId, userCid)) return true;
   const id = await resolveVentureTableId(db, ventureId);
@@ -61,7 +62,7 @@ export async function checkVentureMemberViewAccess(db, ventureId, userRole, user
 }
 
 export async function checkVentureMemberMutateAccess(db, ventureId, userRole, userCid) {
-  if (["super_admin"].includes(userRole)) return true;
+  if (isPlatformOwnerRole(userRole)) return true;
   if (!userCid) return false;
   if (await isVentureFounder(db, ventureId, userCid)) return true;
   const id = await resolveVentureTableId(db, ventureId);

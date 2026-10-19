@@ -152,7 +152,8 @@ const DECISION_MECHANISMS = [
   "requireProgramScope",
   "requireAssignmentAccess",
   "requireProjectAccess",
-  "requireProgramFacilitator",
+  "requireProgramFacilitator(",
+  "requireProgramManagerAccess(",
   "requireInvestorSelfServiceAuthorization(",
 ];
 

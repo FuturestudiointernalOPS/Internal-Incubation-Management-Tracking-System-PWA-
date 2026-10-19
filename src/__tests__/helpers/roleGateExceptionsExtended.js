@@ -14,7 +14,7 @@
  *   - display  : role constants / navigation masks — reviewed as NOT access
  *                decisions; ratcheted so a NEW one still surfaces for review.
  *
- * Counts: decision 26, display 25.
+ * Counts measured 2026-10-19: decision 25, display 25.
  */
 module.exports = {
   generatedAt: "2026-10-10",

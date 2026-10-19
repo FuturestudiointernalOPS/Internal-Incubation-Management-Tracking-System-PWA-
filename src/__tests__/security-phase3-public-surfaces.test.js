@@ -49,8 +49,15 @@ jest.mock("@/models/authFlows/passwordReset", () => ({
   updateContactPasswordHashByCid: jest.fn(async () => {}),
 }));
 jest.mock("@/models/platform/roles", () => ({
+  resolveEffectiveRole: jest.fn(() => "staff"),
   resolveLanding: jest.fn(() => "/"),
   landingNeedsRelationships: jest.fn(() => false),
+}));
+jest.mock("@/services/authorization/membership", () => ({
+  getEffectiveGroupsForUser: jest.fn(async () => []),
+}));
+jest.mock("@/models/authorization/profileAssignmentsStore", () => ({
+  listActiveProfileKeys: jest.fn(async () => ({ rows: [] })),
 }));
 jest.mock("@/models/contacts/programMembership", () => ({
   getVentureMembershipsForContact: jest.fn(async () => ({ rows: [] })),

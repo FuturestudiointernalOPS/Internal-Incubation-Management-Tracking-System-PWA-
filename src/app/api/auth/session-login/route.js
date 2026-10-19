@@ -4,7 +4,13 @@ import { verifyPassword, verifyPasswordOrUpgradeLegacy } from "@/server/auth/pas
 import { updateContactPasswordHashByCid } from "@/models/authFlows/passwordReset";
 import { createSession } from "@/server/auth/session";
 import { setSessionCookieOnResponse } from "@/server/auth/cookies";
-import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
+import {
+  resolveEffectiveRole,
+  resolveLanding,
+  landingNeedsRelationships,
+} from "@/models/platform/roles";
+import { getEffectiveGroupsForUser } from "@/services/authorization/membership";
+import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   getVentureMembershipsForContact,
@@ -205,43 +211,23 @@ export async function POST(req) {
       }
     }
 
-    // --- 6. ROLE RESOLUTION ---
-    let finalRole = "participant";
+    // --- 6. ROLE RESOLUTION (one canonical function) ---
     const userCid = user.cid || user.id;
-
-    if (isTeamLogin) {
-      finalRole = "team";
-    } else if (isFamilyLogin) {
-      finalRole = "participant";
-    } else {
-      if (user.role === "super_admin" || user.id === "sa") {
-        finalRole = "super_admin";
-      } else if (user.role === "investor") {
-        finalRole = "investor";
-      } else if (user.role === "founder") {
-        finalRole = "founder";
-      } else if (user.role === "program_manager") {
-        finalRole = "program_manager";
-      } else if (
-        user.role === "staff" ||
-        user.role === "project_manager" ||
-        user.group_name?.toUpperCase() === "FUTURE STUDIO"
-      ) {
-        // Internal Future Studio staff keep their identity — being assigned as
-        // a program assistant / team handler must NOT change their identity.
-        finalRole = "staff";
-      } else if (user.role === "facilitator") {
-        // Explicit facilitator role; program-scoped access is still resolved
-        // per assignment by the facilitator workspace and its guards.
-        finalRole = "facilitator";
-      } else if (user.role === "member") {
-        // Neutral "member" means a person exists on the platform but has no
-        // global role yet. Preserve it — never collapse it into participant.
-        finalRole = "member";
-      } else if (user.role === "participant") {
-        finalRole = "participant";
-      }
-    }
+    // Both sign-in paths call the SAME resolver. The active group list is the
+    // effective (unexpired) membership, not the raw group_name column, so a
+    // former FUTURE STUDIO member no longer becomes staff by accident.
+    let activeGroups = [];
+    try {
+      activeGroups = await getEffectiveGroupsForUser(userCid);
+    } catch (_) {}
+    let finalRole = resolveEffectiveRole({
+      role: user.role,
+      groups: activeGroups,
+      group_name: user.group_name,
+      isTeam: isTeamLogin,
+      isFamily: isFamilyLogin,
+      legacySa: user.id === "sa",
+    });
 
     // The person's Venture memberships are read ONCE here, because two rules in
     // this route need them: whether an unassigned participant is really neutral,
@@ -300,6 +286,17 @@ export async function POST(req) {
       }
     }
 
+    // D-1 — the landing of a staff member carrying the program-manager PROFILE
+    // is the PM space. Profiles are read only for a baseline staff identity, so
+    // every other login keeps its previous cost.
+    let activeProfiles = [];
+    if (!isTeamLogin && !isFamilyLogin && finalRole === "staff") {
+      try {
+        const profileResult = await listActiveProfileKeys(userCid);
+        activeProfiles = (profileResult.rows || []).map((row) => String(row.profile_key));
+      } catch (_) {}
+    }
+
     // --- 7. BUILD RESPONSE USER ---
     let responseUser;
     if (isFamilyLogin) {
@@ -348,6 +345,7 @@ export async function POST(req) {
       teamId: responseUser.team_id || null,
       ventures: ventureMemberships,
       isInvestor,
+      profiles: activeProfiles,
     });
 
     // --- LOGIN ACTIVITY TRACKING (successful login only) ---

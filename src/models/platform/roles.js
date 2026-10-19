@@ -8,6 +8,8 @@
  * assigned (e.g. a group's configured default_role, or an admin action).
  */
 
+import { resolveProgramManagerIdentity } from "@/lib/identity";
+
 export const DEFAULT_ROLE = "participant";
 
 export const PRIVILEGED_ROLES = new Set([
@@ -87,14 +89,18 @@ export function resolveEffectiveRole({
   if (normalizedRole === "founder") return "founder";
 
   // Staff-family identities normalize to staff. Program Manager is a function
-  // layered on Staff (not a separate global identity) — a PM contact must
-  // resolve to staff at login, never fall through to participant.
-  if (normalizedRole === "staff" || normalizedRole === "program_manager" || normalizedRole === "project_manager") return "staff";
+  // layered on Staff (decision D-1): the canonical result is `staff` + the
+  // `program_manager` profile. The identity helper keeps the switch reversible
+  // until the profile coverage audit has been run.
+  if (normalizedRole === "program_manager") {
+    return resolveProgramManagerIdentity(normalizedRole);
+  }
+  if (normalizedRole === "staff" || normalizedRole === "project_manager") return "staff";
 
   // THE RULE — active FUTURE STUDIO membership = internal staff membership.
   // `group_name` is accepted as a compatibility fallback for callers that
   // only have the raw contact column (it must then be a CURRENT group value).
-  const memberGroups = Array.isArray(groups) ? groups : [];
+  const memberGroups = Array.isArray(groups) ? [...groups] : [];
   if (group_name) memberGroups.push(group_name);
   const isInternal = memberGroups.some(
     (group) => String(group || "").trim().toUpperCase() === INTERNAL_GROUP,
@@ -190,12 +196,24 @@ export function landingNeedsRelationships(role) {
  * The last resort is the neutral hub, which refuses nobody, so no branch here
  * can strand someone.
  */
-export function resolveLanding({ role, teamId = null, ventures = [], isInvestor = false } = {}) {
+export function resolveLanding({
+  role,
+  teamId = null,
+  ventures = [],
+  isInvestor = false,
+  profiles = [],
+} = {}) {
   const normalizedRole = String(role || "").trim().toLowerCase();
 
   // An entity login IS the account (a team, a family), not a person whose
   // relationships would be read — it keeps its own space.
   if (normalizedRole === "team") return teamId ? `/team/${teamId}` : "/team";
+
+  // D-1 — a staff identity carrying the program-manager PROFILE works in the
+  // PM space. The hidden role default still lands there through ROLE_HOME.
+  if (normalizedRole === "staff" && profiles.includes("program_manager")) {
+    return roleHomeHref("program_manager");
+  }
 
   const home = roleHomeHref(normalizedRole);
   if (!landingNeedsRelationships(normalizedRole)) return home;

@@ -3,7 +3,15 @@
  * internal staff membership (see src/lib/platform/roles.js).
  */
 
-const { resolveEffectiveRole, INTERNAL_GROUP } = require("@/models/platform/roles");
+const {
+  resolveEffectiveRole,
+  resolveLanding,
+  INTERNAL_GROUP,
+} = require("@/models/platform/roles");
+
+afterEach(() => {
+  delete process.env.AUTHZ_PM_IDENTITY;
+});
 
 describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => {
   test("privileged identities always win, even inside the group", () => {
@@ -28,6 +36,25 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
     for (const role of ["staff", "project_manager"]) {
       expect(resolveEffectiveRole({ role })).toBe("staff");
     }
+  });
+
+  test("D-1 — program manager is a staff identity when the switch is on", () => {
+    process.env.AUTHZ_PM_IDENTITY = "staff";
+    expect(resolveEffectiveRole({ role: "program_manager" })).toBe("staff");
+  });
+
+  test("D-1 — the legacy role is kept while the switch is off", () => {
+    delete process.env.AUTHZ_PM_IDENTITY;
+    expect(resolveEffectiveRole({ role: "program_manager" })).toBe(
+      "program_manager",
+    );
+  });
+
+  test("D-1 — a staff identity with the PM profile lands in the PM space", () => {
+    expect(
+      resolveLanding({ role: "staff", profiles: ["program_manager"] }),
+    ).toBe("/pm");
+    expect(resolveLanding({ role: "staff", profiles: [] })).toBe("/staff");
   });
 
   test("FUTURE STUDIO active membership = staff for every other identity", () => {

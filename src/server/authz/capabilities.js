@@ -11,6 +11,16 @@
  * anywhere that needs to reason about "what could this account do".
  */
 
+import {
+  INTERNAL_STAFF_ROLE,
+  PLATFORM_OWNER_ROLE,
+  PROGRAM_MANAGER_PROFILE,
+  PROGRAM_MANAGER_ROLE,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
+
 export { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
 
 export const ACCESS_LEVELS = {
@@ -40,7 +50,7 @@ export const ACCESS_LEVELS = {
 //     (families.lead_facilitator_id)
 // =============================================================================
 
-export const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager"];
+export const FACILITATOR_BYPASS_ROLES = [PLATFORM_OWNER_ROLE, PROGRAM_MANAGER_ROLE];
 
 // NOTE: this list MUST stay aligned with hasProgramManagementAccess() below.
 // "staff" is deliberately NOT included: staff program-delivery access is
@@ -52,7 +62,23 @@ export const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager"];
  * Roles with system-defined, program-wide management access. These roles keep
  * their existing program-management workflows and are NOT subject to the
  * per-program facilitator assignment check on shared program-data APIs.
+ *
+ * D-1 — when a resolved context is supplied, a baseline STAFF identity holding
+ * the `program_manager` PROFILE also qualifies. Existing callers pass only the
+ * role, so their behaviour is unchanged until they are migrated lot by lot.
  */
-export function hasProgramManagementAccess(role) {
-  return ["super_admin", "program_manager"].includes(role);
+export function hasProgramManagementAccess(role, context = null) {
+  if (isPlatformOwnerRole(role) || isLegacyProgramManagerRole(role)) return true;
+  return (
+    isInternalStaffRole(role) &&
+    Array.isArray(context?.profiles) &&
+    context.profiles.includes(PROGRAM_MANAGER_PROFILE)
+  );
 }
+
+export {
+  INTERNAL_STAFF_ROLE,
+  PLATFORM_OWNER_ROLE,
+  PROGRAM_MANAGER_PROFILE,
+  PROGRAM_MANAGER_ROLE,
+};
