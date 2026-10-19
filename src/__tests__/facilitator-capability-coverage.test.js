@@ -1,10 +1,11 @@
 /**
  * FACILITATOR CAPABILITY COVERAGE CONTRACT
  *
- * The facilitator vocabulary is declared in three places that must agree
- * exactly, and it is ENFORCED in a fourth place (the route layer). This test
- * locks all four together so the two failure modes this repo has already hit
- * cannot recur silently:
+ * The facilitator vocabulary is declared ONCE (the dedicated animation-rights
+ * definition) and exposed through three views that must agree exactly, and it
+ * is ENFORCED in a fourth place (the route layer). This test locks all of them
+ * together so the two failure modes this repo has already hit cannot recur
+ * silently:
  *
  *   - DRIFT: `reviews.submit` lived in PERMISSION_MODULES and the catalog but
  *     not in FACILITATOR_CAPABILITY_KEYS, so the PM UI could not render it and
@@ -38,8 +39,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { FACILITATOR_CAPABILITY_KEYS } = require("@/lib/facilitator-permissions");
+const { FACILITATOR_MODULE } = require("@/models/authorization/constants/facilitator-capabilities");
 const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
 const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
+const { FEATURE_MODULE_CAPABILITY } = require("@/models/authorization/constants/feature-module-capability");
 
 const ROOT = path.join(__dirname, "..", "..");
 const API_ROOT = path.join(ROOT, "src", "app", "api");
@@ -80,7 +83,16 @@ function capabilityArgsInRoutes() {
 
 const sorted = (values) => [...values].sort();
 
-describe("facilitator vocabulary — one list, three declarations", () => {
+describe("facilitator vocabulary — one definition, three views", () => {
+  test("the registry imports the dedicated definition instead of copying it", () => {
+    expect(FEATURE_MODULE_CAPABILITY.programs.facilitator).toBe(FACILITATOR_MODULE);
+    expect(CAPABILITY_CATALOG.facilitator.capabilities).toBe(
+      FACILITATOR_MODULE.capabilities,
+    );
+    expect(PERMISSION_MODULES.facilitator.capabilities).toEqual(
+      Object.keys(FACILITATOR_MODULE.capabilities),
+    );
+  });
   test("FACILITATOR_CAPABILITY_KEYS matches PERMISSION_MODULES.facilitator", () => {
     expect(sorted(FACILITATOR_CAPABILITY_KEYS)).toEqual(
       sorted(PERMISSION_MODULES.facilitator.capabilities),

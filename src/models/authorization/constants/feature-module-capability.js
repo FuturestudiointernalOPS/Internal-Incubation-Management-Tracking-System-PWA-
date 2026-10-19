@@ -1,8 +1,8 @@
 /**
  * ImpactOS — Authorization Foundation: the ONE capability source.
  *
- * Feature → Module → Capability. This is the single place the capability
- * vocabulary is declared; everything else is derived from it:
+ * Feature → Module → Capability. This is where the capability vocabulary is
+ * assembled; everything else is derived from it:
  *
  *   - FEATURE_MODULE_CAPABILITY — this registry, grouped by FEATURE (the
  *     dashboard sections). Features follow FEATURE_ORDER; a feature's modules
@@ -22,12 +22,20 @@
  * `parent` when it belongs to a capability family (a presentation grouping: the
  * parent is itself a grantable capability, and a child is an independent grant).
  *
+ * ONE module is declared in its own file and imported here: `facilitator`.
+ * Its vocabulary is also the one written into program assignments and read by
+ * the facilitator guard, so it has a dedicated source
+ * (`./facilitator-capabilities`) and this registry references that same object.
+ * Everything else stays in this file.
+ *
  * Pure data and pure builders: no database, no session, no side effects — safe
  * to import from anywhere that reasons about "what could this account do". The
  * UI must not hardcode capability labels; it reads CAPABILITY_CATALOG (exposed
  * via /api/engineering/permissions) for Eligibility, Default Access, Individual
  * Access, Restrictions and explanations.
  */
+
+import { FACILITATOR_MODULE } from "./facilitator-capabilities";
 
 export const FEATURE_MODULE_CAPABILITY = {
   crm: {
@@ -144,21 +152,9 @@ export const FEATURE_MODULE_CAPABILITY = {
         publish: { label: "Publish", risk: "medium", parent: "edit", description: "Publish program content" },
       },
     },
-    facilitator: {
-      name: "Program Facilitator",
-      // Phase 7 (D7) — the six rights whose level was never consulted by any
-      // decision were retired; only the CONSULTED remainder stays declared.
-      risk: "medium",
-      capabilities: {
-        "participants.view": { label: "View Participants", risk: "medium", description: "See program participants" },
-        "attendance.view": { label: "View Attendance", risk: "low", description: "See attendance" },
-        "attendance.record": { label: "Record Attendance", risk: "medium", description: "Record attendance" },
-        "assignments.view": { label: "View Assignments", risk: "low", description: "See assignments" },
-        "assignments.grade": { label: "Grade Assignments", risk: "high", description: "Grade submissions" },
-        "sessions.conduct": { label: "Conduct Sessions", risk: "medium", description: "Run sessions" },
-        "reviews.submit": { label: "Submit Reviews", risk: "medium", description: "Submit reviews" },
-      },
-    },
+    // Declared in ./facilitator-capabilities.js and imported here, so the PM
+    // assignment vocabulary and the capability catalogue share ONE object.
+    facilitator: FACILITATOR_MODULE,
   },
   ventures: {
     ventures: {

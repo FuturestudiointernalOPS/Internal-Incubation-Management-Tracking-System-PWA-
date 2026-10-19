@@ -1,34 +1,21 @@
 /**
- * Facilitator capability definitions shared by the PM facilitator UI and the
+ * Facilitator capability helpers shared by the PM facilitator UI and the
  * bulk-invitation API so the "full facilitator access" default can never drift
  * from the capabilities the UI can actually render.
  *
- * This list, PERMISSION_MODULES.facilitator.capabilities and
- * CAPABILITY_CATALOG.facilitator.capabilities — both derived from the one
- * capability source
- * (src/models/authorization/constants/feature-module-capability.js) — are
- * declarations of ONE vocabulary. They are
- * kept in exact sync by src/__tests__/facilitator-capability-coverage.test.js,
- * which also records which keys are enforced at request level and which are
- * still assignment-only.
+ * The keys are NOT declared here: they come from the dedicated animation-rights
+ * definition (`@/models/authorization/constants/facilitator-capabilities`),
+ * which the general capability registry also imports. One definition, no copy.
+ *
+ * `reviews.submit` is retained because it is CONSULTED (facilitator reviews
+ * POST). Six keys were retired by product decision D7 because no decision ever
+ * read them: a right nothing enforces is a false right. See
+ * docs/permissions/phase-7-d7-animation-rights.md.
  */
 
-export const FACILITATOR_CAPABILITY_KEYS = [
-  "participants.view",
-  "attendance.view",
-  "attendance.record",
-  "assignments.view",
-  "assignments.grade",
-  "sessions.conduct",
-  // Retained: `reviews.submit` is CONSULTED (api/facilitator-reviews POST), so
-  // it is a real right. Six keys used to sit above it — participants.manage,
-  // assignments.review, sessions.record, progress.view, groups.view,
-  // groups.manage — granted "on paper" but whose level was NEVER read by any
-  // decision. They were retired (product decision D7, Phase 7): a right nothing
-  // enforces is a false right, and the spec forbids a latent MANAGE that opens
-  // other actions. See docs/permissions/phase-7-d7-animation-rights.md.
-  "reviews.submit",
-];
+import { FACILITATOR_CAPABILITY_KEYS } from "@/models/authorization/constants/facilitator-capabilities";
+
+export { FACILITATOR_CAPABILITY_KEYS };
 
 /**
  * Full facilitator access means every facilitator capability is granted within
@@ -37,7 +24,7 @@ export const FACILITATOR_CAPABILITY_KEYS = [
 export function buildFullFacilitatorPermissions() {
   const permissions = {};
   for (const key of FACILITATOR_CAPABILITY_KEYS) {
-    permissions[key] = key.startsWith("view") ? 1 : 2;
+    permissions[key] = key.endsWith(".view") ? 1 : 2;
   }
   return permissions;
 }
