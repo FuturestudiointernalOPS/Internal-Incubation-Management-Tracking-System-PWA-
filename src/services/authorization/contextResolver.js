@@ -174,7 +174,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   let profileId = null;
   let profileKey = null;
   let profileName = null;
-  let profileSource = "legacy";
+  let profileSource = "none";
   const [overrideRes, roleDefaultRes] = await Promise.all([
     contact.profile_key
       ? resolveContactBaseProfile({ profileKey: contact.profile_key ?? null })
@@ -193,11 +193,11 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
     profileSource = "role";
   }
 
-  // 3+5+6. Base capabilities (the profile's caps, or `role_capabilities` for a
-  //    profile-less identity), group capabilities and eligibility rows are
+  // 3+5+6. Base capabilities (the resolved profile's caps — a profile-less
+  //    identity has none), group capabilities and eligibility rows are
   //    independent reads — run in parallel instead of three sequential rounds.
   const [capsRes, groupCapsRes, eligRes] = await Promise.all([
-    getBaseCapabilityRows({ profileKey, role }),
+    getBaseCapabilityRows({ profileKey }),
     getGroupCapabilityRows(groups),
     getFeatureEligibilityRows(role, groups, effectiveProfiles),
   ]);

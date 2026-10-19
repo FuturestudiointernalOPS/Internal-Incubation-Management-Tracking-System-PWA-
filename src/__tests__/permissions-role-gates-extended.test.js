@@ -1,15 +1,16 @@
 /**
- * GUARD-EXT-1 — ratchet for the five role-gate mechanisms NOT covered by the
+ * GUARD-EXT-1 — ratchet for the four role-gate mechanisms NOT covered by the
  * M1–M4 ratchet: `const ROLE`, `ROLE_ACCESS`, `PERSONAL_ROLES`,
- * `role_capabilities`, `requireVentureAccess`.
+ * `requireVentureAccess`. The legacy `role_capabilities` motif was retired with
+ * its table (base rights now come from a default PROFILE).
  *
  * Every entry in the exception list is a `<path>#<motif>` pair that EXISTS
  * today (dated). The test fails when a NEW pair appears OR a listed pair
  * disappears, so the list can only be reviewed downward, never silently grown.
  *
  * CLASSIFICATION (not blind counting):
- *   - decision : mechanisms that decide ACCESS — `role_capabilities` (legacy
- *                table) and `requireVentureAccess` (venture gate).
+ *   - decision : mechanisms that decide ACCESS — `requireVentureAccess`
+ *                (venture gate).
  *   - display  : role constants / navigation masks — reviewed as NOT access
  *                decisions, but still ratcheted so a NEW one surfaces.
  *
@@ -36,7 +37,7 @@ const MOTIFS = {
   M5: { re: /const\s+ROLE/, bucket: "display" },
   M6: { re: /ROLE_ACCESS/, bucket: "display" },
   M7: { re: /PERSONAL_ROLES/, bucket: "display" },
-  M8: { re: /role_capabilities/, bucket: "decision" },
+
   M9: { re: /requireVentureAccess\(/, bucket: "decision" },
 };
 
@@ -77,7 +78,7 @@ describe("Garde étendue — mécanismes M5–M9 (GUARD-EXT-1)", () => {
   const expectedDecision = new Set(EXCEPTIONS.decision);
   const expectedDisplay = new Set(EXCEPTIONS.display);
 
-  test("aucune nouvelle décision d'accès (M8/M9), aucune exception périmée", () => {
+  test("aucune nouvelle décision d'accès (M9), aucune exception périmée", () => {
     const unexpected = [...found.decision].filter((p) => !expectedDecision.has(p)).sort();
     const stale = [...expectedDecision].filter((p) => !found.decision.has(p)).sort();
     expect({ unexpected, stale }).toEqual({ unexpected: [], stale: [] });

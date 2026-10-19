@@ -40,12 +40,14 @@ describe("grantResponsibilityBaseAccess", () => {
       responsibilityKey: "crm",
       grantedBy: "SA-1",
     });
-    // contacts + the crm records module are the grantable modules of the crm
-    // feature (duplicates is locked, bulk_upload carries no `view`).
-    expect(granted).toEqual(["contacts.view", "crm.view"]);
+    // contacts + the crm records module + organizational membership are the
+    // grantable modules of the crm feature (duplicates is locked, bulk_upload
+    // carries no `view`).
+    expect(granted).toEqual(["contacts.view", "crm.view", "org_membership.view"]);
     // One capability insert + one ledger insert per module.
-    expect(db.execute).toHaveBeenCalledTimes(4);
-    const [grantCall, trackCall, crmGrantCall, crmTrackCall] = db.execute.mock.calls;
+    expect(db.execute).toHaveBeenCalledTimes(6);
+    const [grantCall, trackCall, crmGrantCall, crmTrackCall, membershipGrant, membershipTrack] =
+      db.execute.mock.calls;
     expect(grantCall[0].sql).toContain("INSERT INTO user_capabilities");
     expect(grantCall[0].sql).toContain("ON CONFLICT (user_cid, module, capability) DO NOTHING");
     expect(grantCall[0].sql).toContain("RETURNING module");
@@ -54,6 +56,8 @@ describe("grantResponsibilityBaseAccess", () => {
     expect(trackCall[0].args).toEqual(["USR-1", "crm", "contacts", "view"]);
     expect(crmGrantCall[0].args).toEqual(["USR-1", "crm", "SA-1"]);
     expect(crmTrackCall[0].args).toEqual(["USR-1", "crm", "crm", "view"]);
+    expect(membershipGrant[0].args).toEqual(["USR-1", "org_membership", "SA-1"]);
+    expect(membershipTrack[0].args).toEqual(["USR-1", "crm", "org_membership", "view"]);
   });
 
   test("grants one view grant per module of the communication feature", async () => {
@@ -89,7 +93,7 @@ describe("grantResponsibilityBaseAccess", () => {
       grantedBy: "SA-1",
     });
     expect(granted).toEqual([]);
-    expect(db.execute).toHaveBeenCalledTimes(2); // one attempt per module — no ledger rows
+    expect(db.execute).toHaveBeenCalledTimes(3); // one attempt per module — no ledger rows
     expect(db.execute.mock.calls[0][0].sql).toContain("INSERT INTO user_capabilities");
   });
 

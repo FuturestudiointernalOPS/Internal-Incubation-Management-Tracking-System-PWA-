@@ -43,8 +43,6 @@ import {
   listGroupCapabilitiesForGroup,
   listPermissionTableContacts,
   listRoleAccessProfileDefaultsForTable,
-  listRoleCapabilities,
-  listRoleCapabilitiesForRole,
   listUserCapabilitiesForUser,
   listUserCapabilityRestrictionsForUser,
   listUserGroupNames,
@@ -134,9 +132,8 @@ export async function buildPermissionTableUsers() {
   });
 }
 
-/** The module catalog and the role/group/profile defaults that seed the matrix. */
+/** The module catalog and the group/profile defaults that seed the matrix. */
 export async function buildPermissionMatrixDefinition() {
-  const roleCapabilities = await listRoleCapabilities();
   const groupCapabilities = await listGroupCapabilities();
 
   let accessProfiles = [];
@@ -158,7 +155,6 @@ export async function buildPermissionMatrixDefinition() {
     modules: PERMISSION_MODULES,
     accessLevels: ACCESS_LEVELS,
     catalog: CAPABILITY_CATALOG,
-    roleDefaults: roleCapabilities.rows,
     groupDefaults: groupCapabilities.rows,
     accessProfiles,
     accessProfileDefaults,
@@ -237,14 +233,14 @@ export async function buildUserPermissionDetail(userCid) {
  * Dispatch the GET's read. Returns `{ status, body }` — the controller turns
  * that into the response, so this module never touches HTTP. The branch order is
  * the contract the UI depends on: the table view, then the catalog, then one
- * user, then the role and group defaults.
+ * user, then the group defaults.
  */
-export async function readPermissionMatrix({ users, userCid, role, group }) {
+export async function readPermissionMatrix({ users, userCid, group }) {
   if (users === "true") {
     return { status: 200, body: { success: true, users: await buildPermissionTableUsers() } };
   }
 
-  if (!userCid && !role && !group) {
+  if (!userCid && !group) {
     return { status: 200, body: { success: true, ...(await buildPermissionMatrixDefinition()) } };
   }
 
@@ -256,13 +252,13 @@ export async function readPermissionMatrix({ users, userCid, role, group }) {
     return { status: 200, body: { success: true, ...detail } };
   }
 
-  if (role) {
-    const capabilitiesResult = await listRoleCapabilitiesForRole(role);
-    return { status: 200, body: { success: true, role, capabilities: capabilitiesResult.rows } };
-  }
-
   if (group) {
     const capabilitiesResult = await listGroupCapabilitiesForGroup(group);
     return { status: 200, body: { success: true, group, capabilities: capabilitiesResult.rows } };
   }
+
+  return {
+    status: 400,
+    body: { success: false, error: "A user, a group or the table view is required." },
+  };
 }

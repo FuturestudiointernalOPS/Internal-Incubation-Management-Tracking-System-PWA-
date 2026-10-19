@@ -6,19 +6,19 @@
  *
  *   1. an active profile assigned to the contact wins   → "profile"
  *   2. otherwise the role's active default profile       → "role_default"
- *   3. otherwise the legacy `role_capabilities` rows     → "legacy"
+ *   3. otherwise NO base capabilities                    → "none"
  *
  * Only the base layer is read (the group and individual layers are additive and
  * are not touched by a profile assignment), so the assignment guard can warn
  * *before* a swap replaces that base and strips capabilities.
  *
  * profiles takeover (docs/PROFILES_TAKEOVER_MIGRATION.md): the resolution goes
- * through the PROFILE KEY only (`profiles` + `profile_capabilities`), with the
- * legacy `role_capabilities` rows as the final step — the SAME path the resolver
- * uses, so the guard and the effective access can never disagree. The statements
- * live in `@/models/authorization` (`contextReads` / `baseCapabilityReads`).
+ * through the PROFILE KEY only (`profiles` + `profile_capabilities`) — the SAME
+ * path the resolver uses, so the guard and the effective access can never
+ * disagree. The statements live in `@/models/authorization` (`contextReads` /
+ * `baseCapabilityReads`).
  *
- * @returns {Promise<{source: "profile"|"role_default"|"legacy", profileName: string|null, caps: Array<{module: string, capability: string, access_level: number}>}>}
+ * @returns {Promise<{source: "profile"|"role_default"|"none", profileName: string|null, caps: Array<{module: string, capability: string, access_level: number}>}>}
  */
 
 import {
@@ -46,7 +46,7 @@ export async function resolveCurrentBaseCapabilities(userCid) {
       : Promise.resolve({ rows: [] }),
   ]);
 
-  let source = "legacy";
+  let source = "none";
   let profileKey = null;
   let profileName = null;
   const overridePick = pickBaseProfile(overrideRes.rows);
@@ -59,7 +59,7 @@ export async function resolveCurrentBaseCapabilities(userCid) {
     source = "role_default";
   }
 
-  const capsRes = await getBaseCapabilityRows({ profileKey, role });
+  const capsRes = await getBaseCapabilityRows({ profileKey });
 
   return {
     source,

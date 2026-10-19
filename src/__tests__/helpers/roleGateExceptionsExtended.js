@@ -1,7 +1,7 @@
 /**
- * GUARD-EXT-1 — role-gate exception list for the five mechanisms NOT covered by
- * the M1–M4 ratchet (const ROLE, ROLE_ACCESS, PERSONAL_ROLES, role_capabilities,
- * requireVentureAccess).
+ * GUARD-EXT-1 — role-gate exception list for the four mechanisms NOT covered by
+ * the M1–M4 ratchet (const ROLE, ROLE_ACCESS, PERSONAL_ROLES,
+ * requireVentureAccess). The legacy role_capabilities motif is retired.
  *
  * GENERATED (read-only scan of `src`, production only: `src/__tests__` and the
  * engine directories excluded) on 2026-10-10. Every entry is a
@@ -10,7 +10,7 @@
  * downward, never silently grown.
  *
  * BUCKETS:
- *   - decision : mechanisms that decide ACCESS (role_capabilities, requireVentureAccess)
+ *   - decision : mechanisms that decide ACCESS (requireVentureAccess)
  *   - display  : role constants / navigation masks — reviewed as NOT access
  *                decisions; ratcheted so a NEW one still surfaces for review.
  *
@@ -43,7 +43,7 @@ module.exports = {
     "src/app/api/ventures/[id]/submissions/review-queue/route.js#M9",
     "src/app/api/ventures/[id]/tasks/[taskId]/submissions/route.js#M9",
     "src/app/api/ventures/[id]/verification/upload/route.js#M9",
-    "src/components/permissions/permission-center/PersonAccessScreen.js#M8",
+
     "src/lib/ventureAuth.js#M9",
   ],
   display: [

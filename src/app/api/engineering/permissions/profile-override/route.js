@@ -179,7 +179,7 @@ export async function PUT(req) {
       targetCid: user_cid,
       targetName: user.rows[0].name,
       action: "profile_removed",
-      details: `Removed profile override, reverting to ${roleDefaultName || "legacy"} default`,
+      details: `Removed profile override, reverting to ${roleDefaultName || "no base profile"} default`,
     });
     invalidateAuthorizationContext(user_cid);
 
@@ -245,7 +245,7 @@ export async function GET(req) {
       user: { cid: userRow.cid, name: userRow.name, role: userRow.role },
       assignedProfile,
       roleDefault,
-      effectiveSource: assignedProfile ? "user" : roleDefault ? "role" : "legacy",
+      effectiveSource: assignedProfile ? "user" : roleDefault ? "role" : "none",
     });
   } catch (error) {
     console.error("[Profile override GET] error:", error);

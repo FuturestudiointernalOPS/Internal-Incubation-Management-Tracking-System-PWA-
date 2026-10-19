@@ -84,20 +84,16 @@ export function resolveRoleDefaultBaseProfile(role) {
 }
 
 /**
- * The BASE capability rows for a person: the resolved profile's rows when there
- * is one, otherwise the identity's `role_capabilities` rows. Exactly one
- * statement runs.
+ * The BASE capability rows for a person: the resolved profile's rows. A
+ * profile-less identity has NO base capabilities (fail closed). The legacy
+ * per-role fallback table was retired: a role now names a default PROFILE, and
+ * that profile is the only source of base rights.
  */
-export function getBaseCapabilityRows({ profileKey, role }) {
-  if (profileKey) {
-    return db.execute({
-      sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
-      args: [profileKey],
-    });
-  }
+export function getBaseCapabilityRows({ profileKey }) {
+  if (!profileKey) return Promise.resolve({ rows: [] });
   return db.execute({
-    sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
-    args: [role],
+    sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+    args: [profileKey],
   });
 }
 

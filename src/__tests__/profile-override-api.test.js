@@ -13,13 +13,14 @@ const mockState = {
   contact: null, // { cid, name, role, profile_key }
   profile: null, // { key, label } — the profile being assigned
   profileRow: null, // { key, allowed_roles, is_active } — for the role gate
-  roleCaps: [],
+  currentProfileKey: null,
+  currentCaps: [],
   newCaps: [],
   eligibility: { valid: true, violations: [] },
   roleDefaultRow: null,
 };
 
-function mockRows(sql) {
+function mockRows(sql, args = []) {
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sql)) return { rows: [] };
   // getProfileRow — the profile's allowed_roles, read by the profile ↔ role gate.
   if (sql.includes("allowed_roles") && sql.includes("FROM profiles"))
@@ -39,10 +40,15 @@ function mockRows(sql) {
   if (sql.includes("FROM profiles p") && sql.includes("UNION ALL")) return { rows: [] };
   if (sql.includes("FROM role_profile_defaults rpd"))
     return { rows: mockState.roleDefaultRow ? [mockState.roleDefaultRow] : [] };
-  if (sql.includes("FROM profile_capabilities WHERE profile_key"))
-    return { rows: mockState.newCaps };
+  if (sql.includes("FROM profile_capabilities WHERE profile_key")) {
+    return {
+      rows:
+        mockState.currentProfileKey && args[0] === mockState.currentProfileKey
+          ? mockState.currentCaps
+          : mockState.newCaps,
+    };
+  }
   if (sql.includes("FROM access_profile_capabilities WHERE profile_id")) return { rows: [] };
-  if (sql.includes("FROM role_capabilities WHERE role")) return { rows: mockState.roleCaps };
   return { rows: [], rowsAffected: 1 };
 }
 
@@ -51,8 +57,9 @@ jest.mock("@/lib/db", () => ({
   default: {
     execute: jest.fn(async (query) => {
       const sql = String(typeof query === "string" ? query : query?.sql || "");
+      const args = typeof query === "string" ? [] : query?.args || [];
       mockExecuted.push(sql);
-      return mockRows(sql);
+      return mockRows(sql, args);
     }),
   },
   initDb: jest.fn(async () => true),
@@ -86,7 +93,8 @@ beforeEach(() => {
     contact: { cid: "U-2", name: "Target", role: "member", profile_key: null },
     profile: { key: "founder", label: "Founder" },
     profileRow: { key: "founder", allowed_roles: ["member"], is_active: 1 },
-    roleCaps: [],
+    currentProfileKey: null,
+    currentCaps: [],
     newCaps: [],
     eligibility: { valid: true, violations: [] },
     roleDefaultRow: null,
@@ -121,7 +129,11 @@ test("eligibility refusal → 400 with the violations, no write", async () => {
 
 test("a narrower profile → 409 loss, and confirm applies it", async () => {
   mockState.profile = { key: "founder", label: "Founder" };
-  mockState.roleCaps = [
+  // The person currently resolves a WIDE default profile; the assigned one is
+  // narrower, so the loss guard must ask for confirmation.
+  mockState.roleDefaultRow = { profile_key: "wide_default", label: "Wide Default" };
+  mockState.currentProfileKey = "wide_default";
+  mockState.currentCaps = [
     { module: "ventures", capability: "view", access_level: 1 },
     { module: "projects", capability: "view", access_level: 1 },
   ];
@@ -139,7 +151,7 @@ test("a narrower profile → 409 loss, and confirm applies it", async () => {
 });
 
 test("a wider profile applies without confirmation", async () => {
-  mockState.roleCaps = [];
+  mockState.currentCaps = [];
   mockState.newCaps = [{ module: "ventures", capability: "view", access_level: 1 }];
   const res = await route.PUT(putReq({ user_cid: "U-2", profile_key: "founder" }));
   expect(res.status).toBe(200);

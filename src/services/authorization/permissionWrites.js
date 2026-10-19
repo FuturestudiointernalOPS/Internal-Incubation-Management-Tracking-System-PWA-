@@ -2,9 +2,10 @@
  * Authorization — the PERMISSION WRITE vocabulary (SERVICE layer).
  *
  * The action switch behind `PUT /api/engineering/permissions`: the individual
- * grant / revoke / restrict / unrestrict, the role and group defaults, the
- * profile / role / supervisor / status changes, the super-admin promotion and
- * demotion, and the audit record each write leaves.
+ * grant / revoke / restrict / unrestrict, the group defaults, the profile /
+ * role / supervisor / status changes, the super-admin promotion and demotion,
+ * and the audit record each write leaves. Role-level rights are carried by a
+ * default PROFILE, never by a per-role capability row.
  *
  * HTTP-free: it answers `{ status, body }` and the controller turns that into a
  * response. The controller keeps the `permissions.assign_capabilities` gate, the
@@ -33,7 +34,6 @@ import {
   getContactForAssignment,
   getContactNameAndRole,
   getGroupDefaultCapability,
-  getRoleDefaultCapability,
   getUserCapabilityBlock,
   getUserCapabilityGrant,
   grantUserCapability,
@@ -42,7 +42,6 @@ import {
   restrictUserCapability,
   revokeUserCapability,
   setGroupDefaultCapability,
-  setRoleDefaultCapability,
   setUserRole,
   setUserStatus,
   unrestrictUserCapability,
@@ -128,20 +127,6 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
           body: {
             success: false,
             error: `Target user is not eligible for this feature (${featureKey}). Assignment rejected.`,
-          },
-        };
-      }
-    } else if (action === "set_role_default" && payload?.role !== "super_admin") {
-      const eligible = await isIdentityEligibleFor(
-        { role: String(payload?.role || ""), groups: [] },
-        featureKey,
-      );
-      if (!eligible) {
-        return {
-          status: 403,
-          body: {
-            success: false,
-            error: `Role "${payload?.role}" is not eligible for this feature (${featureKey}). Assignment rejected.`,
           },
         };
       }
@@ -235,23 +220,6 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         previousValue: priorBlock.rows.length ? "blocked" : "none",
         newValue: "none",
         ...(reason ? { details: reason } : {}),
-      });
-      break;
-    }
-
-    case "set_role_default": {
-      const priorDefault = await getRoleDefaultCapability(payload.role, module, capability);
-      await setRoleDefaultCapability(payload.role, module, capability, accessLevel || 0);
-      await logPermissionAudit({
-        actorCid: actor.cid,
-        actorName: actor.name,
-        targetCid: userCid,
-        targetName,
-        action: "role_changed",
-        module,
-        capability,
-        previousValue: priorDefault.rows[0] ? String(priorDefault.rows[0].access_level) : "none",
-        newValue: String(accessLevel || 0),
       });
       break;
     }
@@ -359,7 +327,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
   // §5.3 — réévaluation. A ROLE / GROUP default changes the effective rights of
   // MANY users, so EVERY cached context is dropped; any other action concerns
   // only the target person.
-  if (action === "set_role_default" || action === "set_group_default") {
+  if (action === "set_group_default") {
     invalidateAllAuthorizationContexts();
   } else {
     invalidateAuthorizationContext(userCid);

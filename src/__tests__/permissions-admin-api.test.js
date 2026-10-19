@@ -432,8 +432,9 @@ describe("PUT /api/engineering/permissions — audit trail records the change", 
     ).toBe(false);
   });
 
-  test("a role-default change for a NON-eligible role is refused (§5.3)", async () => {
-    mockEligibilityRows = [];
+  test("a per-role capability default is no longer accepted (§5.3)", async () => {
+    // Role-level rights are carried by a default PROFILE; the per-role table was
+    // retired with its write action.
     const res = await permissionsRoute.PUT(
       jsonReq({
         action: "set_role_default",
@@ -444,7 +445,7 @@ describe("PUT /api/engineering/permissions — audit trail records the change", 
         access_level: 2,
       }),
     );
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(400);
   });
 });
 

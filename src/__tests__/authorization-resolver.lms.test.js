@@ -148,9 +148,7 @@ describe("lms module", () => {
       /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/,
     );
 
-    const roleInserts = calls.filter((call) => call.sql.includes("INSERT INTO role_capabilities"));
-    expect(roleInserts).toHaveLength(1);
-    expect(roleInserts[0].args).toEqual(["program_manager", "lms", "view", 1]);
+    expect(calls.some((call) => call.sql.includes("role_capabilities"))).toBe(false);
 
     dbMock.execute.mockImplementation(async () => ({ rows: [] }));
   });

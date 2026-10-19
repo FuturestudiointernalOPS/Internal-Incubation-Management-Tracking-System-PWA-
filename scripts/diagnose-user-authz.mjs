@@ -77,7 +77,7 @@ const results = await Promise.all([
   runQuery("profiles", "SELECT id, name, is_active FROM access_profiles"),
   runQuery("role defaults", "SELECT rpd.role_name, ap.id, ap.name, ap.is_active FROM role_access_profile_defaults rpd JOIN access_profiles ap ON ap.id = rpd.access_profile_id"),
   runQuery("profile caps", "SELECT profile_id, module, capability, access_level FROM access_profile_capabilities"),
-  runQuery("role caps", "SELECT role, module, capability, access_level FROM role_capabilities"),
+
   runQuery("user groups", "SELECT user_cid, group_name FROM user_groups"),
   runQuery("group caps", "SELECT group_name, module, capability, access_level FROM group_capabilities"),
   runQuery("eligibility", "SELECT feature_key, identity_type, identity_value, eligible FROM feature_eligibility"),
@@ -187,7 +187,7 @@ console.log(`USER ${targetCid} — role=${role} (from contacts: ${contact.role})
 console.log("=".repeat(78));
 console.log(`Profile source: ${ctx.profile?.profileSource}${ctx.profile?.profileName ? ` (${ctx.profile.profileName})` : ""}`);
 console.log(`Groups: ${ctx.groups.length ? ctx.groups.join(", ") : "(none)"}`);
-console.log(`Base caps (role_capabilities ${ctx.profile?.profileId ? "or profile" : "fallback"}): ${JSON.stringify(ctx.baseCaps)}`);
+console.log(`Base caps (${ctx.profile?.profileName || "no base profile"}): ${JSON.stringify(ctx.baseCaps)}`);
 console.log(`Grants: ${JSON.stringify(ctx.grants)}`);
 console.log(`Restrictions: ${Object.keys(ctx.restrictions).length ? JSON.stringify([...Object.entries(ctx.restrictions)].map(([module, deniedSet]) => [module, [...deniedSet]])) : "none"}`);
 console.log("\n— Route verdicts (current authorization behavior) —");
@@ -209,10 +209,8 @@ if (!["super_admin", "program_manager"].includes(role)) {
 }
 
 // what caps exist for messaging anywhere
-const messagingCaps = map["role caps"].filter((row) => row.module === "messaging");
 const messagingGrants = map.grants.filter((grant) => grant.module === "messaging");
 console.log("\n— messaging capability rows anywhere in the DB —");
-console.log(`role_capabilities: ${messagingCaps.length ? JSON.stringify(messagingCaps) : "NONE (no role has messaging caps)"}`);
 console.log(`user_capabilities: ${messagingGrants.length ? JSON.stringify(messagingGrants) : "NONE"}`);
 console.log(`feature_eligibility (communication): ${JSON.stringify(map.eligibility.filter((row) => row.feature_key === "communication"))}`);
 process.exit(0);
