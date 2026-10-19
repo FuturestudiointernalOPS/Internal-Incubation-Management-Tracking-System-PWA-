@@ -4,8 +4,10 @@
 > est un `staff` avec le profil `program_manager`) et **D-2** (une définition de
 > « privilégié » par famille).
 >
-> Aucun changement de règle n'a été activé par défaut : le mode historique reste
-> actif tant que la couverture des profils n'a pas été vérifiée. Voir §3.
+> **Suite et activation (Lot 1.3).** L'audit de couverture est propre et les 22
+> contrôles de programme ont été migrés : le mode par défaut est désormais
+> `staff`. Voir `docs/permissions/LOT1-STEP1-3.md`. Le §3 ci-dessous décrit
+> l'état **avant** cette activation et reste comme trace de la décision.
 
 ---
 
@@ -123,10 +125,10 @@ Elle répond à deux questions bloquantes :
 
 **Critère d'activation** : les deux compteurs de trou doivent être à `0`, et les
 contrôles de programme qui lisent encore le rôle doivent avoir été migrés
-(étape 1.3). La mesure courante compte **22 appels role-only** à
-`hasProgramManagementAccess` (tâches, soumissions, équipes, présences,
-participants, revues). Tant que ce n'est pas le cas,
-`AUTHZ_PM_IDENTITY=role` reste le défaut.
+(étape 1.3). À l'époque de cette étape, **22 appels role-only** à
+`hasProgramManagementAccess` subsistaient. **Résolu au Lot 1.3** : les 22 appels
+sont migrés, l'audit est à 0 trou et `AUTHZ_PM_IDENTITY=role` est devenu le
+retour arrière, plus le défaut.
 
 ---
 

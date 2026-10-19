@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAssignmentAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
@@ -50,7 +50,7 @@ export async function GET(req) {
     if (authError) return authError;
     const session = await getSession();
     const capError = await requireAuthorization("programs", "view");
-    const isManager = hasProgramManagementAccess(session?.role);
+    const isManager = await isProgramManagerSession(session);
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

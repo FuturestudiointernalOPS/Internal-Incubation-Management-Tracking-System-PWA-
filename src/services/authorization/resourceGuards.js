@@ -20,7 +20,7 @@
 import { requireSession } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext } from "./contextCache";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "./programManagement";
 import { resolveProgramAssignment, getFacilitatorPermissionLevel } from "@/server/authz/programAccess";
 import {
   PROGRAM_MANAGER_PROFILE,
@@ -173,7 +173,7 @@ export async function evaluateAssignmentAccess({
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
 
-    if (hasProgramManagementAccess(session.role)) return ALLOWED;
+    if (await isProgramManagerSession(session)) return ALLOWED;
 
     if (resource !== "program") return denied(403, "errors.insufficientPermissions");
 

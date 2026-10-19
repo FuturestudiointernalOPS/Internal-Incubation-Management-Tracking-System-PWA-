@@ -49,12 +49,12 @@ describe("resolved role matrix", () => {
 
   test("program manager has exactly one target per mode", () => {
     delete process.env.AUTHZ_PM_IDENTITY;
+    expect(resolveEffectiveRole({ role: "program_manager" })).toBe("staff");
+
+    process.env.AUTHZ_PM_IDENTITY = "role";
     expect(resolveEffectiveRole({ role: "program_manager" })).toBe(
       "program_manager",
     );
-
-    process.env.AUTHZ_PM_IDENTITY = "staff";
-    expect(resolveEffectiveRole({ role: "program_manager" })).toBe("staff");
   });
 
   test("team and family entity logins keep their entity identity", () => {

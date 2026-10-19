@@ -56,14 +56,13 @@ export function isLegacyProgramManagerRole(role) {
 /**
  * D-1 — should a program-manager identity be resolved as baseline STAFF?
  *
- * The target is `staff` + the `program_manager` PROFILE. The switch stays
- * reversible because several role-only call sites (program management, task
- * portfolio, etc.) still read the label; they are migrated lot by lot. The
- * default therefore keeps the legacy role until the profile coverage has been
- * verified (Lot 1, step 1.4). Enable with AUTHZ_PM_IDENTITY=staff.
+ * The target is `staff` + the `program_manager` PROFILE. The profile coverage
+ * audit is clean and the role-only call sites are migrated (Lot 1.3), so this
+ * is the default. `AUTHZ_PM_IDENTITY=role` is the explicit rollback switch for
+ * one deployment if an unexpected caller still reads the legacy label.
  */
 export function programManagerIdentityMode() {
-  return process.env.AUTHZ_PM_IDENTITY === "staff" ? "staff" : "role";
+  return process.env.AUTHZ_PM_IDENTITY === "role" ? "role" : "staff";
 }
 
 /** The resolved identity for a stored `program_manager` role. */

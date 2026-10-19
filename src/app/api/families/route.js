@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAuthorization } from "@/models/authorization/index";
 
 import { v4 as uuidv4 } from "uuid";
@@ -62,7 +62,7 @@ export async function GET(req) {
     // program endpoints.
     const session = await getSession();
     const capError = await requireAuthorization("programs", "view");
-    const canList = !capError || hasProgramManagementAccess(session?.role);
+    const canList = !capError || (await isProgramManagerSession(session));
     if (!canList) {
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },

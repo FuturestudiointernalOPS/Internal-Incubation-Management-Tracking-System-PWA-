@@ -310,7 +310,7 @@ function roleVocabulary(entries) {
   // the legacy role (default) or staff (AUTHZ_PM_IDENTITY=staff). Count the
   // ACTIVE mode so the dashboard can show both sides of the switch.
   resolverValues.add(
-    process.env.AUTHZ_PM_IDENTITY === "staff" ? "staff" : "program_manager",
+    process.env.AUTHZ_PM_IDENTITY === "role" ? "program_manager" : "staff",
   );
 
   const sessionUsesSharedResolver = /resolveEffectiveRole\s*\(/.test(sessionLogin);
@@ -346,6 +346,17 @@ function roleVocabulary(entries) {
     }
   }
 
+  // The meaningful debt: lines that still DECIDE on the role label, as opposed
+  // to comments, profile keys and the transitional profile check.
+  const PM_ROLE_DECISION =
+    /role\s*(?:===|!==|==|!=)\s*["']program_manager["']|["']program_manager["']\s*(?:===|!==|==|!=)\s*.*role|roles\s*:\s*\[[^\]]*program_manager|requireAuth\(\s*\[[^\]]*program_manager|\.includes\(\s*["']program_manager["']|session\.role.*program_manager/;
+  let pmRoleDecisions = 0;
+  for (const file of pmFiles) {
+    pmRoleDecisions += read(path.join(ROOT, file))
+      .split(/\r?\n/)
+      .filter((line) => PM_ROLE_DECISION.test(line)).length;
+  }
+
   return {
     historicalRoles,
     sessionLoginValues,
@@ -355,9 +366,9 @@ function roleVocabulary(entries) {
     ].sort(),
     profileFunctions,
     pmRoleGateEntries: pmEntries,
+    pmRoleDecisions,
     pmOccurrenceFiles: pmFiles.size,
-    // The audit counted LINES, not raw occurrences. Keep the same unit so the
-    // figure can be compared with the 227 of the starting point.
+    // Informational: every line that names the profile, including comments.
     pmOccurrences: [...pmFiles].reduce(
       (total, file) =>
         total + countLines(read(path.join(ROOT, file)), /program_manager/),
@@ -499,7 +510,7 @@ function factChecks() {
     // D-1 is reversible: the default keeps the legacy role until the profile
     // coverage audit (step 1.4); AUTHZ_PM_IDENTITY=staff enables the target.
     programManagerIdentityMode:
-      process.env.AUTHZ_PM_IDENTITY === "staff" ? "staff" : "role",
+      process.env.AUTHZ_PM_IDENTITY === "role" ? "role" : "staff",
     canonicalResolverSupportsStaffMode:
       /resolveProgramManagerIdentity\s*\(/.test(loginResolver) &&
       /INTERNAL_STAFF_ROLE/.test(read(path.join(SRC, "lib", "identity.js"))),

@@ -23,6 +23,16 @@ jest.mock("@/server/auth/session", () => ({
 jest.mock("@/server/authz/capabilities", () => ({
   hasProgramManagementAccess: jest.fn(() => false),
 }));
+jest.mock("@/services/authorization/programManagement", () => {
+  const { hasProgramManagementAccess } = jest.requireMock(
+    "@/server/authz/capabilities",
+  );
+  return {
+    isProgramManagerSession: jest.fn(async (session) =>
+      hasProgramManagementAccess(session?.role),
+    ),
+  };
+});
 jest.mock("@/server/authz/guards", () => ({
   requireAssignmentAccess: jest.fn(async () => null),
 }));

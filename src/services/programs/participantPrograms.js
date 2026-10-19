@@ -1,6 +1,6 @@
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAssignmentAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import {
@@ -55,7 +55,7 @@ export async function getParticipantProgramsService({ participantId, programId }
 
   const session = await getSession();
   const capError = await requireAuthorization("programs", "view");
-  const canRead = !capError || hasProgramManagementAccess(session?.role);
+  const canRead = !capError || (await isProgramManagerSession(session));
   if (session && !canRead) {
     if (!programId) {
       throw { status: 403, error: "errors.insufficientPermissions" };

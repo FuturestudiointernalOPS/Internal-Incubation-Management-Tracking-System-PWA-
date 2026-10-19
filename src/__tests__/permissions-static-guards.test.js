@@ -16,10 +16,10 @@
  *     hors tests) :
  *       M1 requireAuth([...])          :  80 lignes
  *       M2 roles: [...]                : 107 lignes
- *       M3 role === / role !==         : 205 lignes
+ *       M3 role === / role !==         : 202 lignes
  *       M4 .includes(... role ...)     :  73 lignes
- *       total occurrences              : 465
- *       paires fichier#motif distinctes : 284
+ *       total occurrences              : 462
+ *       paires fichier#motif distinctes : 282
  *
  *   GARDE 2 — toute route API porte une décision de permission OU est
  *     déclarée publique dans `src/proxy.js` (ou est un hub de ré-export, ou
@@ -297,7 +297,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
 
   "src/lib/ventureDeliverables.js#M3",
   "src/models/communications/followups.js#M3",
-  "src/models/contacts/directory.js#M3",
+
   "src/models/investor/diligenceAndPipeline/pipeline.js#M3",
   "src/models/platform/registry.js#M4",
   "src/models/programs/core/programList.js#M4",
@@ -326,7 +326,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/investor/organizations.js#M3",
   "src/services/investor/pipeline.js#M3",
   "src/services/investor/pipeline.js#M4",
-  "src/services/operations/facilitatorReviews.js#M3",
+
   "src/services/participant/fullState.js#M4",
   "src/services/participant/submissions.js#M3",
   "src/services/participant/submissions.js#M4",

@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAssignmentAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
@@ -49,7 +49,7 @@ export async function GET(req) {
     // everyone else must hold a program assignment and provide a real program
     // context ("all" is no longer an implicit platform-wide read).
     const capError = await requireAuthorization("programs", "view");
-    const canReadTeams = !capError || hasProgramManagementAccess(session?.role);
+    const canReadTeams = !capError || (await isProgramManagerSession(session));
     if (session?.role !== "team" && !canReadTeams) {
       if (!programId || programId === "all") {
         return NextResponse.json(
@@ -77,7 +77,7 @@ export async function GET(req) {
     // Shared team credentials are management data: only management roles receive
     // them. Everyone else (assignment holders, and a team reading its own row)
     // gets the roster without the shared username/password.
-    const canSeeCredentials = hasProgramManagementAccess(session?.role);
+    const canSeeCredentials = await isProgramManagerSession(session);
     const teams = canSeeCredentials
       ? result.rows
       : result.rows.map(stripTeamCredentials);

@@ -41,37 +41,40 @@ FROM legacy l
 LEFT JOIN active_pm a ON a.contact_cid = l.cid
 WHERE a.contact_cid IS NULL;
 
--- 4. The same gap, listed person by person, with the assignment signals that
---    usually justify the profile card.
-WITH active_pm AS (
-  SELECT DISTINCT contact_cid FROM profile_assignments
-  WHERE profile_key = 'program_manager'
-    AND status = 'active'
-    AND (ends_at IS NULL OR ends_at > NOW())
-    AND (started_at IS NULL OR started_at <= NOW())
-)
-SELECT
-  c.cid,
-  c.name,
-  c.email,
-  c.role,
-  (a.contact_cid IS NOT NULL) AS has_active_pm_profile,
-  EXISTS (
-    SELECT 1 FROM v2_program_staff s
-    WHERE LOWER(COALESCE(s.role, '')) = 'program_manager'
-      AND (
-        CAST(s.staff_id AS TEXT) = CAST(c.cid AS TEXT)
-        OR LOWER(TRIM(CAST(s.staff_id AS TEXT))) = LOWER(TRIM(COALESCE(c.email, '')))
-      )
-  ) AS has_pm_staff_assignment,
-  EXISTS (
-    SELECT 1 FROM v2_programs p
-    WHERE CAST(p.assigned_pm_id AS TEXT) = CAST(c.cid AS TEXT)
-  ) AS is_named_pm
-FROM contacts c
-LEFT JOIN active_pm a ON a.contact_cid = c.cid
-WHERE LOWER(COALESCE(c.role, '')) = 'program_manager'
-ORDER BY (a.contact_cid IS NOT NULL), c.name;
+-- 4. Per-person listing (PRIVATE — run it only when the aggregate reports a
+--    gap, and keep the output out of shared logs). It is deliberately NOT part
+--    of the default audit so the aggregate run never prints names or emails.
+--    Uncomment the block below if a case-by-case review is needed.
+--
+-- WITH active_pm AS (
+--   SELECT DISTINCT contact_cid FROM profile_assignments
+--   WHERE profile_key = 'program_manager'
+--     AND status = 'active'
+--     AND (ends_at IS NULL OR ends_at > NOW())
+--     AND (started_at IS NULL OR started_at <= NOW())
+-- )
+-- SELECT
+--   c.cid,
+--   c.name,
+--   c.email,
+--   c.role,
+--   (a.contact_cid IS NOT NULL) AS has_active_pm_profile,
+--   EXISTS (
+--     SELECT 1 FROM v2_program_staff s
+--     WHERE LOWER(COALESCE(s.role, '')) = 'program_manager'
+--       AND (
+--         CAST(s.staff_id AS TEXT) = CAST(c.cid AS TEXT)
+--         OR LOWER(TRIM(CAST(s.staff_id AS TEXT))) = LOWER(TRIM(COALESCE(c.email, '')))
+--       )
+--   ) AS has_pm_staff_assignment,
+--   EXISTS (
+--     SELECT 1 FROM v2_programs p
+--     WHERE CAST(p.assigned_pm_id AS TEXT) = CAST(c.cid AS TEXT)
+--   ) AS is_named_pm
+-- FROM contacts c
+-- LEFT JOIN active_pm a ON a.contact_cid = c.cid
+-- WHERE LOWER(COALESCE(c.role, '')) = 'program_manager'
+-- ORDER BY (a.contact_cid IS NOT NULL), c.name;
 
 -- 5. A staff member with a program-manager assignment but no profile card is a
 --    reconciliation gap: the flag must not be enabled while this count is > 0.

@@ -59,7 +59,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
   test.each(converted)("%s keeps the assignment machinery imported", (file) => {
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(src).toMatch(/requireAssignmentAccess/);
-    expect(src).toMatch(/hasProgramManagementAccess/);
+    expect(src).toMatch(/isProgramManagerSession/);
   });
 
   test("attendance: POST + GET are bare (assignment + own-scope decide)", () => {
@@ -186,7 +186,7 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(bareAuthCount(file)).toBe(1);
     for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
     expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
-    expect(src).toMatch(/hasProgramManagementAccess/);
+    expect(src).toMatch(/isProgramManagerSession/);
   });
 
   test("phase 1.3: participant-programs GET — bare + management/capability/assignment gate", () => {

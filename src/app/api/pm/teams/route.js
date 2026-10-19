@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAssignmentAccess } from "@/server/authz/guards";
 import {
   requireAuthorization,
@@ -38,7 +38,7 @@ export async function GET(req) {
     const session = await getSession();
     const ctx = session ? await getAuthorizationContext(session) : null;
     const canViewTeams =
-      hasProgramManagementAccess(session?.role) ||
+      (await isProgramManagerSession(session)) ||
       (!!ctx && authorize(ctx, "programs", "view"));
     if (session && !canViewTeams) {
       const guardError = await requireAssignmentAccess({
@@ -50,7 +50,7 @@ export async function GET(req) {
 
     // Shared team credentials are management data: only management roles receive
     // them. A delegated reader gets the roster without username/password.
-    const canSeeCredentials = hasProgramManagementAccess(session?.role);
+    const canSeeCredentials = await isProgramManagerSession(session);
     const teams = await listProgramTeams({ programId, canSeeCredentials });
 
     return NextResponse.json({ success: true, teams });

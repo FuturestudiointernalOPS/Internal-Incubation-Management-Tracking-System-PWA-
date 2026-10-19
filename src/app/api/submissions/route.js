@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { requireAssignmentAccess } from "@/server/authz/guards";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { serverError } from "@/lib/apiError";
 import {
@@ -78,7 +78,7 @@ export async function PATCH(req) {
     const session = await getSession();
     // Ensure role-lock column exists before we read it below.
     try { await ensureSubmissionsRoleLockColumn(); } catch (_) {}
-    if (session && !hasProgramManagementAccess(session.role)) {
+    if (session && !(await isProgramManagerSession(session))) {
       const submissionProgramResult = await getSubmissionProgramId(id);
       const programId = submissionProgramResult.rows[0]?.program_id;
       if (!programId) {
@@ -154,6 +154,7 @@ export async function GET(req) {
     // program and hold assignments.view. Scope restricts to their assigned
     // groups. Participants/teams/staff read their own submissions directly.
     const session = await getSession();
+    const canManageProgram = await isProgramManagerSession(session);
 
     // Team-entity sessions (role "team", cid = their own team id) may only ever
     // read THEIR OWN team's submissions: the team filter is bound server-side,
@@ -170,11 +171,16 @@ export async function GET(req) {
     // Own-scope (Phase I6B): without a program context, non-management,
     // non-staff, non-team sessions (participants, members, …) may only list
     // their own submissions — participant_id is bound server-side.
-    participant_id = applyOwnSubmissionScope({ session, participantId: participant_id, programId: program_id });
+    participant_id = applyOwnSubmissionScope({
+      session,
+      participantId: participant_id,
+      programId: program_id,
+      canManage: canManageProgram,
+    });
 
     let facilitatorScopeFilter = null;
     let facilitatorScopeArgs = [];
-    if (needsFacilitatorSubmissionScope(session, program_id)) {
+    if (needsFacilitatorSubmissionScope(session, program_id, canManageProgram)) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,

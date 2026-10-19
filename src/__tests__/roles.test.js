@@ -38,13 +38,13 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
     }
   });
 
-  test("D-1 — program manager is a staff identity when the switch is on", () => {
-    process.env.AUTHZ_PM_IDENTITY = "staff";
+  test("D-1 — program manager is a staff identity by default", () => {
+    delete process.env.AUTHZ_PM_IDENTITY;
     expect(resolveEffectiveRole({ role: "program_manager" })).toBe("staff");
   });
 
-  test("D-1 — the legacy role is kept while the switch is off", () => {
-    delete process.env.AUTHZ_PM_IDENTITY;
+  test("D-1 — the legacy role is available as an explicit rollback", () => {
+    process.env.AUTHZ_PM_IDENTITY = "role";
     expect(resolveEffectiveRole({ role: "program_manager" })).toBe(
       "program_manager",
     );

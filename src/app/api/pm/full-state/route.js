@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { requireProgramFacilitator } from "@/server/authz/guards";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildProgramFullState } from "@/services/programs/fullState";
 
@@ -32,7 +32,7 @@ export async function GET(req) {
     // AND for any staff member who is the explicitly assigned PM of this program.
     if (id) {
       const session = await getSession();
-      if (session && !hasProgramManagementAccess(session.role)) {
+      if (session && !(await isProgramManagerSession(session))) {
         const isPm = await isAssignedPmForProgram(id, session.cid);
         if (!isPm) {
           const guardError = await requireProgramFacilitator(id);

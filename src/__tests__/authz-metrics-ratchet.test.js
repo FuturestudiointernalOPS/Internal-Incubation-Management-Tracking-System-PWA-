@@ -36,6 +36,7 @@ describe("Lot 0 — tableau de bord et cliquet des permissions", () => {
       staticGuardExceptions: metrics.roleGates.staticGuardExceptions,
       extendedGuardExceptions: metrics.roleGates.extendedGuardExceptions,
       pmOnlyRoleGates: metrics.roleGates.pmOnlyRoleGates,
+      pmRoleDecisions: metrics.roleVocabulary.pmRoleDecisions,
       pmOccurrences: metrics.roleVocabulary.pmOccurrences,
       loginRoleValues: metrics.roleVocabulary.loginRoleValuesUnion,
       historicalAccessRoles: metrics.roleVocabulary.historicalRoles.length,

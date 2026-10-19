@@ -24,6 +24,11 @@ jest.mock("@/services/authorization/contextCache", () => ({
 const {
   programManagerAccessDecision,
 } = require("@/services/authorization/resourceGuards");
+const {
+  isProgramManagerProfileSession,
+  isProgramManagerSession,
+} = require("@/services/authorization/programManagement");
+const { getAuthorizationContext } = require("@/services/authorization/contextCache");
 
 const allowed = { allowed: true, status: 200, errorKey: null };
 const denied = (status, errorKey) => ({ allowed: false, status, errorKey });
@@ -89,5 +94,46 @@ describe("programManagerAccessDecision — D-1", () => {
         }),
       ).toEqual(denied(403, "errors.insufficientPermissions"));
     }
+  });
+});
+
+describe("the async profile predicate used by decision sites", () => {
+  beforeEach(() => {
+    getAuthorizationContext.mockReset();
+  });
+
+  test("a legacy program-manager role passes without a context lookup", async () => {
+    expect(await isProgramManagerProfileSession({ role: "program_manager" })).toBe(
+      true,
+    );
+    expect(getAuthorizationContext).not.toHaveBeenCalled();
+  });
+
+  test("a staff identity passes only when the context carries the profile", async () => {
+    getAuthorizationContext.mockResolvedValue({
+      profiles: ["program_manager"],
+    });
+    expect(await isProgramManagerProfileSession({ role: "staff", cid: "U-1" })).toBe(
+      true,
+    );
+
+    getAuthorizationContext.mockResolvedValue({ profiles: ["participant"] });
+    expect(await isProgramManagerProfileSession({ role: "staff", cid: "U-1" })).toBe(
+      false,
+    );
+  });
+
+  test("the platform owner is management authority but not a PM profile", async () => {
+    expect(await isProgramManagerProfileSession({ role: "super_admin" })).toBe(
+      false,
+    );
+    expect(await isProgramManagerSession({ role: "super_admin" })).toBe(true);
+  });
+
+  test("a failed profile lookup is a refusal", async () => {
+    getAuthorizationContext.mockRejectedValue(new Error("db down"));
+    expect(await isProgramManagerProfileSession({ role: "staff", cid: "U-1" })).toBe(
+      false,
+    );
   });
 });

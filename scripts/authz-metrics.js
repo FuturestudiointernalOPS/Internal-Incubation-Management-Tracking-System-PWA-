@@ -206,10 +206,16 @@ const rows = [
     "down",
   ),
   line(
-    "Occurrences de « gestionnaire de programme » en production",
+    "Décisions qui lisent encore le rôle « gestionnaire de programme »",
+    metrics.roleVocabulary.pmRoleDecisions,
+    "0",
+    "down",
+  ),
+  line(
+    "Mentions du libellé « gestionnaire de programme » (info)",
     metrics.roleVocabulary.pmOccurrences,
     "profil seulement",
-    "down",
+    "stable",
   ),
   line(
     "Rôles proposés par l'écran d'accès historique",

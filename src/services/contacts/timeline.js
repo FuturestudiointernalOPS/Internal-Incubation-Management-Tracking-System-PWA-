@@ -14,6 +14,7 @@
 import {
   getProgramIdsForPm,
 } from "@/models/contacts/programMembership";
+import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
 import {
   getContactTimelineEvents,
   getTimelineContactIdentity,
@@ -32,7 +33,7 @@ export function mayReadContactTimeline(session, cid) {
 export async function listContactTimeline(session, cid, { moduleFilter, typeFilter, limit, offset }) {
   // Program managers: scope events to non-program modules + their programs.
   let pmProgramIds;
-  if (session.role === "program_manager") {
+  if (await isProgramManagerProfileSession(session)) {
     const programsResult = await getProgramIdsForPm(session.cid);
     pmProgramIds = programsResult.rows.map((row) => row.id);
   }
