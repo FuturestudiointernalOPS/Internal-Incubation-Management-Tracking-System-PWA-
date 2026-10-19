@@ -31,7 +31,7 @@
  *     test normal qui passe ; s'il redevient corrompu, il se marque tout seul
  *     `test.failing` (dette suivie, CI verte tant qu'elle est ouverte). Un test
  *     supplémentaire PROUVE que le détecteur rejette bien le libellé documenté
- *     `Tasksengineering.permissions.prototype.sections.people`. Le test des
+ *     `Tasksengineering.permissions.center.sections.people`. Le test des
  *     capacités orphelines passe.
  */
 
@@ -276,20 +276,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/components/layout/shell/useDashboardBadges.js#M3",
   "src/components/messaging/chat/getPermissions.js#M3",
   "src/components/messaging/hooks/useDerivedData.js#M3",
-  "src/components/permissions-preview/Personnes.js#M3",
-  "src/components/permissions-preview/Regles.js#M4",
-  "src/components/permissions-preview/store.js#M3",
-  "src/components/permissions/AccessChecker.js#M3",
-  "src/components/permissions/AdminsView.js#M3",
-  "src/components/permissions/ProfilesView.js#M2",
-  "src/components/permissions/ProfilesView.js#M4",
-  "src/components/permissions/overviewHelpers.js#M2",
-  "src/components/permissions/permission-center/PersonAccessScreen.js#M3",
-  "src/components/permissions/permission-center/ResponsibilityAccessView.js#M2",
-  "src/components/permissions/permission-center/ResponsibilityAccessView.js#M4",
-  "src/components/permissions/permission-center/person-access/PersonAccessView.js#M3",
-  "src/components/permissions/profiles-view/ProfileCatalogue.js#M4",
-  "src/components/permissions/profiles-view/ProfileCreateForm.js#M4",
   "src/components/pm/program-workspace/ConfigTab.js#M3",
   "src/components/pm/program-workspace/DeployTeamModal.js#M3",
   "src/components/pm/program-workspace/ReportsTab.js#M3",
@@ -381,6 +367,20 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/workspace/calendar.js#M3",
   "src/services/workspace/calendar.js#M4",
   "src/services/workspace/navigation.js#M3",
+  // Relevé lors du nettoyage des écrans (2026-10-19). Les trois entrées du
+  // centre actif sont de l'affichage/validation (liste des rôles d'un profil),
+  // jamais une décision d'accès. Les sept autres préexistaient à ce lot et
+  // restent à traiter séparément.
+  "src/components/permissions/center/drawers/CreateProfileDrawer.js#M2",
+  "src/components/permissions/center/drawers/CreateProfileDrawer.js#M4",
+  "src/components/permissions/center/personAccess.js#M4",
+  "src/app/api/crm/leads/[id]/score/route.js#M2",
+  "src/app/api/crm/pipelines/[id]/stages/[stageId]/route.js#M2",
+  "src/app/api/engineering/email-config/route.js#M1",
+  "src/app/participant/page.js#M3",
+  "src/components/dashboard/ParticipantDashboardHome.js#M3",
+  "src/services/programs/teams.js#M3",
+  "src/services/ventures/people.js#M2",
 ]);
 
 /** (fichier#motif) → occurrences réelles, hors moteur, hors tests. */

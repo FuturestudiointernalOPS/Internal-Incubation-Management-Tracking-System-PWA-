@@ -158,7 +158,7 @@ describe("org_membership capability (Phase 1 — protected groups)", () => {
  */
 describe("restrictionsToJson (server → client wire format)", () => {
   const { restrictionsToJson } = require("@/services/authorization/context");
-  const { deriveUserCapState } = require("@/components/permissions/matrixHelpers");
+  const { deriveUserCapState } = require("@/components/permissions/matrixHelpers/state");
 
   test("projects Set-based restrictions into the JSON object shape", () => {
     expect(

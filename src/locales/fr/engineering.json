@@ -3,7 +3,7 @@
     "permissions": {
       "authorization": "Autorisation",
       "pageTitle": "Permissions",
-      "prototype": {
+      "center": {
         "sections": {
           "people": "Personnes",
           "profiles": "Profils",

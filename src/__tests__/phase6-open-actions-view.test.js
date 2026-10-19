@@ -25,7 +25,7 @@ const {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
 } = require("@/services/authorization/actionDeclarations");
-const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
+const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
 
 describe("API — GET /api/engineering/permissions/open-actions", () => {
   beforeEach(() => {
@@ -63,12 +63,12 @@ describe("contrat d'interface — onglet « openActions » sous Rules", () => {
   const ROOT = path.resolve(__dirname, "..", "..");
   const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
 
-  test("PROTOTYPE_TABS.rules contient openActions", () => {
-    expect(PROTOTYPE_TABS.rules).toContain("openActions");
+  test("CENTER_TABS.rules contient openActions", () => {
+    expect(CENTER_TABS.rules).toContain("openActions");
   });
 
   test("RulesSection rend le composant de la liste pour cet onglet", () => {
-    const src = read("src/components/permissions/prototype/sections/RulesSection.js");
+    const src = read("src/components/permissions/center/sections/RulesSection.js");
     expect(src).toContain("OpenActionsTab");
     expect(src).toContain('tab === "openActions"');
   });

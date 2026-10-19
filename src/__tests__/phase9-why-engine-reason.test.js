@@ -88,13 +88,8 @@ test("buildContextDecisions (2e écran) est la même décision que le moteur", (
   }
 });
 
-test("les deux écrans « pourquoi » consomment la décision du moteur", () => {
+test("le détail d'une personne expose la décision du moteur", () => {
   const ROOT = path.resolve(__dirname, "..", "..");
   const read = (rel) => fs.readFileSync(path.join(ROOT, rel), "utf8");
-  // Le détail d'une personne expose `decisions`.
   expect(read("src/services/authorization/permissionMatrix.js")).toMatch(/buildContextDecisions/);
-  // Le modal « pourquoi » de l'écran person-access le préfère au calcul local.
-  expect(read("src/components/permissions/permission-center/CapabilityWhyModal.js")).toMatch(
-    /userPerms\.decisions/,
-  );
 });

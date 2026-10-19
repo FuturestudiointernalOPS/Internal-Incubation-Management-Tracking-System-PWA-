@@ -4,7 +4,7 @@
  * Two checks on the capability vocabulary:
  *   1. every module `name` is a clean human label (no dot, not suspiciously
  *      long, no i18n-key fragment glued in) — the corruption this guards
- *      against was `"Tasksengineering.permissions.prototype.sections.people"`;
+ *      against was `"Tasksengineering.permissions.center.sections.people"`;
  *   2. no capability is orphaned: every capability declared in
  *      PERMISSION_MODULES must have an entry in CAPABILITY_CATALOG.
  *
@@ -20,14 +20,14 @@ function moduleNameProblem(name) {
   const issues = [];
   if (name.includes(".")) issues.push("contient un point");
   if (name.length >= 40) issues.push(`longueur ${name.length} >= 40`);
-  if (/permissions\.prototype|sections\.people/.test(name)) issues.push("fragment de clé i18n");
+  if (/permissions\.(?:prototype|center)|sections\.people/.test(name)) issues.push("fragment de clé i18n");
   return issues.length ? issues.join(", ") : null;
 }
 
 describe("Garde 3 — catalogue synchronisé, libellés non corrompus", () => {
   // ÉCHEC ATTENDU — libellé corrompu à corriger (Phase 9).
   // Le libellé visé est `PERMISSION_MODULES.tasks.name ===
-  // "Tasksengineering.permissions.prototype.sections.people"` (fragment de clé
+  // "Tasksengineering.permissions.center.sections.people"` (fragment de clé
   // i18n collé au libellé, point interne et longueur hors borne). Quand cette
   // dette est ouverte, ce test est `test.failing` (CI verte, dette suivie).
   // Sur l'arbre de travail actuel, la dette est FERMÉE (le libellé vaut
@@ -50,7 +50,7 @@ describe("Garde 3 — catalogue synchronisé, libellés non corrompus", () => {
   test("le détecteur rejette le libellé corrompu documenté", () => {
     // Preuve que la garde attrape bien la corruption visée par le brief, même
     // quand elle n'est plus présente dans le fichier.
-    expect(moduleNameProblem("Tasksengineering.permissions.prototype.sections.people")).not.toBeNull();
+    expect(moduleNameProblem("Tasksengineering.permissions.center.sections.people")).not.toBeNull();
     expect(moduleNameProblem("Tasks")).toBeNull();
   });
 

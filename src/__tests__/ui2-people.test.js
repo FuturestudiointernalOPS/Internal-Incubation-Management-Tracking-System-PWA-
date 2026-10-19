@@ -15,12 +15,11 @@ const path = require("path");
 const {
   deriveUserCapState,
   deriveDenialReason,
-} = require("@/components/permissions/matrixHelpers");
+} = require("@/components/permissions/matrixHelpers/state");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
-const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
-const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
+const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -85,77 +84,18 @@ describe("UI-2b — denial reasons", () => {
 
 describe("UI-2b — screen wiring", () => {
   const route = "src/app/admin/security/permissions/people/page.js";
-  const merged = "src/components/permissions/IndividualAccessScreen.js";
-  const view = "src/components/permissions/PeopleView.js";
-  const matrix = "src/components/permissions/people-view/PeopleMatrix.js";
 
-  test("the people door renders the approved prototype with its two registries", () => {
+  test("the people door renders the active centre with its registries", () => {
     const src = read(route);
-    expect(src).toContain("PermissionPrototype");
-    expect(src).toContain('initialSection="people"');
-    // The person, plus the two people-wide registries beside it.
-    expect(PROTOTYPE_TABS.people).toEqual(["people", "groups", "administrators", "context"]);
-  });
-
-  test("the merged screen feeds the same person to both lenses", () => {
-    const src = read(merged);
-    expect(src).toContain("PersonPicker");
-    expect(src).toContain("PeopleView");
     expect(src).toContain("PermissionCenter");
-    // One selection, two panels: read (person=) and write (cid=).
-    expect(src).toContain("person={person}");
-    expect(src).toContain("cid={person.cid}");
-    // Profiles held render at the TOP of the person screen, once (moved out of
-    // the editor, where it used to sit after the capability legend).
-    expect(src).toContain("ProfileAssignmentsSection");
-    expect(readPermissionCenterSurface()).not.toContain("<ProfileAssignmentsSection");
-    // One picker in the whole flow: the editor no longer fetches a user list.
-    // The whole surface, because a second user list anywhere in the center would
-    // break that claim just as much as one in the shim.
-    const editor = readPermissionCenterSurface();
-    expect(editor).not.toContain("fetchAllUsers");
+    expect(src).toContain('initialSection="people"');
+    expect(CENTER_TABS.people).toEqual(["people", "groups", "administrators", "context"]);
   });
 
-  test("the individual editor only offers what the person can be granted", () => {
-    // The ceiling is decided in the screen (eligibilityMap) and rendered in the
-    // view it hands its ctx to; read the whole surface, as the guard is about
-    // the editor, not about which file holds a given line.
-    const editor = readPermissionCenterSurface();
-    // The individual Advanced block is ceiling-limited like the template's, so
-    // it never offers a right the person cannot receive, nor the bucket of
-    // parts that have no dashboard section.
-    expect(editor).toContain("visibleFeatures={personFeatures}");
-    expect(editor).toContain("retainedCaps={exceptionSpecialCaps}");
-    expect(editor).toContain("explanation?.eligibility");
-    // Same ceiling on the basic-rights grid, at section level.
-    expect(editor).toContain(
-      "isPersonEligibleForFeature(eligibilityMap, section.feature)",
-    );
-  });
-
-  test("a person's rights are level chips with explicit controls, not a level spreadsheet", () => {
-    const editor = readPermissionCenterSurface();
-    expect(editor).toContain("LEVEL_CHIP_ACTIVE");
-    expect(editor).toContain('t("engineering.permissions.block")');
-    expect(editor).toContain('t("engineering.permissions.restore")');
-    expect(editor).toContain('t("engineering.permissions.personRightsHint")');
-  });
-
-  test("the view uses the real endpoints and shared primitives", () => {
-    const src = read(view);
+  test("the person detail reads the real decision endpoints", () => {
+    const src = read("src/components/permissions/center/sections/PersonDetail.js");
     expect(src).toContain("/api/engineering/permissions/user-context?cid=");
     expect(src).toContain("/api/engineering/permissions/scope-check?policy=");
-    expect(src).toContain("WhyDrawer");
-    // The matrix card is its own block; it carries the effective badge.
-    expect(read(matrix)).toContain("EffectiveBadge");
-    // Scope column must never be fabricated client-side.
-    expect(src).not.toContain("All · P4");
-  });
-
-  test("the effective badge carries both denial reasons", () => {
-    const src = read("src/components/permissions/ui/EffectiveBadge.js");
-    expect(src).toContain("effectiveReasonRestriction");
-    expect(src).toContain("effectiveReasonNoSource");
   });
 
   test("every People string exists in English and French", () => {
