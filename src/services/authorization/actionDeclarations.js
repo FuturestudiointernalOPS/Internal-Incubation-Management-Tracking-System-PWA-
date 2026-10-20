@@ -278,6 +278,91 @@ const DELEGATED_DECISIONS = [
     reason:
       "La portée d'une soumission est le participant lui-même ou son équipe ; l'écriture suit la même relation et exclut le mode lecture seule. La décision a besoin de la cible, elle vit dans le service.",
   },
+  // ── Tasks & blockers — the rule is "is this YOUR task?" ──────────────────
+  {
+    file: "src/app/api/tasks/route.js",
+    service: "src/services/tasks/query.js",
+    rule: "listTasks / createTaskRecord / updateTaskRecord / deleteTaskRecord / respondToPendingAssignment",
+    reason:
+      "Une tâche appartient à son porteur, à son assigné et à son superviseur ; la liste est bornée à la personne, et les champs de gestion sont réservés selon le rôle. La décision a besoin du propriétaire de la cible.",
+  },
+  {
+    file: "src/app/api/tasks/assignment-action/route.js",
+    service: "src/services/tasks/assignmentAction.js",
+    rule: "applyAssignmentAction",
+    reason: "Seul l'assigné peut accepter, décliner ou terminer sa propre assignation.",
+  },
+  {
+    file: "src/app/api/tasks/assignments/route.js",
+    service: "src/services/tasks/assignments.js",
+    rule: "listTaskAssignments / respondToTaskAssignment",
+    reason:
+      "La liste est bornée à l'assigné (sauf rôle portefeuille) et accepter/décliner/réassigner dépend de la relation avec l'assignation.",
+  },
+  {
+    file: "src/app/api/tasks/carryover/route.js",
+    service: "src/services/tasks/carryover.js",
+    rule: "listCarryoverTasks / carryOverTask",
+    reason: "Le report d'une tâche n'est ouvert qu'à son porteur (ou à un rôle portefeuille).",
+  },
+  {
+    file: "src/app/api/tasks/comments/route.js",
+    service: "src/services/tasks/comments.js",
+    rule: "canAccessTask (owner / assignee / supervisor) + author-only edit/delete",
+    reason:
+      "Lire ou commenter exige l'accès à la tâche ; modifier ou supprimer un commentaire est réservé à son auteur.",
+  },
+  {
+    file: "src/app/api/tasks/duplicate/route.js",
+    service: "src/services/tasks/duplicate.js",
+    rule: "duplicateTask",
+    reason: "Dupliquer une tâche exige le même accès que la lire.",
+  },
+  {
+    file: "src/app/api/tasks/logs/route.js",
+    service: "src/services/tasks/logs.js",
+    rule: "listTaskLogs",
+    reason: "Le journal d'assignation suit la règle d'accès de la tâche.",
+  },
+  {
+    file: "src/app/api/tasks/reconcile/route.js",
+    service: "src/services/tasks/reconcile.js",
+    rule: "reconcileTasks",
+    reason:
+      "La réconciliation d'une semaine n'est ouverte qu'à la personne concernée (ou à un rôle portefeuille), et seuls certains états sont permis.",
+  },
+  {
+    file: "src/app/api/tasks/resources/route.js",
+    service: "src/services/tasks/resources.js",
+    rule: "addTaskResource / removeTaskResource",
+    reason: "Les ressources suivent la règle d'accès de la tâche.",
+  },
+  {
+    file: "src/app/api/blockers/route.js",
+    service: "src/services/tasks/blockers.js",
+    rule: "listBlockers / createBlockerForTask / updateBlockerRecord / deleteBlockerRecord",
+    reason:
+      "Un blocker appartient à sa tâche : la lecture est bornée aux tâches de la personne, la création à leurs porteurs, et la résolution à son créateur.",
+  },
+  {
+    file: "src/app/api/blockers/discuss/route.js",
+    service: "src/services/tasks/blockers.js",
+    rule: "guardBlockerDiscussion (canAccessTask) + session sender",
+    reason:
+      "Une discussion est un sous-ressource de la tâche : elle suit la même règle d'accès. L'auteur du message est la session, jamais un identifiant fourni par le client.",
+  },
+  {
+    file: "src/app/api/standups/current/route.js",
+    service: "src/services/tasks/weeklyReports.js",
+    rule: "evaluateWeeklyReportAccess",
+    reason: "Le standup se lit soi-même, par son superviseur, ou par le propriétaire de la plateforme.",
+  },
+  {
+    file: "src/app/api/retros/current/route.js",
+    service: "src/services/tasks/weeklyReports.js",
+    rule: "evaluateWeeklyReportAccess",
+    reason: "La rétro se lit soi-même, par son superviseur, ou par le propriétaire de la plateforme.",
+  },
 ];
 
 /**

@@ -22,8 +22,8 @@
  * POST /api/admin/run-migration                   | requireAuth() + settings.edit            | élevé  | source-pin + comportement
  * GET  /api/admin/projects                        | requireAuth(["super_admin"])            | élevé  | source-pin
  * GET  /api/admin/analytics (+ /users)            | requireAuth(["super_admin"])            | élevé  | source-pin
- * GET  /api/admin/blockers                        | createHandler({roles:["super_admin"]})  | élevé  | source-pin
- * GET  /api/admin/tasks                           | createHandler({roles:["super_admin"]})  | élevé  | source-pin
+ * GET  /api/admin/blockers                        | tasks.view                              | élevé  | source-pin
+ * GET  /api/admin/tasks                           | tasks.view                              | élevé  | source-pin
  * GET  /api/admin/finance/data-sources            | createHandler({roles:["super_admin"]})  | élevé  | source-pin
  * POST /api/admin/ventures/create                 | createHandler({roles:["super_admin"]})  | élevé  | source-pin
  * POST /api/admin/projects/[id]/reports/generate  | requireAuth(["super_admin","staff","program_manager"]) | élevé | source-pin
@@ -160,15 +160,20 @@ describe("admin / migrate — mutating endpoints pin their capability guard", ()
     );
   });
 
-  test.each([
-    ["GET /api/admin/blockers", "src/app/api/admin/blockers/route.js"],
-    ["GET /api/admin/tasks", "src/app/api/admin/tasks/route.js"],
-    ["GET /api/admin/finance/data-sources", "src/app/api/admin/finance/data-sources/route.js"],
-  ])("%s — createHandler restreint à super_admin (comportement actuel figé)", (_label, file) => {
-    const src = read(file);
+  test("GET /api/admin/finance/data-sources — createHandler restreint à super_admin (comportement actuel figé)", () => {
+    const src = read("src/app/api/admin/finance/data-sources/route.js");
     expect(src).toMatch(
       /createHandler\(\s*\{\s*roles:\s*\["super_admin"\]\s*\}/,
     );
+  });
+
+  test.each([
+    ["GET /api/admin/blockers", "src/app/api/admin/blockers/route.js"],
+    ["GET /api/admin/tasks", "src/app/api/admin/tasks/route.js"],
+  ])("%s — tasks.view (comportement actuel figé)", (_label, file) => {
+    const src = read(file);
+    expect(src).toMatch(/requireAuthorization\("tasks", "view"\)/);
+    expect(src).not.toMatch(/\{\s*roles:\s*\[/);
   });
 
   test("POST /api/admin/ventures/create — createHandler restreint à super_admin (comportement actuel figé)", () => {

@@ -25,6 +25,7 @@
 
 import { isSupervisorOf } from "@/models/authorization/accessQueries";
 import { getTaskTitleById } from "@/models/tasks";
+import { canAccessTask } from "./access";
 import {
   createBlocker,
   createBlockerDiscussion,
@@ -286,11 +287,33 @@ export async function deleteBlockerRecord({ session, id }) {
   return { status: 200, body: { success: true, action: "deleted" } };
 }
 
+/**
+ * The blocker row and the task-access decision that guards its discussion.
+ * A discussion is part of the task, so it follows the SAME rule as comments,
+ * resources and logs: portfolio roles, or the task's owner/assignee/supervisor.
+ */
+async function guardBlockerDiscussion({ blocker_id, role, sessionCid }) {
+  const blockerCheck = await getBlockerForDiscussion(blocker_id);
+  if (blockerCheck.rows.length === 0) {
+    return { denied: { status: 404, error: "Blocker not found" } };
+  }
+  const blocker = blockerCheck.rows[0];
+  const taskResult = await getTaskForBlockerCheck(blocker.task_id);
+  const task = taskResult.rows[0];
+  if (!task || !canAccessTask({ task, role, cid: sessionCid })) {
+    return { denied: { status: 403, error: "errors.insufficientPermissions" } };
+  }
+  return { blocker };
+}
+
 /** List a blocker's discussion messages, oldest first. */
-export async function listBlockerDiscussions({ blocker_id }) {
+export async function listBlockerDiscussions({ blocker_id, role, sessionCid }) {
   if (!blocker_id) {
     return { status: 400, error: "blocker_id is required" };
   }
+  const access = await guardBlockerDiscussion({ blocker_id, role, sessionCid });
+  if (access.denied) return access.denied;
+
   const result = await getBlockerDiscussions(blocker_id);
   return { status: 200, body: { success: true, messages: result.rows } };
 }
@@ -302,22 +325,32 @@ export async function listBlockerDiscussions({ blocker_id }) {
  *
  * @returns {Promise<{status: number, body?: Object, error?: string}>}
  */
-export async function postBlockerDiscussion({ input }) {
-  const { blocker_id, sender_id, sender_name, body: messageBody } = input;
+export async function postBlockerDiscussion({ input, session }) {
+  const { blocker_id, body: messageBody } = input || {};
 
-  if (!blocker_id || !sender_id || !messageBody || !messageBody.trim()) {
+  if (!session) {
+    return { status: 401, error: "errors.authRequired" };
+  }
+
+  if (!blocker_id || !messageBody || !messageBody.trim()) {
     return {
       status: 400,
-      error: "blocker_id, sender_id, and body are required",
+      error: "blocker_id and body are required",
     };
   }
 
-  // Verify the blocker exists
-  const blockerCheck = await getBlockerForDiscussion(blocker_id);
-  if (blockerCheck.rows.length === 0) {
-    return { status: 404, error: "Blocker not found" };
-  }
-  const blocker = blockerCheck.rows[0];
+  // The sender is the SESSION, never a client-supplied value: attribution and
+  // the notification fan-out must not be spoofable.
+  const sender_id = session.cid;
+  const sender_name = session.name;
+
+  const access = await guardBlockerDiscussion({
+    blocker_id,
+    role: session.role,
+    sessionCid: session.cid,
+  });
+  if (access.denied) return access.denied;
+  const blocker = access.blocker;
 
   const result = await createBlockerDiscussion({
     blocker_id,

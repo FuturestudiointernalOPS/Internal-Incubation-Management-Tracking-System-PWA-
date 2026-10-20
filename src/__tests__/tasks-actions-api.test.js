@@ -16,6 +16,12 @@ const mockState = {
   failApprovalTable: false,
 };
 
+// The approve route gates on the capability; the decision layer is not what
+// these characterisation tests exercise.
+jest.mock("@/models/authorization/index", () => ({
+  requireAuthorization: jest.fn(async () => null),
+}));
+
 jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: {
