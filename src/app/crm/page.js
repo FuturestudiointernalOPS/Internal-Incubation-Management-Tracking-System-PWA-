@@ -3,6 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { Users, FileText, MessageSquare, ShieldAlert, Clock, Shield, TrendingUp, Settings, Activity, Filter } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import {
+  holdsProfile,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+  PROGRAM_MANAGER_PROFILE,
+} from "@/lib/identity";
 
 export const dynamic = "force-dynamic";
 
@@ -21,30 +27,27 @@ export default function CrmWorkspace() {
   const [messagesHref, setMessagesHref] = useState("/staff/messages");
   const [effective, setEffective] = useState(null);
 
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then((response) => response.json())
-      .then((sessionData) => {
-        if (sessionData.authenticated && sessionData.user) {
-          const role = sessionData.user.role;
-          const href =
-            role === "program_manager"
-              ? "/pm/messages"
-              : role === "super_admin"
-                ? "/admin/internal-comms"
-                : "/staff/messages";
-          setMessagesHref(href);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
+  // One read answers both questions. The messages door belongs to the person's
+  // SECTION: the platform owner has the administration inbox, a program manager
+  // (the PROFILE, D-1 — the role label no longer carries it) has the PM inbox,
+  // everyone else the staff one.
   useEffect(() => {
     let alive = true;
     fetch("/api/me/permissions")
       .then((response) => response.json())
       .then((permissionData) => {
-        if (alive && permissionData.success) setEffective(permissionData.effective || null);
+        if (!alive || !permissionData.success) return;
+        setEffective(permissionData.effective || null);
+        const managesPrograms =
+          isLegacyProgramManagerRole(permissionData.role) ||
+          holdsProfile(permissionData.profiles, PROGRAM_MANAGER_PROFILE);
+        setMessagesHref(
+          isPlatformOwnerRole(permissionData.role)
+            ? "/admin/internal-comms"
+            : managesPrograms
+              ? "/pm/messages"
+              : "/staff/messages",
+        );
       })
       .catch(() => {});
     return () => {
