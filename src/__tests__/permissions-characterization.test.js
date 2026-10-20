@@ -27,10 +27,10 @@
  * GET  /api/admin/finance/data-sources            | createHandler({roles:["super_admin"]})  | élevé  | source-pin
  * POST /api/admin/ventures/create                 | createHandler({roles:["super_admin"]})  | élevé  | source-pin
  * POST /api/admin/projects/[id]/reports/generate  | requireAuth(["super_admin","staff","program_manager"]) | élevé | source-pin
- * GET+PATCH /api/security/events                  | createHandler({roles:["super_admin","security_officer"]}) | élevé | source-pin + comportement
- * GET+POST  /api/security/sessions                | createHandler({roles:["super_admin","security_officer"]}) | élevé | source-pin
- * GET  /api/security/login-history                | createHandler({roles:["super_admin","security_officer","program_manager"]}) | élevé | source-pin
- * GET  /api/audit-logs (+ /[id])                  | createHandler({roles:["super_admin","security_officer"]}) | élevé | source-pin
+ * GET+PATCH /api/security/events                  | users.view / users.edit                  | élevé  | source-pin + comportement
+ * GET+POST  /api/security/sessions                | users.view / users.edit                  | élevé  | source-pin
+ * GET  /api/security/login-history                | createHandler({roles:["super_admin", "security_officer", "program_manager", "staff"]}) | élevé | source-pin
+ * GET  /api/audit-logs (+ /[id])                  | users.view                               | élevé  | source-pin
  * GET  /api/superadmin/full-state                 | createHandler() + settings.view          | élevé  | source-pin + comportement
  * POST /api/superadmin/groups/assignment          | createHandler({roles:["super_admin"]})  | élevé  | source-pin
  * /api/superadmin/standard-types                  | const ROLE = { roles: ['super_admin'] }  | élevé  | source-pin
@@ -186,14 +186,16 @@ describe("admin / migrate — mutating endpoints pin their capability guard", ()
 });
 
 describe("security — audit/session surfaces pin their role allowlist", () => {
-  test("GET+PATCH /api/security/events — super_admin ou security_officer (comportement actuel figé)", () => {
+  test("GET+PATCH /api/security/events — users.view / users.edit (comportement actuel figé)", () => {
     const src = read("src/app/api/security/events/route.js");
-    expect(count(src, /\{\s*roles:\s*\["super_admin", "security_officer"\]\s*\}/g)).toBe(2);
+    expect(count(src, /requireAuthorization\("users", "view"\)/g)).toBe(1);
+    expect(count(src, /requireAuthorization\("users", "edit"\)/g)).toBe(1);
   });
 
-  test("GET+POST /api/security/sessions — super_admin ou security_officer (comportement actuel figé)", () => {
+  test("GET+POST /api/security/sessions — users.view / users.edit (comportement actuel figé)", () => {
     const src = read("src/app/api/security/sessions/route.js");
-    expect(count(src, /\{\s*roles:\s*\["super_admin", "security_officer"\]\s*\}/g)).toBe(2);
+    expect(count(src, /requireAuthorization\("users", "view"\)/g)).toBe(1);
+    expect(count(src, /requireAuthorization\("users", "edit"\)/g)).toBe(1);
   });
 
   test("GET /api/security/login-history — super_admin, security_officer ou program_manager (comportement actuel figé)", () => {
@@ -202,12 +204,12 @@ describe("security — audit/session surfaces pin their role allowlist", () => {
     );
   });
 
-  test("GET /api/audit-logs (+ /[id]) — super_admin ou security_officer (comportement actuel figé)", () => {
+  test("GET /api/audit-logs (+ /[id]) — users.view (comportement actuel figé)", () => {
     expect(read("src/app/api/audit-logs/route.js")).toMatch(
-      /\{\s*roles:\s*\["super_admin", "security_officer"\]\s*\}/,
+      /requireAuthorization\("users", "view"\)/,
     );
     expect(read("src/app/api/audit-logs/[id]/route.js")).toMatch(
-      /\{\s*roles:\s*\["super_admin", "security_officer"\]\s*\}/,
+      /requireAuthorization\("users", "view"\)/,
     );
   });
 });

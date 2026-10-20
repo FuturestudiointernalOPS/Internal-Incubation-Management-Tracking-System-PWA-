@@ -52,13 +52,14 @@ describe("IDOR-FOUNDER-1 — la lecture d'un fondateur est bornée au Venture", 
     mockGetSession.mockReset();
   });
 
-  test("un appelant sans accès au Venture reçoit 404 (aucune lecture)", async () => {
+  test("un appelant sans accès au Venture reçoit 403 (aucune lecture)", async () => {
     mockGetSession.mockResolvedValue({ cid: "U-STRANGER", role: "member" });
     mockViewAccess.mockResolvedValue(false);
 
     const res = await GET({}, params({ id: "VNT-1", founderId: "5" }));
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "errors.insufficientPermissions" });
     expect(mockViewAccess).toHaveBeenCalledWith(
       expect.anything(),
       "VNT-1",
