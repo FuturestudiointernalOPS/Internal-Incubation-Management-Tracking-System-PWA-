@@ -163,6 +163,58 @@ const SECRET_MECHANISMS = ["x-cron-secret", "verifyWebhookSignature"];
 /** Human label of each `kind`, keyed for the UI. */
 const OPEN_ASSUMED_KINDS = ["public-intake", "auth-flow", "token", "cron", "webhook", "probe"];
 
+/**
+ * ROUTE_HUBS / NO_GUARD_ALLOWED — the two remaining OPEN exceptions that used
+ * to live inside the static-guard test. They move here so ONE registry answers
+ * "what is this action allowed to rely on?", instead of a test file owning part
+ * of the policy.
+ */
+
+/** Routes that are only a re-export hub: the decisions live in the handlers. */
+const ROUTE_HUBS = new Set([
+  "src/app/api/platform/form-runs/route.js",
+]);
+
+/**
+ * Routes with no statically readable permission decision, each with the reason
+ * it is still acceptable. These are OPEN declarations, not tacit exemptions.
+ */
+const NO_GUARD_ALLOWED = new Set([
+  // Stubs : répondent toujours 501 « feature not available in this schema ».
+  "src/app/api/forms/route.js",
+  "src/app/api/forms/[form_id]/route.js",
+  // Décision déléguée : services/programs/participantPrograms.js
+  // (requireAuthorization("programs","view") / requireAuth([...]) /
+  // requireProgramScope), remontée par `isAuthError`.
+  "src/app/api/participant-programs/route.js",
+  // Intake public : enregistre une réponse de campagne
+  // (services/platformRespond, validation dans le service).
+  "src/app/api/respond/route.js",
+  // Webhook : signature Svix vérifiée dans @/services/email
+  // (processResendWebhook) ; le fichier ne fait que lire le secret.
+  "src/app/api/webhooks/resend/route.js",
+  // Flux d'auth sans session par conception : vérifie le mot de passe courant
+  // + rate-limit (pas de permission à contrôler).
+  "src/app/api/auth/reset-password/route.js",
+  // Déconnexion : détruit la session (pas de permission à contrôler).
+  "src/app/api/auth/session-logout/route.js",
+]);
+
+/**
+ * DECLARATION SCHEMA (Lot 4, step 4.1)
+ *
+ * Every API action belongs to exactly one kind:
+ *
+ *   capability — it calls a DECISION_MECHANISM (a capability, a perimeter, or
+ *                both). This is the target for every protected action.
+ *   self       — open to any connected user, scoped to `session.cid`.
+ *   open       — public by design, secret-guarded, a hub or a documented stub.
+ *
+ * An action that is none of the three is UNDECLARED debt: listed in
+ * `actionDebt.js`, frozen so it can only shrink (step 4.2 works it down).
+ */
+const DECLARED_ACTION_KINDS = ["capability", "self", "open"];
+
 module.exports = {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
@@ -170,4 +222,7 @@ module.exports = {
   DECISION_MECHANISMS,
   SECRET_MECHANISMS,
   OPEN_ASSUMED_KINDS,
+  ROUTE_HUBS,
+  NO_GUARD_ALLOWED,
+  DECLARED_ACTION_KINDS,
 };

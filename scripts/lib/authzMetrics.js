@@ -150,11 +150,21 @@ function callSnippets(text, callee) {
   return snippets;
 }
 
-function parseSetFromGuardTest(name) {
-  const testFile = path.join(SRC, "__tests__", "permissions-static-guards.test.js");
-  const text = read(testFile);
-  const block = between(text, `const ${name} = new Set([`, "]);");
-  return new Set(quotedValues(block).filter((value) => value.startsWith("src/")));
+function declaredSet(name) {
+  // The hub/stub lists live in the registry now (Lot 4, step 4.1), next to the
+  // other declarations. The registry is pure data (no imports), so reading it
+  // from the dashboard is safe and keeps ONE source for the classification.
+  try {
+    const declarations = require(path.join(
+      SRC,
+      "services",
+      "authorization",
+      "actionDeclarations.js",
+    ));
+    return declarations[name] instanceof Set ? declarations[name] : new Set(declarations[name] || []);
+  } catch {
+    return new Set();
+  }
 }
 
 // ─── route inventory ────────────────────────────────────────────────────────
@@ -222,8 +232,8 @@ function worklist(entries, declarations) {
   const selfFiles = new Set(declarations.SELF_SCOPED_ROUTES.map((entry) => entry.file));
   const openFiles = new Set(declarations.OPEN_ASSUMED_ROUTES.map((entry) => entry.file));
   const prefixes = declarations.SELF_SCOPED_PREFIXES || [];
-  const hubs = parseSetFromGuardTest("ROUTE_HUBS");
-  const stubs = parseSetFromGuardTest("NO_GUARD_ALLOWED");
+  const hubs = declaredSet("ROUTE_HUBS");
+  const stubs = declaredSet("NO_GUARD_ALLOWED");
 
   return entries
     .filter((entry) => hasSessionGate(entry) && !entry.hasCapability)

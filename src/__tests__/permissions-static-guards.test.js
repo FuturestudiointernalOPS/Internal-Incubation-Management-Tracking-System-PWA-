@@ -40,6 +40,10 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const { proxy } = require("@/proxy");
+const {
+  ROUTE_HUBS,
+  NO_GUARD_ALLOWED,
+} = require("@/services/authorization/actionDeclarations");
 
 const ROOT = path.join(__dirname, "..", "..");
 const SRC = path.join(ROOT, "src");
@@ -452,36 +456,11 @@ const ROUTE_MECHANISMS = [
  * Routes qui ne sont qu'un hub de ré-export : les décisions vivent dans les
  * handlers pointés. Notées explicitement (et vérifiées : toute route qui
  * devient un hub doit être ajoutée ici).
+ *
+ * Les deux ensembles vivent désormais dans le registre
+ * (`@/services/authorization/actionDeclarations`), importé ci-dessus, pour
+ * qu'un seul endroit réponde de la politique.
  */
-const ROUTE_HUBS = new Set([
-  // dispatche vers ./handlers/{get,put,delete,post_/*}.js
-  "src/app/api/platform/form-runs/route.js",
-]);
-
-/**
- * Exceptions DATÉES (2026-10-10), documentées : routes sans décision de
- * permission statiquement lisible dans le fichier et non déclarées publiques.
- */
-const NO_GUARD_ALLOWED = new Set([
-  // Stubs : répondent toujours 501 « feature not available in this schema ».
-  "src/app/api/forms/route.js",
-  "src/app/api/forms/[form_id]/route.js",
-  // Décision déléguée : services/programs/participantPrograms.js
-  // (requireAuthorization("programs","view") / requireAuth([...]) /
-  // requireProgramScope), remontée par `isAuthError`.
-  "src/app/api/participant-programs/route.js",
-  // Intake public : enregistre une réponse de campagne
-  // (services/platformRespond, validation dans le service).
-  "src/app/api/respond/route.js",
-  // Webhook : signature Svix vérifiée dans @/services/email
-  // (processResendWebhook) ; le fichier ne fait que lire le secret.
-  "src/app/api/webhooks/resend/route.js",
-  // Flux d'auth sans session par conception : vérifie le mot de passe courant
-  // + rate-limit (pas de permission à contrôler).
-  "src/app/api/auth/reset-password/route.js",
-  // Déconnexion : détruit la session (pas de permission à contrôler).
-  "src/app/api/auth/session-logout/route.js",
-]);
 
 /** L'appel middleware anonyme laisse-t-il passer ce chemin API ? */
 function declaredPublic(url) {
