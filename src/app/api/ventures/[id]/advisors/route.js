@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import {
   getVentureIdByCodeForAdvisors, listVentureAdvisors, upsertVentureAdvisor,
   removeVentureAdvisor, clearVenturePrimaryAdvisor, setVenturePrimaryAdvisor,
@@ -17,8 +18,8 @@ async function resolveVentureDbId(ventureId) {
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params; const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const advisorsResult = await listVentureAdvisors(dbId);
@@ -28,8 +29,8 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params; const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_contact_id, is_primary } = await req.json();
@@ -41,8 +42,8 @@ export async function POST(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params; const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_id, action, is_primary } = await req.json();

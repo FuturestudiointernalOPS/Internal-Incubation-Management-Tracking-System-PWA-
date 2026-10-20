@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import {
   isGlobalRole,
   resolveVentureCode,
@@ -30,8 +31,8 @@ import { getVentureByCode, selectVentureReviewQueue } from "@/models/ventureWork
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   if (!(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }

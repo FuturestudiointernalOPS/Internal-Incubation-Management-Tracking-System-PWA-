@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { resolveVentureCode } from "@/services/ventures/operatingPlans";
 import { BUILT_IN_DOCUMENT_TYPE_CODES } from "@/lib/ventureDocumentTypeDefaults";
 import {
@@ -36,10 +37,8 @@ export const GET = createHandler(async (req, { params }) => {
 
   // The same gate the Data bank itself uses, so a screen can never be told more
   // than the reader is allowed to see.
-  const { session } = await requireVentureAccess(id);
-  if (!session) {
-    return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-  }
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
 
   const ventureId = await resolveVentureCode(id);
   await ensureVentureDocumentTypesForVenture(ventureId);

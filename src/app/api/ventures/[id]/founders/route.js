@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { createHandler } from "@/lib/api/createHandler";
 import { logVentureActivity } from "@/services/ventures/activity";
@@ -22,9 +23,7 @@ export const GET = createHandler(
     // and Future Studio staff — never to any authenticated user.
     const { requireVentureAccess } = await import("@/lib/ventureAuth");
     const access = await requireVentureAccess(id);
-    if (!access.session) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
+    if (!access.session) return ventureAccessRefusal(access.reason);
 
     const founders = await listFounders(id);
 

@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { notifyVentureFounders } from "@/services/ventures/activity";
@@ -42,7 +43,7 @@ async function getVisibilityStatuses(dbId, session, historyOnly = false) {
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
     const { id } = await params;
-    let { session } = await requireVentureAccess(id);
+    let { session, reason } = await requireVentureAccess(id);
     // D1 — an ex-manager keeps a READ-ONLY consultation of the Venture they ran.
     let historyOnly = false;
     if (!session) {
@@ -52,7 +53,7 @@ export async function GET(req, { params }) {
         historyOnly = true;
       }
     }
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const searchParams = new URL(req.url).searchParams;
@@ -94,8 +95,8 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params; const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const body = await req.json();

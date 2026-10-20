@@ -102,7 +102,7 @@ export const GET = createHandler(
       for (const assignment of assignments) {
         if (await responsibilityAllowsNoteView(assignment.responsibility_code)) { canView = true; break; }
       }
-      if (!canView) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      if (!canView) return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);

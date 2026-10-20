@@ -77,11 +77,12 @@ beforeEach(() => {
 
 describe("GET — the same door as the Venture itself", () => {
   test("a reader who may not see the Venture is refused before anything is read", async () => {
-    requireVentureAccess.mockResolvedValue({ ventureId: VENTURE, session: null });
+    requireVentureAccess.mockResolvedValue({ ventureId: VENTURE, session: null, reason: "out-of-scope" });
 
     const res = await listTypes(new Request(url), ctx);
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "errors.insufficientPermissions" });
     expect(model.listVentureDocumentTypes).not.toHaveBeenCalled();
   });
 

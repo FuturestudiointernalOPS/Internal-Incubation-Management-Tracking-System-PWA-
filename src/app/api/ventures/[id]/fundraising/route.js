@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { ventureOwned, ventureNotFound, resolveVentureDbId } from "@/lib/ventureOwnership";
 import { listOpportunities, getOpportunity, createOpportunity, updateOpportunity, deleteOpportunity, addOpportunityNote, addOpportunityActivity, getPipelineAnalytics, ACTIVITY_TYPES } from "@/services/ventures/fundraising";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   if (!(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }
@@ -37,8 +38,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   if (!(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }

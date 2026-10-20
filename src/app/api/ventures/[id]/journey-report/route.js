@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureAccess, roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
 import {
@@ -37,8 +38,8 @@ export async function GET(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
 
     const staff =
       roleIsPrivileged(session.role) ||

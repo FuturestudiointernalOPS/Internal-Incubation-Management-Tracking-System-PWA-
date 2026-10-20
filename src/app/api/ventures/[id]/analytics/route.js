@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getPipelineAnalytics } from "@/services/ventures/fundraising";
 import { getInvestmentAnalytics, getInvestmentReportSummary } from "@/services/ventures/investmentAnalytics";
 import { getVentureMatches } from "@/services/ventures/investorMatching";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   if (!(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }

@@ -37,7 +37,7 @@ export async function GET(req, { params }) {
       const assigned = await hasActiveVentureAssignment(id, session.cid);
       const member = await isActiveVentureMember(id, session.cid);
       if (!assigned && !member.rows?.length) {
-        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+        return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
       }
     }
 

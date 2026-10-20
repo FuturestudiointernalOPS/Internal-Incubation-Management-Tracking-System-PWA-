@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
 import { canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
@@ -59,8 +60,8 @@ async function resolveDbId(id) {
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
 
     const dbId = await resolveDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });

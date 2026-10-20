@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import {
   getVentureIdByCodeForDocumentPermissions,
   getDocumentForPermissions, listDocumentPermissions, getDocumentForPermissionsUpdate,
@@ -22,8 +23,8 @@ export async function GET(req, { params }) {
     const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -43,8 +44,8 @@ export async function PATCH(req, { params }) {
     const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 

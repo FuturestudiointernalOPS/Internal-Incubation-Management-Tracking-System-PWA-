@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { uploadSessionMaterial } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -21,8 +22,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req, { params }) {
   try {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
 
     const formData = await req.formData();
     const file = formData.get("file");

@@ -32,7 +32,7 @@ export async function GET(req, { params }) {
 
     const ventureId = await resolveVentureTableId(db, id);
     if (!(await checkVentureMemberViewAccess(db, ventureId, userRole, userCid))) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const invitations = await listVentureMemberInvitations(ventureId);

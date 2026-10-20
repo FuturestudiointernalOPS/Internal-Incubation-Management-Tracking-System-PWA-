@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 import {
   countVentureCustomerInterviews,
@@ -27,8 +28,8 @@ async function resolveVentureDbId(ventureId) {
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params; const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
 
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });

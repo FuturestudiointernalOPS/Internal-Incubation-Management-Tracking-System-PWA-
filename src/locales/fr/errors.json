@@ -30,6 +30,7 @@
     "crossSiteRequestBlocked": "Cette action doit être déclenchée depuis l'application.",
     "notFound": "Introuvable.",
     "projectNotFound": "Projet introuvable.",
+    "ventureNotFound": "Venture introuvable.",
     "notOwner": "Seul le propriétaire peut effectuer cette action.",
     "notAuthor": "Seul l'auteur peut effectuer cette action.",
     "notAssignee": "Seule la personne assignée peut effectuer cette action.",

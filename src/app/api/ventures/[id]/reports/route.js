@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
@@ -11,7 +12,7 @@ import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProduc
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  let { session } = await requireVentureAccess(id);
+  let { session, reason } = await requireVentureAccess(id);
   // D1 — an ex-manager keeps a READ-ONLY consultation of the Venture they ran
   // (documents and reports). It never authorises a write: only GET reaches here.
   let historyOnly = false;
@@ -22,7 +23,7 @@ export const GET = createHandler(async (req, { params }) => {
       historyOnly = true;
     }
   }
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  if (!session) return ventureAccessRefusal(reason);
   if (!historyOnly && !(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }

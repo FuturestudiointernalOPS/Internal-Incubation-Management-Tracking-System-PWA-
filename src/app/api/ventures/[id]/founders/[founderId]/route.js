@@ -28,7 +28,7 @@ export const GET = createHandler(
       session?.cid || "",
     );
     if (!canView) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const founder = await getFounderById(parseInt(founderId));

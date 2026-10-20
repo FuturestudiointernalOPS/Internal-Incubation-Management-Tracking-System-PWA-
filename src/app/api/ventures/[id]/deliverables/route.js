@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
@@ -44,8 +45,8 @@ async function loadMilestoneForVenture(dbId, milestoneId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
 
   const milestoneId = new URL(req.url).searchParams.get("milestone_id");
   if (!milestoneId) {
@@ -132,8 +133,8 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // ── submit: the Venture side supplies the evidence ───────────────────────
   if (action === "submit") {
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { session, reason } = await requireVentureAccess(id);
+    if (!session) return ventureAccessRefusal(reason);
     const evidenceUrl = String(body?.attachment_url || "").trim();
     if (!evidenceUrl) {
       return NextResponse.json({ success: false, error: "An evidence file or link is required." }, { status: 400 });

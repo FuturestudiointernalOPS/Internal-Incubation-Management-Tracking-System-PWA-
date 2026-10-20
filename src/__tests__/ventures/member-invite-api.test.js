@@ -156,12 +156,13 @@ describe("POST /api/ventures/[id]/members", () => {
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
   });
 
-  it("hides the roster from a caller without view access", async () => {
+  it("refuses a caller without view access", async () => {
     checkVentureMemberViewAccess.mockResolvedValue(false);
 
     const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "errors.insufficientPermissions" });
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
   });
 

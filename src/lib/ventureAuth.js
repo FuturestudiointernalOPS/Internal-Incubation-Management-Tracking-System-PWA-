@@ -102,11 +102,12 @@ export async function hasActiveVentureAssignment(ventureRef, sessionCid) {
 
 /**
  * Shared venture access check — import this instead of re-implementing the
- * membership check in every route. Returns the session or null.
+ * membership check in every route. Returns the session, or null plus a stable
+ * `reason` that tells the route WHICH refusal to send.
  *
  * Usage in a route:
- *   const { ventureId, session } = await requireVentureAccess(params.id);
- *   if (!session) return NextResponse.json({...}, {status: 404});
+ *   const { session, reason } = await requireVentureAccess(params.id);
+ *   if (!session) return ventureAccessRefusal(reason);
  *
  * Rules (Phase 2 — assignment-aware delegation):
  *   - GLOBAL roles (super_admin) bypass membership (org-wide authority).
@@ -114,27 +115,35 @@ export async function hasActiveVentureAssignment(ventureRef, sessionCid) {
  *     ACTIVE staff assignment (venture_staff_assignments) — delegated staff
  *     access derived from the assignment, never from the role alone.
  *   - Plain `staff`/`program_manager` WITHOUT an assignment no longer bypass.
- *   - Non-member / non-assigned → 404 (don't leak existence).
+ *
+ * D-6 (option 1 — honest refusals): the three situations are distinct.
+ *   - `unauthenticated` → 401, nobody is signed in;
+ *   - `not-found`       → 404, the Venture genuinely does not exist;
+ *   - `out-of-scope`    → 403, the Venture exists but is not theirs.
+ *
+ * Masking a permission refusal as "not found" used to hide existence, but it
+ * also told support staff the wrong thing. The only remaining 404 is the true
+ * one.
  */
 export async function requireVentureAccess(ventureId) {
   const session = await getSession();
-  if (!session) return { ventureId, session: null };
+  if (!session) return { ventureId, session: null, reason: "unauthenticated" };
 
   // Global Venture authority (Phase 2: narrowed from all staff/PM roles).
   if (isPlatformOwnerRole(session.role)) {
-    return { ventureId, session };
+    return { ventureId, session, reason: null };
   }
 
-  if (session.cid) {
-    // Two facts, one round trip each, asked once per viewer and Venture rather
-    // than once per screen (see services/ventures/accessFacts.js): the Venture's
-    // own row — which carries the internal id the membership and assignment
-    // tables key on since Phase 0 — and then the relationship itself.
-    const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid);
-    if (facts && (relationship.is_member || relationship.is_assigned)) {
-      return { ventureId, session };
-    }
+  // Two facts, one round trip each, asked once per viewer and Venture rather
+  // than once per screen (see services/ventures/accessFacts.js): the Venture's
+  // own row — which carries the internal id the membership and assignment
+  // tables key on since Phase 0 — and then the relationship itself.
+  const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid || "");
+  if (!facts) return { ventureId, session: null, reason: "not-found" };
+
+  if (session.cid && (relationship.is_member || relationship.is_assigned)) {
+    return { ventureId, session, reason: null };
   }
 
-  return { ventureId, session: null };
+  return { ventureId, session: null, reason: "out-of-scope" };
 }

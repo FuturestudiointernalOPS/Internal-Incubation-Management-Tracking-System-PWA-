@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/services/ventures/tasks";
 import {
   isGlobalRole,
@@ -73,8 +74,8 @@ async function listSubmissions(taskId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
@@ -84,8 +85,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });

@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { submitFeedback, getFeedback, listFeedback, deleteFeedback, getMentorAnalytics, getSessionAnalytics, getFeedbackAnalytics } from "@/services/ventures/feedback";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   // Mentor analytics (list + analytics_*) are staff instruments. Founder rating
   // submission stays open via POST (founder_cid-scoped), but reading the full
   // feedback/analytics feed requires staff access on the Venture.
@@ -52,8 +53,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const { session, reason } = await requireVentureAccess(id);
+  if (!session) return ventureAccessRefusal(reason);
   const body = await req.json();
 
   if (body.action === "submit") {

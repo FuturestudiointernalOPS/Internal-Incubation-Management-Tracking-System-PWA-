@@ -30,6 +30,7 @@
     "crossSiteRequestBlocked": "This action must be triggered from within the application.",
     "notFound": "Not found.",
     "projectNotFound": "Project not found.",
+    "ventureNotFound": "Venture not found.",
     "notOwner": "Only the owner can do this.",
     "notAuthor": "Only the author can do this.",
     "notAssignee": "Only the assigned person can do this.",

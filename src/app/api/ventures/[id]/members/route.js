@@ -43,7 +43,7 @@ export async function GET(req, { params }) {
 
     const hasAccess = await checkAccess(db, id, userRole, userCid);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     // Archived Ventures: privileged staff may read the roster (historical);
@@ -90,7 +90,7 @@ export async function POST(req, { params }) {
 
     const hasAccess = await checkAccess(db, id, userRole, userCid);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
     const canMutate = await checkMutateAccess(db, id, userRole, userCid);
     if (!canMutate) {
@@ -198,7 +198,7 @@ export async function PATCH(req, { params }) {
 
     const hasAccess = await checkAccess(db, id, userRole, userCid);
     if (!hasAccess) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
     const canMutate = await checkMutateAccess(db, id, userRole, userCid);
     if (!canMutate) {
