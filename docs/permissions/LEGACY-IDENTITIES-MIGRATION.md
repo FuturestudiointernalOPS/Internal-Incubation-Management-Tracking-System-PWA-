@@ -7,12 +7,28 @@
 
 ## 1. La population mesurée
 
-| Ancien nom | Personnes | Ont la fonction équivalente | Sessions ouvertes |
-|---|---:|---:|---:|
-| `participant` | 563 | **0** | 0 |
-| `facilitator` | 5 | **0** | 1 |
-| `founder` | 1 | **0** | 2 |
-| `investor` | 0 | — | — |
+| Ancien nom | Personnes | Relation active | Ont la fonction | Sessions |
+|---|---:|---:|---:|---:|
+| `participant` | 563 | 563 | **0** | 0 |
+| `facilitator` | 5 | **0** | **0** | 1 |
+| `founder` | 1 | 1 | **0** | 2 |
+| `investor` | 0 | — | — | — |
+
+### Le cas des 5 facilitateurs
+
+Leurs affectations existent : une ligne chacune, intitulé `facilitator`, sur le
+programme `a988c6cd-…`. Mais **ce programme s'est terminé le 2026-09-11** et nous
+sommes le 2026-10-20. L'application compare la date de fin à aujourd'hui : elle
+considère déjà ces affectations comme terminées.
+
+Il n'y a donc **aucune fonction active à attribuer**. Ces 5 personnes ne
+tiendront pas de carte et deviennent membres. Elles ne perdent rien : leur rôle
+actuel n'a aucun profil par défaut, donc aucun droit de base.
+
+Un détail d'hygiène, séparé : l'une d'elles (Morgane Chrisnaud) porte encore 13
+droits appliqués, vestige du programme terminé. Le mécanisme les retire à sa
+prochaine connexion ; la migration ne les touche pas, pour ne pas mélanger deux
+décisions (changer une identité et retirer un droit).
 
 Les 563 participants ont tous une relation de programme (aucun n'est « sans
 relation »). Le problème n'est donc pas la relation : c'est la **fonction**.
@@ -85,16 +101,43 @@ La transaction est annulée si l'un de ces contrôles échoue :
 | Contrôle | Attendu |
 |---|---|
 | aucun ancien nom ne subsiste | 0 |
-| chaque personne ciblée a une carte active de sa fonction | 0 manquante |
+| **une relation active sans carte** | **0** |
+| personnes migrées sans carte (aucune relation) | signalé, non bloquant |
 | sessions encore ouvertes sous un ancien nom | **signalé**, non modifié |
+
+La règle est donc : **relation active → carte obligatoire ; aucune relation →
+membre sans carte**. Le second cas n'existe aujourd'hui que pour les 5
+facilitateurs dont le programme est terminé.
 
 ## 3. Comment l'exécuter
 
+### Depuis l'éditeur SQL de Supabase (recommandé si tu y as mesuré)
+
+1. Colle `scripts/db-audit/legacy-identity-simulation.sql` : **lecture seule**, un
+   seul tableau de résultats, aucun écrit. Attendu : `relation active sans carte`
+   à 0 pour les trois familles.
+2. Colle le contenu de `migrations/legacy_identity_migration.sql` encadré par
+   la transaction :
+
+```sql
+BEGIN;
+
+-- … contenu de migrations/legacy_identity_migration.sql …
+
+COMMIT;   -- la transaction est annulée d'elle-même si le garde-fou lève une erreur
+```
+
+Le fichier se termine par un bloc qui **lève une exception** si un ancien nom
+subsiste ou si une relation active n'a pas reçu sa carte. Une exception annule
+tout : aucune écriture partielle.
+
+### Depuis le dépôt
+
 ```bash
-# 1. Simulation : exécute tout, affiche le plan et les contrôles, puis ANNULE
+# 1. Simulation : exécute tout, affiche le plan, puis ANNULE
 node scripts/db-audit/apply-legacy-identity-migration.mjs .env.local
 
-# 2. Écriture : valide seulement si tous les contrôles passent
+# 2. Écriture : valide seulement si le garde-fou passe
 node scripts/db-audit/apply-legacy-identity-migration.mjs --apply .env.local
 ```
 
@@ -102,10 +145,13 @@ La simulation emprunte **le même chemin** que l'écriture : seules les dernièr
 instructions changent (`ROLLBACK` au lieu de `COMMIT`). C'est la répétition
 demandée par le plan, sans base de préparation séparée.
 
-Si le contrôle « carte manquante » échoue, la transaction est annulée et le
+Si le contrôle « relation sans carte » échoue, la transaction est annulée et le
 nombre de personnes concernées est affiché. Ce sont les participants rattachés à
 un programme **sans ligne d'inscription** : ils demandent une décision explicite
 (créer l'inscription, ou reconnaître le lien direct comme relation).
+
+Les 5 facilitateurs, eux, ne bloquent plus : leur programme est terminé, donc ils
+n'ont pas de relation active et deviennent membres sans carte.
 
 ## 4. Après la migration
 

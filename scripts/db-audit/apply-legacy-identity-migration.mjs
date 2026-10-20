@@ -44,20 +44,37 @@ function readDatabaseUrl() {
 }
 
 /**
- * Split on ';' at statement level. The file has no ';' inside a string literal,
- * so a plain split is reliable; comments are stripped per chunk.
+ * Split on ';' at statement level, aware of dollar-quoted blocks ($$ … $$).
+ * The migration ends with a DO block whose body contains semicolons; a naive
+ * split would cut it in half. Comment lines are removed first.
  */
 function parseStatements(sql) {
-  return sql
-    .split(";")
-    .map((chunk) =>
-      chunk
-        .split(/\r?\n/)
-        .filter((line) => !line.trim().startsWith("--"))
-        .join("\n")
-        .trim(),
-    )
-    .filter(Boolean);
+  const text = sql
+    .split(/\r?\n/)
+    .filter((line) => !line.trim().startsWith("--"))
+    .join("\n");
+
+  const statements = [];
+  let current = "";
+  let inDollarQuote = false;
+
+  for (let index = 0; index < text.length; index += 1) {
+    if (text.startsWith("$$", index)) {
+      inDollarQuote = !inDollarQuote;
+      current += "$$";
+      index += 1;
+      continue;
+    }
+    const char = text[index];
+    if (char === ";" && !inDollarQuote) {
+      if (current.trim()) statements.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  if (current.trim()) statements.push(current.trim());
+  return statements;
 }
 
 const statements = parseStatements(readFileSync(SQL_FILE, "utf8"));

@@ -7,15 +7,48 @@
 -- base rights come from the ROLE DEFAULT profile instead.
 --
 -- This migration does both halves in ONE transaction:
---   1. create the contextual profile card for every real relationship;
+--   1. create the contextual profile card for every ACTIVE relationship;
 --   2. normalize the identity to `member` (three baseline identities).
 -- Run the other way round, rights disappear between the two writes.
+--
+-- A legacy label with NO active relationship (a programme that ended, a venture
+-- that was left) receives no card: there is no function to carry, and the
+-- person holds no base rights from that label today. They simply become member,
+-- and a future relationship will grant the profile again.
 --
 -- Every statement is idempotent: a card already present is not duplicated, and
 -- the role update only touches the three legacy values.
 
--- ── Targets: who is concerned, and which profile they must end up holding ────
-CREATE TEMP TABLE legacy_migration_targets ON COMMIT DROP AS
+-- ── Active relationships, one family at a time ──────────────────────────────
+-- These CTEs are the SAME rules the automatic reconcile uses, so a later pass
+-- neither duplicates nor removes what this migration writes.
+CREATE TEMP TABLE legacy_migration_relationships AS
+WITH participant_rel AS (
+  SELECT DISTINCT c.cid
+  FROM contacts c
+  JOIN participant_programs pp ON pp.participant_id = c.cid
+  WHERE c.role = 'participant'
+    AND pp.program_id IS NOT NULL
+),
+facilitator_rel AS (
+  SELECT DISTINCT c.cid
+  FROM contacts c
+  JOIN v2_program_staff ps
+    ON (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(c.email))
+  JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
+  WHERE c.role = 'facilitator'
+    AND LOWER(COALESCE(ps.role, '')) = 'facilitator'
+    AND (p.end_date IS NULL OR p.end_date >= CURRENT_DATE)
+),
+founder_rel AS (
+  SELECT DISTINCT c.cid
+  FROM contacts c
+  JOIN venture_members vm
+    ON (vm.contact_id = c.cid OR vm.user_cid = c.cid)
+  WHERE c.role = 'founder'
+    AND vm.removed_at IS NULL
+    AND (vm.member_type = 'founder' OR vm.role IN ('founder', 'co-founder'))
+)
 SELECT
   c.cid,
   c.role AS source_role,
@@ -23,15 +56,24 @@ SELECT
     WHEN 'participant' THEN 'participant'
     WHEN 'facilitator' THEN 'facilitator'
     WHEN 'founder'     THEN 'founder'
-  END AS profile_key
+  END AS profile_key,
+  CASE c.role
+    WHEN 'participant' THEN EXISTS (SELECT 1 FROM participant_rel r WHERE r.cid = c.cid)
+    WHEN 'facilitator' THEN EXISTS (SELECT 1 FROM facilitator_rel r WHERE r.cid = c.cid)
+    WHEN 'founder'     THEN EXISTS (SELECT 1 FROM founder_rel r WHERE r.cid = c.cid)
+    ELSE FALSE
+  END AS has_relationship
 FROM contacts c
 WHERE c.role IN ('participant', 'facilitator', 'founder');
 
 -- The plan, for the run's output.
-SELECT source_role, profile_key, COUNT(*) AS people
-FROM legacy_migration_targets
-GROUP BY source_role, profile_key
-ORDER BY source_role;
+SELECT
+  source_role,
+  has_relationship,
+  COUNT(*) AS people
+FROM legacy_migration_relationships
+GROUP BY source_role, has_relationship
+ORDER BY source_role, has_relationship DESC;
 
 -- ── Participants: one card per enrolment ────────────────────────────────────
 -- The reconcile reads every `participant_programs` row (it does not filter on
@@ -65,10 +107,10 @@ WHERE c.role = 'participant'
       AND pa.status = 'active'
   );
 
--- ── Facilitators: one card per active program assignment ────────────────────
+-- ── Facilitators: one card per ACTIVE program assignment ────────────────────
 -- Same relationship source as the reconcile (`v2_program_staff`, email-tolerant),
--- and the card expires with the program: all cards of one person carry the latest
--- program end date, exactly as the reconcile dates them.
+-- ended programmes excluded, and the card expires with the programme: all cards
+-- of one person carry the latest programme end date, as the reconcile dates them.
 WITH facilitator_assignments AS (
   SELECT
     c.cid,
@@ -146,36 +188,44 @@ UPDATE contacts
 SET role = 'member'
 WHERE role IN ('participant', 'facilitator', 'founder');
 
--- ── Post-conditions — the transaction is rolled back if any is false ────────
+-- ── Post-conditions — any failure aborts the transaction ──────────────────
+-- A target WITH an active relationship must hold its card. A target with NO
+-- relationship is allowed to have none: there is no function to carry, and the
+-- legacy label gave it no base rights.
+DO $$
+DECLARE
+  bad_role int;
+  bad_card int;
+  no_card int;
+  total int;
+BEGIN
+  SELECT COUNT(*) INTO bad_role
+  FROM contacts
+  WHERE role IN ('participant', 'facilitator', 'founder');
+  IF bad_role > 0 THEN
+    RAISE EXCEPTION 'Migration annulée : % ancien(s) rôle(s) subsiste(nt)', bad_role;
+  END IF;
 
--- No legacy label survives.
-SELECT
-  'legacy_roles_remaining' AS check_name,
-  COUNT(*) AS failing,
-  (COUNT(*) = 0) AS ok
-FROM contacts
-WHERE role IN ('participant', 'facilitator', 'founder');
+  SELECT COUNT(*) INTO bad_card
+  FROM legacy_migration_relationships t
+  WHERE t.has_relationship
+    AND NOT EXISTS (
+      SELECT 1 FROM profile_assignments pa
+      WHERE pa.contact_cid = t.cid
+        AND pa.profile_key = t.profile_key
+        AND pa.status = 'active'
+        AND (pa.started_at IS NULL OR pa.started_at <= NOW())
+        AND (pa.ends_at IS NULL OR pa.ends_at > NOW())
+    );
+  IF bad_card > 0 THEN
+    RAISE EXCEPTION 'Migration annulée : % relation(s) active(s) sans carte', bad_card;
+  END IF;
 
--- Every target now holds an ACTIVE card for its function.
-SELECT
-  'targets_without_active_card' AS check_name,
-  COUNT(*) AS failing,
-  (COUNT(*) = 0) AS ok
-FROM legacy_migration_targets t
-WHERE NOT EXISTS (
-  SELECT 1 FROM profile_assignments pa
-  WHERE pa.contact_cid = t.cid
-    AND pa.profile_key = t.profile_key
-    AND pa.status = 'active'
-    AND (pa.started_at IS NULL OR pa.started_at <= NOW())
-    AND (pa.ends_at IS NULL OR pa.ends_at > NOW())
-);
+  SELECT COUNT(*) INTO no_card
+  FROM legacy_migration_relationships t
+  WHERE NOT t.has_relationship;
 
--- Sessions still carrying a legacy role (reported, not modified here).
-SELECT
-  'live_legacy_sessions' AS check_name,
-  COUNT(*) AS failing,
-  TRUE AS ok
-FROM user_sessions
-WHERE expires_at > NOW()
-  AND role IN ('participant', 'facilitator', 'founder');
+  SELECT COUNT(*) INTO total FROM legacy_migration_relationships;
+
+  RAISE NOTICE 'Migration prête : % personne(s), dont % sans relation (membre sans carte).', total, no_card;
+END $$;
