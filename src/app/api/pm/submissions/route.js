@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { getSession } from "@/server/auth/session";
 import {
   ensureSubmissionCreatedAtIndex,
@@ -13,8 +15,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "view");
+    if (capError) return capError;
+
     // Ensure indexes for performance
     try { await ensureSubmissionProgramIdIndex(); } catch (_) {}
     try { await ensureSubmissionParticipantProgramIndex(); } catch (_) {}
@@ -35,7 +39,7 @@ export const GET = createHandler(
     // cannot pass another person's id to read their submissions.
     const session = await getSession();
     if (
-      session?.role !== "super_admin" &&
+      !isPlatformOwnerRole(session?.role) &&
       String(assignedPmId) !== String(session?.cid)
     ) {
       return NextResponse.json(

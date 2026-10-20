@@ -32,8 +32,8 @@
  * GET  /api/security/login-history                | users.view (administration)              | élevé  | source-pin
  * GET  /api/audit-logs (+ /[id])                  | users.view                               | élevé  | source-pin
  * GET  /api/superadmin/full-state                 | createHandler() + settings.view          | élevé  | source-pin + comportement
- * POST /api/superadmin/groups/assignment          | createHandler({roles:["super_admin"]})  | élevé  | source-pin
- * /api/superadmin/standard-types                  | const ROLE = { roles: ['super_admin'] }  | élevé  | source-pin
+ * POST /api/superadmin/groups/assignment          | permissions.assign_groups              | élevé  | source-pin
+ * /api/superadmin/standard-types                  | settings.view / settings.edit           | élevé  | source-pin
  * GET/POST/PUT/DELETE /api/platform/collections   | requireAuth super_admin (GET: +staff)   | élevé  | source-pin
  * /api/platform/import/{preview,execute,review-flags} | requireAuth() + settings.edit      | élevé  | source-pin
  * DELETE /api/crm/leads/[id]                      | requireAuthorization("crm","delete") | élevé | source-pin + comportement
@@ -221,16 +221,17 @@ describe("superadmin — full-state, group assignment and standard types are sup
     expect(src).toMatch(/requireAuthorization\("settings", "view"\)/);
   });
 
-  test("POST /api/superadmin/groups/assignment — createHandler restreint à super_admin (comportement actuel figé)", () => {
-    expect(read("src/app/api/superadmin/groups/assignment/route.js")).toMatch(
-      /createHandler\(\s*\{\s*roles:\s*\["super_admin"\]\s*\}/,
-    );
+  test("POST /api/superadmin/groups/assignment — permissions.assign_groups (comportement actuel figé)", () => {
+    const src = read("src/app/api/superadmin/groups/assignment/route.js");
+    expect(src).toMatch(/requireAuthorization\("permissions", "assign_groups"\)/);
+    expect(src).not.toMatch(/\{\s*roles:\s*\[/);
   });
 
-  test("/api/superadmin/standard-types — constante ROLE = super_admin (comportement actuel figé)", () => {
-    expect(read("src/app/api/superadmin/standard-types/route.js")).toMatch(
-      /const ROLE = \{ roles: \['super_admin'\] \}/,
-    );
+  test("/api/superadmin/standard-types — settings.view / settings.edit (comportement actuel figé)", () => {
+    const src = read("src/app/api/superadmin/standard-types/route.js");
+    expect(src).toMatch(/requireAuthorization\("settings", "view"\)/);
+    expect(count(src, /requireAuthorization\("settings", "edit"\)/g)).toBe(2);
+    expect(src).not.toMatch(/const ROLE = /);
   });
 });
 

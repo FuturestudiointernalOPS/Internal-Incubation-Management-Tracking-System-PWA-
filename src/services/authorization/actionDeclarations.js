@@ -257,6 +257,27 @@ const DELEGATED_DECISIONS = [
     reason:
       "Écrire dans le bucket public est une QUALIFICATION, pas une capacité : interne, compte équipe, personne d'une venture, ou participant actuellement inscrit. La règle lit les relations ; la route ne garde que la session et la validation du fichier.",
   },
+  {
+    file: "src/app/api/pm/full-state/route.js",
+    service: "src/services/authorization/programManagement.js",
+    rule: "isProgramManagerSession (+ PM affecté / requireProgramFacilitator)",
+    reason:
+      "Le bundle d'un espace programme est ouvert au gestionnaire, au PM explicitement affecté à CE programme, ou au facilitateur qui y est affecté. L'accès dépend de la relation avec le programme, pas d'une capacité globale.",
+  },
+  {
+    file: "src/app/api/participant/full-state/route.js",
+    service: "src/services/participant/fullState.js",
+    rule: "canReadFullState",
+    reason:
+      "Le participant lit son propre état ; un compte interne peut lire celui d'un autre participant. La règle compare l'identité de la cible à celle de l'appelant, donc elle vit dans le service.",
+  },
+  {
+    file: "src/app/api/participant/submissions/route.js",
+    service: "src/services/participant/submissions.js",
+    rule: "resolveSubmissionReadScope / resolveSubmissionWriteScope",
+    reason:
+      "La portée d'une soumission est le participant lui-même ou son équipe ; l'écriture suit la même relation et exclut le mode lecture seule. La décision a besoin de la cible, elle vit dans le service.",
+  },
 ];
 
 /**

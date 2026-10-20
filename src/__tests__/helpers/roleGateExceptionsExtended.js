@@ -51,7 +51,6 @@ module.exports = {
     "src/app/admin/ventures/[id]/founders/page.js#M5",
     "src/app/api/kpis/route.js#M5",
 
-    "src/app/api/superadmin/standard-types/route.js#M5",
     "src/app/api/ventures/[id]/advisors/route.js#M5",
     "src/app/api/ventures/[id]/coaching/route.js#M5",
     "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js#M5",

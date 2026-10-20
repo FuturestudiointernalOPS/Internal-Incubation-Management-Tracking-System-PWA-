@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { recalculateAndSummarize } from "@/services/dashboard/kpiProgress";
 
 /**
@@ -10,8 +11,10 @@ import { recalculateAndSummarize } from "@/services/dashboard/kpiProgress";
  * `services/dashboard/kpiProgress`.
  */
 export const POST = createHandler(
-  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
+
     const { program_id } = await req.json();
     const { status, body } = await recalculateAndSummarize(program_id);
     return NextResponse.json(body, { status });
