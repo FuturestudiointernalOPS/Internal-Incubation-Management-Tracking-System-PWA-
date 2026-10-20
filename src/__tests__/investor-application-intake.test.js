@@ -73,9 +73,10 @@ describe("static contract — the investor intake wiring", () => {
     expect(service).toMatch(/send_activation_email: true/);
   });
 
-  test("the run route resolves the flagged form's single active run, super-admin only", () => {
+  test("the run route resolves the flagged form's single active run, platform-owner only", () => {
     const src = read(RUN_ROUTE);
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    // The configuration read is `settings.view`; the platform owner is exempt.
+    expect(src).toMatch(/requireAuthorization\("settings", "view"\)/);
     // The resolution itself moved to the service (docs/LAYER_SPLIT.md).
     expect(read("src/services/platform/investorIntake.js")).toMatch(/resolveInvestorRun/);
   });

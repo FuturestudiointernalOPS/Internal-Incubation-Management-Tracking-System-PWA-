@@ -107,8 +107,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/auth/invite-family/route.js#M3",
   "src/app/api/auth/invite/route.js#M1",
 
-  "src/app/api/campaigns/[id]/route.js#M1",
-  "src/app/api/campaigns/route.js#M2",
   "src/app/api/contacts/full-state/route.js#M4",
 
   "src/app/api/deliverables/route.js#M2",
@@ -127,7 +125,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/groups/route.js#M1",
 
   "src/app/api/investor/approval/route.js#M1",
-  "src/app/api/investor/campaigns/route.js#M1",
   "src/app/api/investor/profile/route.js#M1",
   "src/app/api/investor/relationships/meetings/route.js#M1",
   "src/app/api/investor/relationships/route.js#M1",
