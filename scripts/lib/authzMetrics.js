@@ -405,10 +405,10 @@ function roleVocabulary(entries) {
 
   return {
     baselineIdentities,
-    legacyContextualLoginValues: [
-      ...entityIdentities,
-      ...legacyContextualIdentities,
-    ],
+    // Legacy CONTEXTUAL values only: an entity account (`team`) is a different
+    // category, not a contextual label of a person. Counting it here made the
+    // line read "1" on a vocabulary that has none.
+    legacyContextualLoginValues: legacyContextualIdentities,
     historicalRoles,
     sessionLoginValues,
     loginResolverValues: [...resolverValues].sort(),
