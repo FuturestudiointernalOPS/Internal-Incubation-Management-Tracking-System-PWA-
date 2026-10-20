@@ -82,7 +82,7 @@ Si le produit veut qu'un facilitateur inscrive des participants ou crée des
 
 | Appel | Pourquoi | Suite |
 |---|---|---|
-| `PUT /api/submissions` (écriture d'une note) | le droit diffère selon le camp : `assignments.grade` pour un facilitateur, `programs.edit` pour l'encadrement. Un seul appel ne peut pas exprimer « l'un ou l'autre ». | décision de conception : ajouter la capacité au catalogue, ou faire deux appels selon le chemin |
+| `PUT /api/submissions` (écriture d'une note) | le droit diffère selon le camp : `assignments.grade` pour un facilitateur, `programs.edit` pour l'encadrement. | **tranché** (2026-10-20) : liste « l'un ou l'autre » (`capabilities`), chaque camp ne peut utiliser que son propre droit |
 | Tâches d'équipe (helper) | le helper reçoit `module` et `capability` en paramètres ; chaque méthode en fournit un, mais la ligne de l'appel ne contient pas le mot `capability` | couplé ; le compteur textuel le sous-estime |
 
 Aucun autre appel ne laisse le droit dans le vide.
@@ -137,12 +137,12 @@ Fait :
   - garde-fou : un nouvel appel sans capacité échoue
   - un appel de scoring laissé ouvert, décision de conception documentée
 Compteurs :
-  - appels de périmètre programme avec capacité : 0/31 -> 29/31
+  | Appels de périmètre programme avec capacité | 0/31 -> 29/31 |
   - 1 couplé via paramètre, 1 en attente de décision
 Divergences en mode ombre : sans objet (pas de bascule de règle de périmètre).
 Tests ajoutés / passants : 1 garde-fou ; 1992 verts sur le périmètre élargi.
-Décisions requises : droit du scoring (PUT submissions) ; éventuelle capacité
-  dédiée pour l'inscription/les équipes côté facilitateur.
+Décisions requises : aucune (scoring et équipes tranchés le 2026-10-20 ;
+  voir `DECISIONS-3.2.md`).
 Retour arrière : git revert, aucun impact base.
 Prochaine étape : étape 3.1 — basculer le périmètre programme sur le profil
   `program_manager` (D-4 confirmée), mesuré en ombre.

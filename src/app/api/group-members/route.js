@@ -42,7 +42,7 @@ export async function POST(req) {
         { status: 404 },
       );
     }
-    const scopeError = await requireProgramScope({ programId, wave: "groups", module: "programs", capability: "edit" });
+    const scopeError = await requireProgramScope({ programId, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     if (await isParticipantInProgram(participant_id, programId)) {

@@ -98,7 +98,7 @@ export async function POST(req) {
     // Record scope for EVERY caller. `program_manager` used to skip the check
     // entirely, so a delegated PM could bulk-invite facilitators into a program
     // they are not staffed on. Only Super Admin is exempt (guard semantics).
-    const scopeError = await requireProgramScope({ programId: program_id, wave: "enrollment", module: "programs", capability: "edit" });
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "enrollment", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     // Staff may only bulk-invite facilitators for programs they are the

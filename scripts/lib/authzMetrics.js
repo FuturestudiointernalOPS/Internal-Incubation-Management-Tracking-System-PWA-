@@ -429,7 +429,10 @@ function scopeVocabulary(entries) {
     if (programSnips.length > 0) programScopeFiles.add(entry.file);
     programScopeCalls += programSnips.length;
     programScopeWithCapability += programSnips.filter(
-      (snippet) => /\bmodule\s*:/.test(snippet) && /\bcapability\s*:/.test(snippet),
+      (snippet) =>
+        (/\bmodule\s*:/.test(snippet) && /\bcapability\s*:/.test(snippet)) ||
+        // An ANY-OF list names its capabilities inside `capabilities: [...]`.
+        /\bcapabilities\s*:/.test(snippet),
     ).length;
 
     ventureFull += countMatches(entry.text, /requireVentureScopedAccess\s*\(/g);

@@ -255,16 +255,15 @@ describe("3.2 — every program-scope call names the capability it enforces", ()
 
   const ROOT = path.join(__dirname, "..", "..");
 
-  // Two calls have no literal capability, for two different reasons:
-  //   - submissions PUT: the scoring right differs by camp (`assignments.grade`
-  //     for a facilitator, `programs.edit` for management), which one call
-  //     cannot express yet — the design gap is recorded in LOT3-STEP3-2.md;
+  // One call has no literal capability:
   //   - team-tasks: the helper receives `module`/`capability` as parameters, so
   //     every caller does name one even though this line does not.
-  const EXPECTED = [
-    "src/app/api/submissions/route.js",
-    "src/app/api/team-tasks/route.js",
-  ];
+  //
+  // `submissions` used to be the second: grading is `assignments.grade` for a
+  // facilitator and `programs.edit` for a program manager. The ANY-OF list
+  // (`capabilities: [...]`) now expresses exactly that, so no route is left
+  // uncoupled.
+  const EXPECTED = ["src/app/api/team-tasks/route.js"];
 
   function walk(dir, out = []) {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -284,7 +283,7 @@ describe("3.2 — every program-scope call names the capability it enforces", ()
         if (!/requireProgramScope(ForAll)?\(/.test(line)) return;
         if (/export async function/.test(line)) return;
         const window = lines.slice(index, index + 9).join("\n");
-        if (/capability:/.test(window)) return;
+        if (/capabilit(?:y|ies):/.test(window)) return;
         offenders.push(path.relative(ROOT, file).split(path.sep).join("/"));
       });
     }

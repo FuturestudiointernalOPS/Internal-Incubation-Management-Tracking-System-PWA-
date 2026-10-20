@@ -234,7 +234,7 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin", "program_manager"]);
+    const authError = await requireAuth();
     if (authError) return authError;
     const { id, participant_id, program_id, score, evaluation_data } = await req.json();
 
@@ -255,7 +255,17 @@ export async function PUT(req) {
       const submissionProgram = await getSubmissionProgramId(id);
       targetProgramId = submissionProgram.rows?.[0]?.program_id || null;
     }
-    const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content" });
+    const scopeError = await requireProgramScope({
+      programId: targetProgramId,
+      wave: "content",
+      // D-5: each camp keeps its own right. A facilitator grades with
+      // `assignments.grade`; a program manager edits with `programs.edit`.
+      // Neither borrows the right of the other, so "any of" is honest.
+      capabilities: [
+        { module: "facilitator", capability: "assignments.grade" },
+        { module: "programs", capability: "edit" },
+      ],
+    });
     if (scopeError) return scopeError;
 
     // Ensure both score columns exist (migration safety), then write.

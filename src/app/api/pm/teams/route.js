@@ -65,7 +65,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("programs", "edit");
+    const capError = await requireAuthorization("permissions", "assign_groups");
     if (capError) return capError;
     const payload = await req.json();
     const { program_id, name } = payload;
@@ -79,7 +79,7 @@ export async function POST(req) {
 
     // Record scope: `programs.edit` says WHAT may be done; this says WHICH
     // program. A delegated holder must be staffed on the target program.
-    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups", module: "programs", capability: "edit" });
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     const { team, linkingWarning } = await createTeamWithMembers({ payload });
@@ -101,7 +101,7 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("programs", "edit");
+    const capError = await requireAuthorization("permissions", "assign_groups");
     if (capError) return capError;
     const payload = await req.json();
     const { team_id } = payload;
@@ -115,7 +115,7 @@ export async function PATCH(req) {
       );
     }
     const teamForScope = await getTeamById(team_id);
-    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "programs", capability: "edit" });
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     const result = await applyTeamPatch({ payload });
@@ -131,7 +131,7 @@ export async function PATCH(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("programs", "edit");
+    const capError = await requireAuthorization("permissions", "assign_groups");
     if (capError) return capError;
     const { id } = await req.json();
     if (!id) {
@@ -141,7 +141,7 @@ export async function DELETE(req) {
       );
     }
     const teamForScope = await getTeamById(id);
-    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "programs", capability: "edit" });
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
     await deleteTeam(id);
     return NextResponse.json({ success: true });

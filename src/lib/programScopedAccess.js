@@ -62,6 +62,7 @@ export async function requireProgramScope({
   wave,
   module = null,
   capability = null,
+  capabilities = null,
   minLevel = 1,
 }) {
   const denied = (body, status, decision) =>
@@ -88,15 +89,41 @@ export async function requireProgramScope({
 
     // Optional capability check, for callers whose route authorises by role
     // list and wants the capability decision centralised too.
-    if (module && capability) {
-      const capError = await requireAuthorization(module, capability, minLevel);
-      if (capError) {
+    //
+    // `capabilities` is an ANY-OF list, used where the same action is exercised
+    // by two camps whose rights are NOT interchangeable: grading a submission
+    // is `facilitator.assignments.grade` for a facilitator and
+    // `programs.edit` for a program manager. Each capability is only held by
+    // its own camp, so "any of" never lets one camp borrow the other's right.
+    const required = Array.isArray(capabilities)
+      ? capabilities
+      : module && capability
+        ? [{ module, capability }]
+        : [];
+
+    if (required.length > 0) {
+      let allowed = false;
+      for (const requirement of required) {
+        const capError = await requireAuthorization(
+          requirement.module,
+          requirement.capability,
+          minLevel,
+        );
+        if (!capError) {
+          allowed = true;
+          break;
+        }
+      }
+
+      if (!allowed) {
         return denied(
           {
             success: false,
             error: "errors.insufficientPermissions",
             missing: {
-              capability: `${module}.${capability}`,
+              capability: required
+                .map((requirement) => `${requirement.module}.${requirement.capability}`)
+                .join(" | "),
               scope: "program_managed",
               wave,
             },
