@@ -50,6 +50,12 @@ export async function GET() {
       role: session.role,
       isSuperAdmin: !!ctx?.isSuperAdmin,
       effective: effectivePermissionsFromContext(ctx),
+      // Lot 7 — the contextual PROFILES the decision was resolved through. A
+      // function layered on the baseline identity (D-1: a program manager is
+      // `staff` + the `program_manager` profile) is invisible in the role, so
+      // the screen that mirrors a profile-specific rule reads it here instead
+      // of comparing a role label that no longer carries it.
+      profiles: ctx?.profiles || [],
       // Lot 7 — the SAME verdict and reason the server enforces, per capability.
       // The UI shows what this says ("allowed" = granted, "reason" = why not)
       // instead of re-deriving a rule from the role. This endpoint is never a

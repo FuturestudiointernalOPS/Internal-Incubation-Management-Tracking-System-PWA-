@@ -1,4 +1,5 @@
 import { useI18n } from "@/lib/i18n";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { X } from "lucide-react";
 
 export default function StaffAssignmentModal({
@@ -57,7 +58,7 @@ export default function StaffAssignmentModal({
             >
               <option value="">{t("pmMisc.workspace.selectMember")}</option>
               {staffList
-                .filter((member) => member.role !== "super_admin")
+                .filter((member) => !isPlatformOwnerRole(member.role))
                 .map((member) => (
                   <option key={member.cid} value={member.cid}>
                     {member.name} ({member.role})

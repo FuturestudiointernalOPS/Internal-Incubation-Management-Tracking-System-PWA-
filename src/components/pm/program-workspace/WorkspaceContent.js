@@ -206,7 +206,6 @@ export default function WorkspaceContent({ ctx }) {
             <ReportsTab
               onExportPmReport={handleExportPmReport}
               reports={reports}
-              user={user}
             />
           )}
 

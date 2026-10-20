@@ -9,15 +9,32 @@ import {
   nextExplicitState,
 } from "@/components/layout/sidebarMenu";
 import { tnav } from "./navigation";
+import {
+  holdsProfile,
+  isMemberSurfaceRole,
+  normalizeRole,
+  PROGRAM_MANAGER_PROFILE,
+} from "@/lib/identity";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogOut, ChevronDown, Globe } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+
+// The profile page lives in the person's own SECTION. This is a ROUTING table
+// (where the page is), never a permission decision: each section gates its own
+// profile page server-side. `program_manager` stays for the D-1 rollback.
+const PROFILE_SECTION = {
+  super_admin: "admin",
+  program_manager: "pm",
+  facilitator: "facilitator",
+  investor: "investor",
+};
 
 export const SidebarContent = ({
   mobile = false,
   collapsed,
   setCollapsed,
   role,
+  profiles = [],
   navItems,
   openMenus,
   toggleMenu,
@@ -32,7 +49,15 @@ export const SidebarContent = ({
 }) => {
   const { switchLang } = useI18n();
   const participant = pathname?.startsWith("/participant");
-  const profileHref = `/${role === "super_admin" ? "admin" : role === "program_manager" ? "pm" : role === "facilitator" ? "facilitator" : role === "investor" ? "investor" : "participant"}/profile`;
+  // D-1 — a staff identity carrying the program-manager PROFILE belongs in the
+  // PM space; the role alone no longer says so. The legacy value stays in the
+  // table for the rollback.
+  const profileSection =
+    holdsProfile(profiles, PROGRAM_MANAGER_PROFILE) &&
+    normalizeRole(role) === "staff"
+      ? "pm"
+      : PROFILE_SECTION[normalizeRole(role)] || "participant";
+  const profileHref = `/${profileSection}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);
@@ -307,7 +332,7 @@ export const SidebarContent = ({
           <div className="h-px w-full bg-[var(--border-primary)]" aria-hidden="true" />
         ) : (
           <p className="text-[10px] font-black text-[var(--text-secondary)] uppercase tracking-[0.25em] opacity-40">
-            {t(["participant", "member", "founder"].includes(role) ? "participant.template.mySpace" : "navigation.mainOperations")}
+            {t(isMemberSurfaceRole(role) ? "participant.template.mySpace" : "navigation.mainOperations")}
           </p>
         )}
       </div>
@@ -344,7 +369,7 @@ export const SidebarContent = ({
           </p>
         )}
         <div className="space-y-1">
-          {["participant", "member", "founder"].includes(role) ? <Link href={profileHref} onClick={() => setMobileMenuOpen(false)} aria-label={t(tnav("profile"))} data-nav-active={pathname === profileHref || undefined} data-nav-depth={0} title={t(tnav("profile"))} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary font-semibold text-[13px]"><User className="w-4 h-4 flex-shrink-0" />{!collapsed && <span>{t(tnav("profile"))}</span>}</Link> : <>
+          {isMemberSurfaceRole(role) ? <Link href={profileHref} onClick={() => setMobileMenuOpen(false)} aria-label={t(tnav("profile"))} data-nav-active={pathname === profileHref || undefined} data-nav-depth={0} title={t(tnav("profile"))} className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary font-semibold text-[13px]"><User className="w-4 h-4 flex-shrink-0" />{!collapsed && <span>{t(tnav("profile"))}</span>}</Link> : <>
           <button
             onClick={() => toggleMenu("profile")}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all font-semibold text-[13px] ${pathname?.includes("profile") ? "bg-tertiary text-[var(--text-primary)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary"}`}

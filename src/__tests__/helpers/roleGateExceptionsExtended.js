@@ -38,7 +38,6 @@ module.exports = {
     "src/app/workspaces/page.js#M5",
     "src/components/crm/TimelineScreen.js#M5",
     "src/components/crm/people-detail/constants.js#M5",
-    "src/components/dashboard/unified-dashboard/constants.js#M5",
     "src/components/layout/shell/useDashboardNavigation.js#M7",
     "src/lib/masterNavigation.js#M6",
     "src/lib/masterNavigation/access.js#M5",

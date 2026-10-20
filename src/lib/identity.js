@@ -89,6 +89,32 @@ export function carriesContextualValue(role, value) {
 }
 
 /**
+ * D-2 — the PERSONAL surface family (a person, not a staff function).
+ *
+ * These identity values share the participant shell, its copy and its profile
+ * link. The shell asked the question three times with an inline list; it asks
+ * it here once.
+ */
+export const MEMBER_SURFACE_VALUES = ["participant", "member", "founder"];
+
+export function isMemberSurfaceRole(role) {
+  return MEMBER_SURFACE_VALUES.includes(normalizeRole(role));
+}
+
+/**
+ * D-1/D-2 — does this person hold a given CONTEXTUAL profile?
+ *
+ * A function is a PROFILE, not a role: a program manager is baseline `staff`
+ * carrying the `program_manager` profile. Screens that mirror a
+ * profile-specific rule ask this question with the list the server resolved,
+ * never by reading the role label.
+ */
+export function holdsProfile(profiles, key) {
+  const wanted = normalizeRole(key);
+  return Array.isArray(profiles) && profiles.some((entry) => normalizeRole(entry) === wanted);
+}
+
+/**
  * D-1 — should a program-manager identity be resolved as baseline STAFF?
  *
  * The target is `staff` + the `program_manager` PROFILE. The profile coverage

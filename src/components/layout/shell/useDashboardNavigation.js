@@ -25,6 +25,11 @@ import {
 } from "lucide-react";
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
+import {
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 import { useApi } from "@/lib/hooks/useApi";
 
 // Resolve icon names from the master navigation module into components.
@@ -188,7 +193,12 @@ export function useDashboardNavigation({
     // member actually holds venture assignments. Navigation belongs in the
     // sidebar, not on the dashboard: clicking it opens ALL ventures.
     const withVentureConsole = (list) => {
-      if (!["staff", "program_manager"].includes(activeRole)) return list;
+      if (
+        !isInternalStaffRole(activeRole) &&
+        !isLegacyProgramManagerRole(activeRole)
+      ) {
+        return list;
+      }
       if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
         return list;
       }
@@ -210,14 +220,14 @@ export function useDashboardNavigation({
     // the user's effective capabilities grant, deduped and href-safe.
     const items = attachIcons(buildAccessNav(activeRole, effectiveCaps));
 
-    if (
-      (activeRole === "program_manager" || activeRole === "super_admin") &&
-      pmPrograms.length > 0
-    ) {
+    // A non-empty manager list is what opens the manager sub-menu: the shell
+    // only reads it for someone carrying the program-manager profile, and it
+    // is empty for a manager who manages none.
+    if (pmPrograms.length > 0) {
       const progIndex = items.findIndex((navItem) => navItem.id === "programs");
       if (progIndex !== -1) {
         const baseSubItems =
-          activeRole === "super_admin"
+          isPlatformOwnerRole(activeRole)
             ? [
                 {
                   id: "all_programs",

@@ -137,3 +137,34 @@ describe("the async profile predicate used by decision sites", () => {
     );
   });
 });
+
+/**
+ * Lot 7 — the interface mirrors profile-specific rules from the profile the
+ * server resolved, never from the role label D-1 no longer carries.
+ */
+describe("the profile the UI reads", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const { holdsProfile } = require("@/lib/identity");
+  const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
+
+  test("holdsProfile answers on the list the server resolved", () => {
+    expect(holdsProfile(["program_manager"], "program_manager")).toBe(true);
+    expect(holdsProfile(["PROGRAM_MANAGER"], "program_manager")).toBe(true);
+    expect(holdsProfile(["participant"], "program_manager")).toBe(false);
+    expect(holdsProfile([], "program_manager")).toBe(false);
+    expect(holdsProfile(undefined, "program_manager")).toBe(false);
+  });
+
+  test("me/permissions returns the contextual profiles", () => {
+    expect(read("src/app/api/me/permissions/route.js")).toContain(
+      "profiles: ctx?.profiles || []",
+    );
+  });
+
+  test("the shared permission provider carries them to the screens", () => {
+    const provider = read("src/lib/PermissionProvider.js");
+    expect(provider).toContain("profiles: Array.isArray(response.profiles)");
+    expect(provider).toContain("profiles,");
+  });
+});
