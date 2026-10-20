@@ -101,7 +101,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/admin/programs/[id]/teams/page.js#M3",
   "src/app/admin/projects/[id]/page.js#M3",
   "src/app/admin/work/page.js#M3",
-  "src/app/api/activity/route.js#M2",
+
   "src/app/api/admin/analytics/route.js#M1",
   "src/app/api/admin/analytics/users/route.js#M1",
   "src/app/api/admin/blockers/route.js#M2",
@@ -146,25 +146,22 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/crm/pipelines/route.js#M2",
   "src/app/api/crm/segments/[id]/route.js#M2",
   "src/app/api/crm/segments/route.js#M2",
-  "src/app/api/dashboard/route.js#M1",
-  "src/app/api/data/route.js#M1",
+
   "src/app/api/deliverables/route.js#M2",
-  "src/app/api/documents/route.js#M2",
+
   "src/app/api/engineering/permissions/profile-role-defaults/route.js#M4",
   "src/app/api/engineering/permissions/route.js#M3",
-  "src/app/api/evaluation/route.js#M2",
-  "src/app/api/events/route.js#M2",
+
   "src/app/api/facilitator-reviews/route.js#M1",
   "src/app/api/facilitators/invite-bulk/route.js#M1",
   "src/app/api/facilitators/invite-bulk/route.js#M3",
   "src/app/api/families/route.js#M1",
   "src/app/api/families/route.js#M3",
-  "src/app/api/feedback/route.js#M4",
-  "src/app/api/followups/route.js#M2",
+
   "src/app/api/forensic/user-role/route.js#M3",
   "src/app/api/group-members/route.js#M1",
   "src/app/api/groups/route.js#M1",
-  "src/app/api/intelligence/metrics/route.js#M2",
+
   "src/app/api/investor/admin-overview/route.js#M1",
   "src/app/api/investor/approval/route.js#M1",
   "src/app/api/investor/campaigns/route.js#M1",
@@ -192,11 +189,9 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/pm/schedule/route.js#M3",
   "src/app/api/pm/submissions/route.js#M2",
   "src/app/api/pm/submissions/route.js#M3",
-  "src/app/api/program-staff/route.js#M2",
   "src/app/api/program-staff/route.js#M3",
-  "src/app/api/program-types/route.js#M1",
   "src/app/api/programs/route.js#M1",
-  "src/app/api/progress/route.js#M2",
+
   "src/app/api/responses/review/route.js#M2",
   "src/app/api/responses/route.js#M2",
   "src/app/api/retros/current/route.js#M3",
@@ -213,7 +208,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/tasks/approve/route.js#M1",
   "src/app/api/teams/route.js#M1",
   "src/app/api/teams/route.js#M3",
-  "src/app/api/upload/route.js#M4",
+
   "src/app/api/user-groups/route.js#M3",
   "src/app/api/v2/groups/route.js#M1",
 

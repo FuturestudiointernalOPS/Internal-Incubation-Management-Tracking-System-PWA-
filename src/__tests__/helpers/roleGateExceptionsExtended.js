@@ -50,7 +50,7 @@ module.exports = {
     "src/app/admin/crm/page.js#M5",
     "src/app/admin/ventures/[id]/founders/page.js#M5",
     "src/app/api/kpis/route.js#M5",
-    "src/app/api/program-staff/route.js#M5",
+
     "src/app/api/superadmin/standard-types/route.js#M5",
     "src/app/api/ventures/[id]/advisors/route.js#M5",
     "src/app/api/ventures/[id]/coaching/route.js#M5",

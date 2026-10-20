@@ -105,6 +105,9 @@ const SELF_SCOPED_ROUTES = [
   { file: "src/app/api/lms/certificates/route.js", methods: ["GET"], scope: "session.cid", reason: "Certificats de l'appelant (`getCertificatesForLearner(session.cid)`)." },
   { file: "src/app/api/lms/certificates/[id]/route.js", methods: ["GET"], scope: "session.cid", reason: "Un certificat de l'appelant (`getLearnerCertificate(id, session.cid)`)." },
   { file: "src/app/api/lms/certificates/[id]/download/route.js", methods: ["GET"], scope: "session.cid", reason: "Téléchargement d'un certificat de l'appelant (`getLearnerCertificate(id, session.cid)`)." },
+  // Hub d'après-connexion : la personne lit SES affectations, sa navigation et
+  // sa page d'accueil. Aucune cible fournie par le client n'est lue.
+  { file: "src/app/api/workspaces/route.js", methods: ["GET"], scope: "session.cid", reason: "Affectations, contextes et navigation de l'appelant (`session.cid`), plus son atterrissage calculé. Un `scope=contexts` ne change que la forme de la réponse." },
 ];
 
 /** Routes open by design (public or secret-guarded), with the written reason. */
@@ -218,6 +221,41 @@ const DELEGATED_DECISIONS = [
     rule: "canManageContactEmails",
     reason:
       "Alternative emails : l'appelant gère sa propre identité, ou celle d'une autre personne seulement dans un programme partagé. La règle a besoin de la relation avec la cible, donc elle vit dans le service ; la route ne porte aucune capacité littérale.",
+  },
+  {
+    file: "src/app/api/calendar/route.js",
+    service: "src/services/workspace/calendar.js",
+    rule: "resolveCalendarProgramScope / resolveCalendarVentureScope",
+    reason:
+      "Le calendrier agrège des sources dont le périmètre dépend de la RELATION (programmes gérés ou affectés, ventures dont la personne est membre). Le service borne chaque requête et échoue fermé ; la route n'a qu'une session à exiger.",
+  },
+  {
+    file: "src/app/api/followups/route.js",
+    service: "src/services/communications/followups.js",
+    rule: "evaluateFollowupParticipantAccess / listFollowups (scoping)",
+    reason:
+      "Créer un suivi exige la relation avec le participant (gestionnaire du programme, ou facilitateur dans son périmètre d'équipe), et la lecture est bornée par la personne qui a créé le suivi. La décision a besoin de la cible, donc elle vit dans le service.",
+  },
+  {
+    file: "src/app/api/notifications/route.js",
+    service: "src/services/communications/inboxNotifications.js",
+    rule: "resolveInboxRecipient / canCreateNotificationFor / canModifyInboxNotification",
+    reason:
+      "Boîte de réception : la destination est `session.cid`, sauf pour un compte interne qui peut viser un autre destinataire. La règle est dans le service, qui nomme aussi le refus.",
+  },
+  {
+    file: "src/app/api/notifications/venture/route.js",
+    service: "src/services/communications/ventureNotifications.js",
+    rule: "resolveNotificationRecipient / canAccessNotification",
+    reason:
+      "Centre de notifications venture : une notification n'est visible et modifiable que par son destinataire, ou par le propriétaire de la plateforme. Le service porte la règle et son refus.",
+  },
+  {
+    file: "src/app/api/upload/route.js",
+    service: "src/services/authorization/uploadAccess.js",
+    rule: "evaluateUploadAccess",
+    reason:
+      "Écrire dans le bucket public est une QUALIFICATION, pas une capacité : interne, compte équipe, personne d'une venture, ou participant actuellement inscrit. La règle lit les relations ; la route ne garde que la session et la validation du fichier.",
   },
 ];
 

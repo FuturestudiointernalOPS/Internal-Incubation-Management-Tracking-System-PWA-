@@ -3,6 +3,12 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { readVentureNotificationCenter, actOnVentureNotification } from "@/services/communications/ventureNotifications";
 
+/**
+ * The visibility rule lives in the ventureNotifications service: a notification
+ * belongs to its recipient, and the platform owner may act on any. The route
+ * only requires a session and serializes the decision.
+ */
+
 function respond(outcome) {
   if (outcome.denied) {
     return NextResponse.json({ success: false, error: outcome.denied.error }, { status: outcome.denied.status });
