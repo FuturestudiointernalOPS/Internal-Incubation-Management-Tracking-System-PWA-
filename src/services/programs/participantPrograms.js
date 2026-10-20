@@ -89,6 +89,8 @@ export async function assignParticipantToProgramsService({ participant_id, progr
   const scopeError = await requireProgramScopeForAll({
     programIds: program_ids,
     wave: "enrollment",
+    module: "programs",
+    capability: "edit",
   });
   if (scopeError) return { isAuthError: true, response: scopeError };
 
@@ -147,6 +149,8 @@ export async function removeParticipantFromProgramService({ participant_id, prog
   const scopeError = await requireProgramScope({
     programId: program_id,
     wave: "enrollment",
+    module: "programs",
+    capability: "edit",
   });
   if (scopeError) return { isAuthError: true, response: scopeError };
 

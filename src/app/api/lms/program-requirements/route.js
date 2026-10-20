@@ -45,7 +45,7 @@ export async function GET(req) {
     }
     // Program scope: `lms.view` alone is a global capability, so a delegated
     // holder must be staffed on THIS program to read its requirements.
-    const scopeError = await requireProgramScope({ programId, wave: "lms" });
+    const scopeError = await requireProgramScope({ programId, wave: "lms", module: "lms", capability: "view" });
     if (scopeError) return scopeError;
     const requirements = await getProgramRequirements(programId, {
       weekNumber: weekNumber != null ? Number(weekNumber) : undefined,
@@ -74,7 +74,7 @@ export async function POST(req) {
 
     // Program scope: attaching a course is a program action; a delegated
     // `lms.edit` holder must be staffed on THIS program.
-    const scopeError = await requireProgramScope({ programId: body.program_id, wave: "lms" });
+    const scopeError = await requireProgramScope({ programId: body.program_id, wave: "lms", module: "lms", capability: "edit" });
     if (scopeError) return scopeError;
 
     const requirement = await attachCourseToProgram({

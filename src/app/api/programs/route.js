@@ -117,7 +117,7 @@ export async function PUT(req) {
 
     // Record scope: `staff` authorisation here only says WHICH roles may edit at
     // all — a delegated editor must still be staffed on the program being edited.
-    const scopeError = await requireProgramScope({ programId: data.id, wave: "content" });
+    const scopeError = await requireProgramScope({ programId: data.id, wave: "content", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const serviceRes = await updateV2ProgramRecord({ payload: data });

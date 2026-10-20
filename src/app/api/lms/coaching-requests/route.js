@@ -38,7 +38,7 @@ export async function GET(req) {
       if (capError) return capError;
       // Program scope: reading a program's coaching queue is a program action, so
       // a delegated `lms.view` holder must be staffed on THIS program.
-      const scopeError = await requireProgramScope({ programId, wave: "lms" });
+      const scopeError = await requireProgramScope({ programId, wave: "lms", module: "lms", capability: "view" });
       if (scopeError) return scopeError;
       const requests = await listCoachingRequests({
         programId,

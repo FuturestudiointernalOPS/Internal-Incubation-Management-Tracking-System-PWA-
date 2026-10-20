@@ -192,3 +192,55 @@ describe("bulk actions — every id must be in scope", () => {
     expect(isWithinScope).not.toHaveBeenCalled();
   });
 });
+
+/**
+ * Lot 3.2 — capability and perimeter are decided TOGETHER.
+ *
+ * A program-scope call that does not name a capability leaves the route to
+ * check the right somewhere else (or nowhere). This scan freezes the coupling:
+ * a new call without a capability fails here, and removing an entry from the
+ * exception list is the only direction that keeps this green.
+ */
+describe("3.2 — every program-scope call names the capability it enforces", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  const ROOT = path.join(__dirname, "..", "..");
+
+  // Two calls have no literal capability, for two different reasons:
+  //   - submissions PUT: the scoring right differs by camp (`assignments.grade`
+  //     for a facilitator, `programs.edit` for management), which one call
+  //     cannot express yet — the design gap is recorded in LOT3-STEP3-2.md;
+  //   - team-tasks: the helper receives `module`/`capability` as parameters, so
+  //     every caller does name one even though this line does not.
+  const EXPECTED = [
+    "src/app/api/submissions/route.js",
+    "src/app/api/team-tasks/route.js",
+  ];
+
+  function walk(dir, out = []) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full, out);
+      else if (entry.name.endsWith(".js")) out.push(full);
+    }
+    return out;
+  }
+
+  test("no route or service adds an uncoupled program-scope call", () => {
+    const offenders = [];
+
+    for (const file of [...walk(path.join(ROOT, "src", "app")), ...walk(path.join(ROOT, "src", "services"))]) {
+      const lines = fs.readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, index) => {
+        if (!/requireProgramScope(ForAll)?\(/.test(line)) return;
+        if (/export async function/.test(line)) return;
+        const window = lines.slice(index, index + 9).join("\n");
+        if (/capability:/.test(window)) return;
+        offenders.push(path.relative(ROOT, file).split(path.sep).join("/"));
+      });
+    }
+
+    expect([...new Set(offenders)].sort()).toEqual([...EXPECTED].sort());
+  });
+});

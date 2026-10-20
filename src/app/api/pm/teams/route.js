@@ -79,7 +79,7 @@ export async function POST(req) {
 
     // Record scope: `programs.edit` says WHAT may be done; this says WHICH
     // program. A delegated holder must be staffed on the target program.
-    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const { team, linkingWarning } = await createTeamWithMembers({ payload });
@@ -115,7 +115,7 @@ export async function PATCH(req) {
       );
     }
     const teamForScope = await getTeamById(team_id);
-    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const result = await applyTeamPatch({ payload });
@@ -141,7 +141,7 @@ export async function DELETE(req) {
       );
     }
     const teamForScope = await getTeamById(id);
-    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
     await deleteTeam(id);
     return NextResponse.json({ success: true });
