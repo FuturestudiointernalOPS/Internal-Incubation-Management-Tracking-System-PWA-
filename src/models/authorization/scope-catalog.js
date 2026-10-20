@@ -29,11 +29,22 @@ export const SCOPE_POLICY_KEYS = [
  * Policy catalogue — the shared vocabulary for the Scope Policies governance
  * surface AND the engine. `implemented` is the honest state of each predicate:
  * a declared-but-unimplemented policy resolves to DENY (never silently allow).
+ *
+ * `purpose` (Lot 3, step 3.5) says WHY a policy exists, so the set can be read
+ * at a glance and a redundant one is visible:
+ *
+ *   enforced — refuses (or admits) a REQUEST; removing it opens or closes a door.
+ *   display  — answers "which records belong to this person" for a screen or a
+ *              context projection; it never protects a write.
+ *   history  — the residual READ of a former relationship.
+ *   shadow   — the rule a switch REPLACED. It is only computed for the shadow
+ *              report and must never be called by a route.
  */
 export const SCOPE_POLICIES = {
   venture_own: {
     key: "venture_own",
     resource: "venture",
+    purpose: "enforced",
     implemented: true,
     source:
       "venture_members (active membership: user_cid or contact_id, removed_at IS NULL) UNION venture_staff_assignments (active delegated staff assignment)",
@@ -41,6 +52,7 @@ export const SCOPE_POLICIES = {
   program_assigned: {
     key: "program_assigned",
     resource: "program",
+    purpose: "display",
     implemented: true,
     source:
       "v2_program_staff (assignment, email-tolerant) + participant_programs (enrollment)",
@@ -49,22 +61,28 @@ export const SCOPE_POLICIES = {
   // includes a learner's ENROLLMENT, which is exactly right for "may this person
   // see this program's material" and exactly wrong for "may this person change
   // this program" — being enrolled in a program never authorises editing it.
-  // Writes therefore scope on STAFFING: an assignment row of any kind, or being
-  // the named manager.
+  //
+  // D-4 replaced this rule for WRITES: `program_managed` now decides, and this
+  // one is kept only for the transition measurement. Delete it once the shadow
+  // report has been clean for a full period (see docs/permissions/
+  // LOT3-STEP3-1.md), not before: removing it early removes the only evidence
+  // that the switch changed nothing.
   program_staffed: {
     key: "program_staffed",
     resource: "program",
+    purpose: "shadow",
     implemented: true,
     source:
       "v2_program_staff (any assigned role, email-tolerant) + v2_programs.assigned_pm_id (named manager)",
   },
-  // PROFILE-BASED program perimeter (the direction retained for Phase 5): the
-  // person holds the `program_manager` profile for that program. Being assigned
-  // to a program gives the staff that profile; the same profile can be granted
-  // to anyone else — so the perimeter follows the GRANT, not the staff table.
+  // PROFILE-BASED program perimeter: the person holds the `program_manager`
+  // profile for that program. Being assigned to a program gives the staff that
+  // profile; the same profile can be granted to anyone else — so the perimeter
+  // follows the GRANT, not the staff table.
   program_managed: {
     key: "program_managed",
     resource: "program",
+    purpose: "enforced",
     implemented: true,
     source:
       "profile_assignments active (context 'program', profile_key 'program_manager', period valid)",
@@ -72,6 +90,7 @@ export const SCOPE_POLICIES = {
   learning_own: {
     key: "learning_own",
     resource: "course",
+    purpose: "display",
     implemented: true,
     source: "lms_enrollments (own enrollments, suspended excluded)",
   },
@@ -81,6 +100,7 @@ export const SCOPE_POLICIES = {
   venture_managed_history: {
     key: "venture_managed_history",
     resource: "venture",
+    purpose: "history",
     implemented: true,
     source:
       "profile_assignments ended (automatic, context venture) UNION contact_roles is_current = false (context venture)",
@@ -88,6 +108,7 @@ export const SCOPE_POLICIES = {
   program_managed_history: {
     key: "program_managed_history",
     resource: "program",
+    purpose: "history",
     implemented: true,
     source:
       "profile_assignments ended (automatic, context program) UNION contact_roles is_current = false (context program)",
