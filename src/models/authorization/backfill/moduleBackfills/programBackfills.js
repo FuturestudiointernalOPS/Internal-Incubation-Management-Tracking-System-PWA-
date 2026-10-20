@@ -72,11 +72,11 @@ async function ensureProgramsBackfill() {
 // allowed; ventures/register stays role-gated (staff would gain it via
 // create — a separate decision).
 //
-// Deliberately NOT migrated: the ~55 membership-scoped sub-routes
-// (requireVentureAccess — founders and venture members working in their own
-// venture workspace) and the broad read allowlists (participant/founder). Capability cannot express per-venture membership; the
-// scoped guard is the real gate there, exactly like projects GET/PUT and the
-// facilitator routes.
+// Deliberately NOT migrated: the ~55 membership-scoped sub-routes (founders and
+// venture members working in their own venture workspace) and the broad read
+// allowlists (participant/founder). Capability cannot express per-venture
+// membership; the scoped guard (requireVentureScopedAccess) is the real gate
+// there, exactly like projects GET/PUT and the facilitator routes.
 
 const VENTURES_BACKFILL = {
   eligibility: { ventures: ["super_admin", "staff", "program_manager"] },

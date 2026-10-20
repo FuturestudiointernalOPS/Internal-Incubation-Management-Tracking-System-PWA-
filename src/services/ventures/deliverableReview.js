@@ -4,8 +4,8 @@
  * review (the milestone's own status, its completion notices and history).
  *
  * Moved verbatim out of `src/app/api/ventures/[id]/deliverables/route.js`
- * (lane L2). The controller keeps the access gates (`requireVentureAccess`,
- * `requireVentureScopedAccess`, `canDefineDeliverables`,
+ * (lane L2). The controller keeps the access gates (`requireVentureScopedAccess`,
+ * `canDefineDeliverables`,
  * `canReviewDeliverable`), the writes and every response.
  *
  * Same facades as the controller used, so route-level test mocks still apply.

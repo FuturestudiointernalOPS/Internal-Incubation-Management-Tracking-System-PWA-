@@ -22,37 +22,4 @@ export function refusalResponse({ status, errorKey, missing = null, decision = n
   return response;
 }
 
-/**
- * D-6 (option 1 — honest refusals) — the three venture access outcomes, each
- * with its own status and reason:
- *
- *   unauthenticated → 401, nobody is signed in;
- *   not-found       → 404, the venture genuinely does not exist;
- *   out-of-scope    → 403, the venture exists but is not theirs.
- *
- * The route hands in the reason its access check returned and never builds the
- * body itself.
- */
-export function ventureAccessRefusal(reason) {
-  switch (reason) {
-    case "unauthenticated":
-      return refusalResponse({
-        status: 401,
-        errorKey: "errors.authRequired",
-        decision: "unauthenticated",
-      });
-    case "not-found":
-      return refusalResponse({
-        status: 404,
-        errorKey: "errors.ventureNotFound",
-        decision: "not-found",
-      });
-    default:
-      return refusalResponse({
-        status: 403,
-        errorKey: "errors.insufficientPermissions",
-        missing: { scope: "venture_own" },
-        decision: "out-of-scope",
-      });
-  }
-}
+

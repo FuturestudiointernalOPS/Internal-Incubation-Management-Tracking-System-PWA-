@@ -59,10 +59,10 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
   if (!userCid || !isScopePolicyImplemented(policyKey)) return null;
   try {
     switch (policyKey) {
-      // UNION matches requireVentureAccess() exactly: an active membership
-      // (founders/team — the venture is theirs) OR an active delegated staff
-      // assignment (venture_staff_assignments). Global-role bypass stays in
-      // the resolver (Super Admin) and in the transitional legacy path.
+      // UNION: an active membership (founders/team — the venture is theirs) OR
+      // an active delegated staff assignment (venture_staff_assignments). This
+      // is the same rule the retired membership gate enforced. Global-role
+      // bypass stays in the resolver (Super Admin).
       case "venture_own":
         return await getVentureOwnScopeIds(userCid);
       // Assignment (program staff — staff_id may hold a cid OR an email)

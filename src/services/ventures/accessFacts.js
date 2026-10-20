@@ -123,17 +123,6 @@ export function getViewerRelationship(ventureRef, cid) {
   });
 }
 
-/**
- * Everything an access decision needs, cheapest first: the Venture's facts give
- * the internal id the relationship is stored under.
- */
-export async function ventureAccessFacts(ventureId, cid) {
-  const facts = await getVentureFacts(ventureId);
-  if (!facts) return { facts: null, relationship: { is_member: false, is_assigned: false } };
-  // The SAME reference, so the facts lookup inside is a cache hit, not a new query.
-  const relationship = await getViewerRelationship(ventureId, cid);
-  return { facts, relationship };
-}
 
 /**
  * Forget what was remembered about a Venture — call it from the paths that

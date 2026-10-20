@@ -20,7 +20,6 @@ module.exports = {
   generatedAt: "2026-10-10",
   decision: [
 
-    "src/lib/ventureAuth.js#M9",
   ],
   display: [
     "src/app/admin/crm/page.js#M5",
