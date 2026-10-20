@@ -1,17 +1,17 @@
 # Lot 0 — actions serveur sans capacité (liste exacte)
 
-Mesuré le 2026-10-20T22:38:56.629Z.
+Mesuré le 2026-10-20T22:40:59.161Z.
 
 Définition : une action est « sans capacité » quand aucun contrôle de fichier ne vérifie une capacité. Les catégories distinguent les trous des déclarations légitimes.
 
 | Catégorie | Nombre | Sens |
 |---|---:|---|
-| À protéger | 44 | Trou de décision à corriger |
+| À protéger | 21 | Trou de décision à corriger |
 | À vérifier — décision déléguée | 0 | Périmètre présent, capacité absente |
 | Personnelle légitime | 33 | Déclarée « soi-même » |
 | Ouverte assumée | 2 | Déclarée publique / hub / stub |
 
-Le compteur d'audit « requireAuth sans contrôle central » est de **82** fichiers. La liste ci-dessous en contient **79** parce qu'elle inclut aussi les enveloppes d'action et les lectures de session manuelles.
+Le compteur d'audit « requireAuth sans contrôle central » est de **82** fichiers. La liste ci-dessous en contient **56** parce qu'elle inclut aussi les enveloppes d'action et les lectures de session manuelles.
 
 ## Compteur d'audit strict (82)
 
@@ -102,7 +102,7 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 | `src/app/api/ventures/[id]/progress/route.js` | oui | oui |
 | `src/app/api/workspaces/route.js` | non | non |
 
-## À protéger (44)
+## À protéger (21)
 
 | Fichier | Garde présente | Périmètre | Compteur d'audit strict |
 |---|---|---|---|
@@ -125,29 +125,6 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 | `src/app/api/venture-plan-templates/apply/route.js` | createHandler | non | non |
 | `src/app/api/venture-plan-templates/route.js` | createHandler | non | non |
 | `src/app/api/venture-templates/route.js` | requireAuth | non | oui |
-| `src/app/api/ventures/[id]/coach-invite/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/document-types/[typeId]/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/founders/[founderId]/reactivate/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/founders/[founderId]/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/founders/[founderId]/suspend/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/founders/transfer-ownership/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/journey/apply-journey-template/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/journey/apply-template/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/journey/archive/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/journey/delete/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/journey/duplicate/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/journey/save-template/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/my-access/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/notes/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/operating-plans/[planId]/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/operating-plans/[planId]/sections/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/operating-plans/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/progress-reports/route.js` | getSession | non | non |
-| `src/app/api/ventures/[id]/startup-profile/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/startup-profile/submit/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/verification/documents/[docId]/versions/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/verification/route.js` | createHandler | non | non |
-| `src/app/api/ventures/[id]/verification/status/route.js` | createHandler | non | non |
 | `src/app/api/ventures/assigned/route.js` | createHandler | non | non |
 | `src/app/api/ventures/lead-manager/home/route.js` | createHandler | non | non |
 
