@@ -25,6 +25,8 @@
  */
 
 import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/constants";
+import { BASELINE_IDENTITIES } from "@/lib/identity";
+import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 
 // Initial defaults — used to seed the DB once and as fallback for
 // responsibilities that have not been configured yet.
@@ -34,19 +36,15 @@ import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/constants";
 // still enforces the alignment.
 export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
 
-// Canonical role list offered in the "Responsibility Access" toggle UI.
-// Keep in sync with src/lib/platform/roles.js when new roles are added.
-export const ALL_FEATURE_ROLES = [
-  "super_admin",
-  "staff",
-  "program_manager",
-  "facilitator",
-  "participant",
-  "member",
-  "founder",
-  "investor",
-  "mentor",
-  "finance",
+// Canonical identity vocabulary. The list is DERIVED, never hand-written:
+//   - a person's baseline role is one of the three identities;
+//   - every contextual function is a PROFILE key.
+// The old ten-value role list included contextual labels that are profiles now.
+export const ALL_FEATURE_ROLES = [...BASELINE_IDENTITIES];
+export const ALL_FEATURE_PROFILES = [...PROFILE_KEYS];
+export const ALL_FEATURE_IDENTITIES = [
+  ...BASELINE_IDENTITIES,
+  ...PROFILE_KEYS,
 ];
 
 /**

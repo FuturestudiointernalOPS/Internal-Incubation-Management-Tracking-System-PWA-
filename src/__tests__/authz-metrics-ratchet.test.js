@@ -39,6 +39,8 @@ describe("Lot 0 — tableau de bord et cliquet des permissions", () => {
       pmRoleDecisions: metrics.roleVocabulary.pmRoleDecisions,
       pmOccurrences: metrics.roleVocabulary.pmOccurrences,
       loginRoleValues: metrics.roleVocabulary.loginRoleValuesUnion,
+      legacyContextualLoginValues:
+        metrics.roleVocabulary.legacyContextualLoginValues.length,
       historicalAccessRoles: metrics.roleVocabulary.historicalRoles.length,
       scopePolicies: metrics.scope.policies.length,
       programScopeCalls: metrics.scope.programScopeCalls,

@@ -23,6 +23,28 @@
 
 export const BASELINE_IDENTITIES = ["super_admin", "staff", "member"];
 
+/** Entity logins (a team is the account, not a person's role). */
+export const ENTITY_IDENTITIES = ["team"];
+
+/**
+ * Contextual values still accepted at sign-in until every decision site reads
+ * the PROFILE instead of the label. They are tracked as debt: the target is the
+ * three baseline identities + profiles, not this list.
+ */
+export const LEGACY_CONTEXTUAL_IDENTITIES = [
+  "participant",
+  "facilitator",
+  "investor",
+  "founder",
+];
+
+/** Every value the sign-in resolver can produce in the current vocabulary. */
+export const LOGIN_IDENTITIES = [
+  ...BASELINE_IDENTITIES,
+  ...ENTITY_IDENTITIES,
+  ...LEGACY_CONTEXTUAL_IDENTITIES,
+];
+
 export const PLATFORM_OWNER_ROLE = "super_admin";
 export const INTERNAL_STAFF_ROLE = "staff";
 export const PROGRAM_MANAGER_ROLE = "program_manager";

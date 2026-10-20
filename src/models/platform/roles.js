@@ -8,7 +8,11 @@
  * assigned (e.g. a group's configured default_role, or an admin action).
  */
 
-import { resolveProgramManagerIdentity } from "@/lib/identity";
+import {
+  BASELINE_IDENTITIES,
+  LEGACY_CONTEXTUAL_IDENTITIES,
+  resolveProgramManagerIdentity,
+} from "@/lib/identity";
 
 export const DEFAULT_ROLE = "participant";
 
@@ -85,8 +89,16 @@ export function resolveEffectiveRole({
   if (isFamily) return "participant"; // family entity acts as participant
 
   if (normalizedRole === "super_admin" || legacySa) return "super_admin";
-  if (normalizedRole === "investor") return "investor";
-  if (normalizedRole === "founder") return "founder";
+  // The contextual identities still accepted at sign-in. Participant and
+  // facilitator are preserved later (after the group rule); investor and founder
+  // keep their contextual surface immediately.
+  if (
+    LEGACY_CONTEXTUAL_IDENTITIES.includes(normalizedRole) &&
+    normalizedRole !== "participant" &&
+    normalizedRole !== "facilitator"
+  ) {
+    return normalizedRole;
+  }
 
   // Staff-family identities normalize to staff. Program Manager is a function
   // layered on Staff (decision D-1): the canonical result is `staff` + the
@@ -108,7 +120,13 @@ export function resolveEffectiveRole({
   if (isInternal) return "staff";
 
   // Explicit identities are preserved outside the group.
-  if (["participant", "member", "facilitator"].includes(normalizedRole)) return normalizedRole;
+  if (
+    [...BASELINE_IDENTITIES, ...LEGACY_CONTEXTUAL_IDENTITIES].includes(
+      normalizedRole,
+    )
+  ) {
+    return normalizedRole;
+  }
   return DEFAULT_ROLE; // unknown / no role → participant (legacy default)
 }
 

@@ -279,39 +279,54 @@ function roleGateEntries(entries) {
 }
 
 function roleVocabulary(entries) {
+  const identityHelper = read(path.join(SRC, "lib", "identity.js"));
+  const identityList = (name) =>
+    quotedValues(
+      between(identityHelper, `export const ${name} = [`, "];"),
+    );
+  const baselineIdentities = identityList("BASELINE_IDENTITIES");
+  const entityIdentities = identityList("ENTITY_IDENTITIES");
+  const legacyContextualIdentities = identityList("LEGACY_CONTEXTUAL_IDENTITIES");
+  const loginIdentities = [
+    ...baselineIdentities,
+    ...entityIdentities,
+    ...legacyContextualIdentities,
+  ];
+
   const featureAccess = read(path.join(SRC, "lib", "featureAccess.js"));
-  const historicalRoles = quotedValues(
-    between(featureAccess, "export const ALL_FEATURE_ROLES = [", "];"),
+  const historicalBlock = between(
+    featureAccess,
+    "export const ALL_FEATURE_ROLES = [",
+    "];",
   );
+  const historicalQuoted = quotedValues(historicalBlock);
+  // The list is derived from BASELINE_IDENTITIES now; fall back to that source
+  // when the array literal no longer carries quoted values.
+  const historicalRoles =
+    historicalQuoted.length > 0 ? historicalQuoted : baselineIdentities;
 
   const sessionLogin = read(path.join(SRC, "app", "api", "auth", "session-login", "route.js"));
   const loginResolver = read(path.join(SRC, "models", "platform", "roles.js"));
+  // The resolver now uses the shared vocabulary constants. Read them when
+  // present, otherwise keep the old literal scan for compatibility.
   const resolverBlock = between(
     loginResolver,
     "export function resolveEffectiveRole",
     "\n}\n\n/**",
   );
   const resolverValues = new Set(
-    [...resolverBlock.matchAll(/return\s+"([a-z_]+)"/g)].map((match) => match[1]),
+    /LEGACY_CONTEXTUAL_IDENTITIES|LOGIN_IDENTITIES/.test(loginResolver)
+      ? loginIdentities
+      : [...resolverBlock.matchAll(/return\s+"([a-z_]+)"/g)].map(
+          (match) => match[1],
+        ),
   );
-  // The explicit identities preserved outside the group are returned through a
-  // variable; add the literal list so the union reflects what the branch can
-  // actually produce.
-  const preservedMatch = loginResolver.match(
-    /if \(\[([^\]]*)\]\.includes\(normalizedRole\)\)/,
-  );
-  quotedValues(preservedMatch ? preservedMatch[1] : "").forEach((value) =>
-    resolverValues.add(value),
-  );
+  // Rollback mode restores the legacy program_manager value.
+  if (process.env.AUTHZ_PM_IDENTITY === "role") {
+    resolverValues.add("program_manager");
+  }
   const defaultRole = (loginResolver.match(/export const DEFAULT_ROLE\s*=\s*"([^"]+)"/) || [])[1];
   if (defaultRole) resolverValues.add(defaultRole);
-
-  // The reversible D-1 switch produces one value for a stored program_manager:
-  // the legacy role (default) or staff (AUTHZ_PM_IDENTITY=staff). Count the
-  // ACTIVE mode so the dashboard can show both sides of the switch.
-  resolverValues.add(
-    process.env.AUTHZ_PM_IDENTITY === "role" ? "program_manager" : "staff",
-  );
 
   const sessionUsesSharedResolver = /resolveEffectiveRole\s*\(/.test(sessionLogin);
   const sessionLiterals = [
@@ -358,6 +373,11 @@ function roleVocabulary(entries) {
   }
 
   return {
+    baselineIdentities,
+    legacyContextualLoginValues: [
+      ...entityIdentities,
+      ...legacyContextualIdentities,
+    ],
     historicalRoles,
     sessionLoginValues,
     loginResolverValues: [...resolverValues].sort(),

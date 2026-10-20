@@ -242,6 +242,12 @@ const rows = [
     "down",
   ),
   line(
+    "Valeurs contextuelles legacy encore acceptées à la connexion",
+    metrics.roleVocabulary.legacyContextualLoginValues.length,
+    "0 après migration",
+    "down",
+  ),
+  line(
     "Fonctions du catalogue de profils",
     metrics.roleVocabulary.profileFunctions.length,
     "profils contextuels",
