@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { ventureAccessRefusal } from "@/server/http/refusal";
 import {
   getVentureIdByCodeForVersions, getDocumentForVersions, listDocumentVersions,
@@ -17,8 +18,8 @@ export async function GET(req, { params }) {
     const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session, reason } = await requireVentureAccess(id);
-    if (!session) return ventureAccessRefusal(reason);
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
     const dbId = (await getVentureIdByCodeForVersions(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 

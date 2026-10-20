@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { ventureAccessRefusal } from "@/server/http/refusal";
 import { submitFeedback, getFeedback, listFeedback, deleteFeedback, getMentorAnalytics, getSessionAnalytics, getFeedbackAnalytics } from "@/services/ventures/feedback";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session, reason } = await requireVentureAccess(id);
-  if (!session) return ventureAccessRefusal(reason);
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
+  const { session } = access;
   // Mentor analytics (list + analytics_*) are staff instruments. Founder rating
   // submission stays open via POST (founder_cid-scoped), but reading the full
   // feedback/analytics feed requires staff access on the Venture.

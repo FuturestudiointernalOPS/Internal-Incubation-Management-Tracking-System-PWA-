@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess } from "@/lib/ventureAuth";
-import { ventureAccessRefusal } from "@/server/http/refusal";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { ventureAccessRefusal } from "@/server/http/refusal";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
 import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/services/ventures/deliverables";
@@ -45,8 +45,8 @@ async function loadMilestoneForVenture(dbId, milestoneId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session, reason } = await requireVentureAccess(id);
-  if (!session) return ventureAccessRefusal(reason);
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
 
   const milestoneId = new URL(req.url).searchParams.get("milestone_id");
   if (!milestoneId) {

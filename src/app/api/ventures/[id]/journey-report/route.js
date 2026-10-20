@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireVentureAccess, roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
-import { ventureAccessRefusal } from "@/server/http/refusal";
+import { roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
 import {
@@ -38,8 +38,9 @@ export async function GET(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const { session, reason } = await requireVentureAccess(id);
-    if (!session) return ventureAccessRefusal(reason);
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
+    const { session } = access;
 
     const staff =
       roleIsPrivileged(session.role) ||

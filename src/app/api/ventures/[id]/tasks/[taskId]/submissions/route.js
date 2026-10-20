@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/services/ventures/tasks";
 import {
@@ -74,8 +75,8 @@ async function listSubmissions(taskId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session, reason } = await requireVentureAccess(id);
-  if (!session) return ventureAccessRefusal(reason);
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });

@@ -118,11 +118,19 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
+// The review-queue READ moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "coach-1", name: "Coach One", role: "staff" },
+  }),
+}));
+
 jest.mock("@/services/ventures/notify", () => ({
   notifyAndEmailVentureFounders: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const mockVentureAuth = require("@/lib/ventureAuth");
+const mockVentureScoped = require("@/lib/ventureScopedAccess");
 
 const { POST: reviewPOST } = require("@/app/api/ventures/[id]/tasks/[taskId]/submissions/route");
 const { GET: queueGET } = require("@/app/api/ventures/[id]/submissions/review-queue/route");
@@ -156,12 +164,19 @@ function resetFixtures() {
   };
   mockVentureAuth.requireVentureAccess.mockReset();
   mockVentureAuth.requireVentureAccess.mockResolvedValue({ session: { cid: "coach-1", name: "Coach One", role: "staff" } });
+  mockVentureScoped.requireVentureScopedAccess.mockReset();
+  mockVentureScoped.requireVentureScopedAccess.mockResolvedValue({
+    session: { cid: "coach-1", name: "Coach One", role: "staff" },
+  });
   mockVentureAuth.isStaffActorForVenture.mockReset();
   mockVentureAuth.isStaffActorForVenture.mockResolvedValue(true);
 }
 
 const asRole = (role, cid = "coach-1") => {
   mockVentureAuth.requireVentureAccess.mockResolvedValue({ session: { cid, name: "Coach One", role } });
+  mockVentureScoped.requireVentureScopedAccess.mockResolvedValue({
+    session: { cid, name: "Coach One", role },
+  });
 };
 
 beforeEach(() => {

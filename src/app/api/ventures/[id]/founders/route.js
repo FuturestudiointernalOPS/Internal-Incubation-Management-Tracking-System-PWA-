@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { createHandler } from "@/lib/api/createHandler";
 import { logVentureActivity } from "@/services/ventures/activity";
@@ -21,9 +20,9 @@ export const GET = createHandler(
 
     // Phase 5 hardening: founders are only visible to the venture's members
     // and Future Studio staff — never to any authenticated user.
-    const { requireVentureAccess } = await import("@/lib/ventureAuth");
-    const access = await requireVentureAccess(id);
-    if (!access.session) return ventureAccessRefusal(access.reason);
+    const { requireVentureScopedAccess } = await import("@/lib/ventureScopedAccess");
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
 
     const founders = await listFounders(id);
 

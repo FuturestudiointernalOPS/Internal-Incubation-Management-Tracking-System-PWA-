@@ -192,7 +192,9 @@ describe("Phase 5c — the old gate cannot come back", () => {
         if (!line.includes("requireVentureScopedAccess") || !line.includes("ventureId: id")) return;
         let declared = false;
         for (let scanIndex = lineIndex - 1; scanIndex >= 0; scanIndex--) {
-          if (/const \{ id \}[^=]*= await params/.test(lines[scanIndex])) { declared = true; break; }
+          // Accept `const { id }` AND a wider destructuring (`{ id, docId }`,
+          // `{ id, taskId }`): the regression is about `id` being declared.
+          if (/const \{[^}]*\bid\b[^}]*\}[^=]*= await params/.test(lines[scanIndex])) { declared = true; break; }
           if (/export (async )?function|export const [A-Z]+ = createHandler/.test(lines[scanIndex])) break;
         }
         if (!declared) offenders.push(`${path.relative(process.cwd(), file)}:${lineIndex + 1}`);
