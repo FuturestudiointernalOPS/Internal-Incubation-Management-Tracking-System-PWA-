@@ -1,13 +1,36 @@
 # Lot 8 — étape 8.5 : plus aucun écran ni service ne lit les anciens libellés
 
-> Date : 2026-10-20. La production est confirmée comme cible et ne contient
-> **aucune** identité contextuelle legacy. Le blocage restant n'était donc plus
-> dans les données mais dans le code : 21 lignes comparaient encore les quatre
-> anciens noms. Elles sont migrées.
+> Date : 2026-10-20. Les comparaisons de rôle sont migrées vers trois prédicats
+> nommés. **Correction importante ci-dessous :** la mesure de population faite
+> depuis cette copie de travail ne portait pas sur la base réellement utilisée.
 
 ---
 
-## 1. La mesure sur la production
+## ⚠ Correction (même jour)
+
+La base joignable depuis cette copie de travail n'est **pas** celle que l'équipe
+utilise. Sur la base réelle, la requête 4 répond :
+
+| participant_rows | with_active_program | with_direct_program |
+|---|---:|---:|
+| **563** | 529 | 490 |
+
+Les chiffres de la section 1 (9 contacts, 0 identité legacy) décrivent donc une
+**autre base** et ne prouvent rien pour la production. Les requêtes 2 (profil
+équivalent) et 3 (sessions vivantes) **n'ont pas encore été exécutées sur la base
+réelle**. La migration de données n'est pas un no-op : elle reste à mesurer.
+
+Ce que le chiffre de 563 établit déjà : `participant` n'est pas un vestige, c'est
+le rôle par défaut de la plateforme. Le retrait de ce libellé ne se réduit donc
+pas à une liste à raccourcir — il faut décider ce que devient **le rôle par
+défaut**, avec au moins trois conséquences visibles : l'approbation à
+l'inscription (un participant est `pending`, un membre est `approved`),
+l'atterrissage quand le profil est incomplet (participant → profil, membre → hub),
+et la page d'accueil des comptes facilitateur/investisseur/fondateur.
+
+---
+
+## 1. La mesure faite depuis cette copie de travail (autre base)
 
 La base cible est celle que l'application sert réellement. Mesure en lecture
 seule, sans écrire :
@@ -108,17 +131,20 @@ concernée est vide.
 ## 5. Ce qui reste, et pourquoi je m'arrête là
 
 Le retrait des quatre valeurs **de la connexion** (`participant`,
-`facilitator`, `investor`, `founder`) n'est plus bloqué par les données ni par
-les comparaisons de code. Il reste une conséquence produit à valider :
+`facilitator`, `investor`, `founder`) n'est plus bloqué par les comparaisons de
+code. Il reste une mesure et une décision produit :
 
-> une personne dont le compte porte encore `facilitator` **atterrirait sur
-> l'espace personnel** (`/participant`) au lieu de l'espace facilitateur. Ses
-> droits de livraison viendraient du profil, mais sa page d'accueil changerait.
+- **la mesure** : la base réelle porte 563 personnes nommées `participant` ; les
+  requêtes 2 (profil équivalent) et 3 (sessions vivantes) restent à exécuter sur
+  cette base ;
+- **la décision** : `participant` est le rôle par défaut. Le retirer des valeurs
+  acceptées exige de décider ce que devient ce défaut, avec trois conséquences
+  visibles — approbation à l'inscription, atterrissage quand le profil est
+  incomplet, page d'accueil des comptes facilitateur/investisseur/fondateur.
 
-Aujourd'hui, personne n'est concerné en production. La décision porte donc sur
-les **futurs comptes** de ces trois familles et sur le retour arrière. C'est une
-décision produit, pas technique — et elle mérite son propre lot, avec un test
-d'atterrissage par famille avant bascule.
+Ce n'est donc pas une ligne à changer. C'est un lot à part, avec un test
+d'atterrissage et d'approbation par famille avant bascule, et un retour arrière
+explicite.
 
 ## 6. Retour arrière
 
@@ -139,9 +165,12 @@ Divergences : deux resserrements (historique personnel, soumission vers un
   programme terminé), sans effet sur la population actuelle.
 Tests : 11 suites / 74 tests authz, 7 863 tests au total, 17 suites
   préexistantes en échec. Lint 0 erreur.
-Décisions requises : l'atterrissage d'un compte legacy facilitateur/investisseur/
-  fondateur quand les quatre valeurs quitteront la connexion.
+Divergences : la mesure de population portait sur une autre base ; la base
+  réelle porte 563 participants (correction en tête de document).
+Décisions requises : le devenir du rôle par défaut et l'atterrissage par
+  famille quand les quatre valeurs quitteront la connexion.
 Retour arrière : git revert.
-Prochaine étape : lot « vocabulaire de connexion » — trois identités, profils,
-  test d'atterrissage par famille.
+Prochaine étape : exécuter les requêtes 2 et 3 sur la base réelle, puis le lot
+  « vocabulaire de connexion » (trois identités, profils, tests d'atterrissage
+  et d'approbation).
 ```
