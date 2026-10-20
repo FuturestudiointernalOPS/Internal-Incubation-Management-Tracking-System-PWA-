@@ -201,42 +201,18 @@ describe("bulk actions — every id must be in scope", () => {
   });
 });
 
-describe("D-4 — the replaced staffing rule is measured, never enforced", () => {
-  const STAFFED = "program_staffed";
+describe("D-4 / Lot 8 — the replaced staffing rule is no longer probed", () => {
   const MANAGED = "program_managed";
 
-  test("shadow off: only the manager profile is consulted", async () => {
+  test("only the manager profile is consulted, even with the shadow flag on", async () => {
+    // The transition probe was removed once its single divergence was explained.
+    // Turning the flag on must not bring it back: the perimeter is one rule.
+    mockShadowEnabled.mockReturnValue(true);
+
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
 
     expect(res).toBeNull();
     expect(isWithinScope.mock.calls.map(([policy]) => policy)).toEqual([MANAGED]);
-    expect(mockShadowCheck).not.toHaveBeenCalled();
-  });
-
-  test("shadow on: a divergence is logged and the decision does not move", async () => {
-    mockShadowEnabled.mockReturnValue(true);
-    isWithinScope.mockImplementation(async (policy) => policy === MANAGED);
-
-    const res = await requireProgramScope({ programId: "P1", wave: "content" });
-
-    expect(res).toBeNull(); // enforced = the manager profile = allow
-    expect(mockShadowCheck).toHaveBeenCalledWith({
-      legacyAllowed: false,
-      engineAllowed: true,
-      meta: { resource: "program", policy: MANAGED, wave: "content", cid: "USR_PM" },
-    });
-  });
-
-  test("shadow on, the probe fails: the enforced answer still stands", async () => {
-    mockShadowEnabled.mockReturnValue(true);
-    isWithinScope.mockImplementation(async (policy) => {
-      if (policy === STAFFED) throw new Error("boom");
-      return true;
-    });
-
-    const res = await requireProgramScope({ programId: "P1", wave: "content" });
-
-    expect(res).toBeNull();
     expect(mockShadowCheck).not.toHaveBeenCalled();
   });
 });

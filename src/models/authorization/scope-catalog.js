@@ -62,15 +62,17 @@ export const SCOPE_POLICIES = {
   // see this program's material" and exactly wrong for "may this person change
   // this program" — being enrolled in a program never authorises editing it.
   //
-  // D-4 replaced this rule for WRITES: `program_managed` now decides, and this
-  // one is kept only for the transition measurement. Delete it once the shadow
-  // report has been clean for a full period (see docs/permissions/
-  // LOT3-STEP3-1.md), not before: removing it early removes the only evidence
-  // that the switch changed nothing.
+  // D-4 replaced this rule for WRITES: `program_managed` decides the perimeter.
+  // This policy is NOT a leftover: the manager repair route
+  // (POST /api/pm/programs/[id]/manager) deliberately lets a STAFFED person — or
+  // the permission-console authority — repair an unmanaged program, and a
+  // staffed person may not hold the profile yet (that is what they are
+  // repairing). The transition probe that compared it with `program_managed`
+  // was removed in Lot 8; the single measured divergence was explained.
   program_staffed: {
     key: "program_staffed",
     resource: "program",
-    purpose: "shadow",
+    purpose: "enforced",
     implemented: true,
     source:
       "v2_program_staff (any assigned role, email-tolerant) + v2_programs.assigned_pm_id (named manager)",

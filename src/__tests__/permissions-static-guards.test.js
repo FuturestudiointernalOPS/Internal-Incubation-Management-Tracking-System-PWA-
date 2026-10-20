@@ -213,8 +213,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/components/layout/shell/SidebarContent.js#M3",
   "src/components/layout/shell/SidebarContent.js#M4",
   "src/components/layout/shell/useDashboardBadges.js#M3",
-  "src/components/messaging/chat/getPermissions.js#M3",
-  "src/components/messaging/hooks/useDerivedData.js#M3",
   "src/components/pm/program-workspace/ConfigTab.js#M3",
   "src/components/pm/program-workspace/DeployTeamModal.js#M3",
   "src/components/pm/program-workspace/ReportsTab.js#M3",

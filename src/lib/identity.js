@@ -76,6 +76,19 @@ export function isLegacyProgramManagerRole(role) {
 }
 
 /**
+ * D-2 — does this value carry a given CONTEXTUAL label?
+ *
+ * Display and relationship rules (messaging visibility, contact filters) still
+ * ask "is this person a participant / a founder?" while the contextual values
+ * remain in the vocabulary. They ask it here, once, instead of comparing the
+ * label inline: the comparison lives in the identity layer, and a caller reads
+ * a named question.
+ */
+export function carriesContextualValue(role, value) {
+  return normalizeRole(role) === normalizeRole(value);
+}
+
+/**
  * D-1 — should a program-manager identity be resolved as baseline STAFF?
  *
  * The target is `staff` + the `program_manager` PROFILE. The profile coverage

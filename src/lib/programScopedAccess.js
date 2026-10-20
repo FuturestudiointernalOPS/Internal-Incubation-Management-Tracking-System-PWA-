@@ -2,7 +2,6 @@ import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope } from "@/services/authorization/scope";
-import { shadowCheck, shadowEnabled } from "@/services/authorization/shadow";
 
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program WRITES.
@@ -27,9 +26,10 @@ import { shadowCheck, shadowEnabled } from "@/services/authorization/shadow";
  * The switch was measured first: `scripts/db-audit/program-perimeter-compare.sql`
  * compared both perimeters on the production database. It found two people in
  * the old one and one in the new one, no gain, and a single loss — a facilitator
- * who had already lost `programs.edit` in step 3.2. With `AUTHZ_SHADOW_MODE=1`
- * the old `program_staffed` rule is still computed and divergences are logged;
- * it never changes the outcome.
+ * who had already lost `programs.edit` in step 3.2. That divergence is
+ * explained, so the transition probe was removed (Lot 8); the old
+ * `program_staffed` policy itself is NOT a shadow policy — the manager repair
+ * route enforces it deliberately (see `scope-catalog.js`).
  *
  * ENFORCED UNCONDITIONALLY. There is deliberately no rollout switch: a rule that
  * only applies when somebody remembers to enable it does not protect anything.
@@ -149,23 +149,6 @@ export async function requireProgramScope({
     const within = await isWithinScope("program_managed", session.cid, programId, {
       email: session.email,
     });
-
-    // Transition measurement (D-4): the OLD rule is computed alongside and any
-    // divergence is logged, without changing the outcome. Inert by default.
-    if (shadowEnabled()) {
-      try {
-        const legacyAllowed = await isWithinScope("program_staffed", session.cid, programId, {
-          email: session.email,
-        });
-        shadowCheck({
-          legacyAllowed,
-          engineAllowed: within,
-          meta: { resource: "program", policy: "program_managed", wave, cid: session.cid },
-        });
-      } catch {
-        // The probe never affects the decision.
-      }
-    }
 
     if (!within) {
       return denied(
