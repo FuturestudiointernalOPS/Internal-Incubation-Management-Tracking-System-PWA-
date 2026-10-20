@@ -26,6 +26,7 @@
  */
 
 import { runAuthzMigration } from "@/models/authorization/migrations";
+import { normalizeLegacyIdentities } from "./legacyIdentityMigration";
 import {
   ensureEligibilitySchema,
   seedDefaultEligibility,
@@ -87,6 +88,17 @@ function ensureEligibilitySeeded() {
         await runAuthzMigration(
           "eligibility-baseline-roles-only-v1",
           removeNonBaselineRoleEligibility,
+        );
+        // Legacy vocabulary → baseline identities. Runs AFTER the eligibility
+        // cleanup (so no role-row seed re-creates a contextual label) and once
+        // per database: it gives every ACTIVE relationship its profile card,
+        // then normalizes participant / facilitator / investor / founder to
+        // member. A
+        // failure throws inside its transaction, so nothing is written and the
+        // marker stays unwritten for the next boot.
+        await runAuthzMigration(
+          "legacy-identities-normalization-v1",
+          normalizeLegacyIdentities,
         );
       })()
         // A one-time seed is DATA work, and the authorization gate awaits this

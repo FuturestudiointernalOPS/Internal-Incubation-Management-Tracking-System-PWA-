@@ -66,8 +66,23 @@ Deux constats qui comptent :
 
 ## 2. La migration
 
-Fichier : `migrations/legacy_identity_migration.sql`
-Lanceur : `scripts/db-audit/apply-legacy-identity-migration.mjs`
+Fichier : `src/models/authorization/legacyIdentityStore.js` (SQL + transaction)
+Service : `src/services/authorization/legacyIdentityMigration.js`
+Branchement : `src/services/authorization/contextBootstrap.js`
+
+### Elle s'exécute toute seule, une fois par base
+
+Le mécanisme `runAuthzMigration(name, fn)` exécute la correction **une seule
+fois par base**, au premier démarrage (ou à la première lecture d'autorisation
+après déploiement), et inscrit le nom `legacy-identities-normalization-v1` dans
+`authz_migrations`. Les démarrages suivants la sautent.
+
+Si elle échoue, **rien n'est inscrit** : la transaction est annulée et elle sera
+retentée au démarrage suivant. C'est le comportement voulu — une base à moitié
+migrée est pire qu'une base non migrée.
+
+Le contrôle est **dans la transaction** : une ancienne étiquette qui subsiste,
+ou une relation active sans carte, lève une erreur et annule tout.
 
 ### L'ordre, et pourquoi il est imposé
 
@@ -109,64 +124,69 @@ La règle est donc : **relation active → carte obligatoire ; aucune relation �
 membre sans carte**. Le second cas n'existe aujourd'hui que pour les 5
 facilitateurs dont le programme est terminé.
 
-## 3. Comment l'exécuter
+## 3. Comment la suivre
 
-### Depuis l'éditeur SQL de Supabase (recommandé si tu y as mesuré)
+### Avant le déploiement — simulation en lecture seule
 
-1. Colle `scripts/db-audit/legacy-identity-simulation.sql` : **lecture seule**, un
-   seul tableau de résultats, aucun écrit. Attendu : `relation active sans carte`
-   à 0 pour les trois familles.
-2. Colle le contenu de `migrations/legacy_identity_migration.sql` encadré par
-   la transaction :
+Colle `scripts/db-audit/legacy-identity-simulation.sql` dans l'éditeur SQL de
+Supabase. Un seul tableau, aucun écrit. Attendu :
 
-```sql
-BEGIN;
+| Famille | Personnes | Relations actives | Cartes à créer | Actives sans carte |
+|---|---:|---:|---:|---:|
+| participant | 563 | 563 | 563 | **0** |
+| facilitateur | 5 | 0 | 0 | **0** |
+| fondateur | 1 | 1 | 1 | **0** |
 
--- … contenu de migrations/legacy_identity_migration.sql …
+### Après le déploiement — vérification
 
-COMMIT;   -- la transaction est annulée d'elle-même si le garde-fou lève une erreur
+Colle `scripts/db-audit/legacy-identity-verification.sql`. Attendu : migration
+enregistrée = 1, anciens rôles = 0, cartes ≈ 564, sessions = 3 (signalées).
+
+### Où voir le résultat de l'exécution automatique
+
+Le service journalise une ligne quand il a réellement changé quelque chose :
+
+```
+[authz] legacy identities normalized { updated: 569, cards: 564, withoutRelationship: 5 }
 ```
 
-Le fichier se termine par un bloc qui **lève une exception** si un ancien nom
-subsiste ou si une relation active n'a pas reçu sa carte. Une exception annule
-tout : aucune écriture partielle.
+Absence de ligne = rien à faire (déjà migré, ou aucune étiquette legacy).
 
-### Depuis le dépôt
+### Le lancement manuel n'existe plus
 
-```bash
-# 1. Simulation : exécute tout, affiche le plan, puis ANNULE
-node scripts/db-audit/apply-legacy-identity-migration.mjs .env.local
+Le script SQL et le lanceur manuels ont été **supprimés à dessein** : ils
+dupliquaient la règle et pouvaient diverger. Une seule implémentation, testée
+(`legacy-identity-migration.test.js`), s'exécute automatiquement.
 
-# 2. Écriture : valide seulement si le garde-fou passe
-node scripts/db-audit/apply-legacy-identity-migration.mjs --apply .env.local
-```
-
-La simulation emprunte **le même chemin** que l'écriture : seules les dernières
-instructions changent (`ROLLBACK` au lieu de `COMMIT`). C'est la répétition
-demandée par le plan, sans base de préparation séparée.
-
-Si le contrôle « relation sans carte » échoue, la transaction est annulée et le
-nombre de personnes concernées est affiché. Ce sont les participants rattachés à
-un programme **sans ligne d'inscription** : ils demandent une décision explicite
+Si le contrôle « relation sans carte » échoue, la migration ne s'inscrit pas et
+est retentée au démarrage suivant. Ce sont les participants rattachés à un
+programme **sans ligne d'inscription** : ils demandent une décision explicite
 (créer l'inscription, ou reconnaître le lien direct comme relation).
 
-Les 5 facilitateurs, eux, ne bloquent plus : leur programme est terminé, donc ils
+Les 5 facilitateurs, eux, ne bloquent pas : leur programme est terminé, donc ils
 n'ont pas de relation active et deviennent membres sans carte.
 
 ## 4. Après la migration
 
+Le même déploiement porte la **bascule du vocabulaire** : les quatre noms ne sont
+plus produits à la connexion, le rôle par défaut est `member`, et les listes
+d'autorisation des routes nomment `member` au lieu des anciennes étiquettes.
+
+Ce qui reste à faire, une fois le déploiement en place :
+
 1. **Purger les 3 sessions ouvertes** (2 fondateur, 1 facilitateur) pour qu'elles
    se reconnectent avec la nouvelle identité.
-2. **Retirer les quatre noms de la connexion** et ramener le rôle par défaut à
-   `member` — c'est le lot suivant, avec ses deux conséquences visibles :
-   l'approbation à l'inscription et l'atterrissage quand le profil est incomplet.
-3. Vérifier par la mesure que plus aucun code ne lit les anciens libellés
-   (c'est déjà le cas hors du moteur).
+2. Vérifier le résultat avec `scripts/db-audit/legacy-identity-verification.sql`.
+3. Contrôler les deux conséquences visibles, assumées et documentées :
+   - une inscription personnelle reste **en attente** (un membre est `pending`,
+     comme l'était un participant) ;
+   - un membre dont le profil est incomplet atterrit sur **son profil**, comme
+     l'ancien participant.
 
 ## 5. Retour arrière
 
-- Avant validation : rien n'est écrit (rollback).
+- Si la migration échoue : rien n'est écrit, elle retente au démarrage suivant.
 - Après validation : la migration est idempotente et additive ; revenir en
   arrière consiste à remettre les rôles d'origine **et** à fermer les cartes
   créées (`source = 'automatic'`, `notes = 'legacy-identity-migration'`), dans une
-  transaction. Aucune suppression de relation n'est faite par ce lot.
+  transaction. Aucune relation n'est supprimée par ce lot.

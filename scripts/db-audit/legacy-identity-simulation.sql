@@ -13,7 +13,7 @@ WITH
 targets AS (
   SELECT c.cid, LOWER(c.role) AS role
   FROM contacts c
-  WHERE LOWER(c.role) IN ('participant', 'facilitator', 'founder')
+  WHERE LOWER(c.role) IN ('participant', 'facilitator', 'investor', 'founder')
 ),
 
 participant_rel AS (
@@ -43,6 +43,14 @@ founder_rel AS (
   WHERE LOWER(c.role) = 'founder'
     AND vm.removed_at IS NULL
     AND (vm.member_type = 'founder' OR vm.role IN ('founder', 'co-founder'))
+),
+
+investor_rel AS (
+  SELECT DISTINCT c.cid
+  FROM contacts c
+  JOIN investor_profiles ip
+    ON ip.user_id = c.cid AND ip.approval_status = 'approved'
+  WHERE LOWER(c.role) = 'investor'
 ),
 
 participant_cards AS (
@@ -98,10 +106,28 @@ founder_cards AS (
     )
 ),
 
+investor_cards AS (
+  SELECT DISTINCT c.cid
+  FROM contacts c
+  JOIN investor_profiles ip
+    ON ip.user_id = c.cid AND ip.approval_status = 'approved'
+  WHERE LOWER(c.role) = 'investor'
+    AND NOT EXISTS (
+      SELECT 1 FROM profile_assignments pa
+      WHERE pa.contact_cid = c.cid
+        AND pa.profile_key = 'investor'
+        AND pa.context_type = 'investor'
+        AND pa.context_id = CAST(ip.id AS TEXT)
+        AND pa.status = 'active'
+    )
+),
+
 report AS (
   SELECT 'participant' AS famille, t.cid FROM targets t WHERE t.role = 'participant'
   UNION ALL
   SELECT 'facilitateur', t.cid FROM targets t WHERE t.role = 'facilitator'
+  UNION ALL
+  SELECT 'investisseur', t.cid FROM targets t WHERE t.role = 'investor'
   UNION ALL
   SELECT 'fondateur', t.cid FROM targets t WHERE t.role = 'founder'
 )
@@ -149,6 +175,27 @@ SELECT * FROM (
     AND NOT EXISTS (SELECT 1 FROM facilitator_rel x WHERE x.cid = r.cid)
 
   UNION ALL
+  SELECT 'investisseur · personnes', COUNT(*)::int, '—'
+  FROM report WHERE famille = 'investisseur'
+  UNION ALL
+  SELECT 'investisseur · relations actives', COUNT(*)::int, '—'
+  FROM investor_rel
+  UNION ALL
+  SELECT 'investisseur · cartes à créer', COUNT(*)::int, '—'
+  FROM investor_cards
+  UNION ALL
+  SELECT 'investisseur · relation active sans carte', COUNT(*)::int, '0'
+  FROM report r
+  WHERE r.famille = 'investisseur'
+    AND EXISTS (SELECT 1 FROM investor_rel x WHERE x.cid = r.cid)
+    AND NOT EXISTS (SELECT 1 FROM investor_cards x WHERE x.cid = r.cid)
+  UNION ALL
+  SELECT 'investisseur · sans relation (membre sans carte)', COUNT(*)::int, 'signalé'
+  FROM report r
+  WHERE r.famille = 'investisseur'
+    AND NOT EXISTS (SELECT 1 FROM investor_rel x WHERE x.cid = r.cid)
+
+  UNION ALL
   SELECT 'fondateur · personnes', COUNT(*)::int, '—'
   FROM report WHERE famille = 'fondateur'
   UNION ALL
@@ -173,6 +220,6 @@ SELECT * FROM (
   SELECT 'sessions ouvertes sous un ancien nom', COUNT(*)::int, 'signalé'
   FROM user_sessions
   WHERE expires_at > NOW()
-    AND LOWER(role) IN ('participant', 'facilitator', 'founder')
+    AND LOWER(role) IN ('participant', 'facilitator', 'investor', 'founder')
 ) resultat
 ORDER BY indicateur;
