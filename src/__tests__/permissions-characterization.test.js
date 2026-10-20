@@ -36,7 +36,7 @@
  * /api/superadmin/standard-types                  | const ROLE = { roles: ['super_admin'] }  | élevé  | source-pin
  * GET/POST/PUT/DELETE /api/platform/collections   | requireAuth super_admin (GET: +staff)   | élevé  | source-pin
  * /api/platform/import/{preview,execute,review-flags} | requireAuth() + settings.edit      | élevé  | source-pin
- * DELETE /api/crm/leads/[id]                      | createHandler({roles:["super_admin"]}) + requireAuthorization("crm","delete") | élevé | source-pin + comportement
+ * DELETE /api/crm/leads/[id]                      | requireAuthorization("crm","delete") | élevé | source-pin + comportement
  * POST /api/ventures/[id]/lifecycle               | ["super_admin"].includes(session.role)  | élevé  | source-pin
  * POST /api/engineering/permissions (promote/remove_super_admin) | session.role !== "super_admin" | élevé | source-pin
  * POST /api/engineering/permissions/profile-role-defaults | PROFILE_BASELINE_ROLES.includes(roleName) | élevé | source-pin
@@ -251,20 +251,22 @@ describe("platform — collections and import pipelines are super_admin gated", 
 });
 
 describe("crm / ventures — destructive and lifecycle endpoints pin their role lists", () => {
-  test("DELETE /api/crm/leads/[id] — allowlist super_admin puis requireAuthorization(crm,delete) (comportement actuel figé)", () => {
+  test("DELETE /api/crm/leads/[id] — requireAuthorization(crm,delete) seule (comportement actuel figé)", () => {
     const src = read("src/app/api/crm/leads/[id]/route.js");
     expect(src).toMatch(/export const DELETE = createHandler\(/);
-    expect(src).toMatch(/\{\s*roles:\s*\["super_admin"\]\s*\}/);
+    expect(src).not.toMatch(/\{\s*roles:\s*\[/);
     expect(src).toMatch(/requireAuthorization\("crm", "delete"\)/);
   });
 
-  test("DELETE /api/crm/opportunities/[id] et /organizations/[id] — super_admin only (comportement actuel figé)", () => {
-    expect(read("src/app/api/crm/opportunities/[id]/route.js")).toMatch(
-      /\{\s*roles:\s*\["super_admin"\]\s*\}/,
-    );
-    expect(read("src/app/api/crm/organizations/[id]/route.js")).toMatch(
-      /\{\s*roles:\s*\["super_admin"\]\s*\}/,
-    );
+  test("DELETE /api/crm/opportunities/[id] et /organizations/[id] — crm.delete seule (comportement actuel figé)", () => {
+    for (const file of [
+      "src/app/api/crm/opportunities/[id]/route.js",
+      "src/app/api/crm/organizations/[id]/route.js",
+    ]) {
+      const src = read(file);
+      expect(src).not.toMatch(/\{\s*roles:\s*\[/);
+      expect(src).toMatch(/requireAuthorization\("crm", "delete"\)/);
+    }
   });
 
   test("POST /api/ventures/[id]/lifecycle — super_admin only (comportement actuel figé)", () => {
