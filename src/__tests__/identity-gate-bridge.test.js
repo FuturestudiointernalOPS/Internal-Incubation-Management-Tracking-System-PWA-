@@ -89,11 +89,14 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
   });
 
   test("submissions: POST/PATCH/GET bare — membership binding + assignment/own-scope decide", () => {
-    expect(bareAuthCount("src/app/api/submissions/route.js")).toBe(3);
+    // Four bare handlers: the score write joined the converted set when it
+    // moved from a role list to `requireProgramScope` (D-5).
+    expect(bareAuthCount("src/app/api/submissions/route.js")).toBe(4);
     const src = fs.readFileSync(path.join(ROOT, "src/app/api/submissions/route.js"), "utf8");
     const lists = authBlocks("src/app/api/submissions/route.js");
-    expect(lists).toHaveLength(1); // one pure-global handler stays listed
-    expect(containsContextual(lists[0])).toBe(false);
+    // No role list remains: the score write moved to `requireProgramScope`
+    // with an ANY-OF capability list (D-5).
+    expect(lists).toHaveLength(0);
     // Own-scope fallback for no-programId reads + self-service identity binding
     // — both now live in the service.
     expect(src).toMatch(/applyOwnSubmissionScope/);
@@ -291,12 +294,19 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
     expect(authBlocks(file)).toHaveLength(0);
-    expect(src).toMatch(/getActiveParticipantEnrollments/);
-    expect(src).toMatch(/\["super_admin", "staff", "program_manager", "team"\]\.includes\(role\)/);
+    // Lot 4.2: the qualification moved to the authorization service, so the
+    // route carries no role list and no role comparison.
+    expect(src).toMatch(/evaluateUploadAccess/);
+    const decision = fs.readFileSync(
+      path.join(ROOT, "src/services/authorization/uploadAccess.js"),
+      "utf8",
+    );
+    expect(decision).toMatch(/getActiveParticipantEnrollments/);
+    expect(decision).toMatch(/isInternalStaffRole/);
     // Venture people (founders AND team members) upload as part of their
     // Venture workspace: membership is the qualification, resolved live.
-    expect(src).toMatch(/getContactContexts/);
-    expect(src).toMatch(/type === "venture"/);
+    expect(decision).toMatch(/getContactContexts/);
+    expect(decision).toMatch(/type === "venture"/);
   });
 
   test("phase 1.6: END STATE — no contextual-role requireAuth list remains anywhere in src/app/api", () => {

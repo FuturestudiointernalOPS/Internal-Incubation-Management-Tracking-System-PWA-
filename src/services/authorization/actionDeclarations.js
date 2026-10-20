@@ -363,6 +363,62 @@ const DELEGATED_DECISIONS = [
     rule: "evaluateWeeklyReportAccess",
     reason: "La rétro se lit soi-même, par son superviseur, ou par le propriétaire de la plateforme.",
   },
+  // ── Projects & intents — the rule is "do you belong to this project?" ────
+  {
+    file: "src/app/api/projects/assignments/route.js",
+    service: "src/services/projects/collaboration.js",
+    rule: "listProjectAssignments",
+    reason:
+      "Les projets sont groupés par relation : possédés, en collaboration, tous les actifs. Un rôle portefeuille voit tout ; les autres sont bornés à leur propre identifiant.",
+  },
+  {
+    file: "src/app/api/projects/invitations/route.js",
+    service: "src/services/projects/collaboration.js",
+    rule: "listProjectInvitations",
+    reason:
+      "Les invitations d'un non-portefeuille sont bornées à sa propre identité ; un rôle portefeuille peut interroger n'importe quel destinataire.",
+  },
+  {
+    file: "src/app/api/projects/invitations/respond/route.js",
+    service: "src/services/projects/collaboration.js",
+    rule: "respondToProjectInvitation",
+    reason:
+      "Seul l'invité répond (accepter/décliner), seul l'invitant annule : la règle a besoin de comparer l'appelant aux deux parties de l'invitation.",
+  },
+  {
+    file: "src/app/api/projects/discuss/route.js",
+    service: "src/services/projects/collaboration.js",
+    rule: "requireProjectAccess (owner / member) + listProjectDiscussions",
+    reason:
+      "Une discussion appartient au projet : le garde d'accès projet vérifie l'appartenance (propriétaire ou membre), et l'appelant ne peut pas la contourner par un identifiant fourni.",
+  },
+  {
+    file: "src/app/api/admin/projects/[id]/reports/generate/route.js",
+    service: "src/services/dashboard/adminProjectReports.js",
+    rule: "requireProjectAccess (owner / member) + generateProjectReport",
+    reason:
+      "Le rapport hebdomadaire s'écrit sur UN projet : le garde d'accès projet borne l'identifiant de l'URL à une appartenance réelle.",
+  },
+  {
+    file: "src/app/api/intents/route.js",
+    service: "src/services/platform/intents.js",
+    rule: "listIntentsForSession / createIntentForSession / updateIntentForSession / deleteIntentForSession",
+    reason:
+      "Un intent est visible et modifiable selon son contexte (staff, venture, programme) et son responsable ; la décision a besoin de la cible.",
+  },
+  {
+    file: "src/app/api/intents/[id]/route.js",
+    service: "src/services/platform/intents.js",
+    rule: "getIntentDetailForSession",
+    reason: "Le détail d'un intent suit la même règle de contexte et de responsabilité.",
+  },
+  {
+    file: "src/app/api/intents/[id]/tasks/route.js",
+    service: "src/services/platform/intents.js",
+    rule: "createIntentTaskForSession",
+    reason:
+      "Créer une tâche sous un intent exige l'accès à cet intent et suit la règle d'assignation de son groupe.",
+  },
 ];
 
 /**

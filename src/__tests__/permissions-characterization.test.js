@@ -20,7 +20,7 @@
  * POST /api/migrate/phase1                        | requireAuth() + settings.edit            | élevé  | source-pin
  * POST /api/migrate/phase5                        | requireAuth() + settings.edit            | élevé  | source-pin
  * POST /api/admin/run-migration                   | requireAuth() + settings.edit            | élevé  | source-pin + comportement
- * GET  /api/admin/projects                        | requireAuth(["super_admin"])            | élevé  | source-pin
+ * GET  /api/admin/projects                        | projects.view                            | élevé  | source-pin
  * GET  /api/admin/analytics (+ /users)            | requireAuth(["super_admin"])            | élevé  | source-pin
  * GET  /api/admin/blockers                        | tasks.view                              | élevé  | source-pin
  * GET  /api/admin/tasks                           | tasks.view                              | élevé  | source-pin
@@ -146,9 +146,10 @@ describe("admin / migrate — mutating endpoints pin their capability guard", ()
     expect(src).toMatch(/requireAuthorization\("settings", "edit"\)/);
   });
 
-  test("GET /api/admin/projects — exige le rôle super_admin (comportement actuel figé)", () => {
+  test("GET /api/admin/projects — projects.view (comportement actuel figé)", () => {
     const src = read("src/app/api/admin/projects/route.js");
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    expect(src).toMatch(/requireAuthorization\("projects", "view"\)/);
+    expect(src).not.toMatch(/requireAuth\(\[/);
   });
 
   test("GET /api/admin/analytics — exige le rôle super_admin, y compris la route sœur /users (comportement actuel figé)", () => {
