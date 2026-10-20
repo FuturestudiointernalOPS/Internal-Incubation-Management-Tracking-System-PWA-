@@ -16,10 +16,10 @@
  * ─────────────────────────────────────────────────────────────────────────────
  * route (method)                                 | mécanisme actuel                        | risque | technique
  * ───────────────────────────────────────────────┼─────────────────────────────────────────┼────────┼───────────
- * GET  /api/migrate/phase0                        | requireAuth(["super_admin"])            | élevé  | source-pin
- * POST /api/migrate/phase1                        | requireAuth(["super_admin"])            | élevé  | source-pin
- * POST /api/migrate/phase5                        | requireAuth(["super_admin"])            | élevé  | source-pin
- * POST /api/admin/run-migration                   | requireAuth(["super_admin"])            | élevé  | source-pin + comportement
+ * GET  /api/migrate/phase0                        | requireAuth() + settings.edit            | élevé  | source-pin
+ * POST /api/migrate/phase1                        | requireAuth() + settings.edit            | élevé  | source-pin
+ * POST /api/migrate/phase5                        | requireAuth() + settings.edit            | élevé  | source-pin
+ * POST /api/admin/run-migration                   | requireAuth() + settings.edit            | élevé  | source-pin + comportement
  * GET  /api/admin/projects                        | requireAuth(["super_admin"])            | élevé  | source-pin
  * GET  /api/admin/analytics (+ /users)            | requireAuth(["super_admin"])            | élevé  | source-pin
  * GET  /api/admin/blockers                        | createHandler({roles:["super_admin"]})  | élevé  | source-pin
@@ -31,11 +31,11 @@
  * GET+POST  /api/security/sessions                | createHandler({roles:["super_admin","security_officer"]}) | élevé | source-pin
  * GET  /api/security/login-history                | createHandler({roles:["super_admin","security_officer","program_manager"]}) | élevé | source-pin
  * GET  /api/audit-logs (+ /[id])                  | createHandler({roles:["super_admin","security_officer"]}) | élevé | source-pin
- * GET  /api/superadmin/full-state                 | createHandler({roles:["super_admin"]})  | élevé  | source-pin + comportement
+ * GET  /api/superadmin/full-state                 | createHandler() + settings.view          | élevé  | source-pin + comportement
  * POST /api/superadmin/groups/assignment          | createHandler({roles:["super_admin"]})  | élevé  | source-pin
  * /api/superadmin/standard-types                  | const ROLE = { roles: ['super_admin'] }  | élevé  | source-pin
  * GET/POST/PUT/DELETE /api/platform/collections   | requireAuth super_admin (GET: +staff)   | élevé  | source-pin
- * /api/platform/import/{preview,execute,review-flags} | requireAuth(["super_admin"])        | élevé  | source-pin
+ * /api/platform/import/{preview,execute,review-flags} | requireAuth() + settings.edit      | élevé  | source-pin
  * DELETE /api/crm/leads/[id]                      | createHandler({roles:["super_admin"]}) + requireAuthorization("crm","delete") | élevé | source-pin + comportement
  * POST /api/ventures/[id]/lifecycle               | ["super_admin"].includes(session.role)  | élevé  | source-pin
  * POST /api/engineering/permissions (promote/remove_super_admin) | session.role !== "super_admin" | élevé | source-pin
@@ -120,29 +120,30 @@ beforeEach(() => {
 
 /* ───────────────────────────── source-pinning ────────────────────────────── */
 
-describe("admin / migrate — mutating endpoints pin their super_admin guard", () => {
-  test("GET /api/migrate/phase0 — exige le rôle super_admin (comportement actuel figé)", () => {
+describe("admin / migrate — mutating endpoints pin their capability guard", () => {
+  test("GET /api/migrate/phase0 — exige settings.edit (comportement actuel figé)", () => {
     const src = read("src/app/api/migrate/phase0/route.js");
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    expect(src).toMatch(/requireAuth\(\)/);
+    expect(src).toMatch(/requireAuthorization\("settings", "edit"\)/);
     expect(src).toMatch(/export async function GET/);
   });
 
-  test("POST /api/migrate/phase1 — exige le rôle super_admin (comportement actuel figé)", () => {
+  test("POST /api/migrate/phase1 — exige settings.edit (comportement actuel figé)", () => {
     const src = read("src/app/api/migrate/phase1/route.js");
     expect(src).toMatch(/export async function POST/);
-    expect(count(src, /requireAuth\(\["super_admin"\]\)/g)).toBe(2); // POST + GET
+    expect(count(src, /requireAuthorization\("settings", "edit"\)/g)).toBe(2); // POST + GET
   });
 
-  test("POST /api/migrate/phase5 — exige le rôle super_admin (comportement actuel figé)", () => {
+  test("POST /api/migrate/phase5 — exige settings.edit (comportement actuel figé)", () => {
     const src = read("src/app/api/migrate/phase5/route.js");
     expect(src).toMatch(/export async function POST/);
-    expect(count(src, /requireAuth\(\["super_admin"\]\)/g)).toBe(2); // POST + GET
+    expect(count(src, /requireAuthorization\("settings", "edit"\)/g)).toBe(2); // POST + GET
   });
 
-  test("POST /api/admin/run-migration — exige le rôle super_admin (comportement actuel figé)", () => {
+  test("POST /api/admin/run-migration — exige settings.edit (comportement actuel figé)", () => {
     const src = read("src/app/api/admin/run-migration/route.js");
     expect(src).toMatch(/export async function POST/);
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    expect(src).toMatch(/requireAuthorization\("settings", "edit"\)/);
   });
 
   test("GET /api/admin/projects — exige le rôle super_admin (comportement actuel figé)", () => {
@@ -212,10 +213,10 @@ describe("security — audit/session surfaces pin their role allowlist", () => {
 });
 
 describe("superadmin — full-state, group assignment and standard types are super_admin only", () => {
-  test("GET /api/superadmin/full-state — createHandler restreint à super_admin (comportement actuel figé)", () => {
-    expect(read("src/app/api/superadmin/full-state/route.js")).toMatch(
-      /createHandler\(\s*\{\s*roles:\s*\["super_admin"\]\s*\}/,
-    );
+  test("GET /api/superadmin/full-state — exige settings.view (comportement actuel figé)", () => {
+    const src = read("src/app/api/superadmin/full-state/route.js");
+    expect(src).toMatch(/createHandler\(async/);
+    expect(src).toMatch(/requireAuthorization\("settings", "view"\)/);
   });
 
   test("POST /api/superadmin/groups/assignment — createHandler restreint à super_admin (comportement actuel figé)", () => {
@@ -242,8 +243,8 @@ describe("platform — collections and import pipelines are super_admin gated", 
     ["POST /api/platform/import/preview", "src/app/api/platform/import/preview/route.js"],
     ["POST /api/platform/import/execute", "src/app/api/platform/import/execute/route.js"],
     ["POST /api/platform/import/review-flags", "src/app/api/platform/import/review-flags/route.js"],
-  ])("%s — exige le rôle super_admin (comportement actuel figé)", (_label, file) => {
-    expect(read(file)).toMatch(/requireAuth\(\["super_admin"\]\)/);
+  ])("%s — exige settings.edit (comportement actuel figé)", (_label, file) => {
+    expect(read(file)).toMatch(/requireAuthorization\("settings", "edit"\)/);
   });
 });
 

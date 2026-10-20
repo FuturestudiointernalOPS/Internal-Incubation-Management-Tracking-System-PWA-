@@ -1,5 +1,6 @@
 import { createHandler } from "@/lib/api/createHandler";
 import { NextResponse } from "next/server";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   countActiveV2Programs,
   countActiveProjects,
@@ -12,7 +13,12 @@ import {
 
 export const dynamic = "force-dynamic";
 
-export const GET = createHandler({ roles: ["super_admin"] }, async () => {
+export const GET = createHandler(async () => {
+  // Lot 4.2 — the platform console is an explicit read capability, not a role
+  // name. The platform owner bypasses it; no other profile carries it.
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
+
   const [
     programsResult,
     participantsResult,

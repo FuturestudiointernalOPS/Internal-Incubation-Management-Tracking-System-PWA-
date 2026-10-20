@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { buildImportPreview } from "@/services/platform/import";
 
 /**
@@ -16,8 +17,11 @@ import { buildImportPreview } from "@/services/platform/import";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const payload = await req.json();
     const { status, body } = await buildImportPreview(payload);
