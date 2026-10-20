@@ -127,7 +127,16 @@ const { requireScopedAccess } = require("@/server/authz/responses");
 const { resolveContextAssignment } = require("@/services/authorization/scopedAccess");
 const { evaluateAuthorization } = require("@/services/authorization/context");
 
-const allow = { resource: "program", contextId: "P1", module: "programs", capability: "view" };
+const allow = {
+  resource: "program",
+  contextId: "P1",
+  module: "programs",
+  capability: "view",
+  // These tests exercise the ASSIGNMENT-derived access (the facilitator
+  // delivery path), not program management — which D-4 scopes to the manager
+  // profile. The unified decision lets the caller name that intent.
+  scopePolicy: "program_staffed",
+};
 
 beforeEach(() => {
   mockDbRows.v2ProgramStaff = [];
@@ -171,6 +180,7 @@ describe("C/D — facilitator: program-scoped access", () => {
       contextId: "P1",
       module: "facilitator",
       capability: "participants.view",
+      scopePolicy: "program_staffed",
     });
     expect(await status(res)).toBe(403);
   });
@@ -182,6 +192,7 @@ describe("C/D — facilitator: program-scoped access", () => {
       contextId: "P1",
       module: "facilitator",
       capability: "participants.view",
+      scopePolicy: "program_staffed",
     });
     expect(await status(res)).toBe(200);
   });

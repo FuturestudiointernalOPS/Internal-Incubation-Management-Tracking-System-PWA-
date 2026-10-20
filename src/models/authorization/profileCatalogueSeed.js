@@ -105,6 +105,21 @@ export const PROFILE_CATALOGUE_SEED = [
   { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
     lms: { view: 1, edit: 3 },
   } },
+  // PROGRAM facilitator — the delivery rights, seeded so the PROFILE can become
+  // the single source of a facilitator's rights (Lot 3, D-5). The levels mirror
+  // the per-assignment checkboxes they will replace. Until an assignment carries
+  // the key, the checkboxes keep deciding, so seeding changes no answer.
+  { key: "facilitator", label: "Program Facilitator", context: "program", allowedRoles: ["staff", "member"], capabilities: {
+    facilitator: {
+      "participants.view": 2,
+      "attendance.view": 2,
+      "attendance.record": 2,
+      "assignments.view": 2,
+      "assignments.grade": 2,
+      "sessions.conduct": 2,
+      "reviews.submit": 2,
+    },
+  } },
   { key: "finance_assistant", label: "Finance Assistant", context: "staff", allowedRoles: ["staff"], capabilities: {
     finance: { view: 1, create: 2, edit: 3 },
     reports: { view: 1 },
@@ -129,13 +144,11 @@ export const ROLE_PROFILE_DEFAULTS_SEED = {
   member: "venture_member",
 };
 
-/** One-time, idempotent, administrator-respecting. */
-export async function ensureProfileCatalogueSeed() {
-  await ensureProfileCapabilitiesSchema();
-
+/** Insert-only catalogue rows for the supplied profile definitions. */
+async function seedProfileDefinitions(definitions) {
   let profiles = 0;
   let capabilities = 0;
-  for (const def of PROFILE_CATALOGUE_SEED) {
+  for (const def of definitions) {
     const inserted = await db.execute({
       sql: `INSERT INTO profiles (key, context, allowed_roles, is_active, label)
             VALUES (?, ?, ?, 1, ?)
@@ -157,6 +170,14 @@ export async function ensureProfileCatalogueSeed() {
       }
     }
   }
+  return { profiles, capabilities };
+}
+
+/** One-time, idempotent, administrator-respecting. */
+export async function ensureProfileCatalogueSeed() {
+  await ensureProfileCapabilitiesSchema();
+
+  const { profiles, capabilities } = await seedProfileDefinitions(PROFILE_CATALOGUE_SEED);
 
   // The role → profile defaults. Insert-only: an existing default (possibly
   // administrator-edited from the Profiles screen) is never overwritten.
@@ -172,4 +193,17 @@ export async function ensureProfileCatalogueSeed() {
   }
 
   return { success: true, profiles, capabilities, roleDefaults };
+}
+
+/**
+ * Lot 3.4 / D-5 — the facilitator PROFILE seeds on databases that bootstrapped
+ * before it existed. `ensureProfileCatalogueSeed` is recorded once per database,
+ * so adding an entry to the catalogue is not enough for an existing one; this
+ * runs under its own migration key and is insert-only (administrator edits win).
+ */
+export async function ensureFacilitatorProfileSeed() {
+  await ensureProfileCapabilitiesSchema();
+  const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "facilitator");
+  const seeded = await seedProfileDefinitions(definitions);
+  return { success: true, ...seeded };
 }

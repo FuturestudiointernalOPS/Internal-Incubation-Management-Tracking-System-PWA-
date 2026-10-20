@@ -20,8 +20,8 @@ import { seedProfiles } from "./profilesStore";
 import {
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
-import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
-import { backfillProgramAssignmentProfileKeys } from "./programAssignmentProfileKey";
+import { ensureProfileCatalogueSeed, ensureFacilitatorProfileSeed } from "./profileCatalogueSeed";
+import { backfillProgramAssignmentProfileKeys, backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
@@ -150,12 +150,23 @@ export function ensureCapabilityBackfills() {
           // DIRECT profile seed: so a FRESH database gets the catalogue even
           // with no `access_profiles` at all — the retired layer is gone.
           runAuthzMigration("profile-catalogue-seed-v1", ensureProfileCatalogueSeed),
+          // Lot 3.4 / D-5 — the facilitator PROFILE. The catalogue seed above is
+          // recorded once per database, so an existing one never receives a
+          // profile added later; this key seeds it (insert-only).
+          runAuthzMigration("facilitator-profile-seed-v1", ensureFacilitatorProfileSeed),
           // The per-assignment profile override moves from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
           // column and fills it NULL-only from the legacy id.
           runAuthzMigration(
             "program-assignment-profile-key-v1",
             backfillProgramAssignmentProfileKeys,
+          ),
+          // Lot 3.4 / D-5 — give every facilitator assignment the facilitator
+          // PROFILE. Inert until the checkboxes lose precedence; it removes the
+          // data gap that would otherwise deny every facilitator at the switch.
+          runAuthzMigration(
+            "facilitator-profile-key-v1",
+            backfillFacilitatorProfileKeys,
           ),
         ]);
         reportFailedMigrations(alignment);

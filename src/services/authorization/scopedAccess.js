@@ -39,11 +39,10 @@ import { AUTHZ_REASONS } from "./contextDecisions";
 import { isWithinScope, resolveVentureScopeId } from "./scope";
 import { shadowCheck, shadowEnabled } from "./shadow";
 import {
-  getProgramStaffAssignmentRows,
-  getContactRoleAssignmentRows,
   getProjectMembershipRows,
   getVentureMembershipRows,
 } from "@/models/authorization/contextAssignmentReads";
+import { resolveProgramAssignment as resolveProgramStanding } from "./programAssignment";
 
 /**
  * c3a — the ENGINE scope policy a scoped `resource` maps to, for the shadow
@@ -86,7 +85,8 @@ export async function resolveContextAssignment({ resource, contextId, userCid, u
   await initDb();
   switch (resource) {
     case "program":
-      return resolveProgramAssignment(contextId, userCid, userEmail);
+      // ONE calculation, shared with the facilitator guard (step 3.3).
+      return resolveProgramStanding({ programId: contextId, userCid, userEmail });
     case "project":
       return resolveProjectAssignment(contextId, userCid);
     case "venture":
@@ -97,20 +97,10 @@ export async function resolveContextAssignment({ resource, contextId, userCid, u
 }
 
 /**
- * Program assignment: ANY v2_program_staff row for this program (facilitator,
- * program_manager, assistant, …) OR a current contact_roles 'program'
- * assignment (the generalized layer, which also preserves participant →
- * facilitator history — the previous relationship stays historical via
- * is_current). Organizational membership is deliberately NOT consulted here.
+ * Program assignment (ANY staff role, or a current contact_roles row) now lives
+ * in `./programAssignment`, so the facilitator guard and this decision share one
+ * answer instead of two divergent ones.
  */
-async function resolveProgramAssignment(contextId, userCid, userEmail) {
-  const rows = await getProgramStaffAssignmentRows(contextId, userCid, userEmail);
-  if (rows.length > 0) return { source: "v2_program_staff", assignment: rows[0] };
-
-  const contactRoleRows = await getContactRoleAssignmentRows(contextId, userCid);
-  if (contactRoleRows.length > 0) return { source: "contact_roles", assignment: contactRoleRows[0] };
-  return null;
-}
 
 async function resolveProjectAssignment(contextId, userCid) {
   const rows = await getProjectMembershipRows(contextId, userCid);
@@ -135,9 +125,21 @@ async function resolveVentureAssignment(contextId, userCid) {
  *
  * @param {{module: string, capability: string, minLevel?: number,
  *          resource?: "program"|"project"|"venture"|null,
- *          contextId?: string|number|null}} params
+ *          contextId?: string|number|null,
+ *          scopePolicy?: string|null}} params
+ *   `scopePolicy` names the perimeter when one resource has more than one
+ *   intent. A program WRITE is scoped by the manager profile; FACILITATOR
+ *   delivery is scoped by the staffing assignment. Without the override the
+ *   resource's declared policy applies.
  */
-export async function decide({ module, capability, minLevel = 1, resource = null, contextId = null } = {}) {
+export async function decide({
+  module,
+  capability,
+  minLevel = 1,
+  resource = null,
+  contextId = null,
+  scopePolicy = null,
+} = {}) {
   // GLOBAL path — nothing to scope to: the capability primitive decides.
   if (!resource) {
     return evaluateAuthorization(module, capability, minLevel);
@@ -185,15 +187,17 @@ export async function decide({ module, capability, minLevel = 1, resource = null
       );
     } else {
       const scopeId = resource === "venture" ? await resolveVentureScopeId(contextId) : contextId;
-      inScope = await isWithinScope(ENFORCED_SCOPE_POLICY[resource], session.cid, scopeId, {
+      const policy = scopePolicy || ENFORCED_SCOPE_POLICY[resource];
+      inScope = await isWithinScope(policy, session.cid, scopeId, {
         email: session.email,
       });
     }
 
     // SHADOW — compare the enforced perimeter with the rule it replaced, WITHOUT
     // changing the outcome. Gated by AUTHZ_SHADOW_MODE, inert by default. Ventures
-    // have only ever had one rule, so there is nothing to compare there.
-    if (shadowEnabled()) {
+    // have only ever had one rule, so there is nothing to compare there. A caller
+    // that named its own policy is not part of the switch being measured.
+    if (shadowEnabled() && !scopePolicy) {
       const policy = SHADOW_SCOPE_POLICY[resource];
       if (policy) {
         try {
