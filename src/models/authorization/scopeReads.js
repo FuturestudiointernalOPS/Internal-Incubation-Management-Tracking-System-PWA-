@@ -145,6 +145,22 @@ export async function getVentureIdByUuid(value) {
   return result.rows?.[0]?.venture_id ?? null;
 }
 
+/**
+ * Does this venture exist, by public VNT code OR internal id?
+ *
+ * Used to tell "there is no such venture" (404) apart from "it is not yours"
+ * (403). A boolean only: nothing about the record is read, so the answer cannot
+ * leak its content.
+ */
+export async function ventureExists(ventureRef) {
+  const value = String(ventureRef);
+  const result = await db.execute({
+    sql: "SELECT 1 FROM ventures WHERE venture_id = ? OR id::text = ? LIMIT 1",
+    args: [value, value],
+  });
+  return result.rows.length > 0;
+}
+
 /** True when the target is a participant of a program the staff member serves. */
 export async function contactSharesStaffedProgram(targetCid, staffCid, email) {
   const result = await db.execute({

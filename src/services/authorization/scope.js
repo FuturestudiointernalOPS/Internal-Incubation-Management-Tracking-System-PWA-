@@ -43,6 +43,7 @@ import {
   getVentureManagedHistoryScopeIds,
   getProgramManagedHistoryScopeIds,
   getVentureIdByUuid,
+  ventureExists as ventureExistsRead,
   contactSharesStaffedProgram,
 } from "@/models/authorization/scopeReads";
 
@@ -116,6 +117,28 @@ export async function resolveVentureScopeId(ventureId) {
   } catch (error) {
     console.warn("[Scope] resolveVentureScopeId failed:", error.message);
     return value;
+  }
+}
+
+/**
+ * D-6 — does the record itself EXIST?
+ *
+ * The unified venture gate answers "not yours" (403) for both a real venture
+ * and a missing one, because the perimeter predicate cannot tell them apart.
+ * The product chose to say the real reason, so the gate may ask this question
+ * when it is about to refuse. An unreadable answer is `false`: the gate then
+ * answers out-of-scope (403). An infrastructure failure must never turn into a
+ * confident 404.
+ */
+export async function ventureExists(ventureId) {
+  if (ventureId === null || ventureId === undefined || ventureId === "") {
+    return false;
+  }
+  try {
+    return await ventureExistsRead(String(ventureId));
+  } catch (error) {
+    console.warn("[Scope] ventureExists failed:", error.message);
+    return false;
   }
 }
 

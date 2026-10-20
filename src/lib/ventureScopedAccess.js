@@ -1,7 +1,7 @@
 import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
-import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
+import { isWithinScope, resolveVentureScopeId, ventureExists } from "@/services/authorization/scope";
 
 /**
  * PHASE 5c — VENTURE SCOPED ACCESS (the only venture gate).
@@ -21,6 +21,10 @@ import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/s
  *   X-Authz-Decision: capability-missing | out-of-scope | capability-or-scope-denied
  *   { success: false, error: "errors.insufficientPermissions",
  *     missing: { capability: "ventures.view", scope: "venture_own" } }
+ *
+ *   HTTP 404  (D-6 — the venture genuinely does not exist)
+ *   X-Authz-Decision: not-found
+ *   { success: false, error: "errors.notFound" }
  *
  * — so "what is working and what is not" is answered by the response itself.
  * Use scripts/authz-venture-coverage.mjs for the census and
@@ -45,10 +49,16 @@ import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/s
  * Returned decisions mirror the X-Authz-Decision header values exactly, so a
  * caller can surface the same vocabulary the routes already emit:
  *   unauthenticated | super-admin | capability+scope
- *   capability-missing | out-of-scope
+ *   capability-missing | out-of-scope | not-found
  * (Throw rather than return for infrastructure failure — the callers below
  * translate that into `system-failure`, so a broken resolver is never a silent
  * allow.)
+ *
+ * D-6 (option 1: say the real reason) — when the perimeter refuses, the verdict
+ * asks whether the record exists. A venture that is genuinely absent is
+ * `not-found`, not `out-of-scope`; the caller answers 404 accordingly. The
+ * existence read happens ONLY on the refusal path, so an allowed request pays
+ * nothing for it.
  *
  * The caller passes the session, so the read endpoint and the guard cannot
  * disagree about WHO is asking.
@@ -86,6 +96,13 @@ export async function resolveVentureScopedDecision({
       email: session.email,
     }));
   if (!within) {
+    if (!(await ventureExists(ventureId))) {
+      return {
+        allowed: false,
+        decision: "not-found",
+        missing: { capability: `${module}.${capability}`, scope: "venture_own" },
+      };
+    }
     return {
       allowed: false,
       decision: "out-of-scope",
@@ -153,6 +170,16 @@ export async function requireVentureScopedAccess({
             },
             403,
             "out-of-scope",
+          ),
+        };
+      case "not-found":
+        // D-6 — the record does not exist. That is a different answer from "it
+        // exists and is not yours", and the product chose to say so.
+        return {
+          error: denied(
+            { success: false, error: "errors.notFound" },
+            404,
+            "not-found",
           ),
         };
       default:
