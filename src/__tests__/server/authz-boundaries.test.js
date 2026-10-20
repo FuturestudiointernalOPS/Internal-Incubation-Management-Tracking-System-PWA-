@@ -25,6 +25,11 @@ jest.mock("@/lib/db", () => ({
 }));
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn() }));
 jest.mock("@/server/auth/guards", () => ({ requireSession: jest.fn() }));
+// The one-time migrations are not what these guard tests exercise; they are
+// awaited in production before the first facilitator decision (D-5).
+jest.mock("@/models/authorization/backfill", () => ({
+  ensureCapabilityBackfills: jest.fn(async () => {}),
+}));
 
 const { getSession } = require("@/server/auth/session");
 const { requireSession } = require("@/server/auth/guards");
@@ -137,17 +142,16 @@ describe("resolveProgramAssignment", () => {
 });
 
 describe("getFacilitatorPermissionLevel", () => {
-  it("lets an explicit override on the assignment win", async () => {
+  it("IGNORES an explicit override on the assignment — the profile decides (D-5)", async () => {
     serveDb([]);
 
     const level = await authz.getFacilitatorPermissionLevel(
       "7",
-      { permissions: { "sessions.conduct": 3 } },
+      { role: "facilitator", permissions: { "sessions.conduct": 3 } },
       "sessions.conduct",
     );
 
-    expect(level).toBe(3);
-    expect(mockExecute).not.toHaveBeenCalled();
+    expect(level).toBe(0); // the profile grants nothing and no default is set
   });
 
   it("falls back to the assignment's profile", async () => {
@@ -284,7 +288,13 @@ describe("requireProgramFacilitator", () => {
 
 describe("enforceFacilitatorProgramAccess", () => {
   it("checks the capability level when one is requested", async () => {
-    serveDb([["FROM v2_program_staff", { rows: [{ ...LEGACY_ASSIGNMENT, permissions: { "sessions.conduct": 1 } }] }]]);
+    serveDb([
+      ["FROM v2_program_staff", { rows: [LEGACY_ASSIGNMENT] }],
+      [
+        "FROM profile_capabilities",
+        { rows: [{ module: "facilitator", capability: "sessions.conduct", access_level: 1 }] },
+      ],
+    ]);
 
     await expect(authz.enforceFacilitatorProgramAccess("7", "sessions.conduct", 1)).resolves.toBeNull();
 

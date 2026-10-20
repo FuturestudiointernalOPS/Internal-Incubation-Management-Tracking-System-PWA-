@@ -13,6 +13,7 @@ import {
   listProfileCapabilities,
   getFacilitatorDefaultPermissions,
 } from "@/models/authorization/accessQueries";
+import { ensureCapabilityBackfills } from "@/models/authorization/backfill";
 import { resolveProgramAssignment as resolveStanding } from "@/services/authorization/programAssignment";
 import { shadowCheck, shadowEnabled } from "@/services/authorization/shadow";
 
@@ -34,12 +35,19 @@ export async function resolveProgramAssignment(programId, userCid, userEmail = n
  * program default).
  */
 async function levelFromProfileOrDefault(programId, assignment, capability) {
-  if (assignment?.profile_key) {
-    // Fall back to the assignment's PROFILE capabilities (by key).
+  // The KEY is explicit when the assignment carries one. Otherwise a known
+  // role resolves to its profile, so a facilitator assignment created AFTER the
+  // one-time backfill still reads the profile instead of silently losing every
+  // right.
+  const profileKey =
+    assignment?.profile_key ||
+    (String(assignment?.role || "") === "facilitator" ? "facilitator" : null);
+
+  if (profileKey) {
     // Profile rows are (module, capability, access_level); overrides use
     // "module.capability" dot keys — normalize both sides for the lookup.
     try {
-      const profRows = await listProfileCapabilities(assignment.profile_key);
+      const profRows = await listProfileCapabilities(profileKey);
       for (const row of profRows) {
         const dotKey = `${row.module}.${row.capability}`;
         if (dotKey === capability || row.capability === capability) {
@@ -72,30 +80,37 @@ function overrideLevelFor(assignment, capability) {
 
 /**
  * Resolves the effective access level for a capability within a program.
- * Individual override beats the profile, which beats the program default.
- * Returns 0 when denied.
  *
- * D-5 (profile as the single source) is measured here: with shadow mode on, the
- * answer the PROFILE would give is computed alongside and any divergence is
- * logged, WITHOUT changing the outcome. The switch itself waits until the
- * profile is populated and the shadow report is clean.
+ * D-5 — the PROFILE is the single source: the assignment's profile (or the
+ * profile its role derives to), then the program default. The per-assignment
+ * checkboxes are IGNORED; they are measured in shadow against the profile so a
+ * divergence is visible, but they no longer decide.
+ *
+ * Returns 0 when denied.
  */
 export async function getFacilitatorPermissionLevel(programId, assignment, capability) {
   try {
-    const overrideLevel = overrideLevelFor(assignment, capability);
-
-    if (!shadowEnabled()) {
-      if (overrideLevel !== null) return overrideLevel;
-      return (await levelFromProfileOrDefault(programId, assignment, capability)).level;
-    }
+    // D-5 depends on two one-time migrations (the facilitator profile and the
+    // assignment key). The authorization resolver already awaits them before any
+    // decision; this guard does not pass through it, so it waits too. Memoised
+    // per process — a no-op after the first call.
+    await ensureCapabilityBackfills();
 
     const target = await levelFromProfileOrDefault(programId, assignment, capability);
-    shadowCheck({
-      legacyAllowed: (overrideLevel ?? target.level) >= 1,
-      engineAllowed: target.level >= 1,
-      meta: { resource: "program", policy: "facilitator_rights", capability },
-    });
-    return overrideLevel !== null ? overrideLevel : target.level;
+
+    // Transition measurement: the checkbox rule that used to win is computed
+    // alongside and logged, without changing the outcome.
+    if (shadowEnabled()) {
+      const overrideLevel = overrideLevelFor(assignment, capability);
+      const legacyLevel = overrideLevel !== null ? overrideLevel : target.level;
+      shadowCheck({
+        legacyAllowed: legacyLevel >= 1,
+        engineAllowed: target.level >= 1,
+        meta: { resource: "program", policy: "facilitator_rights", capability },
+      });
+    }
+
+    return target.level;
   } catch {
     return 0;
   }
