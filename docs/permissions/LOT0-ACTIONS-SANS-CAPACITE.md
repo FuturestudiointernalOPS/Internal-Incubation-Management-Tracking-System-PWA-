@@ -1,19 +1,19 @@
 # Lot 0 — actions serveur sans capacité (liste exacte)
 
-Mesuré le 2026-10-20T22:36:40.121Z.
+Mesuré le 2026-10-20T22:38:56.629Z.
 
 Définition : une action est « sans capacité » quand aucun contrôle de fichier ne vérifie une capacité. Les catégories distinguent les trous des déclarations légitimes.
 
 | Catégorie | Nombre | Sens |
 |---|---:|---|
-| À protéger | 73 | Trou de décision à corriger |
-| À vérifier — décision déléguée | 3 | Périmètre présent, capacité absente |
+| À protéger | 44 | Trou de décision à corriger |
+| À vérifier — décision déléguée | 0 | Périmètre présent, capacité absente |
 | Personnelle légitime | 33 | Déclarée « soi-même » |
 | Ouverte assumée | 2 | Déclarée publique / hub / stub |
 
-Le compteur d'audit « requireAuth sans contrôle central » est de **84** fichiers. La liste ci-dessous en contient **111** parce qu'elle inclut aussi les enveloppes d'action et les lectures de session manuelles.
+Le compteur d'audit « requireAuth sans contrôle central » est de **82** fichiers. La liste ci-dessous en contient **79** parce qu'elle inclut aussi les enveloppes d'action et les lectures de session manuelles.
 
-## Compteur d'audit strict (84)
+## Compteur d'audit strict (82)
 
 Ces fichiers appellent la garde de session mais jamais le contrôle central de capacité. Une capacité peut toutefois être vérifiée par une garde composée : la colonne le dit.
 
@@ -67,12 +67,10 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 | `src/app/api/participant/timeline/route.js` | non | non |
 | `src/app/api/participants/route.js` | oui | oui |
 | `src/app/api/platform/collections/route.js` | non | non |
-| `src/app/api/platform/investor-run/route.js` | non | non |
 | `src/app/api/pm/full-state/route.js` | non | oui |
 | `src/app/api/profile/history/route.js` | non | non |
 | `src/app/api/projects/invitations/respond/route.js` | non | non |
 | `src/app/api/retros/current/route.js` | non | non |
-| `src/app/api/send-pending/route.js` | non | non |
 | `src/app/api/standups/current/route.js` | non | non |
 | `src/app/api/submissions/route.js` | oui | oui |
 | `src/app/api/tasks/assignment-action/route.js` | non | non |
@@ -104,48 +102,19 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 | `src/app/api/ventures/[id]/progress/route.js` | oui | oui |
 | `src/app/api/workspaces/route.js` | non | non |
 
-## À protéger (73)
+## À protéger (44)
 
 | Fichier | Garde présente | Périmètre | Compteur d'audit strict |
 |---|---|---|---|
 | `src/app/api/auth/invite-family/route.js` | requireAuth | non | oui |
-| `src/app/api/blockers/discuss/route.js` | requireAuth | non | oui |
-| `src/app/api/blockers/route.js` | requireAuth | non | oui |
-| `src/app/api/calendar/route.js` | requireAuth | non | oui |
 | `src/app/api/campaigns/[id]/route.js` | requireAuth | non | oui |
 | `src/app/api/campaigns/route.js` | createHandler | non | non |
-| `src/app/api/contact-emails/route.js` | requireAuth | non | oui |
-| `src/app/api/followups/route.js` | createHandler | non | non |
 | `src/app/api/integrations/google-calendar/connect/route.js` | requireAuth | non | oui |
-| `src/app/api/intents/[id]/route.js` | requireAuth | non | oui |
-| `src/app/api/intents/[id]/tasks/route.js` | requireAuth | non | oui |
-| `src/app/api/intents/route.js` | requireAuth | non | oui |
 | `src/app/api/investor/approval/route.js` | requireAuth | non | oui |
 | `src/app/api/investor/campaigns/route.js` | requireAuth | non | oui |
 | `src/app/api/journey-reports/route.js` | getSession | non | non |
-| `src/app/api/notifications/route.js` | requireAuth | non | oui |
-| `src/app/api/notifications/venture/route.js` | createHandler | non | non |
-| `src/app/api/participant/full-state/route.js` | requireAuth | non | oui |
-| `src/app/api/participant/submissions/route.js` | createHandler | non | non |
 | `src/app/api/platform/collections/route.js` | requireAuth | non | oui |
-| `src/app/api/platform/investor-run/route.js` | requireAuth | non | oui |
 | `src/app/api/platform/notifications/route.js` | getSession | non | non |
-| `src/app/api/projects/assignments/route.js` | createHandler | non | non |
-| `src/app/api/projects/invitations/respond/route.js` | requireAuth | non | oui |
-| `src/app/api/projects/invitations/route.js` | createHandler | non | non |
-| `src/app/api/retros/current/route.js` | requireAuth | non | oui |
-| `src/app/api/send-pending/route.js` | requireAuth | non | oui |
-| `src/app/api/standups/current/route.js` | requireAuth | non | oui |
-| `src/app/api/tasks/assignment-action/route.js` | requireAuth | non | oui |
-| `src/app/api/tasks/assignments/route.js` | requireAuth | non | oui |
-| `src/app/api/tasks/carryover/route.js` | createHandler | non | non |
-| `src/app/api/tasks/comments/route.js` | createHandler | non | non |
-| `src/app/api/tasks/duplicate/route.js` | requireAuth | non | oui |
-| `src/app/api/tasks/logs/route.js` | createHandler | non | non |
-| `src/app/api/tasks/reconcile/route.js` | requireAuth | non | oui |
-| `src/app/api/tasks/resources/route.js` | createHandler | non | non |
-| `src/app/api/tasks/route.js` | requireAuth | non | oui |
-| `src/app/api/upload/route.js` | requireAuth | non | oui |
 | `src/app/api/v2/groups/route.js` | requireAuth | non | oui |
 | `src/app/api/v2/program-staff/route.js` | requireAuth | non | oui |
 | `src/app/api/venture-kpi-definitions/route.js` | requireAuth | non | oui |
@@ -182,13 +151,9 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 | `src/app/api/ventures/assigned/route.js` | createHandler | non | non |
 | `src/app/api/ventures/lead-manager/home/route.js` | createHandler | non | non |
 
-## À vérifier — décision déléguée (3)
+## À vérifier — décision déléguée (0)
 
-| Fichier | Garde présente | Périmètre | Compteur d'audit strict |
-|---|---|---|---|
-| `src/app/api/admin/projects/[id]/reports/generate/route.js` | requireAuth | oui | oui |
-| `src/app/api/pm/full-state/route.js` | requireAuth | oui | oui |
-| `src/app/api/projects/discuss/route.js` | createHandler | oui | non |
+Aucune action.
 
 ## Personnelle légitime (33)
 

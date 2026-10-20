@@ -251,6 +251,13 @@ function worklist(entries, declarations) {
   // would hide that the only remaining work on it is DELETION (proved by
   // traffic), not a capability declaration.
   const retiredFiles = new Set((declarations.RETIRED_ROUTES || []).map((entry) => entry.file));
+  // A DELEGATED decision names the service and the rule that decide. The file
+  // legitimately has no capability gate of its own, and the registry already
+  // carries the declaration a reviewer must follow — so the worklist must read
+  // the SAME registry instead of reporting a decorated action as a hole.
+  const delegatedFiles = new Set(
+    (declarations.DELEGATED_DECISIONS || []).map((entry) => entry.file),
+  );
   const prefixes = declarations.SELF_SCOPED_PREFIXES || [];
   const hubs = declaredSet("ROUTE_HUBS");
   const stubs = declaredSet("NO_GUARD_ALLOWED");
@@ -258,6 +265,7 @@ function worklist(entries, declarations) {
   return entries
     .filter((entry) => hasSessionGate(entry) && !entry.hasCapability)
     .filter((entry) => !retiredFiles.has(entry.file))
+    .filter((entry) => !delegatedFiles.has(entry.file))
     .map((entry) => {
       let category;
       if (
