@@ -75,11 +75,9 @@ export default function LoginPage() {
                       ? "/pm/profile"
                       : userRole === "facilitator"
                           ? "/facilitator/profile"
-                          : userRole === "participant"
-                            ? "/participant/profile"
-                            : userRole === "member" || userRole === "founder" || userRole === "applicant"
-                              ? "/workspaces"
-                              : "/participant/profile";
+                          : userRole === "applicant"
+                            ? "/workspaces"
+                            : "/participant/profile";
               }
             } catch (_) {}
           }

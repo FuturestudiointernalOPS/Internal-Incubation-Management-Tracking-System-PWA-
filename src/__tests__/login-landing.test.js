@@ -71,9 +71,6 @@ describe("the personal world follows what the person OWNS", () => {
     expect(resolveLanding({ role: "member", ventures: [venture()] })).toBe(
       "/participant/ventures/VNT-1",
     );
-    expect(resolveLanding({ role: "participant", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
-    );
   });
 
   test("the same is true for a legacy founder badge", () => {
@@ -129,12 +126,11 @@ describe("the personal world follows what the person OWNS", () => {
 describe("an assigned investor context lands in the investor space", () => {
   test("a baseline member who was made an investor belongs in their investor space", () => {
     expect(resolveLanding({ role: "member", isInvestor: true })).toBe("/investor/dashboard");
-    expect(resolveLanding({ role: "participant", isInvestor: true })).toBe("/investor/dashboard");
   });
 
   test("no investor context leaves the personal landing untouched", () => {
     expect(resolveLanding({ role: "member", isInvestor: false })).toBe("/participant");
-    expect(resolveLanding({ role: "participant" })).toBe("/participant");
+    expect(resolveLanding({ role: "member" })).toBe("/participant");
   });
 
   test("an owned Venture keeps the Venture landing — the investor door remains in the sidebar", () => {
@@ -156,8 +152,8 @@ describe("landingNeedsRelationships — who pays for the read", () => {
     }
   });
 
-  test("the personal identities and unknown ones do", () => {
-    for (const role of ["member", "participant", "founder", "security_officer", ""]) {
+  test("the personal identity and unknown ones do", () => {
+    for (const role of ["member", "founder", "security_officer", ""]) {
       expect(landingNeedsRelationships(role)).toBe(true);
     }
   });

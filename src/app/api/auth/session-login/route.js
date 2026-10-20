@@ -20,8 +20,6 @@ import {
   getContactByEmailOrCid,
   getTeamByUsernameForSessionLogin,
   getFamilyBySharedEmailForSessionLogin,
-  getParticipantProgramRecordForSessionLogin,
-  getLmsEnrollmentRecordForSessionLogin,
   ensureContactsLastLoginColumn,
   ensureContactsLoginCountColumn,
   recordContactLoginActivity,
@@ -256,35 +254,9 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // A participant with no real relationship (program, LMS course or venture
-    // membership) is effectively an unassigned neutral member. Instead of
-    // rejecting them, downgrade to member so they land on the empty workspace
-    // hub (no assignment is a valid state). A plain group alone is NOT a
-    // relationship — it cannot keep the participant designation.
-    if (finalRole === "participant" && !isFamilyLogin) {
-      const hasDirectProgram =
-        user.program_id && String(user.program_id).trim();
-      let hasParticipantPrograms = false;
-      let hasLms = false;
-      if (!hasDirectProgram && userCid) {
-        try {
-          const [participantProgramResult, lmsEnrollmentResult] = await Promise.all([
-            getParticipantProgramRecordForSessionLogin(userCid),
-            getLmsEnrollmentRecordForSessionLogin(userCid),
-          ]);
-          hasParticipantPrograms = participantProgramResult.rows.length > 0;
-          hasLms = lmsEnrollmentResult.rows.length > 0;
-        } catch (_) {}
-      }
-      if (
-        !hasDirectProgram &&
-        !hasParticipantPrograms &&
-        !hasLms &&
-        ventureMemberships.length === 0
-      ) {
-        finalRole = "member";
-      }
-    }
+    // (The old "participant with no relationship → member" downgrade is gone:
+    // member IS the personal identity now. The relationship decides the landing,
+    // never the identity.)
 
     // D-1 — the landing of a staff member carrying the program-manager PROFILE
     // is the PM space. Profiles are read only for a baseline staff identity, so
@@ -304,7 +276,7 @@ export async function POST(req) {
         cid: user.registration_id,
         name: user.name,
         email: user.shared_email,
-        role: "participant",
+        role: "member",
         group_name: user.name,
         is_entity: true,
         permission: permission,

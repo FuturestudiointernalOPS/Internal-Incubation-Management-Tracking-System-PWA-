@@ -27,11 +27,17 @@ export const BASELINE_IDENTITIES = ["super_admin", "staff", "member"];
 export const ENTITY_IDENTITIES = ["team"];
 
 /**
- * Contextual values still accepted at sign-in until every decision site reads
- * the PROFILE instead of the label. They are tracked as debt: the target is the
- * three baseline identities + profiles, not this list.
+ * Contextual values still accepted at sign-in: NONE.
+ *
+ * The four legacy labels are now normalized to `member` at sign-in, and their
+ * function comes from the contextual PROFILE. The array and its readers stay so
+ * the vocabulary is still declared in one place — and so a stored legacy row is
+ * still recognised (and normalized) rather than refused.
  */
-export const LEGACY_CONTEXTUAL_IDENTITIES = [
+export const LEGACY_CONTEXTUAL_IDENTITIES = [];
+
+/** The labels the migration normalized. Kept for stored-row recognition only. */
+export const RETIRED_CONTEXTUAL_LABELS = [
   "participant",
   "facilitator",
   "investor",
@@ -79,13 +85,30 @@ export function isLegacyProgramManagerRole(role) {
  * D-2 — does this value carry a given CONTEXTUAL label?
  *
  * Display and relationship rules (messaging visibility, contact filters) still
- * ask "is this person a participant / a founder?" while the contextual values
- * remain in the vocabulary. They ask it here, once, instead of comparing the
+ * ask "is this person a participant / a founder?" while stored contact rows may
+ * still carry the retired label. They ask it here, once, instead of comparing the
  * label inline: the comparison lives in the identity layer, and a caller reads
  * a named question.
  */
 export function carriesContextualValue(role, value) {
   return normalizeRole(role) === normalizeRole(value);
+}
+
+/**
+ * ONE normalization before any WRITE of an identity.
+ *
+ * A retired contextual label is a FUNCTION now, carried by a profile. Writing it
+ * back to `contacts.role` would recreate the profile ↔ role mismatch the
+ * migration just removed (the profile is only assignable to `member`). Every
+ * creation and approval path runs the value through here.
+ *
+ * Values that are not retired identities (member, staff, super_admin, team,
+ * applicant, unassigned…) pass through unchanged.
+ */
+export function normalizeIdentityForStorage(role) {
+  const value = normalizeRole(role);
+  if (RETIRED_CONTEXTUAL_LABELS.includes(value)) return "member";
+  return role;
 }
 
 /**
@@ -176,24 +199,17 @@ export function deriveLegacyRoleEnabled() {
 }
 
 /**
- * Transitional legacy-role derivation.
+ * Transitional legacy-role derivation (kept for the I2 flag).
  *
- * @param {Object} args
- * @param {string} args.storedRole  contacts.role
- * @param {boolean} [args.hasActiveParticipantProgram]
- * @param {boolean} [args.isActiveVentureOwner]
+ * There is nothing left to derive: the relationship that used to become a
+ * `participant` / `founder` label is a contextual PROFILE now. A baseline
+ * identity is returned unchanged, and a retired label is normalized to `member`.
+ *
+ * @param {{storedRole: string}} args
  * @returns {string} the role legacy gates should see
  */
-export function deriveLegacyRole({
-  storedRole,
-  hasActiveParticipantProgram = false,
-  isActiveVentureOwner = false,
-}) {
-  // Legacy contextual rows (already-mutated accounts) pass through unchanged —
-  // they keep working until I5 migrates their surfaces.
-  if (!isBaselineIdentity(storedRole)) return storedRole;
-  if (storedRole !== "member") return storedRole; // staff / super_admin
-  if (hasActiveParticipantProgram) return "participant";
-  if (isActiveVentureOwner) return "founder";
-  return "member";
+export function deriveLegacyRole({ storedRole }) {
+  if (isBaselineIdentity(storedRole)) return storedRole;
+  if (RETIRED_CONTEXTUAL_LABELS.includes(normalizeRole(storedRole))) return "member";
+  return storedRole;
 }

@@ -5,7 +5,7 @@ import { requireAssignmentAccess } from "@/server/authz/guards";
 import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { createSession, listSessions } from "@/models/workspace";
 
-export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "facilitator"] }, async (req) => {
+export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "member"] }, async (req) => {
   const body = await req.json();
   const { program_id, title, week_number, type, teacher_id, start_at } = body;
 
@@ -50,7 +50,7 @@ export const POST = createHandler({ roles: ["staff", "super_admin", "program_man
   });
 });
 
-export const GET = createHandler({ roles: ["staff", "super_admin", "program_manager", "facilitator"] }, async (req) => {
+export const GET = createHandler({ roles: ["staff", "super_admin", "program_manager", "member"] }, async (req) => {
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
 

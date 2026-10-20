@@ -37,7 +37,7 @@ export const GET = createHandler(
   // Stays on a role list for now: the team ENTITY account (role "team") has no
   // profile, so no capability expresses it yet, and the team workspace reads
   // this list. Documented in docs/permissions/LOT4-STEP4-2C.md.
-  { roles: ["staff", "super_admin", "program_manager", "team", "participant"] },
+  { roles: ["staff", "super_admin", "program_manager", "team", "member"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");

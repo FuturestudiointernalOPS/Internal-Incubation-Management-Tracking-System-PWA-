@@ -9,7 +9,7 @@ import {
 } from "@/models/ventureAssets";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
+const ROLES = ["member", "staff", "program_manager", "super_admin"];
 
 export async function GET(req, { params }) {
   try {

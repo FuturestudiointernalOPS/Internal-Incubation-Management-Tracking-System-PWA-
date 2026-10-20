@@ -7,7 +7,7 @@ import {
   isFounderForDocumentTransition, updateDocumentStatusForTransition,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
+const ROLES = ["member", "staff", "program_manager", "super_admin"];
 const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 
 const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];

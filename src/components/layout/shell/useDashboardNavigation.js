@@ -26,6 +26,7 @@ import {
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
 import {
+  carriesContextualValue,
   isInternalStaffRole,
   isLegacyProgramManagerRole,
   isPlatformOwnerRole,
@@ -82,7 +83,7 @@ function shellRole(userRole, role) {
 // an actual course enrollment, never from the role string. `investor` joins them
 // now that its role mask is gone (Phase H) — the branch already renders the
 // investor space from the relationship.
-const PERSONAL_ROLES = ["member", "founder", "participant", "team", "investor"];
+const PERSONAL_ROLES = ["member", "team"];
 
 /** Whether the connected person actually holds at least one course enrollment. */
 const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
@@ -144,7 +145,8 @@ export function useDashboardNavigation({
       // Investors use Investor Space as their home. Other personal accounts
       // keep the common participant dashboard, and team accounts keep /team.
       const dashboardHref = activeRole === "team" ? "/team" : "/participant";
-      const investorAccount = activeRole === "investor" || rel.isInvestor;
+      const investorAccount =
+        carriesContextualValue(activeRole, "investor") || rel.isInvestor;
       const items = investorAccount ? [] : [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
       ];

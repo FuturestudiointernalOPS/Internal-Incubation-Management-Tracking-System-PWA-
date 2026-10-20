@@ -13,9 +13,6 @@ import {
   getContactByEmailOrId,
   getTeamByUsernameForLogin,
   getFamilyBySharedEmailForLogin,
-  getParticipantProgramRecordForLogin,
-  getLmsEnrollmentRecordForLogin,
-  getVentureMembershipRecordForLogin,
   ensureContactsActivatedAtColumn,
   ensureContactsLastLoginColumnForLogin,
   ensureContactsLoginCountColumnForLogin,
@@ -290,34 +287,9 @@ export const POST = withRequestContext(async function POST(req) {
       userLanguage = user.language;
     }
 
-    // A participant with no real relationship (program, LMS course or venture
-    // membership) is effectively an unassigned neutral member. Downgrade
-    // instead of rejecting so they reach the empty workspace hub rather than
-    // a broken participant dashboard. A plain group alone is NOT a
-    // relationship — it cannot keep the participant designation.
-    if (finalRole === "participant" && !isFamilyLogin) {
-      const hasDirectProgram =
-        user.program_id && String(user.program_id).trim();
-      let hasParticipantPrograms = false;
-      let hasLms = false;
-      let hasVenture = false;
-      if (!hasDirectProgram && user.cid) {
-        try {
-          const [participantProgramResult, lmsEnrollmentResult, ventureMembershipResult] =
-            await Promise.all([
-              getParticipantProgramRecordForLogin(user.cid),
-              getLmsEnrollmentRecordForLogin(user.cid),
-              getVentureMembershipRecordForLogin(user.cid),
-            ]);
-          hasParticipantPrograms = participantProgramResult.rows.length > 0;
-          hasLms = lmsEnrollmentResult.rows.length > 0;
-          hasVenture = ventureMembershipResult.rows.length > 0;
-        } catch (_) {}
-      }
-      if (!hasDirectProgram && !hasParticipantPrograms && !hasLms && !hasVenture) {
-        finalRole = "member";
-      }
-    }
+    // (The old "participant with no relationship → member" downgrade is gone:
+    // member IS the personal identity now, so there is nothing left to downgrade.
+    // The relationship still decides the landing, never the identity.)
 
     // For Family login, we need to map some fields to match participant structure
     const responseUser = isFamilyLogin
@@ -326,7 +298,7 @@ export const POST = withRequestContext(async function POST(req) {
           cid: user.registration_id, // Map reg ID to CID for dashboard lookup
           name: user.name,
           group_name: user.name,
-          role: "participant",
+          role: "member",
           is_entity: true,
           permission: permission,
         }

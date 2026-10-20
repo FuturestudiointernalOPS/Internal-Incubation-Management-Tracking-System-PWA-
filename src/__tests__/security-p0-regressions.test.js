@@ -142,7 +142,7 @@ describe("POST /api/contacts — role and status are server-controlled", () => {
     );
 
     const written = upsertContact.mock.calls[0][0];
-    expect(written.role).toBe("participant");
+    expect(written.role).toBe("member");
     expect(written.status).toBe("pending");
   });
 

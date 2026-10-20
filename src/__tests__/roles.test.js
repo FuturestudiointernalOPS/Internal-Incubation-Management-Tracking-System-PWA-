@@ -14,16 +14,20 @@ afterEach(() => {
 });
 
 describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => {
-  test("privileged identities always win, even inside the group", () => {
+  test("the platform owner always wins, even inside the group", () => {
     expect(
       resolveEffectiveRole({ role: "super_admin", group_name: INTERNAL_GROUP }),
     ).toBe("super_admin");
+  });
+
+  test("D-2 — retired contextual labels normalize to member", () => {
+    for (const role of ["participant", "facilitator", "investor", "founder"]) {
+      expect(resolveEffectiveRole({ role })).toBe("member");
+    }
+    // A retired label inside the internal group still resolves as staff.
     expect(
       resolveEffectiveRole({ role: "investor", group_name: INTERNAL_GROUP }),
-    ).toBe("investor");
-    expect(
-      resolveEffectiveRole({ role: "founder", group_name: INTERNAL_GROUP }),
-    ).toBe("founder");
+    ).toBe("staff");
   });
 
   test("legacy 'sa' id resolves to super_admin (never overridden)", () => {
@@ -80,27 +84,28 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
     // The caller passes only EFFECTIVE (active, unexpired) groups — an
     // expired membership is not in the list, so the person keeps their
     // explicit identity instead of being promoted to staff.
-    expect(
-      resolveEffectiveRole({ role: "participant", groups: [] }),
-    ).toBe("participant");
+    expect(resolveEffectiveRole({ role: "participant", groups: [] })).toBe(
+      "member",
+    );
     expect(
       resolveEffectiveRole({ role: "member", groups: ["COME UP"] }),
     ).toBe("member");
-    expect(
-      resolveEffectiveRole({ role: "", groups: [] }),
-    ).toBe("participant");
+    expect(resolveEffectiveRole({ role: "", groups: [] })).toBe("member");
   });
 
-  test("outside the group, explicit identities are preserved", () => {
-    expect(resolveEffectiveRole({ role: "participant" })).toBe("participant");
+  test("outside the group, baseline identities are preserved", () => {
     expect(resolveEffectiveRole({ role: "member" })).toBe("member");
-    expect(resolveEffectiveRole({ role: "facilitator" })).toBe("facilitator");
+    expect(resolveEffectiveRole({ role: "staff" })).toBe("staff");
+    // A retired label is a FUNCTION (profile), never an identity.
+    for (const role of ["participant", "facilitator", "investor", "founder"]) {
+      expect(resolveEffectiveRole({ role })).toBe("member");
+    }
   });
 
-  test("unknown or missing role outside the group defaults to participant", () => {
-    expect(resolveEffectiveRole({ role: "" })).toBe("participant");
-    expect(resolveEffectiveRole({ role: "weird_role" })).toBe("participant");
-    expect(resolveEffectiveRole({})).toBe("participant");
+  test("unknown or missing role outside the group defaults to member", () => {
+    expect(resolveEffectiveRole({ role: "" })).toBe("member");
+    expect(resolveEffectiveRole({ role: "weird_role" })).toBe("member");
+    expect(resolveEffectiveRole({})).toBe("member");
   });
 
   test("team and family entity logins keep their entity identity", () => {
@@ -111,8 +116,8 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
         isTeam: true,
       }),
     ).toBe("team");
-    expect(
-      resolveEffectiveRole({ role: "staff", isFamily: true }),
-    ).toBe("participant");
+    expect(resolveEffectiveRole({ role: "staff", isFamily: true })).toBe(
+      "member",
+    );
   });
 });

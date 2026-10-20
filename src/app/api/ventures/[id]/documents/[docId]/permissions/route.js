@@ -8,7 +8,7 @@ import {
   isFounderForDocumentPermissions, deleteDocumentPermission, upsertDocumentPermission,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
+const ROLES = ["member", "staff", "program_manager", "super_admin"];
 const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 
 async function resolveVentureDbId(ventureId) {

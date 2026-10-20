@@ -65,7 +65,7 @@ describe("Phase 9 — model consistency", () => {
     expect(
       resolveEffectiveRole({ role: "project_manager", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
-    expect(resolveEffectiveRole({ role: "admin" })).toBe("participant");
+    expect(resolveEffectiveRole({ role: "admin" })).toBe("member");
     expect(resolveEffectiveRole({ role: "admin", groups: [INTERNAL_GROUP] })).toBe("staff");
   });
 
@@ -81,12 +81,17 @@ describe("Phase 9 — model consistency", () => {
     const roles = [...gateRoles()].sort();
     expect(roles).toEqual(
       [
-        "facilitator",
-        "participant",
+        "member",
         "program_manager",
         "staff",
         "super_admin",
         "team",
+        // 2026-10-20 — the three baseline identities + the entity account are
+        // the only values a session can carry. `participant` and `facilitator`
+        // left every gate in the vocabulary switch: a personal identity is
+        // `member`, and a facilitator's door is the assignment + capability.
+        // If a gate lists a retired label again, it is reintroducing the
+        // mismatch the migration removed — add it back here only deliberately.
         // "security_officer" left the census on 2026-10-20: the security and
         // audit routes now require `users.view` / `users.edit`, so no gate lists
         // that contextual label any more. If a gate lists it again, add it back

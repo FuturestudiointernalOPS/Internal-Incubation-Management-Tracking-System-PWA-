@@ -10,8 +10,8 @@ import {
 } from "@/models/ventureAssets";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin"];
-const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
+const ROLES = ["member","staff","program_manager","super_admin"];
+const ALLOWED = ["member","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureIdByCodeForCoaching(ventureId);

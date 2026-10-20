@@ -34,15 +34,16 @@ describe("both sign-in paths use the canonical resolver", () => {
   });
 });
 
-describe("resolved role matrix", () => {
+describe("resolved role matrix — three identities", () => {
   test.each([
     ["super_admin", "super_admin"],
     ["staff", "staff"],
     ["member", "member"],
-    ["participant", "participant"],
-    ["facilitator", "facilitator"],
-    ["investor", "investor"],
-    ["founder", "founder"],
+    // Retired contextual labels are FUNCTIONS now: the identity is member.
+    ["participant", "member"],
+    ["facilitator", "member"],
+    ["investor", "member"],
+    ["founder", "member"],
   ])("%s → %s", (stored, expected) => {
     expect(resolveEffectiveRole({ role: stored })).toBe(expected);
   });
@@ -60,7 +61,7 @@ describe("resolved role matrix", () => {
   test("team and family entity logins keep their entity identity", () => {
     expect(resolveEffectiveRole({ role: "staff", isTeam: true })).toBe("team");
     expect(resolveEffectiveRole({ role: "staff", isFamily: true })).toBe(
-      "participant",
+      "member",
     );
   });
 });
