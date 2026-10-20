@@ -179,7 +179,7 @@ export async function calculateInvestmentReadiness(ventureId) {
   try {
     const pitchSessionResult = await countReadinessPitchReviews(ventureId);
     if (parseInt(pitchSessionResult.rows[0]?.c||0) > 0) pitchScore = 50;
-    const docs = await countVentureVerificationDocuments();
+    const docs = await countVentureVerificationDocuments(ventureId);
     if (parseInt(docs.rows[0]?.c||0) > 2) pitchScore = Math.min(100, pitchScore + 30);
   } catch { pitchScore = 0; }
   scores.pitch_readiness = pitchScore;

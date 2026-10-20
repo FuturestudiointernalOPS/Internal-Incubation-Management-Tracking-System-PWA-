@@ -52,22 +52,28 @@ export async function selectAnalyticsPipelineTotals(ventureRef) {
 }
 
 /** Count the Venture's documents. */
-export function countAnalyticsDocuments(ventureId) {
+export async function countAnalyticsDocuments(ventureRef) {
+  // venture_documents is uuid since Phase 0; the analytics route carries the code and
+  // the service swallows a failure into a zero, which reads as "no documents".
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as t FROM venture_documents WHERE venture_id=?", args: [ventureId] });
 }
 
 /** Count the Venture's document views. */
-export function countDocumentViews(ventureId) {
+export async function countDocumentViews(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_document_access_logs WHERE venture_id=? AND access_type='view'", args: [ventureId] });
 }
 
 /** Count the Venture's document downloads. */
-export function countDocumentDownloads(ventureId) {
+export async function countDocumentDownloads(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_document_access_logs WHERE venture_id=? AND access_type='download'", args: [ventureId] });
 }
 
 /** Count the Venture's pitch-deck views. */
-export function countPitchDeckViews(ventureId) {
+export async function countPitchDeckViews(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_document_access_logs al JOIN venture_documents d ON al.document_id=d.id WHERE d.venture_id=? AND d.is_pitch_deck=TRUE AND al.access_type='view'", args: [ventureId] });
 }
 
@@ -85,7 +91,8 @@ export async function selectAnalyticsPipelineFunnel(ventureRef) {
 }
 
 /** 12-month match-history activity of a Venture. */
-export function selectMonthlyMatchActivity(ventureId) {
+export async function selectMonthlyMatchActivity(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT DATE_TRUNC('month', created_at) as month, COUNT(*) as activities,
        SUM(CASE WHEN action LIKE '%CREATED%' OR action LIKE '%UPLOADED%' THEN 1 ELSE 0 END) as created,
