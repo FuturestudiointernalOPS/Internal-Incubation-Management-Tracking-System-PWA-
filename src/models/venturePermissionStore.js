@@ -142,6 +142,18 @@ export function removeAssignmentRow(id) {
   });
 }
 
+/**
+ * One assignment row by id — read BEFORE a removal, so the caller still knows who
+ * held it and which responsibility is going away (the profile grant depends on it).
+ */
+export function selectAssignmentRow(id) {
+  return db.execute({
+    sql: `SELECT id, venture_id::text AS venture_db_id, staff_contact_id, responsibility_code, status
+            FROM venture_staff_assignments WHERE id = ?`,
+    args: [id],
+  });
+}
+
 // ── Capability evaluation ────────────────────────────────────────────────────
 
 /** A contact's active assignments on a Venture (responsibility + scope). */
