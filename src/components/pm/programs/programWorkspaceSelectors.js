@@ -76,12 +76,7 @@ export function selectOversightCandidates(assignedStaff, facilitators) {
  * a staff member who is the program's assigned PM, OR a team member
  * (assistant/associate), can manage the program the same as a program_manager.
  */
-export function selectProgramAccess({
-  program,
-  programTeamMembers,
-  user,
-  profiles = [],
-}) {
+export function selectProgramAccess({ program, programTeamMembers, user, serverAccess = null }) {
   const isAssignedPm =
     isPlatformOwnerRole(user.role) ||
     (!!program?.assigned_pm_id &&
@@ -92,11 +87,11 @@ export function selectProgramAccess({
     (member) => member.cid === (user.cid || user.id),
   );
 
-  const canEdit =
-    isPlatformOwnerRole(user.role) ||
-    holdsProfile(profiles, PROGRAM_MANAGER_PROFILE) ||
-    isAssignedPm ||
-    isTeamMember;
+  // ONLY the server answers this. `projectProgramAccess` ran the SAME decision
+  // the write routes enforce, so there is nothing left to infer locally — and no
+  // local rule can drift from it. Until the answer arrives (null), the workspace
+  // is read-only: the doubt is resolved by refusing a write nobody approved.
+  const canEdit = Boolean(serverAccess?.edit);
 
   const canContribute = canEdit;
 

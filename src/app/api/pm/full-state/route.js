@@ -6,6 +6,7 @@ import { requireProgramFacilitator } from "@/server/authz/guards";
 import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildProgramFullState } from "@/services/programs/fullState";
+import { projectProgramAccess } from "@/services/authorization/programAccessProjection";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,11 @@ export async function GET(req) {
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
     const body = await buildProgramFullState({ id, includeMetrics });
-    return NextResponse.json(body);
+    // Lot 7.3 — the decision this screen's writes will meet, shaped for display.
+    // `access` is the answer of the SAME unified decision the routes enforce; it
+    // is never authority (every write re-decides).
+    const access = await projectProgramAccess(id);
+    return NextResponse.json({ ...body, access });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },
