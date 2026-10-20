@@ -66,7 +66,7 @@ export async function readVentureNotificationCenter({ session, queryParams }) {
     const notification = await getNotification(parseInt(queryParams.get("notification_id")));
     if (!notification) return { denied: { error: "Notification not found.", status: 404 } };
     if (!canAccessNotification(session, notification)) {
-      return { denied: { error: "You cannot view this notification.", status: 403 } };
+      return { denied: { error: "errors.notificationViewDenied", status: 403 } };
     }
     return { notification };
   }
@@ -82,7 +82,7 @@ export async function actOnVentureNotification({ session, body }) {
     const notification = await getNotification(parseInt(body.notification_id));
     if (!notification) return { denied: { error: "Notification not found.", status: 404 } };
     if (!canAccessNotification(session, notification)) {
-      return { denied: { error: "You cannot modify this notification.", status: 403 } };
+      return { denied: { error: "errors.notificationModifyDenied", status: 403 } };
     }
     await markNotificationRead(parseInt(body.notification_id));
     return {};
@@ -97,7 +97,7 @@ export async function actOnVentureNotification({ session, body }) {
     const notification = await getNotification(parseInt(body.notification_id));
     if (!notification) return { denied: { error: "Notification not found.", status: 404 } };
     if (!canAccessNotification(session, notification)) {
-      return { denied: { error: "You cannot modify this notification.", status: 403 } };
+      return { denied: { error: "errors.notificationModifyDenied", status: 403 } };
     }
     await archiveNotification(parseInt(body.notification_id));
     return {};
@@ -107,7 +107,7 @@ export async function actOnVentureNotification({ session, body }) {
     const notification = await getNotification(parseInt(body.notification_id));
     if (!notification) return { denied: { error: "Notification not found.", status: 404 } };
     if (!canAccessNotification(session, notification)) {
-      return { denied: { error: "You cannot modify this notification.", status: 403 } };
+      return { denied: { error: "errors.notificationModifyDenied", status: 403 } };
     }
     await deleteNotification(parseInt(body.notification_id));
     return {};

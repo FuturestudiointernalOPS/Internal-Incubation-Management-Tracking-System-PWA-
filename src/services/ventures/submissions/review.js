@@ -105,11 +105,9 @@ export async function applySubmissionReview({ session, payload }) {
     const requesterCamp = roleCamp(actingRole);
     const reviewerCamp = roleCamp(submission.reviewed_by_role);
     if (requesterCamp && reviewerCamp && requesterCamp !== reviewerCamp) {
-      const actorLabel =
-        reviewerCamp === "facilitator" ? "a facilitator" : "the program manager";
       return {
         denied: {
-          error: `This submission was already ${submission.status} by ${actorLabel}. Only that role can change the decision.`,
+          error: "errors.submissionDecisionLocked",
           status: 403,
         },
       };

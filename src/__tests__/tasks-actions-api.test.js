@@ -257,7 +257,7 @@ describe("POST /api/tasks/reconcile", () => {
     expect(data.results[0]).toEqual({
       id: 5,
       success: false,
-      error: "Not your task",
+      error: "errors.notYourTask",
     });
   });
 });

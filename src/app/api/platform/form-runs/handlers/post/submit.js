@@ -7,7 +7,7 @@ export async function POST(req) {
     await initDb();
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     const { run_id, data, status: subStatus } = await req.json();
     if (!run_id) return NextResponse.json({ success: false, error: "run_id is required" }, { status: 400 });

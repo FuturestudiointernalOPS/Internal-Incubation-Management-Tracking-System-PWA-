@@ -9,7 +9,7 @@ import { loadCampaignDetail, updateCampaignDefinition } from "@/services/communi
 // The code below is intentionally kept — set RETIRED = false to re-enable.
 const RETIRED = true;
 const RETIRED_RESPONSE = NextResponse.json(
-  { success: false, error: "Campaigns are retired and no longer accessible." },
+  { success: false, error: "errors.featureRetired" },
   { status: 403 },
 );
 

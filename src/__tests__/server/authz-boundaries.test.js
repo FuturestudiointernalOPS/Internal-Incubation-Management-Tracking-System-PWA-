@@ -197,7 +197,7 @@ describe("requireProjectAccess", () => {
     const response = await authz.requireProjectAccess("7");
 
     expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({ success: false, error: "Project not found" });
+    await expect(response.json()).resolves.toEqual({ success: false, error: "errors.projectNotFound" });
   });
 
   it("admits a project member", async () => {

@@ -14,12 +14,12 @@ export const POST = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const permission = await canManageFounders(id, session);
     if (!permission.allowed || !permission.isOwner) {
-      return NextResponse.json({ success: false, error: "Only the current owner can transfer ownership." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureOwnershipTransferOwnerOnly" }, { status: 403 });
     }
 
     const body = await req.json();

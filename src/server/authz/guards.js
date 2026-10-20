@@ -17,7 +17,7 @@
  * caller reads exactly as before.
  */
 
-import { NextResponse } from "next/server";
+import { refusalResponse } from "@/server/http/refusal";
 import {
   evaluateProjectAccess,
   evaluateProgramFacilitator,
@@ -30,7 +30,7 @@ import {
 /** Map a decision to the refusal response, or null when it is allowed. */
 function toResponse({ allowed, status, errorKey }) {
   if (allowed) return null;
-  return NextResponse.json({ success: false, error: errorKey }, { status });
+  return refusalResponse({ status, errorKey });
 }
 
 /**

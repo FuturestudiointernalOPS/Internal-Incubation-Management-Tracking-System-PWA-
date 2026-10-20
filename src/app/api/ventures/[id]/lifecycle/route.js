@@ -34,7 +34,7 @@ export async function POST(req, { params }) {
     if (authError) return authError;
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -52,7 +52,7 @@ export async function POST(req, { params }) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
       if (!(await hasActiveVentureAssignment(ventureId, session.cid))) {
         return NextResponse.json(
-          { success: false, error: "Unauthorized. Only assigned Venture staff can change a Venture's lifecycle." },
+          { success: false, error: "errors.ventureLifecycleDenied" },
           { status: 403 },
         );
       }

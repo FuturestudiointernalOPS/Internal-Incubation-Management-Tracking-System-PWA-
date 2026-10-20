@@ -19,7 +19,7 @@ export const GET = createHandler(
     await initDb();
     const session = await getSession();
     if (!session?.cid) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     if (session.role === "super_admin") {
       return NextResponse.json({

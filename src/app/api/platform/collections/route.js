@@ -57,7 +57,7 @@ export async function POST(req) {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
@@ -76,7 +76,7 @@ export async function PUT(req) {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;
@@ -95,7 +95,7 @@ export async function DELETE(req) {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     const authError = await requireAuth(["super_admin"]);
     if (authError) return authError;

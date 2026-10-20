@@ -95,7 +95,7 @@ export async function POST(req, { params }) {
     const canMutate = await checkMutateAccess(db, id, userRole, userCid);
     if (!canMutate) {
       return NextResponse.json(
-        { success: false, error: "Only founders can manage venture members." },
+        { success: false, error: "errors.foundersOnly" },
         { status: 403 },
       );
     }
@@ -203,7 +203,7 @@ export async function PATCH(req, { params }) {
     const canMutate = await checkMutateAccess(db, id, userRole, userCid);
     if (!canMutate) {
       return NextResponse.json(
-        { success: false, error: "Only founders can manage venture members." },
+        { success: false, error: "errors.foundersOnly" },
         { status: 403 },
       );
     }

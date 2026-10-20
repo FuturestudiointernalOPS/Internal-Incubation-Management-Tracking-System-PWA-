@@ -12,14 +12,14 @@ function respond(outcome) {
 
 export const GET = createHandler(async (req) => {
   const session = await getSession();
-  if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+  if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   const queryParams = new URL(req.url).searchParams;
   return respond(await readVentureNotificationCenter({ session, queryParams }));
 });
 
 export const POST = createHandler(async (req) => {
   const session = await getSession();
-  if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+  if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   const body = await req.json();
   return respond(await actOnVentureNotification({ session, body }));
 });

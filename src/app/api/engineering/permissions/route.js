@@ -76,7 +76,7 @@ export async function PUT(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -110,7 +110,7 @@ export async function PUT(req) {
     // admin route (self-escalation). The context targets a PERSON.
     if (SELF_SENSITIVE_ACTIONS.has(action) && isSelfAssignment(session, user_cid)) {
       return NextResponse.json(
-        { success: false, error: "You cannot change your own access." },
+        { success: false, error: "errors.cannotChangeOwnAccess" },
         { status: 403 },
       );
     }

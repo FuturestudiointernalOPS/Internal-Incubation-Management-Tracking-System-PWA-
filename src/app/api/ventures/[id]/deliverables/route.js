@@ -70,7 +70,7 @@ export const POST = createHandler(async (req, { params }) => {
   const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
-      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add deliverables." },
+      { success: false, error: "errors.ventureManagerOnly" },
       { status: 403 },
     );
   }
@@ -173,7 +173,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     });
     if (!allowed) {
       return NextResponse.json(
-        { success: false, error: "Your assignment does not cover this milestone's review." },
+        { success: false, error: "errors.outsideAssignedScope" },
         { status: 403 },
       );
     }
@@ -221,7 +221,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
-      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can edit deliverables." },
+      { success: false, error: "errors.ventureManagerOnly" },
       { status: 403 },
     );
   }

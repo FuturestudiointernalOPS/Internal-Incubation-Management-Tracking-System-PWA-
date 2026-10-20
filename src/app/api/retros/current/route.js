@@ -24,7 +24,7 @@ export async function GET(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -50,7 +50,7 @@ export async function GET(req) {
       !(await isSupervisorOf(session.cid, user_id))
     ) {
       return NextResponse.json(
-        { success: false, error: "You can only view your own retro." },
+        { success: false, error: "errors.ownRetroOnly" },
         { status: 403 },
       );
     }

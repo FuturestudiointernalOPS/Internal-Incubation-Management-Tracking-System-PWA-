@@ -13,11 +13,11 @@ export const PATCH = createHandler(
   async (req, { params }) => {
     const { id } = await params;
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     const permission = await canManageVerification(id, session);
     if (!permission.allowed || !permission.isReviewer) {
-      return NextResponse.json({ success: false, error: "Unauthorized. Only reviewers can update verification status." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.verificationReviewerOnly" }, { status: 403 });
     }
 
     const body = await req.json();

@@ -167,7 +167,7 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account is pending approval. Please wait for an administrator to approve your account.",
+              "errors.accountPendingApproval",
           },
           { status: 403 },
         );
@@ -184,7 +184,7 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account is inactive. Contact your administrator.",
+              "errors.accountInactive",
           },
           { status: 403 },
         );
@@ -204,7 +204,7 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account is not active. Contact your administrator.",
+              "errors.accountNotActive",
           },
           { status: 403 },
         );

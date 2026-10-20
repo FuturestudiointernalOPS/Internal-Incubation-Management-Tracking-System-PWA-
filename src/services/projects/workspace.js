@@ -62,7 +62,7 @@ export function resolveProjectListFilter({ role, sessionCid, requestedCid }) {
     role,
     sessionCid,
     requestedCid,
-    denialMessage: "You can only view your own projects.",
+    denialMessage: "errors.ownProjectsViewOnly",
   });
   if (resolved.denied) return { denied: resolved.denied };
   return { filterCid: resolved.cid };

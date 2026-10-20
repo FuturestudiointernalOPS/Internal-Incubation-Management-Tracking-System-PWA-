@@ -15,7 +15,7 @@ export const GET = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     // Phase 5 hardening: founders are only visible to the venture's members
@@ -43,13 +43,13 @@ export const POST = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     // Check management permission
     const permission = await canManageFounders(id, session);
     if (!permission.allowed) {
-      return NextResponse.json({ success: false, error: "Unauthorized to manage founders." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureFoundersManageDenied" }, { status: 403 });
     }
 
     const body = await req.json();

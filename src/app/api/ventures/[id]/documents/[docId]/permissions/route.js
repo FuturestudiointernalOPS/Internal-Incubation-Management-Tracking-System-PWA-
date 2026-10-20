@@ -55,7 +55,7 @@ export async function PATCH(req, { params }) {
     if (!PRIVILEGED.includes(session.role)) {
       // `dbId` is the internal id, which the membership table keys on (Phase 0).
       const founder = await isFounderForDocumentPermissions(dbId, session.cid);
-      if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can manage document permissions." }, { status: 403 });
+      if (!founder.rows?.length) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
     }
 
     const { role_scope, access_level } = await req.json();

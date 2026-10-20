@@ -41,7 +41,7 @@ export async function GET(req) {
     if (id) {
       const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
-      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
       const { status: httpStatus, body } = await getFormDetail(id);
       return NextResponse.json(body, { status: httpStatus });
@@ -65,7 +65,7 @@ export async function POST(req) {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const body = await req.json();
@@ -105,7 +105,7 @@ export async function PUT(req) {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     const authError = await requireAuthorization("forms", "edit");
     if (authError) return authError;

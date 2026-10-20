@@ -233,7 +233,7 @@ export function assertStrictOwnerChange({ task, input, role, sessionCid }) {
     ).length === 0;
 
   if (role !== "super_admin" && !isTaskOwner && !isAssignee && !isOnlyStatusChange) {
-    return { status: 403, error: "You can only update your own tasks." };
+    return { status: 403, error: "errors.ownTasksUpdateOnly" };
   }
 
   return null;

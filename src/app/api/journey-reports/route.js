@@ -26,7 +26,7 @@ export async function GET(req) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
     if (!GLOBAL_ROLES.includes(session.role)) {
-      return NextResponse.json({ success: false, error: "Global access required." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const status = new URL(req.url).searchParams.get("status") || null;

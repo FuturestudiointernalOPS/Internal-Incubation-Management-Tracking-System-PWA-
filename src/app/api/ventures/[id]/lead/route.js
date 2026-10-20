@@ -32,7 +32,7 @@ export async function POST(req, { params }) {
   if (authError) return authError;
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
 
   try {
@@ -57,7 +57,7 @@ export async function POST(req, { params }) {
       const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
       if (!(await hasActiveVentureAssignment(ventureId, session.cid))) {
         return NextResponse.json(
-          { success: false, error: "Unauthorized. Only assigned Venture staff or the current lead founder can change the lead." },
+          { success: false, error: "errors.ventureLeadChangeDenied" },
           { status: 403 },
         );
       }
@@ -76,7 +76,7 @@ export async function POST(req, { params }) {
       const leadCheck = await findLeadFounderMembership(ventureId, session.cid);
       if (leadCheck.rows.length === 0) {
         return NextResponse.json(
-          { success: false, error: "Unauthorized. Only Future Studio staff or the current lead founder can change the lead." },
+          { success: false, error: "errors.ventureLeadChangeDenied" },
           { status: 403 },
         );
       }

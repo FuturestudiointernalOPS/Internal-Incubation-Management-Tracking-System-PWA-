@@ -188,7 +188,7 @@ export const POST = withRequestContext(async function POST(req) {
         return NextResponse.json(
           {
             success: false,
-            error: "Access Denied: Your account is inactive.",
+            error: "errors.accountInactive",
           },
           { status: 403 },
         );
@@ -209,7 +209,7 @@ export const POST = withRequestContext(async function POST(req) {
           {
             success: false,
             error:
-              "Access Denied: Your account is currently pending verification.",
+              "errors.accountPendingVerification",
           },
           { status: 403 },
         );
@@ -229,7 +229,7 @@ export const POST = withRequestContext(async function POST(req) {
         return NextResponse.json(
           {
             success: false,
-            error: "Access Denied: Your account has been archived.",
+            error: "errors.accountArchived",
           },
           { status: 403 },
         );
@@ -253,7 +253,7 @@ export const POST = withRequestContext(async function POST(req) {
           {
             success: false,
             error:
-              "Access Denied: Your account is not active. Contact your administrator.",
+              "errors.accountNotActive",
           },
           { status: 403 },
         );

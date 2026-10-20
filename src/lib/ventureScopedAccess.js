@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
@@ -102,11 +102,13 @@ export async function requireVentureScopedAccess({
   capability,
   minLevel = 1,
 }) {
-  const denied = (body, status, decision) => {
-    const res = NextResponse.json(body, { status });
-    res.headers.set("X-Authz-Decision", decision);
-    return res;
-  };
+  const denied = (body, status, decision) =>
+    refusalResponse({
+      status,
+      errorKey: body.error,
+      missing: body.missing,
+      decision,
+    });
 
   try {
     const session = await getSession();

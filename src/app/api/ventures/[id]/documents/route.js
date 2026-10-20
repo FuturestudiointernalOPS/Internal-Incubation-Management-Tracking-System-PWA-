@@ -72,7 +72,7 @@ export async function GET(req, { params }) {
       if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       // Block access to private docs for non-privileged users
       if (visibility !== null && !visibility.includes(document.approval_status)) {
-        return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
       }
       return NextResponse.json({ success: true, document });
     }
@@ -120,7 +120,7 @@ export async function POST(req, { params }) {
       // Check: only founders/privileged can transition
       if (!PRIVILEGED.includes(session.role)) {
         const founder = await isFounderForDocumentStatusTransition(dbId, session.cid);
-        if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can transition document status." }, { status: 403 });
+        if (!founder.rows?.length) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
       }
       const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];
       if (!STATUSES.includes(body.approval_status)) {

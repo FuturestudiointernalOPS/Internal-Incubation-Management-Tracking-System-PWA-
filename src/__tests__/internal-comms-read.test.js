@@ -41,7 +41,7 @@ test("marking a conversation you are not part of is refused before writing", asy
 
   expect(outcome).toEqual({
     denied: {
-      error: "Cannot mark messages as read for a conversation you are not part of.",
+      error: "errors.conversationNotMember",
       status: 403,
     },
   });

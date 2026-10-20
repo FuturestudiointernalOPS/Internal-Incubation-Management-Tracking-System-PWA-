@@ -34,7 +34,7 @@ export async function GET(req) {
 
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const { status, body } = await buildDashboardOverview({

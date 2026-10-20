@@ -28,7 +28,7 @@ export async function GET(req, { params }) {
     // A participant/founder sees only their own history — same rule as the
     // contact timeline.
     if ((session.role === "participant" || session.role === "founder") && session.cid !== cid) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);

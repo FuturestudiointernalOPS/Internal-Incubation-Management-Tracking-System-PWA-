@@ -64,7 +64,7 @@ export async function PUT(req) {
     // Admin. Self-granting capabilities is the escalation this refuses.
     if (isSelfAssignment(session, user_cid)) {
       return NextResponse.json(
-        { success: false, error: "You cannot change your own profile." },
+        { success: false, error: "errors.cannotChangeOwnProfile" },
         { status: 403 },
       );
     }

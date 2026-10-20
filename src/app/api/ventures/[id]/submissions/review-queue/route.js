@@ -33,7 +33,7 @@ export const GET = createHandler(async (req, { params }) => {
   const { session } = await requireVentureAccess(id);
   if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
   if (!(await isStaffActorForVenture(id, session))) {
-    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }
 
   const ventureResult = await getVentureByCode(id);

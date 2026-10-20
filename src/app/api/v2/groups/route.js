@@ -89,7 +89,7 @@ export async function PUT(req) {
     const row = existing.rows[0];
     if (row && Number(row.is_system) === 1 && name !== undefined && name.trim() !== row.name) {
       return NextResponse.json(
-        { success: false, error: "This is a system-defined group and cannot be renamed." },
+        { success: false, error: "errors.systemGroupCannotRename" },
         { status: 403 },
       );
     }

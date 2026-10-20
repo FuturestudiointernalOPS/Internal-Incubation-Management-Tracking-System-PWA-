@@ -144,7 +144,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   if (action === "add_review") {
     const reviewerRoles = ["staff", "program_manager", "super_admin"];
     if (!reviewerRoles.includes(session?.role)) {
-      return NextResponse.json({ success: false, error: "Only Future Studio staff can review tasks." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.taskReviewInternalOnly" }, { status: 403 });
     }
     const { decision, comments } = body;
     if (!["accepted", "rejected", "revision_requested"].includes(decision)) {

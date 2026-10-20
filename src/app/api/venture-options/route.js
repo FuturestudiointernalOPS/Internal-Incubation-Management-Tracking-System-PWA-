@@ -48,7 +48,7 @@ export async function POST(req) {
   const session = await getSession();
   if (!session || !SETUP_ROLES.includes(session.role)) {
     return NextResponse.json(
-      { success: false, error: "Unauthorized. Venture Setup permission required." },
+      { success: false, error: "errors.ventureSetupPermissionRequired" },
       { status: 403 },
     );
   }
@@ -73,7 +73,7 @@ export async function PATCH(req) {
   const session = await getSession();
   if (!session || !SETUP_ROLES.includes(session.role)) {
     return NextResponse.json(
-      { success: false, error: "Unauthorized. Venture Setup permission required." },
+      { success: false, error: "errors.ventureSetupPermissionRequired" },
       { status: 403 },
     );
   }

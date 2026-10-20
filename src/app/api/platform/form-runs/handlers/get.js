@@ -48,7 +48,7 @@ export async function GET(req) {
     if (submissionId) {
       const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
-      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
       const submissionResult = await getSubmissionById(submissionId);
       if (submissionResult.rows.length === 0) return NextResponse.json({ success: false, error: "Submission not found" }, { status: 404 });
@@ -76,7 +76,7 @@ export async function GET(req) {
     if (mySubmissions === "true") {
       const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
-      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
       const submissionsResult = await getMySubmissionsBySubmitterId(session.cid);
       return NextResponse.json({ success: true, submissions: submissionsResult.rows });
     }
@@ -87,7 +87,7 @@ export async function GET(req) {
       if (run.rows.length === 0) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       const { getSession } = await import("@/server/auth/session");
       const session = await getSession();
-      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
       const mySubmissionResult = await getParticipantSubmissionByRunAndSubmitter(id, session.cid);
       return NextResponse.json({ success: true, run: run.rows[0], submission: mySubmissionResult.rows[0] || null });
     }
@@ -201,7 +201,7 @@ export async function GET(req) {
       const session = await getSession();
       if (!session)
         return NextResponse.json(
-          { success: false, error: "Authentication required." },
+          { success: false, error: "errors.authRequired" },
           { status: 401 },
         );
       // SECURITY: this branch used to hand ANY user's submissions to any

@@ -158,7 +158,7 @@ export async function POST(req, { params }) {
     const { session, access } = await requireStaffJourneyAccess(id);
     if (!session || !access) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "create"))) {
-      return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.journeyDefineDenied" }, { status: 403 });
     }
 
     const dbId = await resolveDbId(id);
@@ -197,7 +197,7 @@ export async function PATCH(req, { params }) {
     // ── Field edits ──
     if (action === "update") {
       if (!(await allowsPlanAction(access, "edit"))) {
-        return NextResponse.json({ success: false, error: "Your assignment does not allow editing this Venture's journey." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.journeyEditDenied" }, { status: 403 });
       }
       if (!stageId) return NextResponse.json({ success: false, error: "stage_id is required." }, { status: 400 });
       const stage = await getJourneyStage(dbId, stageId);
@@ -227,7 +227,7 @@ export async function PATCH(req, { params }) {
     const manageActions = ["activate", "lock", "complete", "reset", "delete", "move"];
     if (manageActions.includes(action)) {
       if (!(await allowsPlanAction(access, "manage"))) {
-        return NextResponse.json({ success: false, error: "Your assignment does not allow managing this Venture's journey." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.journeyManageDenied" }, { status: 403 });
       }
     } else {
       return NextResponse.json({ success: false, error: "Unknown action." }, { status: 400 });

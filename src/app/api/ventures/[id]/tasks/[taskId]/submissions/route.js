@@ -138,7 +138,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   if (body.action === "review") {
     if (!REVIEWER_ROLES.includes(session?.role)) {
-      return NextResponse.json({ success: false, error: "Only Future Studio staff can review submissions." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.submissionReviewInternalOnly" }, { status: 403 });
     }
     // Assignment-scope gate (Vinance 3): delegated reviewers are confined to
     // the tasks inside their ACTIVE assignment scopes on this Venture.
@@ -156,7 +156,7 @@ export const POST = createHandler(async (req, { params }) => {
         inScope = isTaskInScope(scopes, await resolveTaskContext(task));
       }
       if (!inScope) {
-        return NextResponse.json({ success: false, error: "This review is outside your assigned scope." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.outsideAssignedScope" }, { status: 403 });
       }
     }
     const submissionId = parseInt(body.submission_id);

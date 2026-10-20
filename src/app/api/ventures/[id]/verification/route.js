@@ -29,7 +29,7 @@ export const GET = createHandler(
   async (req, { params }) => {
     const { id } = await params;
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     // Phase 4 guard: only global roles, active members (founders) or
     // delegated staff with an assignment may read verification state.
@@ -73,14 +73,14 @@ export const POST = createHandler(
   async (req, { params }) => {
     const { id } = await params;
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     const body = await req.json();
     const { action } = body;
 
     if (action === "submit") {
       const canSubmit = await canSubmitVerification(id, session);
-      if (!canSubmit) return NextResponse.json({ success: false, error: "Only founders can submit verification." }, { status: 403 });
+      if (!canSubmit) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
 
       try {
         const result = await submitVerification({ ventureId: id, submittedBy: session });
@@ -92,7 +92,7 @@ export const POST = createHandler(
 
     if (action === "resubmit") {
       const canSubmit = await canSubmitVerification(id, session);
-      if (!canSubmit) return NextResponse.json({ success: false, error: "Only founders can resubmit verification." }, { status: 403 });
+      if (!canSubmit) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
 
       try {
         const result = await resubmitVerification({ ventureId: id, submittedBy: session });
@@ -104,7 +104,7 @@ export const POST = createHandler(
 
     if (action === "upload_document") {
       const canSubmit = await canSubmitVerification(id, session);
-      if (!canSubmit) return NextResponse.json({ success: false, error: "Only founders can upload documents." }, { status: 403 });
+      if (!canSubmit) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
 
       try {
         const verificationResult = await getOrCreateVerification(id);

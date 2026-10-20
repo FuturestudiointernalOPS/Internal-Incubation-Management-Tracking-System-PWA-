@@ -65,7 +65,7 @@ export async function DELETE(req, { params }) {
     const ventureId = await resolveVentureTableId(db, id);
     if (!(await checkVentureMemberMutateAccess(db, ventureId, userRole, userCid))) {
       return NextResponse.json(
-        { success: false, error: "Only founders can manage venture members." },
+        { success: false, error: "errors.foundersOnly" },
         { status: 403 },
       );
     }

@@ -126,7 +126,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
           status: 403,
           body: {
             success: false,
-            error: `Target user is not eligible for this feature (${featureKey}). Assignment rejected.`,
+            error: "errors.targetNotEligible",
           },
         };
       }
@@ -143,7 +143,7 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
           status: 403,
           body: {
             success: false,
-            error: `Group "${payload?.group_name}" is not eligible for this feature (${featureKey}). Assignment rejected.`,
+            error: "errors.groupNotEligible",
           },
         };
       }

@@ -11,7 +11,7 @@ export const GET = createHandler(async (req, { params }) => {
   // submission stays open via POST (founder_cid-scoped), but reading the full
   // feedback/analytics feed requires staff access on the Venture.
   if (!(await isStaffActorForVenture(id, session))) {
-    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }
   const searchParams = new URL(req.url).searchParams;
   const type = searchParams.get("type") || "list";

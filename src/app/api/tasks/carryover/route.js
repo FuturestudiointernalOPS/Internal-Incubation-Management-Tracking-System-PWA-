@@ -18,7 +18,7 @@ export const GET = createHandler(async (req) => {
   const session = await getSession();
   if (!session) {
     return NextResponse.json(
-      { success: false, error: "Authentication required." },
+      { success: false, error: "errors.authRequired" },
       { status: 401 },
     );
   }
@@ -50,7 +50,7 @@ export const POST = createHandler(async (req) => {
   const session = await getSession();
   if (!session) {
     return NextResponse.json(
-      { success: false, error: "Authentication required." },
+      { success: false, error: "errors.authRequired" },
       { status: 401 },
     );
   }

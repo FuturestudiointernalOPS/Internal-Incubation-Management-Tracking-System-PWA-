@@ -44,7 +44,7 @@ export async function GET(req, { params }) {
       roleIsPrivileged(session.role) ||
       (session.cid ? await isStaffActorForVenture(id, session) : false);
     if (!staff) {
-      return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
     }
 
     const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));

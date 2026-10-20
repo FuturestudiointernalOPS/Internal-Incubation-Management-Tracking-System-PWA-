@@ -25,7 +25,7 @@ export const POST = createHandler(async (req) => {
   const { getSession } = await import("@/server/auth/session");
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
   const staffSide = ["super_admin", "staff", "program_manager"];
   const effectiveParticipantId = staffSide.includes(session.role) ? participant_id : session.cid;

@@ -51,12 +51,12 @@ export const PATCH = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const permission = await canManageFounders(id, session);
     if (!permission.allowed) {
-      return NextResponse.json({ success: false, error: "Unauthorized to manage founders." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureFoundersManageDenied" }, { status: 403 });
     }
 
     const founder = await getFounderById(parseInt(founderId));
@@ -107,12 +107,12 @@ export const DELETE = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const permission = await canManageFounders(id, session);
     if (!permission.allowed) {
-      return NextResponse.json({ success: false, error: "Unauthorized to manage founders." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureFoundersManageDenied" }, { status: 403 });
     }
 
     try {

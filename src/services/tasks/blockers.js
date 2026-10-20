@@ -67,7 +67,7 @@ export async function listBlockers({ session, filters }) {
       ? await isSupervisorOf(session.cid, filters.user_id)
       : false;
     if (viewingOther && !isSupervisor) {
-      return { status: 403, error: "You can only view your own blockers." };
+      return { status: 403, error: "errors.ownBlockersOnly" };
     }
     // Scope to blockers where the task belongs to, assigned to, or supervised by
     // the user; when acting as a supervisor, scope to the supervisee's tasks.
@@ -122,7 +122,7 @@ export async function createBlockerForTask({ session, input }) {
   ) {
     return {
       status: 403,
-      error: "You do not have permission to add a blocker to this task.",
+      error: "errors.taskBlockerDenied",
     };
   }
 
@@ -218,7 +218,7 @@ export async function updateBlockerRecord({ session, input }) {
     if (String(blocker.user_id) !== String(session.cid)) {
       return {
         status: 403,
-        error: "Only the blocker creator can mark it as resolved",
+        error: "errors.blockerResolveCreatorOnly",
       };
     }
 
@@ -250,7 +250,7 @@ export async function updateBlockerRecord({ session, input }) {
 
   // Non-resolve updates: only creator can edit (using session identity)
   if (String(blocker.user_id) !== String(session.cid)) {
-    return { status: 403, error: "Only the blocker creator can edit it" };
+    return { status: 403, error: "errors.blockerEditCreatorOnly" };
   }
 
   await updateBlockerFields(id, { title, description, severity });
@@ -276,7 +276,7 @@ export async function deleteBlockerRecord({ session, id }) {
     ) {
       return {
         status: 403,
-        error: "Only the blocker creator can delete it",
+        error: "errors.blockerDeleteCreatorOnly",
       };
     }
 

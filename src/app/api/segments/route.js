@@ -10,7 +10,7 @@ import {
 // The code below is intentionally kept — set RETIRED = false to re-enable.
 const RETIRED = true;
 const RETIRED_RESPONSE = NextResponse.json(
-  { success: false, error: "Segments are retired and no longer accessible." },
+  { success: false, error: "errors.featureRetired" },
   { status: 403 },
 );
 

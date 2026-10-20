@@ -49,7 +49,7 @@ export async function evaluateProjectAccess(projectId) {
     // Platform-owner bypass
     if (isPlatformOwnerRole(session.role)) return ALLOWED;
 
-    if (!(await projectExists(projectId))) return denied(404, "Project not found");
+    if (!(await projectExists(projectId))) return denied(404, "errors.projectNotFound");
 
     // Member or lead (covers both owners and collaborators)
     if (await isProjectMember(projectId, session.cid)) return ALLOWED;
