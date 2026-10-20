@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { sendEmail } from "@/lib/email";
 import { describeEmailConfig } from "@/lib/email/config";
 
@@ -23,18 +23,18 @@ export const dynamic = "force-dynamic";
  * Super Admin only: it can send mail from the platform's own mailbox.
  */
 
-async function gate() {
-  return requireAuth(["super_admin"]);
+async function gate(capability) {
+  return requireAuthorization("settings", capability);
 }
 
 export async function GET() {
-  const authError = await gate();
+  const authError = await gate("view");
   if (authError) return authError;
   return NextResponse.json({ success: true, config: describeEmailConfig() });
 }
 
 export async function POST(req) {
-  const authError = await gate();
+  const authError = await gate("edit");
   if (authError) return authError;
 
   const body = await req.json().catch(() => ({}));

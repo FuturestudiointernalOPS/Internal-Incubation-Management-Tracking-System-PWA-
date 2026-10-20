@@ -101,18 +101,11 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/admin/programs/[id]/teams/page.js#M3",
   "src/app/admin/work/page.js#M3",
 
-  "src/app/api/admin/analytics/route.js#M1",
-  "src/app/api/admin/analytics/users/route.js#M1",
-  "src/app/api/admin/finance/data-sources/route.js#M2",
   "src/app/api/admin/projects/[id]/reports/generate/route.js#M1",
-  "src/app/api/admin/ventures/create/route.js#M2",
-  "src/app/api/admin/ventures/route.js#M2",
   "src/app/api/attendance/route.js#M3",
   "src/app/api/auth/invite-family/route.js#M1",
   "src/app/api/auth/invite-family/route.js#M3",
   "src/app/api/auth/invite/route.js#M1",
-  "src/app/api/auth/resend-invite/[cid]/route.js#M2",
-  "src/app/api/auth/revoke/[cid]/route.js#M2",
 
   "src/app/api/campaigns/[id]/route.js#M1",
   "src/app/api/campaigns/route.js#M2",
@@ -133,10 +126,8 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/group-members/route.js#M1",
   "src/app/api/groups/route.js#M1",
 
-  "src/app/api/investor/admin-overview/route.js#M1",
   "src/app/api/investor/approval/route.js#M1",
   "src/app/api/investor/campaigns/route.js#M1",
-  "src/app/api/investor/executive-dashboard/route.js#M1",
   "src/app/api/investor/profile/route.js#M1",
   "src/app/api/investor/relationships/meetings/route.js#M1",
   "src/app/api/investor/relationships/route.js#M1",
@@ -276,7 +267,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/components/permissions/center/drawers/CreateProfileDrawer.js#M2",
   "src/components/permissions/center/drawers/CreateProfileDrawer.js#M4",
   "src/components/permissions/center/personAccess.js#M4",
-  "src/app/api/engineering/email-config/route.js#M1",
   "src/services/programs/teams.js#M3",
   "src/services/ventures/people.js#M2",
 ]);

@@ -21,11 +21,11 @@
  * POST /api/migrate/phase5                        | requireAuth() + settings.edit            | élevé  | source-pin
  * POST /api/admin/run-migration                   | requireAuth() + settings.edit            | élevé  | source-pin + comportement
  * GET  /api/admin/projects                        | projects.view                            | élevé  | source-pin
- * GET  /api/admin/analytics (+ /users)            | requireAuth(["super_admin"])            | élevé  | source-pin
+ * GET  /api/admin/analytics (+ /users)            | reports.view / users.view                | élevé  | source-pin
  * GET  /api/admin/blockers                        | tasks.view                              | élevé  | source-pin
  * GET  /api/admin/tasks                           | tasks.view                              | élevé  | source-pin
- * GET  /api/admin/finance/data-sources            | createHandler({roles:["super_admin"]})  | élevé  | source-pin
- * POST /api/admin/ventures/create                 | createHandler({roles:["super_admin"]})  | élevé  | source-pin
+ * GET  /api/admin/finance/data-sources            | finance.view                            | élevé  | source-pin
+ * POST /api/admin/ventures/create                 | ventures.create                         | élevé  | source-pin
  * POST /api/admin/projects/[id]/reports/generate  | requireAuth(["super_admin","staff","program_manager"]) | élevé | source-pin
  * GET+PATCH /api/security/events                  | users.view / users.edit                  | élevé  | source-pin + comportement
  * GET+POST  /api/security/sessions                | users.view / users.edit                  | élevé  | source-pin
@@ -152,20 +152,19 @@ describe("admin / migrate — mutating endpoints pin their capability guard", ()
     expect(src).not.toMatch(/requireAuth\(\[/);
   });
 
-  test("GET /api/admin/analytics — exige le rôle super_admin, y compris la route sœur /users (comportement actuel figé)", () => {
+  test("GET /api/admin/analytics — reports.view pour l'analytique, users.view pour la route sœur /users (comportement figé)", () => {
     expect(read("src/app/api/admin/analytics/route.js")).toMatch(
-      /requireAuth\(\["super_admin"\]\)/,
+      /requireAuthorization\("reports", "view"\)/,
     );
     expect(read("src/app/api/admin/analytics/users/route.js")).toMatch(
-      /requireAuth\(\["super_admin"\]\)/,
+      /requireAuthorization\("users", "view"\)/,
     );
   });
 
-  test("GET /api/admin/finance/data-sources — createHandler restreint à super_admin (comportement actuel figé)", () => {
+  test("GET /api/admin/finance/data-sources — finance.view (comportement figé)", () => {
     const src = read("src/app/api/admin/finance/data-sources/route.js");
-    expect(src).toMatch(
-      /createHandler\(\s*\{\s*roles:\s*\["super_admin"\]\s*\}/,
-    );
+    expect(src).toMatch(/requireAuthorization\("finance", "view"\)/);
+    expect(src).not.toMatch(/\{\s*roles:\s*\[/);
   });
 
   test.each([
@@ -177,10 +176,10 @@ describe("admin / migrate — mutating endpoints pin their capability guard", ()
     expect(src).not.toMatch(/\{\s*roles:\s*\[/);
   });
 
-  test("POST /api/admin/ventures/create — createHandler restreint à super_admin (comportement actuel figé)", () => {
-    expect(read("src/app/api/admin/ventures/create/route.js")).toMatch(
-      /createHandler\(\s*\{\s*roles:\s*\["super_admin"\]\s*\}/,
-    );
+  test("POST /api/admin/ventures/create — ventures.create (comportement figé)", () => {
+    const src = read("src/app/api/admin/ventures/create/route.js");
+    expect(src).toMatch(/requireAuthorization\("ventures", "create"\)/);
+    expect(src).not.toMatch(/\{\s*roles:\s*\[/);
   });
 
   test("POST /api/admin/projects/[id]/reports/generate — exige super_admin/staff/program_manager (comportement actuel figé)", () => {
