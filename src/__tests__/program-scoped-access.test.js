@@ -27,6 +27,13 @@ jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
+const mockShadowEnabled = jest.fn(() => false);
+const mockShadowCheck = jest.fn();
+jest.mock("@/services/authorization/shadow", () => ({
+  shadowEnabled: () => mockShadowEnabled(),
+  shadowCheck: (...args) => mockShadowCheck(...args),
+}));
+
 const { getSession } = require("@/server/auth/session");
 const { getAuthorizationContext, requireAuthorization } = require("@/models/authorization/index");
 const { isWithinScope } = require("@/services/authorization/scope");
@@ -43,6 +50,7 @@ beforeEach(() => {
   getAuthorizationContext.mockResolvedValue({ isSuperAdmin: false });
   requireAuthorization.mockResolvedValue(null);
   isWithinScope.mockResolvedValue(true);
+  mockShadowEnabled.mockReturnValue(false);
 });
 
 describe("enforcement is unconditional", () => {
@@ -52,7 +60,7 @@ describe("enforcement is unconditional", () => {
     expect(res).toBeNull();
     // No switch, no cache of "is it on": the assignment data is read.
     expect(isWithinScope).toHaveBeenCalledWith(
-      "program_staffed",
+      "program_managed",
       "USR_PM",
       "P1",
       { email: "pm@x.test" },
@@ -86,21 +94,21 @@ describe("denials", () => {
     expect(isWithinScope).not.toHaveBeenCalled();
   });
 
-  test("staffed on the program → allowed", async () => {
+  test("managing the program → allowed", async () => {
     isWithinScope.mockResolvedValueOnce(true);
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
 
     expect(res).toBeNull();
   });
 
-  test("NOT staffed on the program → refused, and the missing scope is named", async () => {
+  test("NOT managing the program → refused, and the missing scope is named", async () => {
     isWithinScope.mockResolvedValueOnce(false);
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
     const body = await res.json();
 
     expect(res.status).toBe(403);
     expect(decision(res)).toBe("out-of-scope");
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "content" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "content" });
   });
 
   test("a missing program id is a denial, never a pass", async () => {
@@ -190,6 +198,46 @@ describe("bulk actions — every id must be in scope", () => {
     });
     expect(res.status).toBe(401);
     expect(isWithinScope).not.toHaveBeenCalled();
+  });
+});
+
+describe("D-4 — the replaced staffing rule is measured, never enforced", () => {
+  const STAFFED = "program_staffed";
+  const MANAGED = "program_managed";
+
+  test("shadow off: only the manager profile is consulted", async () => {
+    const res = await requireProgramScope({ programId: "P1", wave: "content" });
+
+    expect(res).toBeNull();
+    expect(isWithinScope.mock.calls.map(([policy]) => policy)).toEqual([MANAGED]);
+    expect(mockShadowCheck).not.toHaveBeenCalled();
+  });
+
+  test("shadow on: a divergence is logged and the decision does not move", async () => {
+    mockShadowEnabled.mockReturnValue(true);
+    isWithinScope.mockImplementation(async (policy) => policy === MANAGED);
+
+    const res = await requireProgramScope({ programId: "P1", wave: "content" });
+
+    expect(res).toBeNull(); // enforced = the manager profile = allow
+    expect(mockShadowCheck).toHaveBeenCalledWith({
+      legacyAllowed: false,
+      engineAllowed: true,
+      meta: { resource: "program", policy: MANAGED, wave: "content", cid: "USR_PM" },
+    });
+  });
+
+  test("shadow on, the probe fails: the enforced answer still stands", async () => {
+    mockShadowEnabled.mockReturnValue(true);
+    isWithinScope.mockImplementation(async (policy) => {
+      if (policy === STAFFED) throw new Error("boom");
+      return true;
+    });
+
+    const res = await requireProgramScope({ programId: "P1", wave: "content" });
+
+    expect(res).toBeNull();
+    expect(mockShadowCheck).not.toHaveBeenCalled();
   });
 });
 

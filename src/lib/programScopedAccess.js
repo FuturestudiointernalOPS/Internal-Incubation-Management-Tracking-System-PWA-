@@ -2,6 +2,7 @@ import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope } from "@/services/authorization/scope";
+import { shadowCheck, shadowEnabled } from "@/services/authorization/shadow";
 
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program WRITES.
@@ -13,24 +14,32 @@ import { isWithinScope } from "@/services/authorization/scope";
  *
  *     Super Admin       → allow (resolver semantics: unscoped authority)
  *     capability (opt.) → the resolver decides
- *     program_staffed   → the program must be one they are STAFFED on
+ *     program_managed   → the program must be one they MANAGE
  *     → ALLOW
  *
- * `program_staffed` and not `program_assigned` on purpose: the latter includes a
- * learner's enrollment, which is right for reading a program and wrong for
- * changing it. Being enrolled never authorises editing.
+ * `program_managed` and not `program_staffed`/`program_assigned` on purpose
+ * (D-4): the WRITE perimeter is the `program_manager` PROFILE, not a staffing
+ * row. A facilitator assigned to a program is not its manager, so they do not
+ * write to it; being enrolled never authorises editing. The assigned manager
+ * receives the profile automatically, and the same profile can be granted to
+ * anyone else — so the perimeter follows the GRANT.
+ *
+ * The switch was measured first: `scripts/db-audit/program-perimeter-compare.sql`
+ * compared both perimeters on the production database. It found two people in
+ * the old one and one in the new one, no gain, and a single loss — a facilitator
+ * who had already lost `programs.edit` in step 3.2. With `AUTHZ_SHADOW_MODE=1`
+ * the old `program_staffed` rule is still computed and divergences are logged;
+ * it never changes the outcome.
  *
  * ENFORCED UNCONDITIONALLY. There is deliberately no rollout switch: a rule that
- * only applies when somebody remembers to enable it does not protect anything,
- * and the switch this replaced made "read the report first" the only thing
- * standing between measurement and action — which is not a control at all.
+ * only applies when somebody remembers to enable it does not protect anything.
  *
  * WHAT THAT MEANS OPERATIONALLY, stated plainly because it is a real consequence:
- * a program whose manager nobody recorded can never be matched by this rule, so
- * only Super Admin can write to it until a manager is assigned. That is what the
- * readiness report's unmanaged worklist is for, and why the repair action is
- * reachable with the permission-console authority as well as from inside the
- * program (see api/pm/programs/[id]/manager).
+ * a program with no active `program_manager` profile can never be matched by
+ * this rule, so only Super Admin can write to it until a manager is assigned.
+ * That is what the readiness report's unmanaged worklist is for, and why the
+ * repair action is reachable with the permission-console authority as well as
+ * from inside the program (see api/pm/programs/[id]/manager).
  *
  * `wave` does not gate anything — it names the domain being protected so a
  * denial says WHICH rule refused, and so the census can hold each write surface to
@@ -40,7 +49,7 @@ import { isWithinScope } from "@/services/authorization/scope";
  *
  *   403  X-Authz-Decision: out-of-scope | capability-missing | unresolvable
  *        { success: false, error: "errors.insufficientPermissions",
- *          missing: { scope: "program_staffed", wave, capability? } }
+ *          missing: { scope: "program_managed", wave, capability? } }
  *
  * A MISSING program id is a DENIAL, never a pass: an action that cannot be
  * attributed to a program cannot be scope-checked, and guessing would be the one
@@ -88,7 +97,7 @@ export async function requireProgramScope({
             error: "errors.insufficientPermissions",
             missing: {
               capability: `${module}.${capability}`,
-              scope: "program_staffed",
+              scope: "program_managed",
               wave,
             },
           },
@@ -103,22 +112,40 @@ export async function requireProgramScope({
         {
           success: false,
           error: "errors.insufficientPermissions",
-          missing: { scope: "program_staffed", wave, reason: "program-unresolvable" },
+          missing: { scope: "program_managed", wave, reason: "program-unresolvable" },
         },
         403,
         "unresolvable",
       );
     }
 
-    const within = await isWithinScope("program_staffed", session.cid, programId, {
+    const within = await isWithinScope("program_managed", session.cid, programId, {
       email: session.email,
     });
+
+    // Transition measurement (D-4): the OLD rule is computed alongside and any
+    // divergence is logged, without changing the outcome. Inert by default.
+    if (shadowEnabled()) {
+      try {
+        const legacyAllowed = await isWithinScope("program_staffed", session.cid, programId, {
+          email: session.email,
+        });
+        shadowCheck({
+          legacyAllowed,
+          engineAllowed: within,
+          meta: { resource: "program", policy: "program_managed", wave, cid: session.cid },
+        });
+      } catch {
+        // The probe never affects the decision.
+      }
+    }
+
     if (!within) {
       return denied(
         {
           success: false,
           error: "errors.insufficientPermissions",
-          missing: { scope: "program_staffed", wave },
+          missing: { scope: "program_managed", wave },
         },
         403,
         "out-of-scope",

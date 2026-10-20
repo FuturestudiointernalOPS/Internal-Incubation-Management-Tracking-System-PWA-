@@ -59,22 +59,22 @@ import {
  * Exported so a guard test can lock this alignment.
  */
 export const SHADOW_SCOPE_POLICY = {
-  program: "program_managed",
+  program: "program_staffed",
 };
 
 /**
  * D-3 — the policies the decision ENFORCES today. They are the same ones the
  * route guards already apply, so adopting this entry point changes no answer:
  *
- *   program → `program_staffed` (the person is staffed on THAT program)
- *   venture → `venture_own`     (the venture is theirs)
+ *   program → `program_managed` (the person holds the manager PROFILE)
+ *   venture → `venture_own`    (the venture is theirs)
  *
  * A project has no declared policy yet; it keeps its membership lookup.
- * The profile-based program perimeter (`program_managed`) is measured in
- * shadow above and switched in Lot 3, once D-4 is exercised.
+ * The previous program rule (`program_staffed`) is measured in shadow above
+ * during the transition, and removed once the shadow report is clean.
  */
 export const ENFORCED_SCOPE_POLICY = {
-  program: "program_staffed",
+  program: "program_managed",
   venture: "venture_own",
 };
 
@@ -190,20 +190,19 @@ export async function decide({ module, capability, minLevel = 1, resource = null
       });
     }
 
-    // SHADOW — compare the enforced perimeter with the policy that will replace
-    // it (the program_manager PROFILE), WITHOUT changing the outcome. Gated by
-    // AUTHZ_SHADOW_MODE, inert by default. Ventures already enforce their target
-    // policy, so there is nothing left to compare there.
+    // SHADOW — compare the enforced perimeter with the rule it replaced, WITHOUT
+    // changing the outcome. Gated by AUTHZ_SHADOW_MODE, inert by default. Ventures
+    // have only ever had one rule, so there is nothing to compare there.
     if (shadowEnabled()) {
       const policy = SHADOW_SCOPE_POLICY[resource];
       if (policy) {
         try {
-          const engineAllowed = await isWithinScope(policy, session.cid, contextId, {
+          const legacyAllowed = await isWithinScope(policy, session.cid, contextId, {
             email: session.email,
           });
           shadowCheck({
-            legacyAllowed: inScope,
-            engineAllowed,
+            legacyAllowed,
+            engineAllowed: inScope,
             meta: { resource, contextId, cid: session.cid, policy },
           });
         } catch {

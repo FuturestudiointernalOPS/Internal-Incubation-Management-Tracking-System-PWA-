@@ -1,11 +1,10 @@
 /**
- * PHASE 5 — tranche c3a, réalignée par D-3 (étape 2.4).
+ * PHASE 5 — tranche c3a, réalignée par D-3 (étape 2.4) puis D-4 (étape 3.1).
  *
- * The unified decision now ENFORCES the perimeter the route guards already
- * apply (`program_staffed`, `venture_own`) and keeps measuring, in shadow, the
- * policy that will replace it (the `program_manager` PROFILE). Adopting the
- * entry point therefore changes no answer; the measurement that will justify
- * the Lot 3 switch survives.
+ * The unified decision now ENFORCES the program_manager PROFILE and keeps
+ * measuring, in shadow, the rule it replaced ("staffed on the program"). The
+ * switch was measured first (scripts/db-audit/program-perimeter-compare.sql);
+ * the shadow keeps watching production without changing any answer.
  */
 jest.mock("@/lib/db", () => ({ initDb: jest.fn(async () => {}) }));
 
@@ -47,7 +46,7 @@ const params = {
   contextId: "P1",
 };
 
-const shadowCalls = () => mockIsWithinScope.mock.calls.filter(([policy]) => policy === "program_managed");
+const shadowCalls = () => mockIsWithinScope.mock.calls.filter(([policy]) => policy === "program_staffed");
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -58,12 +57,12 @@ beforeEach(() => {
   mockShadowEnabled.mockReturnValue(false);
 });
 
-describe("the decision enforces the policy the guards already apply", () => {
-  test("program → program_staffed", async () => {
-    scopeAnswers.program_staffed = true;
+describe("the decision enforces the manager PROFILE (D-4)", () => {
+  test("program → program_managed", async () => {
+    scopeAnswers.program_managed = true;
     const d = await decide(params);
     expect(d.allowed).toBe(true);
-    expect(mockIsWithinScope).toHaveBeenCalledWith("program_staffed", "U1", "P1", {
+    expect(mockIsWithinScope).toHaveBeenCalledWith("program_managed", "U1", "P1", {
       email: "u@x.test",
     });
   });
@@ -78,9 +77,9 @@ describe("the decision enforces the policy the guards already apply", () => {
   });
 });
 
-describe("shadow — the profile policy is measured, never enforced", () => {
-  test("disabled: the profile policy is never consulted", async () => {
-    scopeAnswers.program_staffed = true;
+describe("shadow — the replaced rule is measured, never enforced", () => {
+  test("disabled: the replaced rule is never consulted", async () => {
+    scopeAnswers.program_managed = true;
     const d = await decide(params);
     expect(d.allowed).toBe(true);
     expect(shadowCalls()).toHaveLength(0);
@@ -89,35 +88,35 @@ describe("shadow — the profile policy is measured, never enforced", () => {
 
   test("enabled: a divergence is logged, the enforced answer is unchanged", async () => {
     mockShadowEnabled.mockReturnValue(true);
-    scopeAnswers.program_staffed = true; // enforced = allow
-    scopeAnswers.program_managed = false; // target profile = deny
+    scopeAnswers.program_managed = true; // enforced = allow
+    scopeAnswers.program_staffed = false; // replaced rule = deny
     const d = await decide(params);
     expect(d.allowed).toBe(true);
     expect(mockShadowCheck).toHaveBeenCalledWith({
-      legacyAllowed: true,
-      engineAllowed: false,
-      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_managed" },
+      legacyAllowed: false,
+      engineAllowed: true,
+      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_staffed" },
     });
   });
 
   test("enabled: agreement carries two equal values", async () => {
     mockShadowEnabled.mockReturnValue(true);
-    scopeAnswers.program_staffed = false;
     scopeAnswers.program_managed = false;
+    scopeAnswers.program_staffed = false;
     const d = await decide(params);
     expect(d.allowed).toBe(false);
     expect(mockShadowCheck).toHaveBeenCalledWith({
       legacyAllowed: false,
       engineAllowed: false,
-      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_managed" },
+      meta: { resource: "program", contextId: "P1", cid: "U1", policy: "program_staffed" },
     });
   });
 
   test("enabled, the probe fails: the enforced answer still stands", async () => {
     mockShadowEnabled.mockReturnValue(true);
-    scopeAnswers.program_staffed = true;
+    scopeAnswers.program_managed = true;
     mockIsWithinScope.mockImplementation(async (policy) => {
-      if (policy === "program_managed") throw new Error("boom");
+      if (policy === "program_staffed") throw new Error("boom");
       return true;
     });
     const d = await decide(params);
@@ -127,12 +126,12 @@ describe("shadow — the profile policy is measured, never enforced", () => {
 });
 
 describe("the declared policies stay aligned", () => {
-  test("program enforces the guard's policy and shadows the profile one", () => {
-    expect(ENFORCED_SCOPE_POLICY.program).toBe("program_staffed");
-    expect(SHADOW_SCOPE_POLICY.program).toBe("program_managed");
+  test("program enforces the profile and shadows the staffing rule", () => {
+    expect(ENFORCED_SCOPE_POLICY.program).toBe("program_managed");
+    expect(SHADOW_SCOPE_POLICY.program).toBe("program_staffed");
   });
 
-  test("venture already enforces its target policy, so nothing is shadowed", () => {
+  test("venture has only ever had one rule, so nothing is shadowed", () => {
     expect(ENFORCED_SCOPE_POLICY.venture).toBe("venture_own");
     expect(SHADOW_SCOPE_POLICY.venture).toBeUndefined();
   });

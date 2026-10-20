@@ -99,7 +99,7 @@ describe("the team task board is team-scoped", () => {
     const body = await res.json();
 
     expect(res.status).toBe(403);
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "groups" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "groups" });
     expect(workspaceModel.getTeamTasks).not.toHaveBeenCalled();
   });
 
@@ -107,7 +107,7 @@ describe("the team task board is team-scoped", () => {
     const res = await teamTasks.GET(new Request("http://localhost/api/team-tasks?team_id=TEAM-1"));
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_STAFF", "P1", { email: "s@x.test" });
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_STAFF", "P1", { email: "s@x.test" });
     expect(workspaceModel.getTeamTasks).toHaveBeenCalledWith("TEAM-1");
   });
 
