@@ -35,7 +35,6 @@ module.exports = {
     "src/app/api/ventures/[id]/documents/[docId]/versions/route.js#M5",
     "src/app/api/ventures/[id]/documents/route.js#M5",
     "src/app/api/ventures/[id]/progress/route.js#M5",
-    "src/app/api/ventures/[id]/staff-assignments/route.js#M5",
     "src/app/crm/contacts/page.js#M5",
     "src/app/workspaces/page.js#M5",
     "src/components/crm/TimelineScreen.js#M5",
