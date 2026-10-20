@@ -16,7 +16,7 @@
     "test": "jest --runInBand",
     "test:coverage": "jest --runInBand --coverage",
     "test:watch": "jest --watch",
-    "test:authz": "jest --runInBand src/__tests__/authz-metrics-ratchet.test.js src/__tests__/permissions-static-guards.test.js src/__tests__/permissions-role-gates-extended.test.js src/__tests__/authz-program-manager-profile.test.js src/__tests__/login-role-unification.test.js src/__tests__/roles.test.js src/__tests__/authorization-model.test.js",
+    "test:authz": "jest --runInBand src/__tests__/authz-metrics-ratchet.test.js src/__tests__/permissions-static-guards.test.js src/__tests__/permissions-role-gates-extended.test.js src/__tests__/authz-program-manager-profile.test.js src/__tests__/login-role-unification.test.js src/__tests__/roles.test.js src/__tests__/authorization-model.test.js src/__tests__/scope-policies.test.js src/__tests__/permissions-scope-decision.test.js",
     "authz:metrics": "node scripts/authz-metrics.js",
     "authz:metrics:check": "node scripts/authz-metrics.js --check",
     "i18n:parity": "node scripts/i18n-parity.mjs",

@@ -8,6 +8,10 @@
  *   display  — fills a screen or a context projection, never a write;
  *   history  — the residual read of a former relationship;
  *   shadow   — the rule a switch replaced; measured, never called by a route.
+ *
+ * `shadow` is now EMPTY: the program transition probe was removed once its one
+ * divergence was explained (Lot 8). The count below is the assertion that no
+ * rule is measured in shadow without a deliberate decision.
  */
 
 jest.mock("@/lib/db", () => ({ initDb: jest.fn(async () => {}) }));
@@ -18,7 +22,6 @@ const {
 } = require("@/models/authorization/scope-catalog");
 const {
   ENFORCED_SCOPE_POLICY,
-  SHADOW_SCOPE_POLICY,
 } = require("@/services/authorization/scopedAccess");
 
 describe("the scope policy set", () => {
@@ -33,25 +36,26 @@ describe("the scope policy set", () => {
     }
 
     expect(byPurpose).toEqual({
-      enforced: 2, // venture_own, program_managed
+      enforced: 3, // venture_own, program_managed, program_staffed (repair route)
       display: 2, // program_assigned, learning_own
       history: 2, // venture_managed_history, program_managed_history
-      shadow: 1, // program_staffed — D-4 replaced it
     });
   });
 
-  test("the decision enforces exactly the enforced policies", () => {
-    const enforced = Object.values(SCOPE_POLICIES)
-      .filter((policy) => policy.purpose === "enforced")
-      .map((policy) => policy.key)
-      .sort();
+  test("the unified decision uses only enforced policies", () => {
+    const enforced = new Set(
+      Object.values(SCOPE_POLICIES)
+        .filter((policy) => policy.purpose === "enforced")
+        .map((policy) => policy.key),
+    );
 
-    expect(Object.values(ENFORCED_SCOPE_POLICY).sort()).toEqual(enforced);
+    for (const policy of Object.values(ENFORCED_SCOPE_POLICY)) {
+      expect(enforced.has(policy)).toBe(true);
+    }
   });
 
-  test("the replaced program rule is measured, never enforced", () => {
-    expect(SCOPE_POLICIES.program_staffed.purpose).toBe("shadow");
+  test("the staffing rule is enforced by the repair route, not by the decision", () => {
+    expect(SCOPE_POLICIES.program_staffed.purpose).toBe("enforced");
     expect(Object.values(ENFORCED_SCOPE_POLICY)).not.toContain("program_staffed");
-    expect(SHADOW_SCOPE_POLICY.program).toBe("program_staffed");
   });
 });

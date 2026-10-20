@@ -37,28 +37,11 @@ import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, evaluateAuthorization } from "./context";
 import { AUTHZ_REASONS } from "./contextDecisions";
 import { isWithinScope, resolveVentureScopeId } from "./scope";
-import { shadowCheck, shadowEnabled } from "./shadow";
 import {
   getProjectMembershipRows,
   getVentureMembershipRows,
 } from "@/models/authorization/contextAssignmentReads";
 import { resolveProgramAssignment as resolveProgramStanding } from "./programAssignment";
-
-/**
- * c3a — the ENGINE scope policy a scoped `resource` maps to, for the shadow
- * comparison. Resources with no engine policy (project) are simply not probed.
- *
- * ALIGNMENT (Phase 5 c3b) — `program` → **`program_managed`**: the enforced
- * program perimeter is the PROFILE basis (the `program_manager` profile
- * assignment), not a staff table. `program_staffed` survives only where it is a
- * deliberate rule (the manager repair route); it is no longer probed in shadow
- * (Lot 8).
- *   - venture → `venture_own` : `src/lib/ventureScopedAccess.js`.
- * Exported so a guard test can lock this alignment.
- */
-export const SHADOW_SCOPE_POLICY = {
-  program: "program_staffed",
-};
 
 /**
  * D-3 — the policies the decision ENFORCES today. They are the same ones the
@@ -68,8 +51,15 @@ export const SHADOW_SCOPE_POLICY = {
  *   venture → `venture_own`    (the venture is theirs)
  *
  * A project has no declared policy yet; it keeps its membership lookup.
- * The previous program rule (`program_staffed`) is measured in shadow above
- * during the transition, and removed once the shadow report is clean.
+ *
+ * `program_staffed` is deliberately absent: it is NOT a replaced rule measured in
+ * shadow, it is the staffing perimeter the manager repair route enforces on
+ * purpose (see `scope-catalog.js`). The transition probe that compared the two
+ * program perimeters was removed once its single divergence was explained
+ * (Lot 8); the measurement lives in `scripts/db-audit/program-perimeter-compare.sql`,
+ * not in this decision.
+ *
+ * EXCEPTION — Super Admin bypasses every policy, as everywhere else.
  */
 export const ENFORCED_SCOPE_POLICY = {
   program: "program_managed",
@@ -190,28 +180,6 @@ export async function decide({
       inScope = await isWithinScope(policy, session.cid, scopeId, {
         email: session.email,
       });
-    }
-
-    // SHADOW — compare the enforced perimeter with the rule it replaced, WITHOUT
-    // changing the outcome. Gated by AUTHZ_SHADOW_MODE, inert by default. Ventures
-    // have only ever had one rule, so there is nothing to compare there. A caller
-    // that named its own policy is not part of the switch being measured.
-    if (shadowEnabled() && !scopePolicy) {
-      const policy = SHADOW_SCOPE_POLICY[resource];
-      if (policy) {
-        try {
-          const legacyAllowed = await isWithinScope(policy, session.cid, contextId, {
-            email: session.email,
-          });
-          shadowCheck({
-            legacyAllowed,
-            engineAllowed: inScope,
-            meta: { resource, contextId, cid: session.cid, policy },
-          });
-        } catch {
-          // The shadow probe never affects the decision.
-        }
-      }
     }
 
     if (!inScope) {
