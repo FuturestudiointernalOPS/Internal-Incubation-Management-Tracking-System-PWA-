@@ -189,6 +189,24 @@ function routeEntries() {
   });
 }
 
+/**
+ * Does this call name a capability?
+ *
+ * The check reads BOTH forms the codebase uses:
+ *   module: "programs", capability: "edit"   (explicit keys)
+ *   module, capability                        (shorthand — same object, same
+ *                                              decision, different spelling)
+ * A shorthand property used to be invisible to the scan, which reported a
+ * correctly-guarded call as unguarded.
+ */
+function namesCapability(snippet) {
+  const moduleNamed =
+    /\bmodule\s*:/.test(snippet) || /\bmodule\s*[,}]/.test(snippet);
+  const capabilityNamed =
+    /\bcapability\s*:/.test(snippet) || /\bcapability\s*[,}]/.test(snippet);
+  return moduleNamed && capabilityNamed;
+}
+
 function hasCapabilityGate(text) {
   if (CAPABILITY_MECHANISMS.some((mechanism) => text.includes(mechanism))) {
     return true;
@@ -197,9 +215,7 @@ function hasCapabilityGate(text) {
     if (/\bcapability\s*:/.test(snippet)) return true;
   }
   for (const snippet of callSnippets(text, "requireProgramScope")) {
-    if (/\bmodule\s*:/.test(snippet) && /\bcapability\s*:/.test(snippet)) {
-      return true;
-    }
+    if (namesCapability(snippet)) return true;
   }
   return false;
 }
@@ -435,7 +451,7 @@ function scopeVocabulary(entries) {
     programScopeCalls += programSnips.length;
     programScopeWithCapability += programSnips.filter(
       (snippet) =>
-        (/\bmodule\s*:/.test(snippet) && /\bcapability\s*:/.test(snippet)) ||
+        namesCapability(snippet) ||
         // An ANY-OF list names its capabilities inside `capabilities: [...]`.
         /\bcapabilities\s*:/.test(snippet),
     ).length;
