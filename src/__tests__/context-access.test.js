@@ -25,12 +25,28 @@ jest.mock("@/lib/db", () => ({
     execute: jest.fn(async ({ sql, args = [] }) => {
       const statement = String(sql);
       if (statement.includes("FROM v2_program_staff")) {
+        // getProgramStaffedScopeIds — the policy the scoped decision enforces.
+        if (statement.includes("DISTINCT CAST(program_id AS TEXT) AS id")) {
+          const [userCid, email] = args;
+          return {
+            rows: mockDbRows.v2ProgramStaff
+              .filter(
+                (row) =>
+                  String(row.staff_id) === String(userCid) ||
+                  String(row.staff_id).toLowerCase() === String(email || userCid).toLowerCase(),
+              )
+              .map((row) => ({ id: row.program_id })),
+          };
+        }
         const [programId, staffId] = args;
         return {
           rows: mockDbRows.v2ProgramStaff.filter(
             (row) => String(row.program_id) === String(programId) && String(row.staff_id) === String(staffId),
           ),
         };
+      }
+      if (statement.includes("FROM v2_programs") && statement.includes("assigned_pm_id")) {
+        return { rows: [] }; // no program is recorded as managed by someone in these fixtures
       }
       if (statement.includes("FROM contact_roles")) {
         const [contextId, userCid] = args;
@@ -54,6 +70,19 @@ jest.mock("@/lib/db", () => ({
         };
       }
       if (statement.includes("FROM venture_members")) {
+        // getVentureOwnScopeIds — the union half that lives in venture_members.
+        if (statement.includes("DISTINCT CAST(venture_id AS TEXT) AS id")) {
+          const [userCid] = args;
+          return {
+            rows: mockDbRows.ventureMembers
+              .filter(
+                (row) =>
+                  (String(row.user_cid) === String(userCid) || String(row.contact_id) === String(userCid)) &&
+                  row.removed_at == null,
+              )
+              .map((row) => ({ id: row.venture_id })),
+          };
+        }
         const [ventureId, userCid, contactId] = args;
         return {
           rows: mockDbRows.ventureMembers.filter(
@@ -63,6 +92,9 @@ jest.mock("@/lib/db", () => ({
               row.removed_at == null,
           ),
         };
+      }
+      if (statement.includes("FROM venture_staff_assignments")) {
+        return { rows: [] }; // no delegated assignment in these fixtures
       }
       return { rows: [] };
     }),

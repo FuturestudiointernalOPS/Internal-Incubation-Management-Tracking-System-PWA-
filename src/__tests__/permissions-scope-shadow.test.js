@@ -1,9 +1,11 @@
 /**
- * PHASE 5 — tranche c3a : mode ombre sur la PORTÉE.
+ * PHASE 5 — tranche c3a, réalignée par D-3 (étape 2.4).
  *
- * Dans le chemin scopé de `decide`, la portée par le MOTEUR (`isWithinScope`) est
- * comparée à la décision ad hoc et journalisée — SANS changer l'issue et
- * seulement quand `AUTHZ_SHADOW_MODE` est actif.
+ * The unified decision now ENFORCES the perimeter the route guards already
+ * apply (`program_staffed`, `venture_own`) and keeps measuring, in shadow, the
+ * policy that will replace it (the `program_manager` PROFILE). Adopting the
+ * entry point therefore changes no answer; the measurement that will justify
+ * the Lot 3 switch survives.
  */
 jest.mock("@/lib/db", () => ({ initDb: jest.fn(async () => {}) }));
 
@@ -17,17 +19,12 @@ jest.mock("@/services/authorization/context", () => ({
   evaluateAuthorization: (...args) => mockEvalAuth(...args),
 }));
 
-const mockProgramRows = jest.fn(async () => []);
-jest.mock("@/models/authorization/contextAssignmentReads", () => ({
-  getProgramStaffAssignmentRows: (...args) => mockProgramRows(...args),
-  getContactRoleAssignmentRows: jest.fn(async () => []),
-  getProjectMembershipRows: jest.fn(async () => []),
-  getVentureMembershipRows: jest.fn(async () => []),
-}));
-
-const mockIsWithinScope = jest.fn(async () => false);
+/** policy → answer. The enforced and the shadow policy can disagree on purpose. */
+const scopeAnswers = {};
+const mockIsWithinScope = jest.fn(async (policy) => scopeAnswers[policy] === true);
 jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: (...args) => mockIsWithinScope(...args),
+  resolveVentureScopeId: jest.fn(async (id) => id),
 }));
 
 const mockShadowEnabled = jest.fn(() => false);
@@ -37,7 +34,11 @@ jest.mock("@/services/authorization/shadow", () => ({
   shadowCheck: (...args) => mockShadowCheck(...args),
 }));
 
-const { decide, SHADOW_SCOPE_POLICY } = require("@/services/authorization/scopedAccess");
+const {
+  decide,
+  ENFORCED_SCOPE_POLICY,
+  SHADOW_SCOPE_POLICY,
+} = require("@/services/authorization/scopedAccess");
 
 const params = {
   module: "programs",
@@ -46,31 +47,52 @@ const params = {
   contextId: "P1",
 };
 
+const shadowCalls = () => mockIsWithinScope.mock.calls.filter(([policy]) => policy === "program_managed");
+
 beforeEach(() => {
   jest.clearAllMocks();
+  for (const key of Object.keys(scopeAnswers)) delete scopeAnswers[key];
   mockGetSession.mockResolvedValue({ cid: "U1", email: "u@x.test" });
   mockGetCtx.mockResolvedValue({ isSuperAdmin: false });
   mockEvalAuth.mockResolvedValue({ allowed: true, status: 200, errorKey: null, reason: "granted" });
-  mockProgramRows.mockResolvedValue([]);
-  mockIsWithinScope.mockResolvedValue(false);
   mockShadowEnabled.mockReturnValue(false);
 });
 
-describe("c3a — mode ombre sur la portée", () => {
-  test("désactivé : la portée moteur n'est jamais consultée", async () => {
-    mockProgramRows.mockResolvedValue([{ id: 1 }]);
+describe("the decision enforces the policy the guards already apply", () => {
+  test("program → program_staffed", async () => {
+    scopeAnswers.program_staffed = true;
     const d = await decide(params);
     expect(d.allowed).toBe(true);
-    expect(mockIsWithinScope).not.toHaveBeenCalled();
+    expect(mockIsWithinScope).toHaveBeenCalledWith("program_staffed", "U1", "P1", {
+      email: "u@x.test",
+    });
+  });
+
+  test("venture → venture_own, on the canonical code", async () => {
+    scopeAnswers.venture_own = true;
+    const d = await decide({ ...params, resource: "venture", contextId: "VNT-ABC" });
+    expect(d.allowed).toBe(true);
+    expect(mockIsWithinScope).toHaveBeenCalledWith("venture_own", "U1", "VNT-ABC", {
+      email: "u@x.test",
+    });
+  });
+});
+
+describe("shadow — the profile policy is measured, never enforced", () => {
+  test("disabled: the profile policy is never consulted", async () => {
+    scopeAnswers.program_staffed = true;
+    const d = await decide(params);
+    expect(d.allowed).toBe(true);
+    expect(shadowCalls()).toHaveLength(0);
     expect(mockShadowCheck).not.toHaveBeenCalled();
   });
 
-  test("activé : divergence mesurée, issue INCHANGÉE (l'adhoc décide)", async () => {
+  test("enabled: a divergence is logged, the enforced answer is unchanged", async () => {
     mockShadowEnabled.mockReturnValue(true);
-    mockProgramRows.mockResolvedValue([{ id: 1 }]); // adhoc = allow
-    mockIsWithinScope.mockResolvedValue(false); // moteur = deny
+    scopeAnswers.program_staffed = true; // enforced = allow
+    scopeAnswers.program_managed = false; // target profile = deny
     const d = await decide(params);
-    expect(d.allowed).toBe(true); // issue inchangée
+    expect(d.allowed).toBe(true);
     expect(mockShadowCheck).toHaveBeenCalledWith({
       legacyAllowed: true,
       engineAllowed: false,
@@ -78,10 +100,10 @@ describe("c3a — mode ombre sur la portée", () => {
     });
   });
 
-  test("activé : accord → shadowCheck reçoit deux valeurs égales", async () => {
+  test("enabled: agreement carries two equal values", async () => {
     mockShadowEnabled.mockReturnValue(true);
-    mockProgramRows.mockResolvedValue([]); // adhoc = deny
-    mockIsWithinScope.mockResolvedValue(false); // moteur = deny
+    scopeAnswers.program_staffed = false;
+    scopeAnswers.program_managed = false;
     const d = await decide(params);
     expect(d.allowed).toBe(false);
     expect(mockShadowCheck).toHaveBeenCalledWith({
@@ -91,21 +113,27 @@ describe("c3a — mode ombre sur la portée", () => {
     });
   });
 
-  test("activé, sondage moteur en échec : l'issue reste celle de l'adhoc", async () => {
+  test("enabled, the probe fails: the enforced answer still stands", async () => {
     mockShadowEnabled.mockReturnValue(true);
-    mockProgramRows.mockResolvedValue([{ id: 1 }]); // adhoc allow
-    mockIsWithinScope.mockRejectedValue(new Error("boom"));
+    scopeAnswers.program_staffed = true;
+    mockIsWithinScope.mockImplementation(async (policy) => {
+      if (policy === "program_managed") throw new Error("boom");
+      return true;
+    });
     const d = await decide(params);
     expect(d.allowed).toBe(true);
     expect(mockShadowCheck).not.toHaveBeenCalled();
   });
 });
 
-describe("alignement du mode ombre sur la policy DES GARDES", () => {
-  test("program → program_managed (cible profil), venture → venture_own", () => {
-    // Le mode ombre mesure la decision ad hoc contre la policy qui la REMPLACERA
-    // (le profil program_manager), pas contre la garde encore en place.
+describe("the declared policies stay aligned", () => {
+  test("program enforces the guard's policy and shadows the profile one", () => {
+    expect(ENFORCED_SCOPE_POLICY.program).toBe("program_staffed");
     expect(SHADOW_SCOPE_POLICY.program).toBe("program_managed");
-    expect(SHADOW_SCOPE_POLICY.venture).toBe("venture_own");
+  });
+
+  test("venture already enforces its target policy, so nothing is shadowed", () => {
+    expect(ENFORCED_SCOPE_POLICY.venture).toBe("venture_own");
+    expect(SHADOW_SCOPE_POLICY.venture).toBeUndefined();
   });
 });

@@ -36,7 +36,7 @@ import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, evaluateAuthorization } from "./context";
 import { AUTHZ_REASONS } from "./contextDecisions";
-import { isWithinScope } from "./scope";
+import { isWithinScope, resolveVentureScopeId } from "./scope";
 import { shadowCheck, shadowEnabled } from "./shadow";
 import {
   getProgramStaffAssignmentRows,
@@ -60,6 +60,21 @@ import {
  */
 export const SHADOW_SCOPE_POLICY = {
   program: "program_managed",
+};
+
+/**
+ * D-3 — the policies the decision ENFORCES today. They are the same ones the
+ * route guards already apply, so adopting this entry point changes no answer:
+ *
+ *   program → `program_staffed` (the person is staffed on THAT program)
+ *   venture → `venture_own`     (the venture is theirs)
+ *
+ * A project has no declared policy yet; it keeps its membership lookup.
+ * The profile-based program perimeter (`program_managed`) is measured in
+ * shadow above and switched in Lot 3, once D-4 is exercised.
+ */
+export const ENFORCED_SCOPE_POLICY = {
+  program: "program_staffed",
   venture: "venture_own",
 };
 
@@ -156,18 +171,29 @@ export async function decide({ module, capability, minLevel = 1, resource = null
     const capabilityDecision = await evaluateAuthorization(module, capability, minLevel);
     if (!capabilityDecision.allowed) return capabilityDecision;
 
-    // CONTEXT ASSIGNMENT — the person must belong to THIS resource.
-    const resolved = await resolveContextAssignment({
-      resource,
-      contextId,
-      userCid: session.cid,
-      userEmail: session.email,
-    });
-    const adhocAllowed = Boolean(resolved);
+    // CONTEXT ASSIGNMENT — the person must belong to THIS resource, under the
+    // same rule the route guards apply (D-3: adopt the shape, keep the policy).
+    let inScope;
+    if (resource === "project") {
+      inScope = Boolean(
+        await resolveContextAssignment({
+          resource,
+          contextId,
+          userCid: session.cid,
+          userEmail: session.email,
+        }),
+      );
+    } else {
+      const scopeId = resource === "venture" ? await resolveVentureScopeId(contextId) : contextId;
+      inScope = await isWithinScope(ENFORCED_SCOPE_POLICY[resource], session.cid, scopeId, {
+        email: session.email,
+      });
+    }
 
-    // c3a — SHADOW: compare the ad-hoc scope with the ENGINE's scope policy,
-    // WITHOUT changing the outcome (gated by AUTHZ_SHADOW_MODE, inert by
-    // default). This measures the divergence before any switch.
+    // SHADOW — compare the enforced perimeter with the policy that will replace
+    // it (the program_manager PROFILE), WITHOUT changing the outcome. Gated by
+    // AUTHZ_SHADOW_MODE, inert by default. Ventures already enforce their target
+    // policy, so there is nothing left to compare there.
     if (shadowEnabled()) {
       const policy = SHADOW_SCOPE_POLICY[resource];
       if (policy) {
@@ -176,7 +202,7 @@ export async function decide({ module, capability, minLevel = 1, resource = null
             email: session.email,
           });
           shadowCheck({
-            legacyAllowed: adhocAllowed,
+            legacyAllowed: inScope,
             engineAllowed,
             meta: { resource, contextId, cid: session.cid, policy },
           });
@@ -186,7 +212,7 @@ export async function decide({ module, capability, minLevel = 1, resource = null
       }
     }
 
-    if (!adhocAllowed) {
+    if (!inScope) {
       return {
         allowed: false,
         status: 403,
