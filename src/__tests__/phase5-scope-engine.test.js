@@ -136,18 +136,22 @@ describe("Phase 5 — data-layer predicates", () => {
     expect(query.args).toEqual(["C1", "C1", "C1"]);
   });
 
-  test("resolveVentureScopeId normalizes UUID → VNT code (fail-soft, never false-allow)", async () => {
-    // A canonical code passes through without a lookup.
+  test("resolveVentureScopeId normalises to the INTERNAL id (fail-soft, never false-allow)", async () => {
+    // The canonical scope key is the internal id: since Phase 0 the membership and
+    // assignment tables store it, and getVentureOwnScopeIds() returns it. This used
+    // to normalise to the VNT code, which after the migration matched nothing — a
+    // founder or a delegated manager was "out of scope" on every route.
     mockExecuted.length = 0;
-    expect(await resolveVentureScopeId("VNT-123")).toBe("VNT-123");
-    expect(mockExecuted).toHaveLength(0);
+    mockRows = [{ id: "34314a8b-044a-41ce-99ab-88d22413bd4c" }];
+    expect(await resolveVentureScopeId("VNT-123")).toBe("34314a8b-044a-41ce-99ab-88d22413bd4c");
+    expect(mockExecuted[0].sql).toContain("FROM ventures WHERE venture_id = ? OR id::text = ?");
 
-    // A UUID is resolved to the code.
-    mockRows = [{ venture_id: "VNT-123" }];
-    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("VNT-123");
-    expect(mockExecuted[0].sql).toContain("FROM ventures WHERE id::text = ?");
+    // An internal id resolves to itself through the same statement.
+    mockExecuted.length = 0;
+    mockRows = [{ id: "9f1c-uuid" }];
+    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("9f1c-uuid");
 
-    // Unresolvable / error / empty → raw value or null (predicate then denies).
+    // Unresolvable / error / empty → raw value or null (the predicate then denies).
     mockRows = [];
     expect(await resolveVentureScopeId("9f1c-uuid")).toBe("9f1c-uuid");
     mockThrow = true;

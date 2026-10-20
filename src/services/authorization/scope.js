@@ -34,6 +34,7 @@
  */
 
 import { isScopePolicyImplemented } from "@/models/authorization/scope-catalog";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 import {
   getVentureOwnScopeIds,
   getProgramAssignedScopeIds,
@@ -41,7 +42,6 @@ import {
   getLearningOwnScopeIds,
   getVentureManagedHistoryScopeIds,
   getProgramManagedHistoryScopeIds,
-  getVentureIdByUuid,
   contactSharesStaffedProgram,
 } from "@/models/authorization/scopeReads";
 
@@ -93,21 +93,24 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
 /**
  * Normalize a route's venture identifier to the canonical scope key.
  *
- * venture_members / venture_staff_assignments store the VNT code, while some
- * routes receive the internal UUID — the predicate compares strings, so pass
- * the canonical code. Fail-soft: when a UUID cannot be resolved (or the lookup
- * errors) the raw value is returned and the predicate simply won't match
- * (deny), never a false allow.
+ * THE CANONICAL KEY IS THE INTERNAL ID. Before Phase 0 the membership and
+ * assignment tables stored the VNT code, so this normalised a UUID to the code.
+ * After the migration those tables store the internal id and `getVentureOwnScopeIds`
+ * returns it — so the old normalisation compared a CODE (every route carries one)
+ * against a list of IDS and matched nothing: every founder and every delegated
+ * staff member was "out of scope" on every venture-scoped route, reported as
+ * "insufficient permissions".
+ *
+ * One resolver handles both forms, and a reference that matches no Venture is
+ * returned unchanged — the predicate then fails closed, never open.
  */
 export async function resolveVentureScopeId(ventureId) {
   if (ventureId === null || ventureId === undefined || ventureId === "") {
     return null;
   }
   const value = String(ventureId);
-  if (value.startsWith("VNT-")) return value;
   try {
-    const resolved = await getVentureIdByUuid(value);
-    return resolved || value;
+    return await resolveVentureInternalId(value);
   } catch (error) {
     console.warn("[Scope] resolveVentureScopeId failed:", error.message);
     return value;
