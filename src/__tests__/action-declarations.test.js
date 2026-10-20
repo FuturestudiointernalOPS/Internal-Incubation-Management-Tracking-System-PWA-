@@ -19,6 +19,7 @@ const { collectMetrics } = require("../../scripts/lib/authzMetrics");
 const {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
+  DELEGATED_DECISIONS,
   SELF_SCOPED_PREFIXES,
   OPEN_ASSUMED_KINDS,
   ROUTE_HUBS,
@@ -44,8 +45,24 @@ function liveUndeclared() {
 }
 
 describe("the action registry", () => {
-  test("the three declared kinds are the only vocabulary", () => {
-    expect([...DECLARED_ACTION_KINDS].sort()).toEqual(["capability", "open", "self"]);
+  test("the declared kinds are the only vocabulary", () => {
+    expect([...DECLARED_ACTION_KINDS].sort()).toEqual([
+      "capability",
+      "delegated",
+      "open",
+      "self",
+    ]);
+  });
+
+  test("every delegated declaration names its service and its rule", () => {
+    for (const entry of DELEGATED_DECISIONS) {
+      expect(entry.file).toMatch(/^src\/app\/api\/.*route\.js$/);
+      expect(entry.service).toMatch(/^src\/services\/.*\.js$/);
+      expect(typeof entry.rule).toBe("string");
+      expect(entry.rule.length).toBeGreaterThan(3);
+      expect(typeof entry.reason).toBe("string");
+      expect(entry.reason.length).toBeGreaterThan(10);
+    }
   });
 
   test("every self-scoped declaration names a scope and a reason", () => {
@@ -71,6 +88,7 @@ describe("the action registry", () => {
     const declared = [
       ...SELF_SCOPED_ROUTES.map((entry) => entry.file),
       ...OPEN_ASSUMED_ROUTES.map((entry) => entry.file),
+      ...DELEGATED_DECISIONS.map((entry) => entry.file),
       ...ROUTE_HUBS,
       ...NO_GUARD_ALLOWED,
     ];
@@ -87,6 +105,7 @@ describe("the action registry", () => {
     const declared = [
       ...SELF_SCOPED_ROUTES.map((entry) => entry.file),
       ...OPEN_ASSUMED_ROUTES.map((entry) => entry.file),
+      ...DELEGATED_DECISIONS.map((entry) => entry.file),
       ...ROUTE_HUBS,
       ...NO_GUARD_ALLOWED,
     ];
@@ -103,8 +122,9 @@ describe("the action registry", () => {
 
 describe("the action debt is a ratchet", () => {
   test("no action is undeclared beyond the frozen list", () => {
+    const delegated = new Set(DELEGATED_DECISIONS.map((entry) => entry.file));
     const frozen = UNDECLARED_ACTIONS.map((entry) => entry.file).sort();
-    expect(liveUndeclared()).toEqual(frozen);
+    expect(liveUndeclared().filter((file) => !delegated.has(file))).toEqual(frozen);
   });
 
   test("the frozen list only contains the two debt categories", () => {
@@ -117,6 +137,7 @@ describe("the action debt is a ratchet", () => {
     const declared = new Set([
       ...SELF_SCOPED_ROUTES.map((entry) => entry.file),
       ...OPEN_ASSUMED_ROUTES.map((entry) => entry.file),
+      ...DELEGATED_DECISIONS.map((entry) => entry.file),
       ...ROUTE_HUBS,
       ...NO_GUARD_ALLOWED,
     ]);

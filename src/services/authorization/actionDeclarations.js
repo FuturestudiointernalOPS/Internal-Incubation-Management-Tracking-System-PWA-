@@ -201,23 +201,46 @@ const NO_GUARD_ALLOWED = new Set([
 ]);
 
 /**
+ * DELEGATED_DECISIONS — routes whose permission decision lives in a SERVICE.
+ *
+ * The static scan can only see a decision written in the route file. Where the
+ * rule genuinely belongs to a service (it needs the target's relationship, not
+ * just the caller's role), the route declares the delegation instead of copying
+ * the rule into the route and letting the two drift.
+ *
+ * This is a DECLARATION, not an exemption: it names the service and the rule, so
+ * a reviewer can follow it, and the route leaves the debt list.
+ */
+const DELEGATED_DECISIONS = [
+  {
+    file: "src/app/api/contact-emails/route.js",
+    service: "src/services/contacts/alternativeEmails.js",
+    rule: "canManageContactEmails",
+    reason:
+      "Alternative emails : l'appelant gère sa propre identité, ou celle d'une autre personne seulement dans un programme partagé. La règle a besoin de la relation avec la cible, donc elle vit dans le service ; la route ne porte aucune capacité littérale.",
+  },
+];
+
+/**
  * DECLARATION SCHEMA (Lot 4, step 4.1)
  *
  * Every API action belongs to exactly one kind:
  *
  *   capability — it calls a DECISION_MECHANISM (a capability, a perimeter, or
  *                both). This is the target for every protected action.
+ *   delegated  — the decision lives in a service, named here with its rule.
  *   self       — open to any connected user, scoped to `session.cid`.
  *   open       — public by design, secret-guarded, a hub or a documented stub.
  *
- * An action that is none of the three is UNDECLARED debt: listed in
+ * An action that is none of the four is UNDECLARED debt: listed in
  * `actionDebt.js`, frozen so it can only shrink (step 4.2 works it down).
  */
-const DECLARED_ACTION_KINDS = ["capability", "self", "open"];
+const DECLARED_ACTION_KINDS = ["capability", "delegated", "self", "open"];
 
 module.exports = {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
+  DELEGATED_DECISIONS,
   SELF_SCOPED_PREFIXES,
   DECISION_MECHANISMS,
   SECRET_MECHANISMS,

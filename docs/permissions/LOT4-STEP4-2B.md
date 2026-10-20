@@ -37,16 +37,12 @@ Aucun utilisateur actif ne perd donc son accès aujourd'hui.
 
 ## 3. Cas laissé en dette, à dessein
 
-`GET/POST/DELETE /api/contact-emails` reste dans la liste de dette : sa
-décision est **déléguée** à un service (règle du programme partagé), donc
-invisible au balayage textuel. La route est protégée, mais le registre ne sait
-pas encore lire ce cas. C'est un faux positif de la liste de travail, pas un
-trou — il sera traité quand le registre saura déclarer une décision déléguée.
+`GET /api/security/login-history` : **tranché** le 2026-10-20 — réservé à
+l'administration (`users.view`) ; voir `LOT4-STEP4-3.md`.
 
-`GET /api/security/login-history` est laissé inchangé : il autorise aussi
-`staff` et `program_manager`, et la liste des valeurs de session a changé depuis
-le test qui le fige. Choisir qui doit voir l'historique de connexion est une
-décision produit ; elle n'est pas prise ici.
+`GET/POST/DELETE /api/contact-emails` : **tranché** le 2026-10-20 — la décision
+reste dans le service, mais le registre sait désormais déclarer une décision
+**déléguée** (`LOT4-STEP4-3.md`), donc la route quitte la liste de travail.
 
 ---
 

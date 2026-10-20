@@ -29,7 +29,7 @@
  * POST /api/admin/projects/[id]/reports/generate  | requireAuth(["super_admin","staff","program_manager"]) | élevé | source-pin
  * GET+PATCH /api/security/events                  | users.view / users.edit                  | élevé  | source-pin + comportement
  * GET+POST  /api/security/sessions                | users.view / users.edit                  | élevé  | source-pin
- * GET  /api/security/login-history                | createHandler({roles:["super_admin", "security_officer", "program_manager", "staff"]}) | élevé | source-pin
+ * GET  /api/security/login-history                | users.view (administration)              | élevé  | source-pin
  * GET  /api/audit-logs (+ /[id])                  | users.view                               | élevé  | source-pin
  * GET  /api/superadmin/full-state                 | createHandler() + settings.view          | élevé  | source-pin + comportement
  * POST /api/superadmin/groups/assignment          | createHandler({roles:["super_admin"]})  | élevé  | source-pin
@@ -198,10 +198,10 @@ describe("security — audit/session surfaces pin their role allowlist", () => {
     expect(count(src, /requireAuthorization\("users", "edit"\)/g)).toBe(1);
   });
 
-  test("GET /api/security/login-history — super_admin, security_officer ou program_manager (comportement actuel figé)", () => {
-    expect(read("src/app/api/security/login-history/route.js")).toMatch(
-      /\{\s*roles:\s*\["super_admin", "security_officer", "program_manager"\]\s*\}/,
-    );
+  test("GET /api/security/login-history — users.view, administration only (décision 2026-10-20)", () => {
+    const src = read("src/app/api/security/login-history/route.js");
+    expect(src).toMatch(/requireAuthorization\("users", "view"\)/);
+    expect(src).not.toMatch(/roles:\s*\[/);
   });
 
   test("GET /api/audit-logs (+ /[id]) — users.view (comportement actuel figé)", () => {

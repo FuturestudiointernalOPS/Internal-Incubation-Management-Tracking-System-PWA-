@@ -84,10 +84,13 @@ describe("Phase 9 — model consistency", () => {
         "facilitator",
         "participant",
         "program_manager",
-        "security_officer",
         "staff",
         "super_admin",
         "team",
+        // "security_officer" left the census on 2026-10-20: the security and
+        // audit routes now require `users.view` / `users.edit`, so no gate lists
+        // that contextual label any more. If a gate lists it again, add it back
+        // deliberately — the capability is the door, not the label.
         // "investor" was removed from every requireAuth list in phases
         // 6A/1.5 — investor access is now own-scoped (profile/pipeline) or
         // management-gated. If a new gate lists it again, add it back here

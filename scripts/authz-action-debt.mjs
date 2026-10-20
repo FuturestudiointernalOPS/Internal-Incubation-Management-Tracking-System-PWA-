@@ -14,16 +14,24 @@ import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
 const { collectMetrics } = require("./lib/authzMetrics.js");
+const {
+  DELEGATED_DECISIONS,
+} = require("../src/services/authorization/actionDeclarations.js");
 
 const TARGET = "src/services/authorization/actionDebt.js";
 const write = process.argv.includes("--write");
+
+// A delegated decision is DECLARED (the registry names the service and the
+// rule), even though the text scan cannot see it inside the route.
+const delegated = new Set(DELEGATED_DECISIONS.map((entry) => entry.file));
 
 const metrics = collectMetrics();
 const undeclared = metrics.routes.withoutCapabilityList
   .filter(
     (entry) =>
-      entry.category === "a_proteger" ||
-      entry.category === "a_verifier_decision_deleguee",
+      (entry.category === "a_proteger" ||
+        entry.category === "a_verifier_decision_deleguee") &&
+      !delegated.has(entry.file),
   )
   .sort((left, right) =>
     left.category === right.category

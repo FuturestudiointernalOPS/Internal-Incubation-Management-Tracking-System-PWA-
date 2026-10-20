@@ -1,18 +1,19 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireProgramManagerAccess } from "@/server/authz/guards";
-import { isInternalStaffRole } from "@/lib/identity";
+import { requireAuthorization } from "@/models/authorization/index";
 import { queryLoginHistory, getLoginStats } from "@/services/ventures/auditSecurity";
 
+/**
+ * Login history is an ADMINISTRATION read (product decision, 2026-10-20): only
+ * the platform owner, or an identity explicitly granted `users.view`. The
+ * former staff / program-manager admission is removed, and with it the D-1
+ * profile check that guarded it.
+ */
 export const GET = createHandler(
-  { roles: ["super_admin", "security_officer", "program_manager", "staff"] },
   async (req) => {
-    // D-1 — a baseline staff identity must hold the program-manager PROFILE.
-    // The other admitted identities (security officer, legacy PM) are unchanged.
-    if (isInternalStaffRole(req.session?.role)) {
-      const pmError = await requireProgramManagerAccess(req.session);
-      if (pmError) return pmError;
-    }
+    const capError = await requireAuthorization("users", "view");
+    if (capError) return capError;
+
     const searchParams = new URL(req.url).searchParams;
     const type = searchParams.get("type") || "list";
 
