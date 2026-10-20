@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { ventureAccessRefusal } from "@/server/http/refusal";
 import { submitFeedback, getFeedback, listFeedback, deleteFeedback, getMentorAnalytics, getSessionAnalytics, getFeedbackAnalytics } from "@/services/ventures/feedback";
 
 export const GET = createHandler(async (req, { params }) => {
@@ -55,8 +54,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session, reason } = await requireVentureAccess(id);
-  if (!session) return ventureAccessRefusal(reason);
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const body = await req.json();
 
   if (body.action === "submit") {

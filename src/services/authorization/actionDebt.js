@@ -76,7 +76,4 @@ export const UNDECLARED_ACTIONS = [
   { file: "src/app/api/ventures/[id]/verification/status/route.js", category: "a_proteger" },
   { file: "src/app/api/ventures/assigned/route.js", category: "a_proteger" },
   { file: "src/app/api/ventures/lead-manager/home/route.js", category: "a_proteger" },
-  { file: "src/app/api/ventures/[id]/documents/[docId]/transition/route.js", category: "a_verifier_decision_deleguee" },
-  { file: "src/app/api/ventures/[id]/documents/route.js", category: "a_verifier_decision_deleguee" },
-  { file: "src/app/api/ventures/[id]/reports/route.js", category: "a_verifier_decision_deleguee" },
 ];

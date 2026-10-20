@@ -1,9 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { ventureAccessRefusal } from "@/server/http/refusal";
 import {
   getVentureIdByCodeForReviews, getDocumentForReviews, listDocumentReviews,
   getVentureIdByCodeForReviewsSubmit, getDocumentForReviewsSubmit,
@@ -12,8 +10,6 @@ import {
 import { notifyVentureFounders } from "@/services/ventures/activity";
 
 const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
-// Reviewers stand-in until Track 5's venture_advisors ships. TODO Track 5: scope to actual assigned advisor.
-const REVIEWER_ROLES = ["staff", "program_manager", "super_admin"];
 
 export async function GET(req, { params }) {
   try {
@@ -39,11 +35,12 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(REVIEWER_ROLES);
+    const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session, reason } = await requireVentureAccess(id);
-    if (!session) return ventureAccessRefusal(reason);
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
     const dbId = (await getVentureIdByCodeForReviewsSubmit(id)).rows?.[0]?.id;
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 

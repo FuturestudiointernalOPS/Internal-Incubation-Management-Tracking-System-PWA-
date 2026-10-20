@@ -20,7 +20,11 @@ import { seedProfiles } from "./profilesStore";
 import {
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
-import { ensureProfileCatalogueSeed, ensureFacilitatorProfileSeed } from "./profileCatalogueSeed";
+import {
+  ensureProfileCatalogueSeed,
+  ensureFacilitatorProfileSeed,
+  ensureVentureMemberEditBackfill,
+} from "./profileCatalogueSeed";
 import { backfillProgramAssignmentProfileKeys, backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
@@ -154,6 +158,10 @@ export function ensureCapabilityBackfills() {
           // recorded once per database, so an existing one never receives a
           // profile added later; this key seeds it (insert-only).
           runAuthzMigration("facilitator-profile-seed-v1", ensureFacilitatorProfileSeed),
+          // Lot 5 / D-7 — the Venture Member profile gains `ventures.edit`, so
+          // the canonical write gate preserves the access the legacy
+          // membership gate gave every active member.
+          runAuthzMigration("venture-member-edit-v1", ensureVentureMemberEditBackfill),
           // The per-assignment profile override moves from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
           // column and fills it NULL-only from the legacy id.

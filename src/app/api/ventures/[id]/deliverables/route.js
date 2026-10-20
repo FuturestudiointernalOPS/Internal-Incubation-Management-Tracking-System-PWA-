@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { ventureAccessRefusal } from "@/server/http/refusal";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
 import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/services/ventures/deliverables";
@@ -133,8 +131,9 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // ── submit: the Venture side supplies the evidence ───────────────────────
   if (action === "submit") {
-    const { session, reason } = await requireVentureAccess(id);
-    if (!session) return ventureAccessRefusal(reason);
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
     const evidenceUrl = String(body?.attachment_url || "").trim();
     if (!evidenceUrl) {
       return NextResponse.json({ success: false, error: "An evidence file or link is required." }, { status: 400 });

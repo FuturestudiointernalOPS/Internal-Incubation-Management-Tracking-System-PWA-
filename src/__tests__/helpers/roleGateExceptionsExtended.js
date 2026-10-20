@@ -19,23 +19,6 @@
 module.exports = {
   generatedAt: "2026-10-10",
   decision: [
-    "src/app/api/ventures/[id]/advisors/route.js#M9",
-    "src/app/api/ventures/[id]/coaching/route.js#M9",
-    "src/app/api/ventures/[id]/deliverables/route.js#M9",
-    "src/app/api/ventures/[id]/deliverables/upload/route.js#M9",
-    "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js#M9",
-    "src/app/api/ventures/[id]/documents/[docId]/reviews/route.js#M9",
-    "src/app/api/ventures/[id]/documents/[docId]/transition/route.js#M9",
-    "src/app/api/ventures/[id]/documents/[docId]/versions/route.js#M9",
-    "src/app/api/ventures/[id]/documents/route.js#M9",
-    "src/app/api/ventures/[id]/feedback/route.js#M9",
-    "src/app/api/ventures/[id]/fundraising/route.js#M9",
-    "src/app/api/ventures/[id]/investment/route.js#M9",
-    "src/app/api/ventures/[id]/investors/route.js#M9",
-    "src/app/api/ventures/[id]/reports/route.js#M9",
-    "src/app/api/ventures/[id]/sessions/upload/route.js#M9",
-    "src/app/api/ventures/[id]/tasks/[taskId]/submissions/route.js#M9",
-    "src/app/api/ventures/[id]/verification/upload/route.js#M9",
 
     "src/lib/ventureAuth.js#M9",
   ],

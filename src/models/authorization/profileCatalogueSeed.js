@@ -50,8 +50,10 @@ export const PROFILE_CATALOGUE_SEED = [
     messaging: { view: 1, send: 2 },
     contacts: { view: 1 },
   } },
+  // D-7: a member of a Venture works IN it — writing stays bounded by the
+  // `venture_own` perimeter, so the capability grants nothing across Ventures.
   { key: "venture_member", label: "Venture Member", context: "venture", allowedRoles: ["member"], capabilities: {
-    ventures: { view: 1 },
+    ventures: { view: 1, edit: 3 },
   } },
   { key: "participant", label: "Participant Default", context: "program", allowedRoles: ["member"], capabilities: {
     projects: { view: 1 },
@@ -206,4 +208,26 @@ export async function ensureFacilitatorProfileSeed() {
   const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "facilitator");
   const seeded = await seedProfileDefinitions(definitions);
   return { success: true, ...seeded };
+}
+
+/**
+ * Lot 5 / D-7 — `ventures.edit` on the Venture Member profile.
+ *
+ * The catalogue seed is recorded once per database, so a capability added to an
+ * existing profile never reaches a database seeded before it. This runs under
+ * its own migration key and is insert-only (an administrator's explicit level
+ * is never overwritten).
+ *
+ * The right is bounded by the `venture_own` perimeter: it lets a member write
+ * inside the Ventures they belong to, and nowhere else.
+ */
+export async function ensureVentureMemberEditBackfill() {
+  await ensureProfileCapabilitiesSchema();
+  const inserted = await db.execute({
+    sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
+          VALUES ('venture_member', 'ventures', 'edit', 3)
+          ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+    args: [],
+  });
+  return { success: true, inserted: inserted?.rowsAffected ?? 0 };
 }

@@ -1,8 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireVentureAccess } from "@/lib/ventureAuth";
-import { ventureAccessRefusal } from "@/server/http/refusal";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getSession } from "@/server/auth/session";
 import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { notifyVentureFounders } from "@/services/ventures/activity";
@@ -43,17 +42,24 @@ async function getVisibilityStatuses(dbId, session, historyOnly = false) {
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
     const { id } = await params;
-    let { session, reason } = await requireVentureAccess(id);
-    // D1 — an ex-manager keeps a READ-ONLY consultation of the Venture they ran.
+    // The canonical read gate, plus D1 — an ex-manager keeps a READ-ONLY
+    // consultation of the Venture they ran. The historical fallback only
+    // applies to a real refusal (403), never to a 401 or a system failure.
+    let session = null;
     let historyOnly = false;
-    if (!session) {
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) {
+      if (access.error.status !== 403) return access.error;
       const viewer = await getSession();
       if (viewer && (await hasHistoricalVentureAccess(viewer.cid, id))) {
         session = viewer;
         historyOnly = true;
+      } else {
+        return access.error;
       }
+    } else {
+      session = access.session;
     }
-    if (!session) return ventureAccessRefusal(reason);
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const searchParams = new URL(req.url).searchParams;
@@ -95,8 +101,10 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session, reason } = await requireVentureAccess(id);
-    if (!session) return ventureAccessRefusal(reason);
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const body = await req.json();

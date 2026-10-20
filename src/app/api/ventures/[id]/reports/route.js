@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
-import { ventureAccessRefusal } from "@/server/http/refusal";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getSession } from "@/server/auth/session";
 import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
@@ -12,18 +12,25 @@ import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProduc
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  let { session, reason } = await requireVentureAccess(id);
-  // D1 — an ex-manager keeps a READ-ONLY consultation of the Venture they ran
-  // (documents and reports). It never authorises a write: only GET reaches here.
+  // The canonical read gate, plus D1 — an ex-manager keeps a READ-ONLY
+  // consultation of the Venture they ran (documents and reports). It never
+  // authorises a write: only GET reaches here. The fallback only applies to a
+  // real refusal (403), never to a 401 or a system failure.
+  let session = null;
   let historyOnly = false;
-  if (!session) {
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) {
+    if (access.error.status !== 403) return access.error;
     const viewer = await getSession();
     if (viewer && (await hasHistoricalVentureAccess(viewer.cid, id))) {
       session = viewer;
       historyOnly = true;
+    } else {
+      return access.error;
     }
+  } else {
+    session = access.session;
   }
-  if (!session) return ventureAccessRefusal(reason);
   if (!historyOnly && !(await isStaffActorForVenture(id, session))) {
     return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }

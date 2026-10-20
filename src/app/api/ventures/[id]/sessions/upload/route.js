@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireVentureAccess } from "@/lib/ventureAuth";
-import { ventureAccessRefusal } from "@/server/http/refusal";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { uploadSessionMaterial } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +21,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req, { params }) {
   try {
     const { id } = await params;
-    const { session, reason } = await requireVentureAccess(id);
-    if (!session) return ventureAccessRefusal(reason);
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
 
     const formData = await req.formData();
     const file = formData.get("file");

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { ventureAccessRefusal } from "@/server/http/refusal";
 import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/services/ventures/tasks";
 import {
   isGlobalRole,
@@ -86,8 +85,9 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session, reason } = await requireVentureAccess(id);
-  if (!session) return ventureAccessRefusal(reason);
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
+  const { session } = access;
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
