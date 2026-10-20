@@ -231,12 +231,17 @@ function strictRequireAuthOnly(entries) {
 function worklist(entries, declarations) {
   const selfFiles = new Set(declarations.SELF_SCOPED_ROUTES.map((entry) => entry.file));
   const openFiles = new Set(declarations.OPEN_ASSUMED_ROUTES.map((entry) => entry.file));
+  // A retired path refuses everybody and protects nothing. Counting it as debt
+  // would hide that the only remaining work on it is DELETION (proved by
+  // traffic), not a capability declaration.
+  const retiredFiles = new Set((declarations.RETIRED_ROUTES || []).map((entry) => entry.file));
   const prefixes = declarations.SELF_SCOPED_PREFIXES || [];
   const hubs = declaredSet("ROUTE_HUBS");
   const stubs = declaredSet("NO_GUARD_ALLOWED");
 
   return entries
     .filter((entry) => hasSessionGate(entry) && !entry.hasCapability)
+    .filter((entry) => !retiredFiles.has(entry.file))
     .map((entry) => {
       let category;
       if (

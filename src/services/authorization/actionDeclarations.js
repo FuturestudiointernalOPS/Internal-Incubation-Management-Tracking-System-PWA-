@@ -204,6 +204,40 @@ const NO_GUARD_ALLOWED = new Set([
 ]);
 
 /**
+ * RETIRED_ROUTES — routes whose FEATURE is gone, still registered.
+ *
+ * They answer `403 errors.featureRetired` to every authenticated identity and
+ * log each hit (see `retiredRouteResponse`), so there is nothing to protect and
+ * nothing to grant: they are not debt, and they are not a hole.
+ *
+ * They stay until traffic proves nobody calls them (Lot 8), at which point the
+ * file is deleted. Removing an entry here without deleting the route would move
+ * it back into the worklist.
+ */
+const RETIRED_ROUTES = [
+  {
+    file: "src/app/api/segments/route.js",
+    feature: "segments",
+    reason: "Segments retirés du produit ; le chemin répond 403 à toute identité connectée et journalise chaque appel.",
+  },
+  {
+    file: "src/app/api/segments/run/route.js",
+    feature: "segments/run",
+    reason: "Exécution d'un segment retirée avec les segments ; 403 + journal, aucune donnée produite.",
+  },
+  {
+    file: "src/app/api/responses/route.js",
+    feature: "responses",
+    reason: "Réponses de campagne retirées du produit ; le chemin répond 403 et journalise chaque appel.",
+  },
+  {
+    file: "src/app/api/responses/review/route.js",
+    feature: "responses/review",
+    reason: "Revue manuelle des réponses retirée avec les réponses ; 403 + journal, aucun écrit.",
+  },
+];
+
+/**
  * DELEGATED_DECISIONS — routes whose permission decision lives in a SERVICE.
  *
  * The static scan can only see a decision written in the route file. Where the
@@ -440,6 +474,7 @@ const DECLARED_ACTION_KINDS = ["capability", "delegated", "self", "open"];
 module.exports = {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
+  RETIRED_ROUTES,
   DELEGATED_DECISIONS,
   SELF_SCOPED_PREFIXES,
   DECISION_MECHANISMS,

@@ -22,4 +22,25 @@ export function refusalResponse({ status, errorKey, missing = null, decision = n
   return response;
 }
 
+/**
+ * A RETIRED ROUTE — the feature is gone, the path is still registered.
+ *
+ * It answers with the one refusal shape and records ONE structured line per
+ * hit. The log is deliberate: deleting a route needs proof that nobody calls it
+ * any more, and the only proof that exists outside the repository is traffic.
+ * When the line has been silent for a full period, the route can be deleted;
+ * until then it refuses, which is the safe state.
+ *
+ * @param {string} feature the retired surface, for the log line
+ * @returns {NextResponse}
+ */
+export function retiredRouteResponse(feature) {
+  console.warn(`[retired-route] ${feature} was called`);
+  return refusalResponse({
+    status: 403,
+    errorKey: "errors.featureRetired",
+    decision: "retired",
+  });
+}
+
 

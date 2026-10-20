@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { retiredRouteResponse } from "@/server/http/refusal";
 import {
   getCampaignResponseStats,
   listFormResponses,
@@ -11,13 +12,9 @@ import {
 // Responses are hidden from the sidebar and their API is disabled (403).
 // The code below is intentionally kept — set RETIRED = false to re-enable.
 const RETIRED = true;
-const RETIRED_RESPONSE = NextResponse.json(
-  { success: false, error: "errors.featureRetired" },
-  { status: 403 },
-);
 
-export const GET = createHandler({ roles: ["staff", "super_admin"] }, async () => {
-  if (RETIRED) return RETIRED_RESPONSE;
+export const GET = createHandler(async () => {
+  if (RETIRED) return retiredRouteResponse("responses");
   const campaignsResult = await getCampaignResponseStats();
 
   let responsesResult;

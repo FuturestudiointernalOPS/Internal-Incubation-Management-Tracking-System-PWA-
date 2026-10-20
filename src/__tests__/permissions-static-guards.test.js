@@ -157,11 +157,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/program-staff/route.js#M3",
   "src/app/api/programs/route.js#M1",
 
-  "src/app/api/responses/review/route.js#M2",
-  "src/app/api/responses/route.js#M2",
   "src/app/api/retros/submit/route.js#M3",
-  "src/app/api/segments/route.js#M2",
-  "src/app/api/segments/run/route.js#M2",
   "src/app/api/send-pending/route.js#M1",
   "src/app/api/sessions/route.js#M2",
   "src/app/api/standups/submit/route.js#M3",

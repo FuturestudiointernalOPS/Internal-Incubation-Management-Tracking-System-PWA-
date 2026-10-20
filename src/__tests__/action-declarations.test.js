@@ -19,6 +19,7 @@ const { collectMetrics } = require("../../scripts/lib/authzMetrics");
 const {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
+  RETIRED_ROUTES,
   DELEGATED_DECISIONS,
   SELF_SCOPED_PREFIXES,
   OPEN_ASSUMED_KINDS,
@@ -84,10 +85,31 @@ describe("the action registry", () => {
     }
   });
 
+  test("every retired declaration names its feature and a reason", () => {
+    for (const entry of RETIRED_ROUTES) {
+      expect(entry.file).toMatch(/^src\/app\/api\/.*route\.js$/);
+      expect(typeof entry.feature).toBe("string");
+      expect(entry.feature.length).toBeGreaterThan(2);
+      expect(typeof entry.reason).toBe("string");
+      expect(entry.reason.length).toBeGreaterThan(10);
+    }
+  });
+
+  test("a retired route refuses everyone and leaves the debt list", () => {
+    for (const entry of RETIRED_ROUTES) {
+      const src = fs.readFileSync(path.join(ROOT, entry.file), "utf8");
+      // It must use the ONE refusal helper — the same 403 shape, plus the hit log
+      // that makes its deletion provable.
+      expect(src).toContain("retiredRouteResponse(");
+      expect(src).not.toMatch(/roles\s*:\s*\[/);
+    }
+  });
+
   test("no action is declared under two kinds", () => {
     const declared = [
       ...SELF_SCOPED_ROUTES.map((entry) => entry.file),
       ...OPEN_ASSUMED_ROUTES.map((entry) => entry.file),
+      ...RETIRED_ROUTES.map((entry) => entry.file),
       ...DELEGATED_DECISIONS.map((entry) => entry.file),
       ...ROUTE_HUBS,
       ...NO_GUARD_ALLOWED,
@@ -105,6 +127,7 @@ describe("the action registry", () => {
     const declared = [
       ...SELF_SCOPED_ROUTES.map((entry) => entry.file),
       ...OPEN_ASSUMED_ROUTES.map((entry) => entry.file),
+      ...RETIRED_ROUTES.map((entry) => entry.file),
       ...DELEGATED_DECISIONS.map((entry) => entry.file),
       ...ROUTE_HUBS,
       ...NO_GUARD_ALLOWED,
@@ -137,6 +160,7 @@ describe("the action debt is a ratchet", () => {
     const declared = new Set([
       ...SELF_SCOPED_ROUTES.map((entry) => entry.file),
       ...OPEN_ASSUMED_ROUTES.map((entry) => entry.file),
+      ...RETIRED_ROUTES.map((entry) => entry.file),
       ...DELEGATED_DECISIONS.map((entry) => entry.file),
       ...ROUTE_HUBS,
       ...NO_GUARD_ALLOWED,
