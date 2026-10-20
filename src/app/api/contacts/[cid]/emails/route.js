@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { requireAuthorization } from "@/models/authorization/index";
+import { isMemberSurfaceRole } from "@/lib/identity";
 import {
   getEmailLogForContact,
 } from "@/models/contacts/registry";
@@ -25,9 +26,9 @@ export async function GET(req, { params }) {
     const session = await getSession();
     const { cid } = await params;
 
-    // A participant/founder sees only their own history — same rule as the
-    // contact timeline.
-    if ((session.role === "participant" || session.role === "founder") && session.cid !== cid) {
+    // A PERSONAL identity (member, or a legacy participant/founder value) sees
+    // only their own history — same rule as the contact timeline.
+    if (isMemberSurfaceRole(session?.role) && session.cid !== cid) {
       return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 

@@ -88,9 +88,8 @@ async function enrichRegistryRows(rows) {
   return (await attachInvitationStatus(rows)).map(
     ({ password: _password, ...safeContact }) => ({
       ...safeContact,
-      // Derived flags: a participant enrollment OR the legacy role value.
-      is_participant:
-        participantCids.has(safeContact.cid) || safeContact.role === "participant",
+      // Derived flag: an active participant enrollment.
+      is_participant: participantCids.has(safeContact.cid),
       has_assignment: assignmentCids.has(safeContact.cid),
     }),
   );

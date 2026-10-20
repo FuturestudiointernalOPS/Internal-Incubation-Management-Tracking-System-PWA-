@@ -102,6 +102,34 @@ export function isMemberSurfaceRole(role) {
 }
 
 /**
+ * D-2 — the MEMBER identity: the baseline `member`, plus the legacy
+ * `participant` value while it is still produced at sign-in.
+ *
+ * Deliberately distinct from `isMemberSurfaceRole`: a FOUNDER shares the
+ * personal shell but is not a member identity — it may not submit as a
+ * participant, and it does not become one by sharing a sidebar.
+ */
+export function isMemberIdentityRole(role) {
+  return normalizeRole(role) === "member" || carriesContextualValue(role, "participant");
+}
+
+/**
+ * D-2 — the staff FAMILY: the platform owner, internal staff, and the legacy
+ * program-manager value while the D-1 rollback window is open.
+ *
+ * "Privileged" used to be written as an inline array in several places (the
+ * calendar's venture scope, the internal-operations surfaces). It is one
+ * question, so it is one function.
+ */
+export function isInternalStaffFamilyRole(role) {
+  return (
+    isPlatformOwnerRole(role) ||
+    isInternalStaffRole(role) ||
+    isLegacyProgramManagerRole(role)
+  );
+}
+
+/**
  * D-1/D-2 — does this person hold a given CONTEXTUAL profile?
  *
  * A function is a PROFILE, not a role: a program manager is baseline `staff`

@@ -45,3 +45,23 @@ export async function isProgramManagerSession(session) {
   if (hasProgramManagementAccess(session.role)) return true;
   return isProgramManagerProfileSession(session);
 }
+
+/**
+ * D-1 — does this session hold the FACILITATOR function?
+ *
+ * The facilitator profile is seeded for staff AND member identities, so a member
+ * assigned to a program can deliver (attendance, grading, sessions) without a
+ * role label. A legacy `facilitator` session passes without a lookup. Fails
+ * closed: an unresolved profile is never a grant.
+ */
+export async function isFacilitatorProfileSession(session) {
+  if (!session) return false;
+  if (session.role === "facilitator") return true;
+  if (session.role !== "staff" && session.role !== "member") return false;
+  try {
+    const context = await getAuthorizationContext(session);
+    return (context?.profiles || []).includes("facilitator");
+  } catch {
+    return false;
+  }
+}

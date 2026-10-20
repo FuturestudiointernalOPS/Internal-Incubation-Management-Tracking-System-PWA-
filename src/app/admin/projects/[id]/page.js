@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { carriesContextualValue } from "@/lib/identity";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import ProjectSkeleton from "@/components/admin/projects/detail/ProjectSkeleton";
 import ProjectNotFound from "@/components/admin/projects/detail/ProjectNotFound";
@@ -49,7 +50,9 @@ const pickProject = (payload) =>
 const pickStaff = (payload) =>
   payload?.success
     ? (payload.contacts || []).filter(
-        (contact) => contact.status === "active" && contact.role !== "participant",
+        (contact) =>
+          contact.status === "active" &&
+          !carriesContextualValue(contact.role, "participant"),
       )
     : [];
 

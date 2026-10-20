@@ -25,7 +25,10 @@ import {
   updateSubmissionReview,
 } from "@/models/forms";
 import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
-import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
+import {
+  isFacilitatorProfileSession,
+  isProgramManagerProfileSession,
+} from "@/services/authorization/programManagement";
 
 /**
  * Whether the session's facilitator assignment covers this submission. A
@@ -87,19 +90,24 @@ export async function applySubmissionReview({ session, payload }) {
   const submission = reviewDetailsResult.rows[0];
 
   // D-1 — record the FUNCTION, not the baseline label: a staff identity holding
-  // the program_manager profile keeps the management camp in the role lock.
+  // the program_manager profile keeps the management camp, and a staff/member
+  // identity holding the facilitator profile keeps the facilitator camp.
   const actingRole = (await isProgramManagerProfileSession(session))
     ? "program_manager"
-    : session?.role;
+    : (await isFacilitatorProfileSession(session))
+      ? "facilitator"
+      : session?.role;
 
   // Role Lock: a facilitator and program management cannot override each
   // other's decisions. Once a final decision (approved/rejected) exists, only
   // the role that made it may change it. super_admin and staff are exempt.
-  const roleCamp = (role) => {
-    if (role === "facilitator") return "facilitator";
-    if (role === "program_manager") return "management";
-    return null; // super_admin / staff → not locked
+  // The map holds the two CAMP names, which are also what the review row stores
+  // as `reviewed_by_role`; every other value is "not locked".
+  const REVIEW_CAMPS = {
+    facilitator: "facilitator",
+    program_manager: "management",
   };
+  const roleCamp = (role) => REVIEW_CAMPS[role] || null;
   const FINAL_STATUSES = ["approved", "rejected"];
   if (submission && FINAL_STATUSES.includes(submission.status) && submission.reviewed_by_role) {
     const requesterCamp = roleCamp(actingRole);

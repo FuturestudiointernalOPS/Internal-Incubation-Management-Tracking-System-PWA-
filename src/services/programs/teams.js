@@ -11,6 +11,7 @@
  */
 
 import { sendStandaloneEmail } from "@/lib/email";
+import { carriesContextualValue } from "@/lib/identity";
 import {
   generateTeamPassword,
   generateTeamUsername,
@@ -215,7 +216,7 @@ export async function applyTeamPatch({ payload }) {
       const eligibility = await getContactFacilitatorEligibility(handler_id, "");
       const eligibilityRow = eligibility.rows[0] || {};
       const role = String(eligibilityRow.role || "").toLowerCase();
-      if (role === "participant") {
+      if (carriesContextualValue(role, "participant")) {
         return { status: 409, body: { success: false, error: "errors.roleConflictParticipantFacilitator" } };
       }
       if (role === "program_manager" || eligibilityRow.is_program_pm) {

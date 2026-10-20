@@ -99,7 +99,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/admin/layout.js#M4",
   "src/app/admin/op-reports/page.js#M3",
   "src/app/admin/programs/[id]/teams/page.js#M3",
-  "src/app/admin/projects/[id]/page.js#M3",
   "src/app/admin/work/page.js#M3",
 
   "src/app/api/admin/analytics/route.js#M1",
@@ -117,7 +116,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
 
   "src/app/api/campaigns/[id]/route.js#M1",
   "src/app/api/campaigns/route.js#M2",
-  "src/app/api/contacts/[cid]/emails/route.js#M3",
   "src/app/api/contacts/full-state/route.js#M4",
 
   "src/app/api/deliverables/route.js#M2",
@@ -175,8 +173,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/ventures/[id]/dashboard/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/transition/route.js#M4",
-  "src/app/api/ventures/[id]/documents/route.js#M3",
-  "src/app/api/ventures/[id]/documents/route.js#M4",
   "src/app/api/ventures/[id]/founders/[founderId]/route.js#M3",
   "src/app/api/ventures/[id]/founders/route.js#M4",
   "src/app/api/ventures/[id]/members/route.js#M3",
@@ -192,7 +188,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/ventures/route.js#M4",
   "src/app/investor/organizations/page.js#M3",
   "src/app/staff/dashboard/page.js#M3",
-  "src/components/admin/programs/edit-modal/ProgramFacilitatorsSection.js#M3",
   "src/components/crm/useMembershipState.js#M3",
   "src/components/dashboard/ProfileView.js#M3",
   "src/components/dashboard/unified-dashboard/MyProjectsCard.js#M3",
@@ -203,14 +198,12 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/components/staff/op-report/SummaryOwnerCard.js#M3",
   "src/components/staff/project-detail/TeamTab.js#M3",
   "src/lib/api/createHandler.js#M2",
-  "src/lib/context.js#M3",
   "src/lib/featureAccess.js#M4",
   "src/lib/identity.js#M4",
   "src/lib/masterNavigation/builders.js#M3",
   "src/lib/notificationLinks.js#M4",
 
   "src/lib/ventureDeliverables.js#M3",
-  "src/models/communications/followups.js#M3",
 
   "src/models/investor/diligenceAndPipeline/pipeline.js#M3",
   "src/models/platform/registry.js#M4",
@@ -230,7 +223,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/contacts/alternativeEmails.js#M4",
   "src/services/contacts/registration.js#M3",
   "src/services/contacts/registryRead.js#M3",
-  "src/services/contacts/timeline.js#M3",
   "src/services/contacts/update.js#M4",
   "src/services/dashboard/opReports.js#M3",
   "src/services/dashboard/overview/build.js#M3",
@@ -271,13 +263,10 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
 
   "src/services/ventures/scope.js#M4",
   "src/services/ventures/submissions/createSubmission.js#M3",
-  "src/services/ventures/submissions/createSubmission.js#M4",
-  "src/services/ventures/submissions/review.js#M3",
   "src/services/ventures/submissions/review.js#M4",
   "src/services/ventures/submissions/scope.js#M3",
   "src/services/ventures/ventureDocumentTypes.js#M3",
   "src/services/ventures/verification/categories.js#M3",
-  "src/services/workspace/calendar.js#M3",
   "src/services/workspace/calendar.js#M4",
   "src/services/workspace/navigation.js#M3",
   // Relevé lors du nettoyage des écrans (2026-10-19). Les trois entrées du
@@ -288,8 +277,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/components/permissions/center/drawers/CreateProfileDrawer.js#M4",
   "src/components/permissions/center/personAccess.js#M4",
   "src/app/api/engineering/email-config/route.js#M1",
-  "src/app/participant/page.js#M3",
-  "src/components/dashboard/ParticipantDashboardHome.js#M3",
   "src/services/programs/teams.js#M3",
   "src/services/ventures/people.js#M2",
 ]);

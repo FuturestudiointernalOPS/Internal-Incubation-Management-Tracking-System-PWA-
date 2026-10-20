@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getSession } from "@/server/auth/session";
+import {
+  carriesContextualValue,
+  isInternalStaffFamilyRole,
+} from "@/lib/identity";
+import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 import { listDocuments, getDocument, uploadDocument, updateDocument, deleteDocument, createShareLink, revokeShare, getAccessLogs, getDocumentShares } from "@/services/ventures/documents";
@@ -14,7 +19,6 @@ import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 
 const ROLES = ["participant","founder","staff","program_manager","super_admin"];
 const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
-const PRIVILEGED = ["staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureIdByCode(ventureId);
@@ -26,15 +30,22 @@ async function getVisibilityStatuses(dbId, session, historyOnly = false) {
   // D1 — an ex-manager's historical read is bounded: NON-private documents only.
   if (historyOnly) return ["pending_review", "approved", "shared_with_investor"];
   // Super admins, staff, program managers see everything
-  if (PRIVILEGED.includes(session.role)) return null;
+  if (isInternalStaffFamilyRole(session.role)) return null;
   // Founders see everything. `dbId` is the internal id, which is what the
   // membership table keys on since Phase 0 — the code is not resolved back.
   if (session.cid) {
     const founder = await isFounderForDocumentVisibility(dbId, session.cid);
     if (founder.rows?.length) return null;
   }
-  // Investors only see shared documents
-  if (session.role === "investor") return ["shared_with_investor"];
+  // An INVESTOR — an approved investor context, or a legacy investor value —
+  // only sees the documents shared with investors. The function is a
+  // relationship now, not a role label (D-1).
+  const isInvestor = carriesContextualValue(session.role, "investor");
+  if (isInvestor) return ["shared_with_investor"];
+  if (session.cid) {
+    const approved = await getApprovedInvestorProfileIdByUserId(session.cid);
+    if ((approved.rows || []).length > 0) return ["shared_with_investor"];
+  }
   // Advisors and team members see non-private documents
   return ["pending_review", "approved", "shared_with_investor"];
 }
@@ -127,7 +138,7 @@ export async function POST(req, { params }) {
     }
     if (body.action === "transition") {
       // Check: only founders/privileged can transition
-      if (!PRIVILEGED.includes(session.role)) {
+      if (!isInternalStaffFamilyRole(session.role)) {
         const founder = await isFounderForDocumentStatusTransition(dbId, session.cid);
         if (!founder.rows?.length) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
       }

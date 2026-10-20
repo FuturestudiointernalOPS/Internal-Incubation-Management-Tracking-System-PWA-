@@ -21,9 +21,11 @@ import {
   createContactTimelineEvent,
 } from "@/models/contacts/timeline";
 
+import { isMemberSurfaceRole } from "@/lib/identity";
+
 /** Whether this caller may read this contact's timeline (own-record for members). */
 export function mayReadContactTimeline(session, cid) {
-  if (session.role === "participant" || session.role === "founder") {
+  if (isMemberSurfaceRole(session.role)) {
     return session.cid === cid;
   }
   return true;
