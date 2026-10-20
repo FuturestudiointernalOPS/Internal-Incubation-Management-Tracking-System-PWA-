@@ -303,12 +303,16 @@ export async function getLiveContactByCid(cid) {
 
 /** An existing active assignment of the same person / responsibility / scope. */
 export async function findDuplicateVentureAssignment({
-  ventureId,
+  ventureId: ventureRef,
   staffContactId,
   responsibilityCode,
   scopeType,
   scopeRefId,
 }) {
+  // venture_staff_assignments is uuid since Phase 0; the route carries the VNT code,
+  // so binding it raw raised "invalid input syntax for type uuid" on the duplicate
+  // check — before the assignment was even attempted.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT 1 FROM venture_staff_assignments
             WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
