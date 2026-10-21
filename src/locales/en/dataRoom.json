@@ -23,6 +23,7 @@
     "allCategories": "All categories",
     "allStatuses": "All statuses",
     "noDocuments": "No documents in this category yet.",
+    "emptyRoom": "No document has been uploaded yet. Upload the first one to start the Data Room.",
     "emptyCategory": "Empty — available for any document that belongs here.",
     "documentsCount": "{{count}} document(s)",
     "loading": "Loading the Data Room…",
@@ -131,6 +132,8 @@
     "history": {
       "title": "Data Room activity",
       "noEvents": "No activity recorded yet.",
+      "showAll": "Show all {{count}}",
+      "showLess": "Show fewer",
       "actions": {
         "DATA_ROOM_DOCUMENT_UPLOADED": "Document uploaded",
         "DATA_ROOM_VERSION_ADDED": "New version uploaded",
@@ -148,6 +151,8 @@
       "title": "Consultations and downloads",
       "document": "Document",
       "someone": "Someone",
+      "showAll": "Show all {{count}}",
+      "showLess": "Show fewer",
       "actions": {
         "view": "Opened",
         "download": "Downloaded"

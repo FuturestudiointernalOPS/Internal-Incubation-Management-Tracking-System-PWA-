@@ -31,6 +31,19 @@ import { audit, cleanText, parseExpiry, refusal, MAX_TITLE, MAX_DESCRIPTION, MAX
 // ── Writes ──────────────────────────────────────────────────────────────────
 
 /**
+ * Remove the bytes a previous upload step placed in this Venture's prefix.
+ *
+ * The catalogue write is the SECOND step of an upload: by the time a validation
+ * refusal happens, the file already exists in the private bucket. Deleting it on
+ * the early refusals is what keeps a refused create from leaving an orphan.
+ * A path that is not this Venture's is never touched.
+ */
+async function discardUploadedFile(filePath, ventureId) {
+  if (!filePath || !isDataRoomStoragePathForVenture(filePath, ventureId)) return;
+  await deleteEvidenceObject(filePath).catch(() => {});
+}
+
+/**
  * File a NEW document. `input.file_path` is the private storage path returned
  * by the upload route; `input.file_url` is an optional external link. Exactly
  * one of them must be present.
@@ -40,17 +53,25 @@ export async function createDataRoomDocument({ ventureId, session, input, databa
   if (!viewer.allowed) return refusal(404, "errors.notFound");
   if (!viewer.canManage) return refusal(403, "errors.insufficientPermissions");
 
-  const title = cleanText(input?.title, MAX_TITLE);
-  if (!title) return refusal(400, "dataRoom.errors.titleRequired");
-  if (!isDataRoomCategory(input?.category)) return refusal(400, "dataRoom.errors.categoryInvalid");
-
   const filePath = cleanText(input?.file_path, 1000) || null;
   const externalUrl = cleanText(input?.file_url, 2000) || null;
+
+  const title = cleanText(input?.title, MAX_TITLE);
+  if (!title) {
+    await discardUploadedFile(filePath, ventureId);
+    return refusal(400, "dataRoom.errors.titleRequired");
+  }
+  if (!isDataRoomCategory(input?.category)) {
+    await discardUploadedFile(filePath, ventureId);
+    return refusal(400, "dataRoom.errors.categoryInvalid");
+  }
+
   if (!filePath && !externalUrl) return refusal(400, "dataRoom.errors.fileRequired");
   if (filePath && !isDataRoomStoragePathForVenture(filePath, ventureId)) {
     return refusal(400, "dataRoom.errors.fileRequired");
   }
   if (externalUrl && !isDataRoomExternalLink(externalUrl)) {
+    await discardUploadedFile(filePath, ventureId);
     return refusal(400, "dataRoom.errors.fileRequired");
   }
 
@@ -58,6 +79,7 @@ export async function createDataRoomDocument({ ventureId, session, input, databa
   try {
     expiresAt = parseExpiry(input?.expires_at);
   } catch (error) {
+    await discardUploadedFile(filePath, ventureId);
     return refusal(400, error.message);
   }
 

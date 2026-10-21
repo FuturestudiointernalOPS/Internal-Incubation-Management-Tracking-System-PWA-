@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { uploadDataRoomDocument } from "@/lib/storage";
+import { isDataRoomCategory } from "@/lib/dataRoom";
 import { resolveDataRoomViewer } from "@/services/ventures/dataRoom";
 
 export const dynamic = "force-dynamic";
@@ -40,10 +41,15 @@ export async function POST(req, { params }) {
 
     const formData = await req.formData();
     const file = formData.get("file");
-    const category = String(formData.get("category") || "document");
+    const category = String(formData.get("category") || "").trim();
 
     if (!file || typeof file === "string") {
       return NextResponse.json({ success: false, error: "dataRoom.errors.fileRequired" }, { status: 400 });
+    }
+    // Refuse BEFORE writing bytes: an invalid category used to be rejected only
+    // by the second step, leaving an orphan object in the private bucket.
+    if (!isDataRoomCategory(category)) {
+      return NextResponse.json({ success: false, error: "dataRoom.errors.categoryInvalid" }, { status: 400 });
     }
 
     const result = await uploadDataRoomDocument(file, { ventureId: id, category });

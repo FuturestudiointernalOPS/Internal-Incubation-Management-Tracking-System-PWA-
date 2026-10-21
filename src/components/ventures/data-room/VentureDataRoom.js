@@ -42,6 +42,8 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const [reviewDoc, setReviewDoc] = useState(null);
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
+  const [showAllHistory, setShowAllHistory] = useState(false);
+  const [showAllAccess, setShowAllAccess] = useState(false);
 
   const documents = useMemo(() => data?.documents || [], [data]);
   const viewer = data?.viewer || { can_manage: false, can_review: false, type: "member" };
@@ -180,7 +182,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
             {isInvestor ? t("dataRoom.investorSubtitle") : t("dataRoom.subtitle")}
           </p>
         </div>
-        {viewer.can_manage ? (
+        {viewer.can_manage && documents.length > 0 ? (
           <button
             type="button"
             onClick={() => setUploadState({ mode: "create" })}
@@ -294,12 +296,23 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           </div>
 
           {visible.length === 0 ? (
-            <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-6 text-center space-y-1">
-              <FileText size={20} className="mx-auto text-[var(--text-secondary)]" />
-              <p className="text-[11px] text-[var(--text-secondary)]">{t("dataRoom.noDocuments")}</p>
+            <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-8 text-center space-y-1">
+              <FileText size={22} className="mx-auto text-[var(--text-secondary)]" />
+              <p className="text-[11px] text-[var(--text-secondary)]">
+                {documents.length === 0 ? t("dataRoom.emptyRoom") : t("dataRoom.noDocuments")}
+              </p>
+              {documents.length === 0 && viewer.can_manage ? (
+                <button
+                  type="button"
+                  onClick={() => setUploadState({ mode: "create" })}
+                  className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest"
+                >
+                  <Upload size={13} /> {t("dataRoom.upload")}
+                </button>
+              ) : null}
               {category === LEGACY_FILTER ? (
                 <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.legacy.filterHint")}</p>
-              ) : category !== "all" && !isInvestor ? (
+              ) : category !== "all" && documents.length > 0 && !isInvestor ? (
                 <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.emptyCategory")}</p>
               ) : null}
             </div>
@@ -340,7 +353,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             {t("dataRoom.history.title")}
           </p>
-          {history.slice(0, 12).map((event) => (
+          {history.slice(0, showAllHistory ? history.length : 12).map((event) => (
             <div key={event.id} className="flex items-center justify-between gap-2 text-[10px]">
               <span className="text-[var(--text-primary)]">
                 {t(`dataRoom.history.actions.${event.action}`)}
@@ -351,6 +364,15 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
               </span>
             </div>
           ))}
+          {history.length > 12 ? (
+            <button
+              type="button"
+              onClick={() => setShowAllHistory((value) => !value)}
+              className="text-[9px] font-bold uppercase tracking-widest text-[var(--brand-orange)] hover:underline"
+            >
+              {showAllHistory ? t("dataRoom.history.showLess") : t("dataRoom.history.showAll", { count: history.length })}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -359,7 +381,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
             {t("dataRoom.accessHistory.title")}
           </p>
-          {accessHistory.slice(0, 12).map((event) => (
+          {accessHistory.slice(0, showAllAccess ? accessHistory.length : 12).map((event) => (
             <div key={event.id} className="flex items-center justify-between gap-2 text-[10px]">
               <span className="text-[var(--text-primary)] min-w-0 truncate">
                 {t(`dataRoom.accessHistory.actions.${event.access_type}`)}
@@ -371,6 +393,15 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
               </span>
             </div>
           ))}
+          {accessHistory.length > 12 ? (
+            <button
+              type="button"
+              onClick={() => setShowAllAccess((value) => !value)}
+              className="text-[9px] font-bold uppercase tracking-widest text-[var(--brand-orange)] hover:underline"
+            >
+              {showAllAccess ? t("dataRoom.accessHistory.showLess") : t("dataRoom.accessHistory.showAll", { count: accessHistory.length })}
+            </button>
+          ) : null}
         </div>
       ) : null}
 

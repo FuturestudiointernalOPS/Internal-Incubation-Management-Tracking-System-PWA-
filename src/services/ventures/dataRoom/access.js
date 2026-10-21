@@ -292,7 +292,7 @@ export async function buildDataRoom({ ventureId, session, access, filters = {}, 
   if (viewer.canManage || viewer.canReview) {
     const [activityResult, accessResult] = await Promise.all([
       selectDataRoomActivity(ventureId, database).catch(() => ({ rows: [] })),
-      selectDataRoomAccessLog(ventureId, { limit: 50 }, database).catch(() => ({ rows: [] })),
+      selectDataRoomAccessLog(ventureId, { limit: 200 }, database).catch(() => ({ rows: [] })),
     ]);
     history = (activityResult.rows || []).map((row) => ({
       id: row.id,

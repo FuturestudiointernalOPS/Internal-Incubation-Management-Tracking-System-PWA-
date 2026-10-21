@@ -23,6 +23,7 @@
     "allCategories": "Toutes les catégories",
     "allStatuses": "Tous les statuts",
     "noDocuments": "Aucun document dans cette catégorie pour le moment.",
+    "emptyRoom": "Aucun document n'a encore été téléversé. Téléversez le premier pour démarrer la Data Room.",
     "emptyCategory": "Vide — disponible pour tout document qui y trouve sa place.",
     "documentsCount": "{{count}} document(s)",
     "loading": "Chargement du Data Room…",
@@ -131,6 +132,8 @@
     "history": {
       "title": "Activité du Data Room",
       "noEvents": "Aucune activité enregistrée.",
+      "showAll": "Tout afficher ({{count}})",
+      "showLess": "Afficher moins",
       "actions": {
         "DATA_ROOM_DOCUMENT_UPLOADED": "Document téléversé",
         "DATA_ROOM_VERSION_ADDED": "Nouvelle version téléversée",
@@ -148,6 +151,8 @@
       "title": "Consultations et téléchargements",
       "document": "Document",
       "someone": "Quelqu'un",
+      "showAll": "Tout afficher ({{count}})",
+      "showLess": "Afficher moins",
       "actions": {
         "view": "Ouvert",
         "download": "Téléchargé"

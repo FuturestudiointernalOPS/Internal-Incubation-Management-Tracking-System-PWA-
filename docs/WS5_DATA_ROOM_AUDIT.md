@@ -1,7 +1,7 @@
 # WS5 — Venture Data Room audit and implementation plan
 
-Status: **audit complete; the three agreed scope corrections and the access journal are applied**
-Branch inspected: `Ventures` at `c6bf98655`
+Status: **audit complete; the agreed corrections and the access journal are applied**
+Branch inspected: `Ventures` after the access-journal and upload-check corrections
 Scope: `src/app/api/ventures/[id]/data-room/**`, `src/services/ventures/dataRoom/**`,
 `src/models/ventureDataRoomStore.js`, `src/lib/dataRoom.js`, `src/lib/ventureEvidence.js`,
 `src/components/ventures/data-room/**`, and the four screens that mount the Data Room.
@@ -43,10 +43,9 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
 
 * The upload route requires `canManage`, writes to the private bucket, and returns only the
   storage path. `createDataRoomDocument` re-validates the path belongs to the Venture.
-* **DR-01 (correction):** the upload route accepts any `category` string before the create
-  action validates it. A refused create leaves the uploaded object orphaned in storage.
-  Validate `isDataRoomCategory(category)` in the upload route, and delete the uploaded path
-  on the early refusals inside `createDataRoomDocument`.
+* **DR-01 — applied:** the upload route validates the category before writing any bytes,
+  and an early refusal in the catalogue step removes the object the upload step already
+  stored. A refused create no longer leaves an orphan.
 
 ### 2.2 Categories and metadata — working
 
@@ -139,8 +138,8 @@ never writes view/download events today.
 downloads**, and it feeds the analytics counters.
 * **DR-09 — applied:** the analytics counters now join through the document, so they no
   longer depend on the journal's Venture key (which stores the readable code).
-* **DR-10 (incomplete):** the audit UI shows only the latest 12 events. Add “show all” using
-  the 200 rows already returned; do not add pagination until it is needed.
+* **DR-10 — applied:** both the activity log and the access journal offer **Show all**
+  from the rows already returned (up to 200). No pagination was added.
 
 ### 2.11 Integration with venture operations — working, one cleanup
 
@@ -169,7 +168,7 @@ existing table.
 
 ### Phase A — corrections (no new capability)
 
-**Applied in this round:**
+**Applied:**
 
 * **DR-05** derived expiry for grants in the two grant reads; access dialog shows
   “Expired” and still allows revoke.
@@ -177,12 +176,11 @@ existing table.
 * **DR-02** added the **Legacy documents** lens and count.
 * **DR-04** excluded soft-deleted documents from the analytic count.
 * **DR-09** counted the journal through the document.
+* **DR-01** validated the category before storage and cleaned up early refusals.
+* **DR-10** added **Show all** to both journals.
 
-**Still proposed:**
-
-1. **DR-01** validate the category in the upload route; delete the uploaded object on early
-   create refusals.
-2. **DR-10** “show all” for the audit history already returned.
+The Data Room’s empty state now carries the upload action in its centre when the room has
+no documents; the header action remains once documents exist.
 
 ### Phase B — audit extension (applied)
 

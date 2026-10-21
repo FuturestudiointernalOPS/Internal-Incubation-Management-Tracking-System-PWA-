@@ -44,6 +44,7 @@ jest.mock("@/lib/ventureEvidence", () => ({
   deleteEvidenceObject: jest.fn().mockResolvedValue(true),
 }));
 
+const { deleteEvidenceObject } = require("@/lib/ventureEvidence");
 const { resolveInvestorScope } = require("@/models/authorization/investorScope");
 const { hasAnyVentureAssignment, hasVentureCapability } = require("@/services/ventures/permissions");
 const { canManageVerification } = require("@/services/ventures/verification/categories");
@@ -157,6 +158,27 @@ describe("createDataRoomDocument", () => {
     });
 
     expect(result).toMatchObject({ ok: false, error: "dataRoom.errors.fileRequired" });
+  });
+
+  test("a refused create removes the file the upload step already stored", async () => {
+    const db = founderDb();
+
+    await expect(
+      createDataRoomDocument({
+        ventureId: VENTURE,
+        session: founderSession,
+        input: {
+          title: "",
+          category: "pitch_deck_business_plan",
+          file_path: "data-room/VNT-1/pitch_deck_business_plan/deck.pdf",
+        },
+        database: db,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: "dataRoom.errors.titleRequired" });
+
+    expect(deleteEvidenceObject).toHaveBeenCalledWith(
+      "data-room/VNT-1/pitch_deck_business_plan/deck.pdf",
+    );
   });
 
   test("refuses an unknown category and a missing file", async () => {
