@@ -1,19 +1,19 @@
 # Lot 0 — actions serveur sans capacité (liste exacte)
 
-Mesuré le 2026-10-21T05:37:25.703Z.
+Mesuré le 2026-10-21T05:44:06.369Z.
 
 Définition : une action est « sans capacité » quand aucun contrôle de fichier ne vérifie une capacité. Les catégories distinguent les trous des déclarations légitimes.
 
 | Catégorie | Nombre | Sens |
 |---|---:|---|
-| À protéger | 5 | Trou de décision à corriger |
+| À protéger | 1 | Trou de décision à corriger |
 | À vérifier — décision déléguée | 0 | Périmètre présent, capacité absente |
 | Personnelle légitime | 34 | Déclarée « soi-même » |
 | Ouverte assumée | 2 | Déclarée publique / hub / stub |
 
-Le compteur d'audit « requireAuth sans contrôle central » est de **71** fichiers. La liste ci-dessous en contient **41** parce qu'elle inclut aussi les enveloppes d'action et les lectures de session manuelles.
+Le compteur d'audit « requireAuth sans contrôle central » est de **70** fichiers. La liste ci-dessous en contient **37** parce qu'elle inclut aussi les enveloppes d'action et les lectures de session manuelles.
 
-## Compteur d'audit strict (71)
+## Compteur d'audit strict (70)
 
 Ces fichiers appellent la garde de session mais jamais le contrôle central de capacité. Une capacité peut toutefois être vérifiée par une garde composée : la colonne le dit.
 
@@ -21,7 +21,6 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 |---|---|---|
 | `src/app/api/admin/projects/[id]/reports/generate/route.js` | non | oui |
 | `src/app/api/attendance/route.js` | oui | oui |
-| `src/app/api/auth/invite-family/route.js` | non | non |
 | `src/app/api/auth/language/route.js` | non | non |
 | `src/app/api/blockers/discuss/route.js` | non | non |
 | `src/app/api/blockers/route.js` | non | non |
@@ -91,15 +90,11 @@ Ces fichiers appellent la garde de session mais jamais le contrôle central de c
 | `src/app/api/ventures/[id]/progress/route.js` | oui | oui |
 | `src/app/api/workspaces/route.js` | non | non |
 
-## À protéger (5)
+## À protéger (1)
 
 | Fichier | Garde présente | Périmètre | Compteur d'audit strict |
 |---|---|---|---|
-| `src/app/api/auth/invite-family/route.js` | requireAuth | non | oui |
 | `src/app/api/integrations/google-calendar/connect/route.js` | requireAuth | non | oui |
-| `src/app/api/journey-reports/route.js` | getSession | non | non |
-| `src/app/api/ventures/assigned/route.js` | createHandler | non | non |
-| `src/app/api/ventures/lead-manager/home/route.js` | createHandler | non | non |
 
 ## À vérifier — décision déléguée (0)
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import { listPortfolioReports, listPortfolioMissingClosingReports } from "@/services/ventures/reports";
 
 export const dynamic = "force-dynamic";
@@ -12,22 +12,15 @@ export const dynamic = "force-dynamic";
  * journeys that closed without their closing report — the Super Admin's inbox,
  * so a report is read where it is governed and not only inside one Venture.
  *
- * GLOBAL ROLES ONLY. This crosses Venture boundaries, so it is deliberately NOT
- * reachable through a Venture assignment (`roleIsPrivileged` is too broad here:
- * it also admits staff and program managers).
+ * It crosses Venture boundaries, so the door is `reports.portfolio`, which no
+ * profile carries by default: only the platform owner (exempt) passes today.
+ * A Venture assignment is deliberately NOT enough.
  */
-const GLOBAL_ROLES = ["super_admin"];
-
 export async function GET(req) {
   try {
     await initDb();
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-    if (!GLOBAL_ROLES.includes(session.role)) {
-      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
-    }
+    const authError = await requireAuthorization("reports", "portfolio");
+    if (authError) return authError;
 
     const status = new URL(req.url).searchParams.get("status") || null;
     const [reports, missing] = await Promise.all([

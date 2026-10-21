@@ -45,10 +45,10 @@ export const PROFILE_CATALOGUE_SEED = [
   { key: "staff_default", label: "Staff Default", context: "global", allowedRoles: ["staff"], capabilities: {
     projects: { view: 1, create: 2, edit: 3 },
     programs: { view: 1, groups: 2 },
-    ventures: { view: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1 },
+    ventures: { view: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1, my_assignments: 1 },
     reports: { view: 1, create: 2 },
     messaging: { view: 1, send: 2 },
-    contacts: { view: 1 },
+    contacts: { view: 1, invite_families: 2 },
     collections: { view: 1 },
   } },
   // D-7: a member of a Venture works IN it — writing stays bounded by the
@@ -258,6 +258,8 @@ export async function ensureDelegatedCapabilityDefaults() {
     ["staff_default", "ventures", "permissions_view", 1],
     ["staff_default", "programs", "groups", 2],
     ["staff_default", "collections", "view", 1],
+    ["staff_default", "contacts", "invite_families", 2],
+    ["staff_default", "ventures", "my_assignments", 1],
     // program_manager — admitted by the role list on the groups route and the
     // KPI catalogue write.
     ["program_manager", "programs", "groups", 2],

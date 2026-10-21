@@ -80,7 +80,7 @@ test("the catalogue carries the baseline and ad-hoc profiles, with labels", () =
 test("the delegated-capability backfill grants the profiles that already had the access", async () => {
   await ensureDelegatedCapabilityDefaults();
   const inserts = callsMatching(/INSERT INTO profile_capabilities/i);
-  expect(inserts).toHaveLength(7);
+  expect(inserts).toHaveLength(9);
   expect(
     inserts.every((call) =>
       /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/i.test(sqlOf(call)),
@@ -92,6 +92,8 @@ test("the delegated-capability backfill grants the profiles that already had the
   expect(rows).toContainEqual(["staff_default", "ventures", "permissions_view", 1]);
   expect(rows).toContainEqual(["staff_default", "programs", "groups", 2]);
   expect(rows).toContainEqual(["staff_default", "collections", "view", 1]);
+  expect(rows).toContainEqual(["staff_default", "contacts", "invite_families", 2]);
+  expect(rows).toContainEqual(["staff_default", "ventures", "my_assignments", 1]);
   expect(rows).toContainEqual(["program_manager", "programs", "groups", 2]);
   expect(rows).toContainEqual(["program_manager", "ventures", "kpis", 3]);
 });

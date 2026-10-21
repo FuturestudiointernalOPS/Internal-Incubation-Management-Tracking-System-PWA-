@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import { buildLeadManagerHome } from "@/services/ventures/leadManagerDashboard";
 
 export const dynamic = "force-dynamic";
@@ -14,8 +15,10 @@ export const dynamic = "force-dynamic";
  * active `lead_manager` assignment. Super Admin is steered to /admin (empty).
  */
 export const GET = createHandler(
-  { roles: ["staff", "program_manager", "super_admin"] },
   async () => {
+    const authError = await requireAuthorization("ventures", "my_assignments");
+    if (authError) return authError;
+
     await initDb();
     const session = await getSession();
     if (!session?.cid) {

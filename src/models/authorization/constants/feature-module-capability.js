@@ -47,6 +47,9 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "medium", description: "Add new contacts" },
         edit: { label: "Edit", risk: "medium", description: "Modify contact records" },
         delete: { label: "Delete", risk: "high", description: "Remove contacts (soft delete)" },
+        // Family invitations create several contacts at once. Separate from
+        // `create` so a role list can become a grant without widening it.
+        invite_families: { label: "Invite Families", risk: "medium", description: "Invite family/group members and create their contacts" },
       },
     },
     // P1 MODULE DECISION — duplicates is a genuine MODULE, not a Contacts view:
@@ -188,6 +191,8 @@ export const FEATURE_MODULE_CAPABILITY = {
         kpis: { label: "Manage KPIs", risk: "medium", description: "Manage the reusable venture KPI catalogue" },
         // Reading the scope-type vocabulary the permission screens render.
         permissions_view: { label: "View Permission Scopes", risk: "low", description: "See the venture permission scope types" },
+        // "My Ventures" — the caller's OWN assignments, never a portfolio read.
+        my_assignments: { label: "My Assignments", risk: "low", description: "See the Ventures the caller is assigned to" },
       },
     },
   },
@@ -248,6 +253,9 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "medium", description: "Submit standups, retros and op-reports" },
         export: { label: "Export", risk: "medium", description: "Export report data" },
         delete: { label: "Delete", risk: "high", description: "Delete reports" },
+        // The cross-Venture portfolio. Granted to nobody by default: it is the
+        // platform owner's inbox, and the capability keeps the door explicit.
+        portfolio: { label: "View Portfolio", risk: "high", description: "Read every Venture's reports across the platform" },
       },
     },
   },

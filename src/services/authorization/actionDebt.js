@@ -10,9 +10,5 @@
  */
 
 export const UNDECLARED_ACTIONS = [
-  { file: "src/app/api/auth/invite-family/route.js", category: "a_proteger" },
   { file: "src/app/api/integrations/google-calendar/connect/route.js", category: "a_proteger" },
-  { file: "src/app/api/journey-reports/route.js", category: "a_proteger" },
-  { file: "src/app/api/ventures/assigned/route.js", category: "a_proteger" },
-  { file: "src/app/api/ventures/lead-manager/home/route.js", category: "a_proteger" },
 ];

@@ -46,6 +46,26 @@ SELECT * FROM (
 
   UNION ALL
 
+  SELECT 'staff_default · contacts.invite_families', COUNT(*)::int, '1'
+  FROM profile_capabilities
+  WHERE profile_key = 'staff_default' AND module = 'contacts' AND capability = 'invite_families'
+
+  UNION ALL
+
+  SELECT 'staff_default · ventures.my_assignments', COUNT(*)::int, '1'
+  FROM profile_capabilities
+  WHERE profile_key = 'staff_default' AND module = 'ventures' AND capability = 'my_assignments'
+
+  UNION ALL
+
+  -- The cross-Venture portfolio is the platform owner's; it must NOT have been
+  -- granted to the staff profile. This line proves the switch widened nothing.
+  SELECT 'staff_default ne porte pas reports.portfolio', COUNT(*)::int, '0'
+  FROM profile_capabilities
+  WHERE profile_key = 'staff_default' AND module = 'reports' AND capability = 'portfolio'
+
+  UNION ALL
+
   SELECT 'program_manager · programs.groups', COUNT(*)::int, '1'
   FROM profile_capabilities
   WHERE profile_key = 'program_manager' AND module = 'programs' AND capability = 'groups'
