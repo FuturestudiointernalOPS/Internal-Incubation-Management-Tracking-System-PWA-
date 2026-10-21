@@ -15,6 +15,7 @@ import {
   ExternalLink,
   FileText,
   FolderKanban,
+  FolderOpen,
   Layers,
   Loader2,
   Rocket,
@@ -103,6 +104,10 @@ export default function VentureDetailView({ ctx }) {
     { id: "timeline", label: "vadmin.detail.timeline", icon: BarChart3 },
     { id: "reports", label: "vadmin.detail.reports", icon: FileText },
     { id: "verification", label: "vadmin.detail.verification", icon: Shield },
+    // The Data Room is the venture's confidential fundraising / due-diligence
+    // set — deliberately separate from the Data bank (the verified compliance
+    // checklist) that the tab above opens.
+    { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
     { id: "activity", label: "vadmin.detail.activity", icon: Activity },
     { id: "profile", label: "vadmin.detail.profile", icon: Building2 },
     { id: "team", label: "vadmin.detail.team", icon: Users },
@@ -115,6 +120,7 @@ export default function VentureDetailView({ ctx }) {
     timeline: `/admin/ventures/${id}/timeline`,
     reports: `/admin/ventures/${id}/reports`,
     verification: `/admin/ventures/${id}/verification`,
+    dataRoom: `/admin/ventures/${id}/documents`,
   };
 
   return (
