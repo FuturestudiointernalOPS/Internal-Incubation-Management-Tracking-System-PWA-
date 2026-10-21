@@ -224,10 +224,10 @@ unmet) or `not_started` (Journey active, nothing holds it back).
 
 ## 5. Database schema steps
 
-`ensureVentureSchema()` is runtime DDL and runs from **only four paths**
-(`/api/ventures/promote`, `/api/s/public-submit`, `…/journey/save-template`,
-`createVentureFromSubmission`). A production database that has never run one of
-them is **missing** the newer columns and tables.
+`ensureVentureSchema()` is runtime DDL and runs from a handful of Venture write
+paths (the promote and public-submit intake, journey save-template, plan-import,
+the people link, and **sending a reminder**). A production database that has
+never run one of them is **missing** the newer columns and tables.
 
 **Symptoms if skipped:**
 - archiving or deleting a **milestone/task** → 500 (writes `is_archived` unguarded)
@@ -283,6 +283,13 @@ ALTER TABLE venture_reports   ADD COLUMN IF NOT EXISTS report_kind TEXT;
 -- evidence read fails and deliverable evidence disappears from every screen.
 ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+-- The manual reminder's own words and the one file that travelled with it.
+-- Without these four, sending a reminder fails with
+-- `column "subject" of relation "venture_reminder_log" does not exist`.
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS body TEXT;
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS attachment_path TEXT;
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 ```
 
 **`journey_stage_id` / `report_kind` are nullable on purpose.** Existing

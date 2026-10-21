@@ -67,26 +67,60 @@ export async function getVentureMetrics() {
 
 /** Investor OS: pipeline distribution + fundraising totals + external spreadsheet. */
 export async function getInvestorMetrics() {
-  const [pipelineRes, fundraisingRes, relationshipsRes, spreadsheet] = await Promise.all([
-    db.execute({
-      sql: `SELECT stage, COUNT(*)::int AS count
-            FROM investment_pipeline
-            GROUP BY stage
-            ORDER BY count DESC`,
-    }),
-    db.execute({
-      sql: `SELECT COALESCE(SUM(target_raise), 0)::float AS total_sought,
-                   COALESCE(SUM(current_raised), 0)::float AS total_raised,
-                   (SELECT COALESCE(SUM(investment_amount), 0)::float
-                    FROM investment_decisions WHERE decision_type = 'invest') AS total_committed
-            FROM fundraising_campaigns`,
-    }),
-    db.execute({
-      sql: `SELECT (SELECT COUNT(*)::int FROM relationship_workspaces WHERE status = 'active') AS active_relationships,
-                   (SELECT COUNT(*)::int FROM investment_pipeline WHERE stage = 'invested') AS total_invested`,
-    }),
-    getSpreadsheetData(),
-  ]);
+  // The Investor OS tables are created by migrations/investor_os_foundation.sql
+  // and migrations/investor_os_relationships.sql. A database that never ran
+  // them must not fail the whole Intelligence page — the section reports empty
+  // figures instead of taking the other four sections down with it.
+  const presence = await db.execute({
+    sql: `SELECT to_regclass('public.investment_pipeline') IS NOT NULL AS pipeline,
+                 to_regclass('public.investment_decisions') IS NOT NULL AS decisions,
+                 to_regclass('public.relationship_workspaces') IS NOT NULL AS relationships`,
+  });
+  const has = presence.rows[0] || {};
+
+  const pipelineQuery = has.pipeline
+    ? db.execute({
+        sql: `SELECT stage, COUNT(*)::int AS count
+              FROM investment_pipeline
+              GROUP BY stage
+              ORDER BY count DESC`,
+      })
+    : Promise.resolve({ rows: [] });
+
+  // `total_committed` is read from investment_decisions, which may be absent
+  // even where the pipeline table exists.
+  const fundraisingQuery = has.decisions
+    ? db.execute({
+        sql: `SELECT COALESCE(SUM(target_raise), 0)::float AS total_sought,
+                     COALESCE(SUM(current_raised), 0)::float AS total_raised,
+                     (SELECT COALESCE(SUM(investment_amount), 0)::float
+                      FROM investment_decisions WHERE decision_type = 'invest') AS total_committed
+              FROM fundraising_campaigns`,
+      })
+    : db.execute({
+        sql: `SELECT COALESCE(SUM(target_raise), 0)::float AS total_sought,
+                     COALESCE(SUM(current_raised), 0)::float AS total_raised,
+                     0::float AS total_committed
+              FROM fundraising_campaigns`,
+      });
+
+  const relationshipsQuery =
+    has.relationships && has.pipeline
+      ? db.execute({
+          sql: `SELECT (SELECT COUNT(*)::int FROM relationship_workspaces WHERE status = 'active') AS active_relationships,
+                       (SELECT COUNT(*)::int FROM investment_pipeline WHERE stage = 'invested') AS total_invested`,
+        })
+      : Promise.resolve({
+          rows: [{ active_relationships: 0, total_invested: 0 }],
+        });
+
+  const [pipelineRes, fundraisingRes, relationshipsRes, spreadsheet] =
+    await Promise.all([
+      pipelineQuery,
+      fundraisingQuery,
+      relationshipsQuery,
+      getSpreadsheetData(),
+    ]);
 
   return {
     pipeline: pipelineRes.rows,

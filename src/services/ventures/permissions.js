@@ -15,6 +15,7 @@
  */
 
 import { invalidateVentureAccess } from "@/services/ventures/accessFacts";
+import { syncContextGrantsForUser } from "@/services/authorization/contextGrantReconcile";
 import {
   updatePermissionMatrixCorrection,
   countPermissionMatrixRows,
@@ -29,6 +30,7 @@ import {
   selectAssignments,
   insertAssignment,
   removeAssignmentRow,
+  selectAssignmentRow,
   selectActiveAssignmentsForContact,
   selectMatrixCell,
   selectAnyActiveAssignment,
@@ -279,12 +281,48 @@ export async function createAssignment({ ventureId, staffContactId, responsibili
   // A delegated staff member granted access just now must be able to use it
   // without waiting for the remembered answers to expire.
   invalidateVentureAccess(ventureId);
+  // Being made the Venture's Lead Manager is what justifies the `venture_manager`
+  // profile — and the profile is what carries `ventures.view`/`edit`. Without this,
+  // the assignment gave SCOPE but no CAPABILITY: the manager held a Venture she was
+  // not allowed to open (docs/VENTURE_IDENTITY_PHASE0.md §4.5, "Phase E").
+  if (responsibilityCode === MANAGER_RESPONSIBILITY) {
+    await syncManagerProfile(staffContactId);
+  }
   return { success: true, id: insertResult.lastInsertRowid ?? null };
 }
 
 export async function removeAssignment({ id }) {
+  // Read BEFORE the removal: afterwards the row no longer says who held it.
+  const row = (await selectAssignmentRow(id).catch(() => ({ rows: [] }))).rows?.[0] || null;
   await removeAssignmentRow(id);
+  if (row?.responsibility_code === MANAGER_RESPONSIBILITY) {
+    await syncManagerProfile(row.staff_contact_id);
+  }
   return { success: true };
+}
+
+/** The responsibility whose assignment carries workspace access. */
+const MANAGER_RESPONSIBILITY = "lead_manager";
+
+/**
+ * Keep one person's Venture Manager profile period in step with their live
+ * assignments. The reconcile reads the ROWS and decides: it opens the period when
+ * they lead a Venture, refreshes it while they still do, and closes it when they
+ * do not — so this one call serves assignment, re-assignment and removal alike.
+ *
+ * Never allowed to break the assignment itself: a profile hiccup must not roll back
+ * a manager appointment (the sweep can reconcile it later).
+ */
+async function syncManagerProfile(cid) {
+  if (!cid) return;
+  try {
+    await syncContextGrantsForUser(String(cid), { context: "venture", roleKey: "venture_manager" });
+  } catch (error) {
+    console.error(
+      `[venture-permissions] Venture Manager profile sync failed for ${cid}:`,
+      error?.message || error,
+    );
+  }
 }
 
 /**

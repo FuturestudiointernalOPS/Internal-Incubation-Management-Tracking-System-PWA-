@@ -128,9 +128,9 @@ describe("layout", () => {
     expect(laid.map((entry) => [entry.lane, entry.lanes])).toEqual([[0, 2], [1, 2], [0, 1]]);
   });
 
-  test("the hour range never gets narrower than 8–17 and grows to fit", () => {
-    expect(hourRange([])).toEqual({ first: 8, last: 17 });
-    expect(hourRange([{ start: [6, 30], end: [7, 15] }, { start: [18, 0], end: [20, 30] }])).toEqual({ first: 6, last: 21 });
+  test("the hour range never gets narrower than 6–19 and grows to fit", () => {
+    expect(hourRange([])).toEqual({ first: 6, last: 19 });
+    expect(hourRange([{ start: [5, 0], end: [5, 45] }, { start: [18, 0], end: [20, 30] }])).toEqual({ first: 5, last: 21 });
   });
 });
 
