@@ -14,7 +14,7 @@ import { FROM_EMAIL, RESEND_API_KEY } from "./config";
 /**
  * Internal: sends email via Resend
  */
-export async function sendViaResend({ to, cc, subject, html, fromName }) {
+export async function sendViaResend({ to, cc, subject, html, fromName, replyTo }) {
   if (!RESEND_API_KEY) {
     console.warn("Resend not configured — skipping email to:", to, "subject:", subject);
     // `error` (not only `note`) so sendEmail / the reminder engine surface the
@@ -30,6 +30,9 @@ export async function sendViaResend({ to, cc, subject, html, fromName }) {
       from: fromName ? `${fromName} <${FROM_EMAIL}>` : FROM_EMAIL,
       to,
       ...(Array.isArray(cc) && cc.length > 0 ? { cc } : {}),
+      // Optional answer-to address (Resend's own field). Absent by default, so
+      // every existing caller sends exactly what it sent before.
+      ...(replyTo ? { reply_to: replyTo } : {}),
       subject,
       html,
     });
