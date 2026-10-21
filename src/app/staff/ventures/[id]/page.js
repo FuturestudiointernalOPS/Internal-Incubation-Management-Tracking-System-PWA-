@@ -10,7 +10,6 @@ import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Rout
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
-import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
@@ -46,7 +45,6 @@ const TABS = [
   // The Data Room is the venture's confidential fundraising / due-diligence
   // document set (including the material shared with granted investors).
   { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
-  { id: "plan", label: "venture.operatingPlan", icon: FileText },
 ];
 
 export default function StaffVentureWorkspace() {
@@ -212,7 +210,7 @@ export default function StaffVentureWorkspace() {
   const displayName = venture.company_name || venture.name || t("venture.label");
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className={`p-6 space-y-6 mx-auto ${activeTab === "projects" ? "max-w-7xl" : "max-w-5xl"}`}>
       <VenturePageHeader
         displayName={displayName}
         brandColor={venture.branding?.color}
@@ -414,7 +412,9 @@ export default function StaffVentureWorkspace() {
       {/* Projects — the same read the Super Admin's venture "Project" page shows.
           The server gate is `ventures.view` + venture scope, which already admits
           the Venture's own Lead Manager; this is the surface that was missing. */}
-      {activeTab === "projects" && isLeadManager && <ProjectsWorkItemsView ventureId={id} />}
+      {activeTab === "projects" && isLeadManager && (
+        <ProjectsWorkItemsView ventureId={id} emailsHref={`/staff/ventures/${id}/emails`} />
+      )}
 
       {/* WHO the work stands on: the same linking the Super Admin's Project page
           offers, so a Lead Manager can name the people their Venture's work
@@ -430,8 +430,6 @@ export default function StaffVentureWorkspace() {
       {activeTab === "dataRoom" && <VentureDataRoom ventureId={id} />}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
-
-      {activeTab === "plan" && <OperatingPlanPanel ventureId={id} />}
     </div>
   );
 }
