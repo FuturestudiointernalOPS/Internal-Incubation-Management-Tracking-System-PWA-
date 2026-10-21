@@ -131,7 +131,9 @@ export async function revokeDataRoomAccess({ ventureId, grantId, session, databa
 export async function setDataRoomRequirement({ ventureId, session, category, level, note, database }) {
   const viewer = await resolveDataRoomViewer({ ventureId, session, database });
   if (!viewer.allowed) return refusal(404, "errors.notFound");
-  if (!viewer.canReview) return refusal(403, "errors.insufficientPermissions");
+  // A Lead Manager does not review documents, but DOES decide what the Venture
+  // must provide. The two rights are deliberately separate.
+  if (!viewer.canConfigureRequirements) return refusal(403, "errors.insufficientPermissions");
 
   if (!isDataRoomCategory(category)) return refusal(400, "dataRoom.errors.categoryInvalid");
   if (!isDataRoomRequirementLevel(level)) return refusal(400, "dataRoom.errors.levelInvalid");

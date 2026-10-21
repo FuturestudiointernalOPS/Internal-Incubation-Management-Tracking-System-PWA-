@@ -267,8 +267,10 @@ describe("resolveDataRoomViewer", () => {
     expect(viewer).toMatchObject({
       allowed: true,
       viewerType: "staff",
+      isLeadManager: true,
       canManage: false,
-      canReview: true,
+      canReview: false,
+      canConfigureRequirements: true,
     });
   });
 

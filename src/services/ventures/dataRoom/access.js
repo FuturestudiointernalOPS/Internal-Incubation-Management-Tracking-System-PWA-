@@ -51,6 +51,7 @@ import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./share
  *   super admin                     → view + manage + review
  *   venture founder / owner         → view + manage
  *   other venture member            → view (and download)
+ *   assigned Lead Manager           → view + configure requirements, never manage/review
  *   assigned staff with documents.* → view + manage (edit/upload/manage)
  *   assigned staff with review      → review
  *   investor with a live grant      → view + download, their granted subset only
@@ -103,13 +104,17 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   let canReview = false;
   if (superAdmin) {
     canReview = true;
-  } else if (assigned) {
+  } else if (assigned && !isLeadManager) {
     canReview =
       (await canManageVerification(ventureId, session).catch(() => ({ allowed: false }))).allowed === true ||
       (cid
         ? await hasVentureCapability({ ventureId, contactId: cid, area: "documents", action: "review" })
         : false);
   }
+
+  // A Lead Manager configures WHAT must be provided, but only sees the
+  // documents themselves: no upload, no edit, no review decision.
+  const canConfigureRequirements = canReview || (assigned && isLeadManager);
 
   if (canView) {
     return {
@@ -118,8 +123,10 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
       viewerType: superAdmin ? "super_admin" : internalStaff ? "staff" : "member",
       isFounder,
       isMember,
+      isLeadManager,
       canManage,
       canReview,
+      canConfigureRequirements,
       granteeCid: null,
     };
   }
@@ -135,8 +142,10 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
         viewerType: "investor",
         isFounder: false,
         isMember: false,
+        isLeadManager: false,
         canManage: false,
         canReview: false,
+        canConfigureRequirements: false,
         granteeCid: cid,
       };
     }
@@ -330,6 +339,7 @@ export async function buildDataRoom({ ventureId, session, access, filters = {}, 
       type: viewer.viewerType,
       can_manage: viewer.canManage,
       can_review: viewer.canReview,
+      can_configure_requirements: viewer.canConfigureRequirements,
       can_download: true,
     },
     categories: viewer.granteeCid ? [] : categorise(documents, requirements),
@@ -456,6 +466,7 @@ export async function loadDataRoomDocument({ ventureId, documentId, session, acc
       type: viewer.viewerType,
       can_manage: viewer.canManage,
       can_review: viewer.canReview,
+      can_configure_requirements: viewer.canConfigureRequirements,
       can_download: true,
     },
   };

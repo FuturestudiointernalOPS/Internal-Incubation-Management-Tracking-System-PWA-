@@ -46,7 +46,12 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const [showAllAccess, setShowAllAccess] = useState(false);
 
   const documents = useMemo(() => data?.documents || [], [data]);
-  const viewer = data?.viewer || { can_manage: false, can_review: false, type: "member" };
+  const viewer = data?.viewer || {
+    can_manage: false,
+    can_review: false,
+    can_configure_requirements: false,
+    type: "member",
+  };
   const completeness = data?.completeness || null;
   const requirements = data?.requirements || [];
   const grants = data?.grants || [];
@@ -339,10 +344,10 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         </div>
       </div>
 
-      {viewer.can_review && requirements.length > 0 ? (
+      {(viewer.can_review || viewer.can_configure_requirements) && requirements.length > 0 ? (
         <RequirementsPanel
           requirements={requirements}
-          canReview={viewer.can_review}
+          canReview={viewer.can_configure_requirements}
           canManage={viewer.can_manage}
           t={t}
           onChange={setRequirement}
