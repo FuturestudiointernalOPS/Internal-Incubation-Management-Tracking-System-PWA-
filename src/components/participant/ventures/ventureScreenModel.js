@@ -50,11 +50,6 @@ const pickThing = (key) => (payload) => (payload?.success ? payload[key] : null)
 export const pickMembers = pickList("members");
 export const pickInvitations = pickList("invitations");
 export const pickDashboard = pickThing("dashboard");
-export const pickBm = pickThing("business_model");
-export const pickInterviews = pickList("interviews");
-export const pickValidations = pickList("validations");
-export const pickAssessments = pickList("assessments");
-export const pickMilestones = pickList("milestones");
 export const pickCalendar = pickList("events");
 export const pickProgress = pickThing("progress");
 // The caller's own work queue (WS1). A refusal or an empty box is NOT an empty
