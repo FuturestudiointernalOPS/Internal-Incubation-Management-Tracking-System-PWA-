@@ -211,6 +211,13 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
         </AppButton>
       </div>
 
+      {/* The reminder goes TO the owner (and supporting people); a copy also
+          reaches whoever runs the Venture, so a chase is never invisible to the
+          Lead Manager. Only an activity carries that copy. */}
+      {item?.kind === "activity" ? (
+        <p className="text-[10px] text-[var(--text-tertiary)]">{t("venture.reminders.ccHint")}</p>
+      ) : null}
+
       {/* WHAT THE MESSAGE SAYS — blank means the standard wording. */}
       <div className="grid grid-cols-1 gap-3">
         <AppInput

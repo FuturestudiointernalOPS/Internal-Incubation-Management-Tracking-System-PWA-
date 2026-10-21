@@ -22,16 +22,37 @@
  * reports them, and the caller tells the person who pressed the button.
  */
 
-import { sendVentureReminderEmail } from "@/lib/email";
+import { isPlaceholderEmail, sendVentureReminderEmail } from "@/lib/email";
 import { transportSupportsAttachments } from "@/lib/email/config";
 import { downloadEvidenceBytes } from "@/lib/ventureEvidence";
 import {
   insertReminderLog,
   markReminderFailed,
   markReminderSent,
+  selectLeadManagerRecipients,
 } from "@/models/ventureReminders";
 import { reminderKey } from "./rules";
 import { hasPlatformAccount, normalizeEmail, resolveWorkItemRecipients, splitReachable } from "./recipients";
+
+/** The addresses a reminder is COPIED to: the Venture's active Lead Managers. */
+async function leadManagerAddresses(ventureCode) {
+  const rows = (await selectLeadManagerRecipients(ventureCode).catch(() => ({ rows: [] }))).rows || [];
+  const seen = new Set();
+  const addresses = [];
+  for (const row of rows) {
+    const email = normalizeEmail(row.email);
+    // A placeholder address must never leave the system, not even as a copy.
+    if (!email || isPlaceholderEmail(email) || seen.has(email)) continue;
+    seen.add(email);
+    addresses.push(email);
+  }
+  return addresses;
+}
+
+/** Whether a work item is the ACTIVITY level a reminder is about by default. */
+function isActivity(item) {
+  return item?.kind === "activity" || String(item?.id || "").startsWith("activity:");
+}
 
 /** Send one reminder to one recipient, claiming it in the log first. */
 async function deliverOne({
@@ -49,6 +70,7 @@ async function deliverOne({
   message,
   attachment,
   mailAttachment,
+  cc,
 }) {
   const itemId = String(item.id || "");
   const [kind, ...ownParts] = itemId.split(":");
@@ -103,6 +125,9 @@ async function deliverOne({
     subject,
     message,
     attachments: mailAttachment,
+    // A copy for whoever runs the Venture. The recipient themselves is removed,
+    // so no one receives the same message twice.
+    cc: (cc || []).filter((email) => email !== normalizeEmail(recipient.email)),
   });
 
   if (!result?.success) {
@@ -152,6 +177,7 @@ async function deliver({
   includeSupporting,
   ruleId,
   sentBy,
+  sentByEmail = null,
   automatic,
   subject = null,
   message = null,
@@ -164,6 +190,18 @@ async function deliver({
     includeSupporting,
   });
   const { reachable, unreachable } = splitReachable(recipients);
+
+  // The COPY list, resolved once: the Venture's Lead Managers, plus the person
+  // who pressed Send on a manual reminder. It only applies to an ACTIVITY — the
+  // level a tracker row's reminders are about — so chasing a milestone or a
+  // deliverable does not fan a copy out for the same tracker line.
+  const cc = isActivity(item)
+    ? await leadManagerAddresses(ventureCode)
+    : [];
+  const senderEmail = normalizeEmail(sentByEmail);
+  if (isActivity(item) && senderEmail && !isPlaceholderEmail(senderEmail) && !cc.includes(senderEmail)) {
+    cc.push(senderEmail);
+  }
 
   // The file is fetched ONCE, before the loop: the same bytes go to every
   // recipient, and a download per recipient would be work with no reader.
@@ -196,6 +234,7 @@ async function deliver({
         message,
         attachment,
         mailAttachment,
+        cc,
       }),
     );
   }
@@ -229,7 +268,7 @@ async function deliver({
  *
  * Never deduped — pressing Send twice is a request, not a mistake.
  */
-export async function sendManualReminder({ ventureCode, ventureName, item, sentBy = null, subject = null, message = null, attachment = null }) {
+export async function sendManualReminder({ ventureCode, ventureName, item, sentBy = null, sentByEmail = null, subject = null, message = null, attachment = null }) {
   if (!item?.id) return { error: "item_required" };
   return deliver({
     ventureCode,
@@ -241,6 +280,7 @@ export async function sendManualReminder({ ventureCode, ventureName, item, sentB
     includeSupporting: true,
     ruleId: null,
     sentBy,
+    sentByEmail,
     automatic: false,
     subject,
     message,
