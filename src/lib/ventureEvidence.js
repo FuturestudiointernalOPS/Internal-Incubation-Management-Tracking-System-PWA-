@@ -125,6 +125,24 @@ export async function downloadEvidenceBytes(path) {
 }
 
 /**
+ * Remove one stored object. Used to roll back an upload whose database record
+ * could not be written, so a failed insert never leaves an orphaned file.
+ * Returns true when the object is gone (or was already gone).
+ */
+export async function deleteEvidenceObject(path) {
+  const clean = evidenceStoragePath(path);
+  if (!clean) return false;
+  try {
+    const client = serviceClient();
+    if (!client) return false;
+    const { error } = await client.storage.from(EVIDENCE_BUCKET).remove([clean]);
+    return !error;
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * What the UI should link to: external links pass through, storage paths are
  * signed. Returns null when there is nothing usable (UI falls back to the raw
  * stored value only if it is an external link).
@@ -162,4 +180,4 @@ export async function signSessionMaterials(raw) {
   );
 }
 
-export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, downloadEvidenceBytes, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR, signSessionMaterials };
+export default { EVIDENCE_BUCKET, EVIDENCE_URL_TTL_SECONDS, isExternalEvidenceLink, evidenceStoragePath, signEvidencePath, evidenceDownloadUrl, downloadEvidenceBytes, deleteEvidenceObject, isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, EVIDENCE_IMAGE_EXTENSIONS, EVIDENCE_IMAGE_MIME_TYPES, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR, signSessionMaterials };
