@@ -27,11 +27,14 @@ import { getSpreadsheetData } from "@/models/spreadsheet";
 /**
  * Venture READINESS aggregates.
  *
- * Readiness is COMPUTED LIVE from the Data bank (the Venture's required
- * document types vs. per-document item status, engine in
- * `src/models/ventureReadiness.js`), NOT from the legacy 10-category engine
- * (calculateInvestmentReadiness) it replaced. A Venture with no required
- * document renders « — » and is counted neither ready nor not-ready.
+ * Readiness is COMPUTED LIVE from the DATA ROOM (required categories vs. the
+ * live review status of each document, engine in
+ * `src/services/ventures/dataRoom`), never from a second formula. A Venture
+ * with no required category renders « — » and is counted neither ready nor
+ * not-ready.
+ *
+ * `overdue_milestones` uses the same date rule as the journey report and the
+ * analytics store: `COALESCE(target_date, due_date)`, archived excluded.
  */
 export async function getVentureMetrics() {
   const [totalRes, overdueRes, venturesRes] = await Promise.all([
@@ -39,8 +42,9 @@ export async function getVentureMetrics() {
     db.execute({
       sql: `SELECT COUNT(*)::int AS overdue
             FROM venture_milestones
-            WHERE due_date IS NOT NULL AND due_date < NOW()
-              AND status NOT IN ('completed', 'cancelled')`,
+            WHERE COALESCE(target_date, due_date) < NOW()
+              AND status NOT IN ('completed', 'cancelled')
+              AND COALESCE(is_archived, FALSE) = FALSE`,
     }),
     db.execute({ sql: "SELECT venture_id FROM ventures ORDER BY venture_id" }),
   ]);

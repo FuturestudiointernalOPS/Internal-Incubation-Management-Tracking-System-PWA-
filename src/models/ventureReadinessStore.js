@@ -63,6 +63,7 @@ export function selectReadinessSubmissionStates(ownersSql, args) {
             FROM venture_task_submissions s
             JOIN venture_tasks t ON t.id = s.task_id
             WHERE t.venture_id ${ownersSql}
+              AND COALESCE(t.is_archived, FALSE) = FALSE
               AND s.version = (
                 SELECT MAX(s2.version) FROM venture_task_submissions s2
                  WHERE s2.task_id = s.task_id
