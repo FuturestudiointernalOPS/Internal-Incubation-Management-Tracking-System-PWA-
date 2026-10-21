@@ -137,6 +137,20 @@ Supabase. Un seul tableau, aucun écrit. Attendu :
 | facilitateur | 5 | 0 | 0 | **0** |
 | fondateur | 1 | 1 | 1 | **0** |
 
+**Tables optionnelles.** La migration sonde chaque famille et ignore celle dont
+la table est absente. C'est le cas mesuré en production pour `investor_profiles`
+: le script principal ne la référence donc pas — une requête SQL ne peut pas
+nommer une table qui n'existe pas, même derrière un `IF`. Il affiche à la place
+la ligne « investisseur · table investor_profiles présente » (0 ou 1).
+
+- si elle vaut **0** : rien à faire, la famille investisseur est ignorée et ses
+  éventuels libellés deviennent `member` sans carte (mesuré : 0 personne) ;
+- si elle vaut **1** : colle aussi
+  `scripts/db-audit/legacy-identity-simulation-investor.sql`.
+
+Un module absent ne bloque donc jamais la correction des trois familles
+principales.
+
 ### Après le déploiement — vérification
 
 Colle `scripts/db-audit/legacy-identity-verification.sql`. Attendu : migration
@@ -148,6 +162,13 @@ Le service journalise une ligne quand il a réellement changé quelque chose :
 
 ```
 [authz] legacy identities normalized { updated: 569, cards: 564, withoutRelationship: 5 }
+```
+
+Si une famille a été ignorée faute de table et que des personnes portaient son
+libellé, une seconde ligne le dit explicitement (jamais en silence) :
+
+```
+[authz] legacy identities: famille(s) ignorée(s), table absente — leur libellé devient membre sans carte [ 'investor' ]
 ```
 
 Absence de ligne = rien à faire (déjà migré, ou aucune étiquette legacy).

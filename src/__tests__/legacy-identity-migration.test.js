@@ -10,15 +10,17 @@
 const queryLog = [];
 
 const responses = [];
-function respond(matcher, result) {
-  responses.push({ matcher, result });
+function respond(matcher, result, args = null) {
+  responses.push({ matcher, result, args });
 }
 
-const mockQuery = jest.fn(async (sql) => {
+const mockQuery = jest.fn(async (sql, args = []) => {
   queryLog.push(sql.replace(/\s+/g, " ").trim());
   // The LAST registered matcher wins, so a test can override the happy path.
   for (const entry of [...responses].reverse()) {
-    if (sql.includes(entry.matcher)) return entry.result;
+    if (!sql.includes(entry.matcher)) continue;
+    if (entry.args && entry.args.some((value, index) => value !== args[index])) continue;
+    return entry.result;
   }
   return { rows: [], rowsAffected: 0 };
 });
@@ -37,6 +39,8 @@ const {
 } = require("@/models/authorization/legacyIdentityStore");
 
 function primeHappyPath() {
+  // Every optional module table is present on this database.
+  respond("to_regclass", { rows: [{ name: "present" }] });
   respond("CREATE TEMP TABLE legacy_migration_relationships", { rows: [] });
   respond("GROUP BY source_role", {
     rows: [
@@ -83,6 +87,7 @@ describe("migrateLegacyIdentities", () => {
       cards: 564,
       updated: 569,
       withoutRelationship: 5,
+      skippedFamilies: [],
     });
   });
 
@@ -103,6 +108,22 @@ describe("migrateLegacyIdentities", () => {
     await expect(migrateLegacyIdentities()).rejects.toThrow(
       /1 active relationship/,
     );
+  });
+
+  test("a missing optional table skips its family instead of aborting", async () => {
+    primeHappyPath();
+    // `investor_profiles` does not exist on the measured production database.
+    respond("to_regclass", { rows: [{ name: null }] }, ["public.investor_profiles"]);
+
+    const result = await migrateLegacyIdentities();
+
+    expect(result.skippedFamilies).toEqual(["investor"]);
+    expect(result.investorCards).toBe(0);
+    expect(result.cards).toBe(564); // participant 563 + founder 1
+    // The skipped family's table is never referenced in a statement.
+    expect(queryLog.some((sql) => sql.includes("investor_profiles"))).toBe(false);
+    // The identity correction still runs for every label.
+    expect(queryLog.some((sql) => sql.startsWith("UPDATE contacts"))).toBe(true);
   });
 
   test("the retired labels are declared in one place", () => {
