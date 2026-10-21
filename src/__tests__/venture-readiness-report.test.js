@@ -1,12 +1,14 @@
 /**
  * Contract tests — roadmap readiness engine + journey operating report
- * (Vinance 3, Phase 3).
+ * (Vinance 3, Phase 3; reshaped by WS4).
  *
  * GET /api/ventures/[id]/investment-readiness
- *   → legacy document-checklist keys preserved untouched (cutover window)
- *   → roadmap_readiness derived live from the defined progression
- *     (journeys 30% / milestones 30% / tasks 25% / deliverables 15%,
- *      renormalized over defined components)
+ *   → TWO deliberately separate indicators, never one merged number:
+ *       roadmap_readiness   — journeys/milestones/tasks/deliverables, weighted
+ *                             30/30/25/15 and renormalised over what is defined.
+ *       data_room_readiness — INVESTMENT READINESS, from the Data Room's own
+ *                             completeness engine (required categories only).
+ *   → the former eight-document checklist is gone (WS4).
  * GET /api/ventures/[id]/journey-report
  *   → read-only operating report over the canonical spine; staff-only
  */
@@ -20,12 +22,30 @@ const mockDb = {
     executed.push({ sql, args });
     if (sql.includes("FROM ventures WHERE venture_id = ?") && !sql.includes("OR id::text")) return { rows: [{ id: VENTURE_DB_ID }] };
     if (sql.includes("FROM ventures WHERE venture_id = ? OR id::text = ?")) return { rows: [{ id: VENTURE_DB_ID }] };
-    // ── legacy document checklist (investment-readiness route) ──
-    if (sql.includes("FROM venture_documents WHERE venture_id = ?") && sql.includes("approval_status")) {
+    // ── id resolution + Data Room readiness (investment-readiness route) ──
+    if (sql.startsWith("SELECT venture_id AS code, id::text AS id FROM ventures")) {
+      return { rows: [{ code: "VNT-TEST", id: VENTURE_DB_ID }] };
+    }
+    if (sql.startsWith("SELECT id::text AS id, business_stage FROM ventures")) {
+      return { rows: [{ id: VENTURE_DB_ID, business_stage: "early_traction" }] };
+    }
+    if (sql.includes("FROM venture_data_room_requirements")) {
       return { rows: [
-        { name: "deck.pdf", category: "investment", approval_status: "approved" },
-        { name: "bmc.pdf", category: "business", approval_status: "approved" },
-        { name: "draft.pdf", category: "legal", approval_status: "pending" },
+        { venture_id: VENTURE_DB_ID, category: "company_overview", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "legal_corporate", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "financial", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "pitch_materials", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "team", level: "recommended" },
+      ] };
+    }
+    if (sql.includes("FROM venture_documents d")) {
+      return { rows: [
+        { venture_id: VENTURE_DB_ID, category: "company_overview", status: "verified" },
+        { venture_id: VENTURE_DB_ID, category: "legal_corporate", status: "verified" },
+        { venture_id: VENTURE_DB_ID, category: "financial", status: "uploaded" },
+        // A legacy Data Bank row: not a Data Room category, so it must not
+        // count towards a requirement — but it is still a stored document.
+        { venture_id: VENTURE_DB_ID, category: "business_plan", status: "verified" },
       ] };
     }
     // ── readiness engine (lib/ventureReadiness) ──
@@ -133,20 +153,15 @@ beforeEach(() => {
   jest.clearAllMocks();
 });
 
-describe("GET /api/ventures/[id]/investment-readiness — roadmap engine cutover", () => {
-  test("legacy document-checklist keys are preserved and roadmap_readiness is additive", async () => {
+describe("GET /api/ventures/[id]/investment-readiness — two indicators", () => {
+  test("roadmap readiness and Data Room readiness are reported separately", async () => {
     const res = await readinessGET(new Request("http://localhost/api/ventures/VNT-TEST/investment-readiness"), ctx);
     expect(res.status).toBe(200);
     const data = await readJson(res);
 
-    // Legacy contract untouched: checklist + document-derived score present.
-    const investmentReadiness = data.investment_readiness;
-    expect(Array.isArray(investmentReadiness.checklist)).toBe(true);
-    expect(investmentReadiness.checklist.length).toBe(8); // REQUIRED_DOCUMENTS list
-    expect(typeof investmentReadiness.readiness_percent).toBe("number");
-    expect(typeof investmentReadiness.is_investment_ready).toBe("boolean");
-    expect(Array.isArray(investmentReadiness.missing_documents)).toBe(true);
-    expect(Array.isArray(investmentReadiness.submitted_documents)).toBe(true);
+    // The eight-document checklist is retired: no legacy keys remain.
+    expect(data).not.toHaveProperty("investment_readiness");
+    expect(data).not.toHaveProperty("roadmap_readiness.checklist");
 
     // Roadmap engine (fixtures: 1/3 journeys, 2/3 milestones, 2/4 tasks, 2/3 approved).
     const roadmapReadiness = data.roadmap_readiness;
@@ -160,6 +175,17 @@ describe("GET /api/ventures/[id]/investment-readiness — roadmap engine cutover
     expect(roadmapReadiness.components.deliverables).toBe(67);
     // Weighted: 33*.3 + 67*.3 + 50*.25 + 67*.15 = 53 (rounded)
     expect(roadmapReadiness.overall_percent).toBe(53);
+
+    // Data Room engine: 4 required categories, 2 verified, 1 uploaded, 1 missing.
+    // The legacy `business_plan` document is a stored file but not a requirement,
+    // so it can neither raise nor lower the score.
+    const dataRoomReadiness = data.data_room_readiness;
+    expect(dataRoomReadiness.readiness_percent).toBe(50);
+    expect(dataRoomReadiness.total_required).toBe(4);
+    expect(dataRoomReadiness.verified_count).toBe(2);
+    expect(dataRoomReadiness.pending_count).toBe(1);
+    expect(dataRoomReadiness.missing_count).toBe(1);
+    expect(dataRoomReadiness.is_ready).toBe(false);
   });
 });
 
