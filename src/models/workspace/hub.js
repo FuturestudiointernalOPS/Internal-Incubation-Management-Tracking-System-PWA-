@@ -117,7 +117,7 @@ export async function getActiveVentureMembershipsForContact(contactCid) {
   return db.execute({
     sql: `SELECT vm.*, COALESCE(v.company_name, v.name) AS venture_name, v.status AS venture_status
               FROM venture_members vm
-              LEFT JOIN ventures v ON vm.venture_id = v.id::text
+              LEFT JOIN ventures v ON vm.venture_id::text = v.id::text
               WHERE vm.contact_id = ? AND vm.removed_at IS NULL
               ORDER BY vm.joined_at DESC`,
     args: [contactCid],
