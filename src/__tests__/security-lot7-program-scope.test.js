@@ -129,7 +129,7 @@ describe("the record-scope guard runs on every team write", () => {
     const res = await teams.POST(post("http://localhost/api/teams", { program_id: "P1", name: "Alpha" }));
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_STAFF", "P1", {
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_STAFF", "P1", {
       email: "s@x.test",
     });
     expect(groupsModel.createOrgTeam).toHaveBeenCalled();
@@ -140,7 +140,7 @@ describe("the record-scope guard runs on every team write", () => {
 
     expect(res.status).toBe(200);
     expect(groupsModel.getOrgTeams).toHaveBeenCalledWith(null, "TEAM-1");
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_STAFF", "P1", {
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_STAFF", "P1", {
       email: "s@x.test",
     });
   });
@@ -165,7 +165,7 @@ describe("a team write outside your programs is refused, with nothing written", 
 
     expect(res.status).toBe(403);
     expect(res.headers.get("X-Authz-Decision")).toBe("out-of-scope");
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "groups" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "groups" });
     expect(teamsModel.createTeam).not.toHaveBeenCalled();
   });
 

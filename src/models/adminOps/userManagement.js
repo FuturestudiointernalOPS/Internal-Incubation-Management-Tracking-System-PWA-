@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { stopRoleMutationEnabled } from "@/lib/identity";
+import { stopRoleMutationEnabled, normalizeIdentityForStorage } from "@/lib/identity";
 
 // ── GET /api/admin/analytics — Super Admin dashboard aggregates ─────────────
 
@@ -307,7 +307,7 @@ export async function approveContact(role, userCid) {
   }
   return db.execute({
     sql: "UPDATE contacts SET status = 'approved', role = ? WHERE cid = ?",
-    args: [role || "participant", userCid],
+    args: [normalizeIdentityForStorage(role) || "member", userCid],
   });
 }
 

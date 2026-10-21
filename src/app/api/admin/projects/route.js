@@ -1,5 +1,5 @@
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { NextResponse } from "next/server";
 import { listProjects } from "@/services/dashboard/adminProjects";
 
@@ -12,13 +12,13 @@ import { listProjects } from "@/services/dashboard/adminProjects";
  * Query params: program_id (optional filter)
  *
  * The batched aggregation lives in `services/dashboard/adminProjects`; this
- * controller keeps the authentication and the envelope.
+ * controller keeps the capability gate and the envelope.
  */
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("projects", "view");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const { status, body } = await listProjects({

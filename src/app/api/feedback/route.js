@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { can, requireAuthorization } from "@/models/authorization/index";
 import { createFeedback, listFeedback } from "@/models/facilitation";
 
 export const POST = createHandler(async (req) => {
@@ -21,14 +22,15 @@ export const POST = createHandler(async (req) => {
   }
 
   // Own-scope: a participant writes only their OWN weekly feedback. Only
-  // management may record feedback on behalf of someone else.
-  const { getSession } = await import("@/server/auth/session");
-  const session = await getSession();
+  // program management (programs.edit — held by staff and the program-manager
+  // profile, bypassed by the platform owner) may record feedback on behalf of
+  // someone else. `can()` fails closed, so an unknown caller writes their own.
+  const { session } = req;
   if (!session) {
-    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
-  const staffSide = ["super_admin", "staff", "program_manager"];
-  const effectiveParticipantId = staffSide.includes(session.role) ? participant_id : session.cid;
+  const canManage = await can(session, "programs", "edit");
+  const effectiveParticipantId = canManage ? participant_id : session.cid;
 
   const result = await createFeedback({
     program_id,
@@ -46,19 +48,13 @@ export const POST = createHandler(async (req) => {
 });
 
 export const GET = createHandler(async (req) => {
-  const { searchParams } = new URL(req.url);
-  const program_id = searchParams.get("program_id");
-
   // The feedback list is a management view: a participant must not be able to
   // read every program's weekly reflections by changing the query.
-  const { getSession } = await import("@/server/auth/session");
-  const session = await getSession();
-  if (!["super_admin", "staff", "program_manager"].includes(session?.role)) {
-    return NextResponse.json(
-      { success: false, error: "errors.insufficientPermissions" },
-      { status: 403 },
-    );
-  }
+  const capError = await requireAuthorization("programs", "view");
+  if (capError) return capError;
+
+  const { searchParams } = new URL(req.url);
+  const program_id = searchParams.get("program_id");
 
   const { rows } = await listFeedback(program_id);
   const feedback = rows.map((row) => ({

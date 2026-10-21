@@ -68,10 +68,12 @@ describe("Phase 5 — catalogue & decision contract", () => {
     }
   });
 
-  test("team_own is declared but explicitly unimplemented (visible gap, fail-closed)", () => {
+  test("a retired/unknown policy is unsupported (D9 retired team_own)", () => {
+    // Phase 7 (D9) retired `team_own` from the vocabulary: it is now simply an
+    // unknown key, exactly like any other, and resolves to DENY (fail-closed).
+    expect(SCOPE_POLICIES.team_own).toBeUndefined();
     expect(isScopePolicyImplemented("team_own")).toBe(false);
-    expect(typeof SCOPE_POLICIES.team_own.source).toBe("string");
-    expect(SCOPE_POLICIES.team_own.source.length).toBeGreaterThan(10);
+    expect(isScopePolicyImplemented("no_such_policy")).toBe(false);
   });
 
   test("implemented policies cover venture / program / learning", () => {
@@ -94,7 +96,7 @@ describe("Phase 5 — catalogue & decision contract", () => {
     expect(
       evaluateScopeDecision({
         capabilityHeld: true,
-        policyKey: "team_own",
+        policyKey: "no_such_policy",
         withinScope: true,
       }),
     ).toEqual({ allowed: false, reason: SCOPE_DECISION_REASONS.POLICY_UNSUPPORTED });
@@ -250,12 +252,12 @@ describe("GET /api/engineering/permissions/scope-check", () => {
     expect(secondPayload.within_scope).toBe(false);
   });
 
-  test("unimplemented policy reports the honest state (no silent allow)", async () => {
+  test("the retired `team_own` policy is refused as unknown (D9 — no silent allow)", async () => {
+    // Phase 7 (D9) retired `team_own`: the bench no longer lists it, so it is
+    // rejected like any unknown policy rather than reported as a declared gap.
     const res = await route.GET(getReq("policy=team_own&cid=C1&resource_id=T1"));
+    expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.implemented).toBe(false);
-    expect(data.within_scope).toBe(false);
-    expect(data.resolved_count).toBe(0);
+    expect(data.success).toBe(false);
   });
 });

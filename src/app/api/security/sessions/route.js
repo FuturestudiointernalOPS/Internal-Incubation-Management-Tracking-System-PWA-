@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getActiveSessions, revokeSession, revokeUserSessions } from "@/services/ventures/auditSecurity";
 
 export const GET = createHandler(
-  { roles: ["super_admin", "security_officer"] },
   async (req) => {
+    const capError = await requireAuthorization("users", "view");
+    if (capError) return capError;
+
     const searchParams = new URL(req.url).searchParams;
     const userCid = searchParams.get("user_cid") || undefined;
     const limit = parseInt(searchParams.get("limit")) || 50;
@@ -16,8 +19,10 @@ export const GET = createHandler(
 );
 
 export const POST = createHandler(
-  { roles: ["super_admin", "security_officer"] },
   async (req) => {
+    const capError = await requireAuthorization("users", "edit");
+    if (capError) return capError;
+
     const body = await req.json();
     const { action, session_token, user_cid } = body;
 

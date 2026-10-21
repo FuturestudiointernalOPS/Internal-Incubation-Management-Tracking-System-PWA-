@@ -32,6 +32,7 @@ import {
   insertProfileAssignment,
   refreshAutomaticAssignmentPeriod,
   closeProfileAssignment,
+  withAssignmentTransaction,
 } from "@/models/authorization/profileAssignmentsStore";
 
 /** An empty result, shared so the shape of a "no work" report is one object. */
@@ -116,44 +117,61 @@ export async function syncContextGrantsAssignments(
       activeCards: existing?.rows || [],
     });
 
-    const opened = [];
-    for (const contextId of plan.toOpen) {
-      await insertProfileAssignment({
-        contactCid: String(cid),
-        profileKey,
-        contextType,
-        contextId,
-        endsAt: endsAt ?? null,
-        source: "automatic",
-        // "code de la relation" — the venture/program code that justifies it.
-        sourceRef: contextId,
-        createdBy: null,
-      });
-      opened.push(contextId);
-    }
+    // Lot 6 — ATOMIC: an open/refresh/close plan is ONE unit. A failure halfway
+    // through would leave a half-written history (an opened card for a
+    // relationship the same reconcile failed to close, or the reverse), so
+    // every statement runs in a single transaction and is rolled back as a whole.
+    const applied = await withAssignmentTransaction(async (query) => {
+      const opened = [];
+      for (const contextId of plan.toOpen) {
+        await insertProfileAssignment(
+          {
+            contactCid: String(cid),
+            profileKey,
+            contextType,
+            contextId,
+            endsAt: endsAt ?? null,
+            source: "automatic",
+            // "code de la relation" — the venture/program code that justifies it.
+            sourceRef: contextId,
+            createdBy: null,
+          },
+          query,
+        );
+        opened.push(contextId);
+      }
 
-    const refreshed = [];
-    for (const card of plan.toRefresh) {
-      const result = await refreshAutomaticAssignmentPeriod({
-        id: card.id,
-        sourceRef: card.contextId,
-        endsAt: endsAt ?? null,
-      });
-      // Count only a row that actually moved, so a replayed reconcile reports
-      // nothing (idempotence, roadmap §2).
-      if (Number(result?.rowsAffected ?? 0) > 0) refreshed.push(card.contextId);
-    }
+      const refreshed = [];
+      for (const card of plan.toRefresh) {
+        const result = await refreshAutomaticAssignmentPeriod(
+          {
+            id: card.id,
+            sourceRef: card.contextId,
+            endsAt: endsAt ?? null,
+          },
+          query,
+        );
+        // Count only a row that actually moved, so a replayed reconcile reports
+        // nothing (idempotence, roadmap §2).
+        if (Number(result?.rowsAffected ?? 0) > 0) refreshed.push(card.contextId);
+      }
 
-    const closed = [];
-    for (const card of plan.toClose) {
-      const result = await closeProfileAssignment({ id: card.id, status: "ended" });
-      // Count only a row that actually moved, so a reconcile racing another one
-      // does not report a close it did not perform (the guard makes this a
-      // no-op on an already-ended row).
-      if (Number(result?.rowsAffected ?? 0) > 0) closed.push(card.contextId);
-    }
+      const closed = [];
+      for (const card of plan.toClose) {
+        const result = await closeProfileAssignment(
+          { id: card.id, status: "ended" },
+          query,
+        );
+        // Count only a row that actually moved, so a reconcile racing another
+        // one does not report a close it did not perform (the guard makes this
+        // a no-op on an already-ended row).
+        if (Number(result?.rowsAffected ?? 0) > 0) closed.push(card.contextId);
+      }
 
-    return { opened, refreshed, closed, skipped: null };
+      return { opened, refreshed, closed };
+    });
+
+    return { ...applied, skipped: null };
   } catch (error) {
     console.warn(
       `[Authz] syncContextGrantsAssignments(${cid}) failed:`,

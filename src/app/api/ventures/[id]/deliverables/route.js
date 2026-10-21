@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
@@ -44,8 +43,8 @@ async function loadMilestoneForVenture(dbId, milestoneId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
 
   const milestoneId = new URL(req.url).searchParams.get("milestone_id");
   if (!milestoneId) {
@@ -70,7 +69,7 @@ export const POST = createHandler(async (req, { params }) => {
   const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
-      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add deliverables." },
+      { success: false, error: "errors.ventureManagerOnly" },
       { status: 403 },
     );
   }
@@ -132,8 +131,9 @@ export const PATCH = createHandler(async (req, { params }) => {
 
   // ── submit: the Venture side supplies the evidence ───────────────────────
   if (action === "submit") {
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
     const evidenceUrl = String(body?.attachment_url || "").trim();
     if (!evidenceUrl) {
       return NextResponse.json({ success: false, error: "An evidence file or link is required." }, { status: 400 });
@@ -173,7 +173,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     });
     if (!allowed) {
       return NextResponse.json(
-        { success: false, error: "Your assignment does not cover this milestone's review." },
+        { success: false, error: "errors.outsideAssignedScope" },
         { status: 403 },
       );
     }
@@ -221,7 +221,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   const allowed = await canDefineDeliverables({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
-      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can edit deliverables." },
+      { success: false, error: "errors.ventureManagerOnly" },
       { status: 403 },
     );
   }

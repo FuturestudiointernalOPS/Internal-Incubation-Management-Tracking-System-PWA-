@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getDataSources } from "@/services/finance/queries";
 
-export const GET = createHandler({ roles: ["super_admin"] }, async () => {
+export const GET = createHandler(async () => {
+  const authError = await requireAuthorization("finance", "view");
+  if (authError) return authError;
+
   const rows = await getDataSources();
   const dataSources = rows.map((row) => ({
     id: row.id,

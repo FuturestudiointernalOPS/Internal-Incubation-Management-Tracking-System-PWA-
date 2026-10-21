@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { listReviewFlags, setReviewFlagStatus } from "@/services/platform/import";
 
 /**
@@ -22,8 +23,11 @@ import { listReviewFlags, setReviewFlagStatus } from "@/services/platform/import
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
     const { status, body } = await listReviewFlags({
@@ -40,8 +44,11 @@ export async function GET(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const payload = await req.json();
     const { status, body } = await setReviewFlagStatus(payload);

@@ -1,22 +1,26 @@
 /**
  * PLATFORM ROLE RESOLUTION
  *
- * Single source of truth for the default role. A user with no Program
- * assignment and no explicit privileged role is a PARTICIPANT — never Staff.
+ * THREE baseline identities: the platform owner (super_admin), internal staff
+ * (staff) and member. Everything else is a contextual PROFILE. A person with no
+ * assignment is a MEMBER — never Staff, and never a contextual label.
  *
- * Staff/program-manager/etc. are only applied when explicitly
- * assigned (e.g. a group's configured default_role, or an admin action).
+ * Staff/program-manager are only applied when explicitly assigned (a group's
+ * configured default_role, or an admin action).
  */
 
-export const DEFAULT_ROLE = "participant";
+import {
+  BASELINE_IDENTITIES,
+  RETIRED_CONTEXTUAL_LABELS,
+  resolveProgramManagerIdentity,
+} from "@/lib/identity";
+
+export const DEFAULT_ROLE = "member";
 
 export const PRIVILEGED_ROLES = new Set([
   "super_admin",
   "staff",
   "program_manager",
-  "investor",
-  "founder",
-  "mentor",
 ]);
 
 export function isPrivilegedRole(role) {
@@ -25,13 +29,13 @@ export function isPrivilegedRole(role) {
 
 /**
  * Resolve a role for onboarding/creation. Respects an explicitly assigned
- * privileged role; otherwise returns the participant default. A missing
- * program/group must never elevate someone to staff.
+ * privileged role; otherwise returns the MEMBER default. A missing
+ * program/group must never elevate someone to staff, and a retired contextual
+ * label is a function (a profile), not an identity.
  */
 export function resolveDefaultRole(explicitRole) {
   const normalizedRole = String(explicitRole || "").trim().toLowerCase();
   // The neutral "member" state means "person exists, no role/assignment yet".
-  // It is preserved as-is and must never be upgraded to participant.
   if (normalizedRole === "member") return normalizedRole;
   return isPrivilegedRole(normalizedRole) ? normalizedRole : DEFAULT_ROLE;
 }
@@ -55,17 +59,13 @@ export const INTERNAL_GROUP = "FUTURE STUDIO";
  *   4. An ACTIVE FUTURE STUDIO membership ⇒ staff  (the rule). Expired or
  *      ended memberships must NOT produce staff — the caller passes the
  *      EFFECTIVE (active, unexpired) group list from the membership layer.
- *   5. All other identities (participant, member, facilitator, ...)
- *      keep their role; unknown/empty roles default to participant.
+ *   5. All other identities are MEMBER. A stored retired label
+ *      (`participant`, `facilitator`, `investor`, `founder`) is normalized to
+ *      member here — its function comes from the contextual profile.
  *
- * Known conflicts (deliberate, per policy):
- *   - A participant with an active FUTURE STUDIO membership is resolved as
- *     staff at login (their participant identity is overridden; enrollments
- *     stay visible via the Workspaces hub).
- *   - A facilitator with an active FUTURE STUDIO membership is
- *     resolved as staff. If an external facilitator must keep their
- *     facilitator identity even inside the group, move facilitator
- *     before the group rule.
+ * Known conflict (deliberate, per policy):
+ *   - A personal identity with an active FUTURE STUDIO membership is resolved
+ *     as staff at login; enrollments stay visible via the Workspaces hub.
  *   - The rule applies at login (session snapshot). Membership changes
  *     mid-session take effect on the next login.
  */
@@ -80,30 +80,37 @@ export function resolveEffectiveRole({
   const normalizedRole = String(role || "").trim().toLowerCase();
 
   if (isTeam) return "team";
-  if (isFamily) return "participant"; // family entity acts as participant
+  if (isFamily) return "member"; // family entity acts as a personal identity
 
   if (normalizedRole === "super_admin" || legacySa) return "super_admin";
-  if (normalizedRole === "investor") return "investor";
-  if (normalizedRole === "founder") return "founder";
 
   // Staff-family identities normalize to staff. Program Manager is a function
-  // layered on Staff (not a separate global identity) — a PM contact must
-  // resolve to staff at login, never fall through to participant.
-  if (normalizedRole === "staff" || normalizedRole === "program_manager" || normalizedRole === "project_manager") return "staff";
+  // layered on Staff (decision D-1): the canonical result is `staff` + the
+  // `program_manager` profile. The identity helper keeps the switch reversible.
+  if (normalizedRole === "program_manager") {
+    return resolveProgramManagerIdentity(normalizedRole);
+  }
+  if (normalizedRole === "staff" || normalizedRole === "project_manager") return "staff";
 
   // THE RULE — active FUTURE STUDIO membership = internal staff membership.
   // `group_name` is accepted as a compatibility fallback for callers that
   // only have the raw contact column (it must then be a CURRENT group value).
-  const memberGroups = Array.isArray(groups) ? groups : [];
+  const memberGroups = Array.isArray(groups) ? [...groups] : [];
   if (group_name) memberGroups.push(group_name);
   const isInternal = memberGroups.some(
     (group) => String(group || "").trim().toUpperCase() === INTERNAL_GROUP,
   );
   if (isInternal) return "staff";
 
-  // Explicit identities are preserved outside the group.
-  if (["participant", "member", "facilitator"].includes(normalizedRole)) return normalizedRole;
-  return DEFAULT_ROLE; // unknown / no role → participant (legacy default)
+  // Baseline identities are preserved outside the group.
+  if (BASELINE_IDENTITIES.includes(normalizedRole)) {
+    return normalizedRole;
+  }
+
+  // A retired contextual label is a FUNCTION now: its identity is member.
+  if (RETIRED_CONTEXTUAL_LABELS.includes(normalizedRole)) return DEFAULT_ROLE;
+
+  return DEFAULT_ROLE; // unknown / no role → member
 }
 
 /**
@@ -162,7 +169,7 @@ export function landingNeedsRelationships(role) {
   const home = roleHomeHref(normalizedRole);
   // The personal identities share the Participant surface, and an identity the
   // map does not know has no section of its own to claim.
-  return !home || normalizedRole === "member" || normalizedRole === "participant";
+  return !home || normalizedRole === "member";
 }
 
 /**
@@ -190,12 +197,24 @@ export function landingNeedsRelationships(role) {
  * The last resort is the neutral hub, which refuses nobody, so no branch here
  * can strand someone.
  */
-export function resolveLanding({ role, teamId = null, ventures = [], isInvestor = false } = {}) {
+export function resolveLanding({
+  role,
+  teamId = null,
+  ventures = [],
+  isInvestor = false,
+  profiles = [],
+} = {}) {
   const normalizedRole = String(role || "").trim().toLowerCase();
 
   // An entity login IS the account (a team, a family), not a person whose
   // relationships would be read — it keeps its own space.
   if (normalizedRole === "team") return teamId ? `/team/${teamId}` : "/team";
+
+  // D-1 — a staff identity carrying the program-manager PROFILE works in the
+  // PM space. The hidden role default still lands there through ROLE_HOME.
+  if (normalizedRole === "staff" && profiles.includes("program_manager")) {
+    return roleHomeHref("program_manager");
+  }
 
   const home = roleHomeHref(normalizedRole);
   if (!landingNeedsRelationships(normalizedRole)) return home;

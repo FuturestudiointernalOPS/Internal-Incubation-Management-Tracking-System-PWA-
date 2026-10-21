@@ -4,16 +4,7 @@
 -- =============================================================================
 
 -- ─── 1. Authorization Tables ───
-CREATE TABLE IF NOT EXISTS role_capabilities (
-    id SERIAL PRIMARY KEY,
-    role TEXT NOT NULL,
-    module TEXT NOT NULL,
-    capability TEXT NOT NULL,
-    access_level INTEGER NOT NULL DEFAULT 1,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    UNIQUE(role, module, capability)
-);
-
+-- Base capabilities come from a default PROFILE, never from a per-role table.
 CREATE TABLE IF NOT EXISTS group_capabilities (
     id SERIAL PRIMARY KEY,
     group_name TEXT NOT NULL,
@@ -112,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_perm_audit_target ON permission_audit_log(target_
 CREATE INDEX IF NOT EXISTS idx_perm_audit_created ON permission_audit_log(created_at);
 CREATE INDEX IF NOT EXISTS idx_user_caps_lookup ON user_capabilities(user_cid, module, capability);
 CREATE INDEX IF NOT EXISTS idx_user_restr_lookup ON user_capability_restrictions(user_cid, module, capability);
-CREATE INDEX IF NOT EXISTS idx_role_caps_lookup ON role_capabilities(role, module, capability);
+
 CREATE INDEX IF NOT EXISTS idx_group_caps_lookup ON group_capabilities(group_name, module, capability);
 CREATE INDEX IF NOT EXISTS idx_user_groups_cid ON user_groups(user_cid);
 CREATE INDEX IF NOT EXISTS idx_user_groups_name ON user_groups(group_name);

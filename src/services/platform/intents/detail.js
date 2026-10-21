@@ -43,13 +43,13 @@ export async function getIntentDetailForSession({ session, id }) {
       if (memberCheck.rows.length === 0) {
         return {
           status: 403,
-          body: { success: false, error: "You do not have access to this intent." },
+          body: { success: false, error: "errors.intentAccessDenied" },
         };
       }
     } else if (intent.context_type !== "staff") {
       return {
         status: 403,
-        body: { success: false, error: "You do not have access to this intent." },
+        body: { success: false, error: "errors.intentAccessDenied" },
       };
     }
   }

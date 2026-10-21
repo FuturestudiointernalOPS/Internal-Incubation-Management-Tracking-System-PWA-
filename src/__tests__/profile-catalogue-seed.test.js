@@ -25,6 +25,7 @@ const callsMatching = (pattern) =>
 const {
   PROFILE_CATALOGUE_SEED,
   ensureProfileCatalogueSeed,
+  ensureDelegatedCapabilityDefaults,
 } = require("@/models/authorization/profileCatalogueSeed");
 
 beforeEach(() => {
@@ -54,20 +55,45 @@ test("seeds the capabilities with ON CONFLICT DO NOTHING", async () => {
   expect(caps.every((call) => /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/i.test(sqlOf(call)))).toBe(true);
 });
 
-test("program_manager is PROGRAM-ONLY — the portfolio modules are gone", async () => {
+test("program_manager is PROGRAM-ONLY apart from the KPI catalogue", async () => {
   await ensureProfileCatalogueSeed();
-  const pmModules = callsMatching(/INSERT INTO profile_capabilities/i)
+  const pmRows = callsMatching(/INSERT INTO profile_capabilities/i)
     .map(argsOf)
-    .filter((args) => args[0] === "program_manager")
-    .map((args) => args[1]);
-  expect([...new Set(pmModules)]).toEqual(["programs"]);
+    .filter((args) => args[0] === "program_manager");
+  const pmModules = [...new Set(pmRows.map((args) => args[1]))].sort();
+  // `ventures.kpis` is a CATALOGUE-CONFIGURATION right (business rule 49), not
+  // portfolio access: it gates the reusable KPI definitions only, never a
+  // Venture's own data. Every other venture capability stays out.
+  expect(pmModules).toEqual(["programs", "ventures"]);
+  expect(pmRows.filter((args) => args[1] === "ventures").map((args) => args[2])).toEqual(["kpis"]);
 });
 
-test("the catalogue carries the baseline and ad-hoc profiles, with labels", async () => {
+test("the catalogue carries the baseline and ad-hoc profiles, with labels", () => {
   const byKey = Object.fromEntries(PROFILE_CATALOGUE_SEED.map((def) => [def.key, def]));
   for (const key of ["staff_default", "super_admin_default", "venture_member", "project_owner", "operations_manager", "instructor", "finance_assistant"]) {
     expect(byKey[key]).toBeTruthy();
     expect(byKey[key].label.length).toBeGreaterThan(0);
     expect(byKey[key].context).toMatch(/^(global|staff|venture|program|lms|investor)$/);
   }
+});
+
+test("the delegated-capability backfill grants the profiles that already had the access", async () => {
+  await ensureDelegatedCapabilityDefaults();
+  const inserts = callsMatching(/INSERT INTO profile_capabilities/i);
+  expect(inserts).toHaveLength(9);
+  expect(
+    inserts.every((call) =>
+      /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/i.test(sqlOf(call)),
+    ),
+  ).toBe(true);
+  const rows = inserts.map(argsOf);
+  expect(rows).toContainEqual(["staff_default", "ventures", "setup", 3]);
+  expect(rows).toContainEqual(["staff_default", "ventures", "kpis", 3]);
+  expect(rows).toContainEqual(["staff_default", "ventures", "permissions_view", 1]);
+  expect(rows).toContainEqual(["staff_default", "programs", "groups", 2]);
+  expect(rows).toContainEqual(["staff_default", "collections", "view", 1]);
+  expect(rows).toContainEqual(["staff_default", "contacts", "invite_families", 2]);
+  expect(rows).toContainEqual(["staff_default", "ventures", "my_assignments", 1]);
+  expect(rows).toContainEqual(["program_manager", "programs", "groups", 2]);
+  expect(rows).toContainEqual(["program_manager", "ventures", "kpis", 3]);
 });

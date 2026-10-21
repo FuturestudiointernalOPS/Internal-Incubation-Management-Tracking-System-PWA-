@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   addParticipantProgramMembership,
   clearContactProgramId,
@@ -19,8 +19,9 @@ import {
 export async function POST() {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    // A repair of platform data is a platform-setting operation.
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const TARGET_CID = "USR-R25KDQIN";
     const results = [];

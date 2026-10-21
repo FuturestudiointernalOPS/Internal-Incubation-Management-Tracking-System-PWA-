@@ -14,7 +14,7 @@ export async function POST(req) {
   try {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     // Advisory AI on a submission: a summary and a set of flagged issues.
     // Gated on `runs.view` — asking for a reading aid about a submission you
@@ -61,7 +61,7 @@ export async function GET(req) {
   try {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
     const action = searchParams.get("action");

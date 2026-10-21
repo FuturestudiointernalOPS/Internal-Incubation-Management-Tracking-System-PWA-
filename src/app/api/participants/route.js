@@ -6,7 +6,7 @@ import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { requireAssignmentAccess, assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { getAuthorizationContext, authorize } from "@/models/authorization/index";
 import {
   upsertParticipantContact,
@@ -118,7 +118,7 @@ export async function GET(req) {
     // Assignment seam: delegates to the proven facilitator resolution chain.
     const ctx = session ? await getAuthorizationContext(session) : null;
     const canViewParticipants =
-      hasProgramManagementAccess(session?.role) ||
+      (await isProgramManagerSession(session)) ||
       (!!ctx && authorize(ctx, "programs", "view"));
     if (session && !canViewParticipants) {
       const facError = await requireAssignmentAccess({

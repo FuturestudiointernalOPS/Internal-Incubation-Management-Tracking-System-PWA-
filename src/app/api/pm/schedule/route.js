@@ -1,16 +1,20 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { getSession } from "@/server/auth/session";
 import { getOwnSchedule, getSuperAdminSchedule } from "@/models/programWorkspace";
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager"] },
   async (_req) => {
     try {
+      const capError = await requireAuthorization("programs", "view");
+      if (capError) return capError;
+
       const session = await getSession();
 
       let sessions;
-      if (session?.role === "super_admin") {
+      if (isPlatformOwnerRole(session?.role)) {
         // Full calendar — Super Admin only. Derived from the session role,
         // never from a client-supplied is_super_admin query param (Phase 3C-9).
         sessions = await getSuperAdminSchedule();

@@ -66,6 +66,8 @@ export async function POST(req) {
     const scopeError = await requireProgramScope({
       programId: program_id,
       wave: "enrollment",
+      module: "programs",
+      capability: "edit",
     });
     if (scopeError) return scopeError;
 

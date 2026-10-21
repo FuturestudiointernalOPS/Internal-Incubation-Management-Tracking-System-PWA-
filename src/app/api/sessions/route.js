@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { requireAssignmentAccess } from "@/server/authz/guards";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { createSession, listSessions } from "@/models/workspace";
 
-export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "facilitator"] }, async (req) => {
+export const POST = createHandler({ roles: ["staff", "super_admin", "program_manager", "member"] }, async (req) => {
   const body = await req.json();
   const { program_id, title, week_number, type, teacher_id, start_at } = body;
 
@@ -18,7 +18,7 @@ export const POST = createHandler({ roles: ["staff", "super_admin", "program_man
 
   // Server-side enforcement: non-management roles must be assigned and hold sessions.conduct
   const session = await getSession();
-  if (session && !hasProgramManagementAccess(session.role)) {
+  if (session && !(await isProgramManagerSession(session))) {
     const facError = await requireAssignmentAccess({
       resource: "program",
       contextId: program_id,
@@ -50,7 +50,7 @@ export const POST = createHandler({ roles: ["staff", "super_admin", "program_man
   });
 });
 
-export const GET = createHandler({ roles: ["staff", "super_admin", "program_manager", "facilitator"] }, async (req) => {
+export const GET = createHandler({ roles: ["staff", "super_admin", "program_manager", "member"] }, async (req) => {
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
 
@@ -62,7 +62,7 @@ export const GET = createHandler({ roles: ["staff", "super_admin", "program_mana
   // the request to a program; the program-scoped check below then applies.
   // Management roles (super_admin / program_manager) keep the unscoped read.
   const session = await getSession();
-  if (session && !hasProgramManagementAccess(session.role)) {
+  if (session && !(await isProgramManagerSession(session))) {
     if (!program_id) {
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },

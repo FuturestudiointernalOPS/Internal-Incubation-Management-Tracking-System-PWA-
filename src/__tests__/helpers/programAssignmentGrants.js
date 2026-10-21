@@ -187,7 +187,13 @@ async function mockExecute(query) {
 
 const dbMock = {
   __esModule: true,
-  default: { execute: jest.fn(async (query) => mockExecute(query)) },
+  default: {
+    execute: jest.fn(async (query) => mockExecute(query)),
+    // Lot 6 — the grant and its provenance row run in one transaction.
+    transaction: jest.fn(async (callback) =>
+      callback((sql, args) => mockExecute({ sql, args })),
+    ),
+  },
   initDb: jest.fn(async () => true),
 };
 

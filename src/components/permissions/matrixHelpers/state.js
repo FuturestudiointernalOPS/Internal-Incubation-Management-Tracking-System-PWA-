@@ -73,6 +73,23 @@ export function deriveDenialReason(state) {
 }
 
 /**
+ * §12.4 — the reason to DISPLAY for a denied capability. When the server
+ * projection supplied the ENGINE's own reason (the enforced one, refusals
+ * included), it wins; otherwise fall back to the UI derivation. This keeps the
+ * screen from ever contradicting the decision that was actually enforced.
+ *
+ * @param {object} state  the derived capability state
+ * @param {string} [engineReason]  the reason from the server's decision map
+ * @returns {string|null}
+ */
+export function resolveDenialReason(state, engineReason) {
+  if (engineReason && engineReason !== "granted" && engineReason !== "super_admin") {
+    return engineReason;
+  }
+  return deriveDenialReason(state);
+}
+
+/**
  * Union of modules that appear in ANY source layer — the User Matrix only
  * renders rows that exist in the user's actual context.
  */

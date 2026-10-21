@@ -93,7 +93,7 @@ describe("object-level authorization added in this lot", () => {
     // route keeps the session-derived attribution and no longer reads the body's
     // user_id/user_name.
     const src = read("src/services/tasks/carryover.js");
-    expect(src).toMatch(/You can only carry over your own tasks/);
+    expect(src).toMatch(/errors\.carryoverOwnTasksOnly/);
     const route = read("src/app/api/tasks/carryover/route.js");
     // The body's user_id/user_name must no longer drive the clone.
     expect(route).not.toMatch(/const \{ task_id, target_week, target_year, user_id, user_name \}/);

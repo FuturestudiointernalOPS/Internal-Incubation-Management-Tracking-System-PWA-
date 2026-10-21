@@ -25,6 +25,8 @@ import {
   logVentureLeadChanged,
 } from "@/models/ventureJourney";
 import { resolveVentureInternalId } from "@/services/ventures/identity";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { isPlatformOwnerRole } from "@/lib/identity";
 
 export async function POST(req, { params }) {
   await initDb();
@@ -32,7 +34,7 @@ export async function POST(req, { params }) {
   if (authError) return authError;
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
 
   try {
@@ -48,20 +50,12 @@ export async function POST(req, { params }) {
     // only the access key carried by the URL (docs/VENTURE_IDENTITY_PHASE0.md).
     const ventureId = (await resolveVentureInternalId(id)) || id;
 
-    // ── Authorization: privileged roles OR the current lead founder ──
-    const privileged = ["super_admin"];
-
-    // Delegated staff (Phase 2): changing the Venture lead requires an
-    // explicit assignment — never the staff role alone.
-    if (["staff", "program_manager"].includes(session.role)) {
-      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      if (!(await hasActiveVentureAssignment(ventureId, session.cid))) {
-        return NextResponse.json(
-          { success: false, error: "Unauthorized. Only assigned Venture staff or the current lead founder can change the lead." },
-          { status: 403 },
-        );
-      }
-    }
+    // ── Authorization: the canonical write gate ──
+    // Capability (`ventures.edit`) plus the venture perimeter: the platform
+    // owner bypasses, delegated staff need an active assignment, and the
+    // current lead founder passes through their membership.
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
 
     // Archived Ventures are immutable historical records (Phase 3).
     try {
@@ -72,11 +66,13 @@ export async function POST(req, { params }) {
       }
     } catch (_) {}
 
-    if (!privileged.includes(session.role)) {
+    // Beyond the platform owner, only the CURRENT lead founder may hand the
+    // lead over. The gate above already bounded this to the Venture.
+    if (!isPlatformOwnerRole(session.role)) {
       const leadCheck = await findLeadFounderMembership(ventureId, session.cid);
       if (leadCheck.rows.length === 0) {
         return NextResponse.json(
-          { success: false, error: "Unauthorized. Only Future Studio staff or the current lead founder can change the lead." },
+          { success: false, error: "errors.ventureLeadChangeDenied" },
           { status: 403 },
         );
       }

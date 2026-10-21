@@ -12,8 +12,9 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-jest.mock("@/server/authz/capabilities", () => {
-  const PERMISSION_MODULES = {
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: {
     projects: { capabilities: ["view", "create", "edit", "delete", "archive"] },
     programs: { capabilities: ["view", "create", "edit", "delete", "publish"] },
     users: {
@@ -45,27 +46,17 @@ jest.mock("@/server/authz/capabilities", () => {
     facilitator: {
       capabilities: [
         "participants.view",
-        "participants.manage",
         "attendance.view",
         "attendance.record",
         "assignments.view",
-        "assignments.review",
         "assignments.grade",
         "sessions.conduct",
-        "sessions.record",
-        "progress.view",
-        "groups.view",
-        "groups.manage",
         "reviews.submit",
       ],
     },
     lms: { capabilities: ["view", "create", "edit", "delete"] },
-  };
-  return {
-    PERMISSION_MODULES,
-    ACCESS_LEVELS: { NONE: 0, VIEW: 1, CREATE: 2, EDIT: 3, DELETE: 4, FULL: 5 },
-  };
-});
+  },
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn(async () => null) }));
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: jest.fn(async () => {}) }));
 
@@ -144,12 +135,15 @@ describe("evaluateEligibility", () => {
     expect(evaluateEligibility(rows, "finance")).toBe(false);
   });
 
-  test("an explicit deny wins over an allow", () => {
+  // D4 (spec §16.2/§5.3) — the verdict is the UNION of the identities: one allow
+  // opens the section. An identity's `eligible = 0` is a refusal FOR THAT
+  // IDENTITY, never a global veto over another identity's allow.
+  test("D4 union: one allow opens the section, an identity deny does not veto it", () => {
     const rows = [
       { feature_key: "finance", eligible: 1 },
       { feature_key: "finance", eligible: 0 },
     ];
-    expect(evaluateEligibility(rows, "finance")).toBe(false);
+    expect(evaluateEligibility(rows, "finance")).toBe(true);
   });
 
   test("ignores rows for other features", () => {
@@ -352,8 +346,8 @@ describe("contacts module (Phase 4)", () => {
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).toEqual(
       expect.arrayContaining(["super_admin", "staff"]),
     );
-    // Phase H — program_manager is a PROFILE now.
-    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.crm).toContain("program_manager");
+    // crm carries no PROFILE ceiling (the program_manager entry was removed).
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.crm).toBeUndefined();
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("participant");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("founder");
     expect(FEATURE_ELIGIBILITY_DEFAULTS.crm).not.toContain("developer");

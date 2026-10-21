@@ -1,4 +1,5 @@
 import { useI18n } from "@/lib/i18n";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   BookOpen,
   Calendar,
@@ -29,6 +30,10 @@ export default function ConfigTab({
   user,
 }) {
   const { t } = useI18n();
+  // Only the platform owner may rename a program: the save payload itself keeps
+  // `program.name` for everyone else (`buildProgramConfigPayload`). The field
+  // mirrors that rule instead of comparing the retired role label.
+  const canRenameProgram = isPlatformOwnerRole(user?.role);
 
   return (
     <div className="space-y-8 animate-in">
@@ -227,8 +232,8 @@ export default function ConfigTab({
                 ref={configNameRef}
                 type="text"
                 defaultValue={program?.name}
-                disabled={user.role === "program_manager"}
-                className={`w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${user.role === "program_manager" ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={!canRenameProgram}
+                className={`w-full bg-primary border border-[var(--border-primary)] rounded-lg px-4 py-3 text-sm focus:border-[var(--brand-orange)] outline-none transition-all font-bold ${!canRenameProgram ? "opacity-50 cursor-not-allowed" : ""}`}
               />
             </div>
             <div className="space-y-1">

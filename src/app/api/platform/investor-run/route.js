@@ -14,12 +14,12 @@
 
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getInvestorRunReference } from "@/services/platform/investorIntake";
 
 export async function GET() {
   await initDb();
-  const authError = await requireAuth(["super_admin"]);
+  const authError = await requireAuthorization("settings", "view");
   if (authError) return authError;
 
   try {

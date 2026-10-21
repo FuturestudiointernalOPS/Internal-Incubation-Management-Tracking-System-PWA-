@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import { getSession } from "@/server/auth/session";
 import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
@@ -30,7 +30,7 @@ export async function POST(req) {
   try {
     await initDb();
     await ensureTokenHashColumns();
-    const authError = await requireAuth(["super_admin", "program_manager", "staff"]);
+    const authError = await requireAuthorization("contacts", "invite_families");
     if (authError) return authError;
 
     // Rate limit: 10 bulk invite batches per IP per 10 minutes

@@ -24,7 +24,7 @@ export async function GET() {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Not authenticated" },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -118,7 +118,7 @@ export async function PUT(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Not authenticated" },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }

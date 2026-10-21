@@ -5,6 +5,7 @@
 // =============================================================================
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getKpiProgress } from "@/services/dashboard/kpiProgress";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,10 @@ export const dynamic = "force-dynamic";
  * the overall average) lives in `services/dashboard/kpiProgress`.
  */
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "view");
+    if (capError) return capError;
+
     const { searchParams } = new URL(req.url);
     const { status, body } = await getKpiProgress(searchParams.get("program_id"));
     return NextResponse.json(body, { status });

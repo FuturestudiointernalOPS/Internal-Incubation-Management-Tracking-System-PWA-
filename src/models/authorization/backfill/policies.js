@@ -26,7 +26,6 @@ async function ensureLmsCapabilityRetirement() {
   const retired = ["publish", "enroll", "assign"];
   const placeholders = retired.map(() => "?").join(",");
   for (const table of [
-    "role_capabilities",
     "group_capabilities",
     "user_capabilities",
     "user_capability_restrictions",
@@ -54,11 +53,6 @@ const LMS_VIEW_BACKFILL = {
   profiles: {
     "Program Manager": [["lms", "view", 1]],
   },
-  // Fallback for profile-less program managers (the resolver reads
-  // role_capabilities when no access profile resolves).
-  roles: {
-    program_manager: [["lms", "view", 1]],
-  },
 };
 
 // Exported for the migration tests (see authorization-resolver.test.js).
@@ -74,17 +68,6 @@ export async function ensureLmsViewBackfill() {
               VALUES (?, ?, ?, ?)
               ON CONFLICT (profile_key, module, capability) DO NOTHING`,
         args: [key, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(LMS_VIEW_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
       });
     }
   }

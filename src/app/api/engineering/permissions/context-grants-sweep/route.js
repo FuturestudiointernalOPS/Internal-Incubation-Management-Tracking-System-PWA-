@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { syncAllContextGrantsEverywhere } from "@/services/authorization/contextGrants";
+import { checkProfileCapabilityCoherence } from "@/services/authorization/profileCoherence";
 import {
   resolveSweepAuthorization,
   secretMatches,
@@ -61,7 +62,10 @@ export async function POST(req) {
     }
 
     const report = await syncAllContextGrantsEverywhere();
-    return NextResponse.json(report);
+    // Same scheduled run, READ-ONLY part: reports a profile card with no
+    // capability and a capability whose profile is gone. It never corrects.
+    const coherence = await checkProfileCapabilityCoherence();
+    return NextResponse.json({ ...report, coherence });
   } catch (error) {
     console.error("[Context Grants Sweep] error:", error);
     return NextResponse.json(

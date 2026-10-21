@@ -34,7 +34,7 @@ export async function GET() {
     const session = await getSession();
     const cid = session?.cid;
     if (!cid) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     // Phase 2: personal dashboards trigger the once-per-process neutral-role

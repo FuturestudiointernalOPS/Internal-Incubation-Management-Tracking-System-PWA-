@@ -1,9 +1,16 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { verifyPassword } from "@/server/auth/password";
+import { verifyPassword, verifyPasswordOrUpgradeLegacy } from "@/server/auth/password";
+import { updateContactPasswordHashByCid } from "@/models/authFlows/passwordReset";
 import { createSession } from "@/server/auth/session";
 import { setSessionCookieOnResponse } from "@/server/auth/cookies";
-import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
+import {
+  resolveEffectiveRole,
+  resolveLanding,
+  landingNeedsRelationships,
+} from "@/models/platform/roles";
+import { getEffectiveGroupsForUser } from "@/services/authorization/membership";
+import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   getVentureMembershipsForContact,
@@ -13,13 +20,21 @@ import {
   getContactByEmailOrCid,
   getTeamByUsernameForSessionLogin,
   getFamilyBySharedEmailForSessionLogin,
-  getParticipantProgramRecordForSessionLogin,
-  getLmsEnrollmentRecordForSessionLogin,
   ensureContactsLastLoginColumn,
   ensureContactsLoginCountColumn,
   recordContactLoginActivity,
 } from "@/models/authFlows";
 import { auditLoginAttempt } from "@/lib/loginAudit";
+
+// AUTH-ENUM-SESSIONLOGIN-1 — this route is the sister of auth/login and must
+// hide account existence the same way: one generic message for every credential
+// failure, and a bcrypt comparison paid on the UNKNOWN-account path too so the
+// two answers take comparable time.
+const INVALID_CREDENTIALS = "Invalid credentials.";
+
+// A valid bcrypt hash of a throwaway string; never matches a real password.
+const TIMING_EQUALIZER_HASH =
+  "$2b$10$fn1mJNjkFvAK/0ZRjg3mI.ESbkl87xtv22wPOzYPxjK6yAg0gcv3.";
 
 export async function POST(req) {
   try {
@@ -97,6 +112,9 @@ export async function POST(req) {
     }
 
     if (!user) {
+      // Pay the same bcrypt cost as the wrong-password path below, so account
+      // existence is not revealed by response time (AUTH-ENUM-SESSIONLOGIN-1).
+      await verifyPassword(cleanPassword, TIMING_EQUALIZER_HASH);
       await auditLoginAttempt(req, {
         identifier: cleanEmail,
         action: "login_failed",
@@ -104,21 +122,19 @@ export async function POST(req) {
         failureReason: "invalid_credentials",
       });
       return NextResponse.json(
-        { success: false, error: "Invalid credentials." },
+        { success: false, error: INVALID_CREDENTIALS },
         { status: 401 },
       );
     }
 
     // --- 4. PASSWORD VERIFICATION ---
     if (!isFamilyLogin) {
-      const isHashed = user.password && user.password.startsWith("$2");
-      let isMatch = false;
-
-      if (isHashed) {
-        isMatch = await verifyPassword(cleanPassword, user.password);
-      } else {
-        isMatch = cleanPassword === user.password;
-      }
+      // SECRET-1: a bcrypt hash is verified normally; a legacy clear-text row
+      // is accepted ONCE and upgraded to a hash so the clear value does not
+      // survive another login.
+      const isMatch = await verifyPasswordOrUpgradeLegacy(cleanPassword, user.password, {
+        upgrade: (hashed) => updateContactPasswordHashByCid(hashed, user.cid || user.id),
+      });
 
       if (!isMatch) {
         await auditLoginAttempt(req, {
@@ -129,7 +145,7 @@ export async function POST(req) {
           failureReason: "invalid_credentials",
         });
         return NextResponse.json(
-          { success: false, error: "Invalid credentials." },
+          { success: false, error: INVALID_CREDENTIALS },
           { status: 401 },
         );
       }
@@ -149,7 +165,7 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account is pending approval. Please wait for an administrator to approve your account.",
+              "errors.accountPendingApproval",
           },
           { status: 403 },
         );
@@ -166,7 +182,7 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account is inactive. Contact your administrator.",
+              "errors.accountInactive",
           },
           { status: 403 },
         );
@@ -186,50 +202,30 @@ export async function POST(req) {
           {
             success: false,
             error:
-              "Your account is not active. Contact your administrator.",
+              "errors.accountNotActive",
           },
           { status: 403 },
         );
       }
     }
 
-    // --- 6. ROLE RESOLUTION ---
-    let finalRole = "participant";
+    // --- 6. ROLE RESOLUTION (one canonical function) ---
     const userCid = user.cid || user.id;
-
-    if (isTeamLogin) {
-      finalRole = "team";
-    } else if (isFamilyLogin) {
-      finalRole = "participant";
-    } else {
-      if (user.role === "super_admin" || user.id === "sa") {
-        finalRole = "super_admin";
-      } else if (user.role === "investor") {
-        finalRole = "investor";
-      } else if (user.role === "founder") {
-        finalRole = "founder";
-      } else if (user.role === "program_manager") {
-        finalRole = "program_manager";
-      } else if (
-        user.role === "staff" ||
-        user.role === "project_manager" ||
-        user.group_name?.toUpperCase() === "FUTURE STUDIO"
-      ) {
-        // Internal Future Studio staff keep their identity — being assigned as
-        // a program assistant / team handler must NOT change their identity.
-        finalRole = "staff";
-      } else if (user.role === "facilitator") {
-        // Explicit facilitator role; program-scoped access is still resolved
-        // per assignment by the facilitator workspace and its guards.
-        finalRole = "facilitator";
-      } else if (user.role === "member") {
-        // Neutral "member" means a person exists on the platform but has no
-        // global role yet. Preserve it — never collapse it into participant.
-        finalRole = "member";
-      } else if (user.role === "participant") {
-        finalRole = "participant";
-      }
-    }
+    // Both sign-in paths call the SAME resolver. The active group list is the
+    // effective (unexpired) membership, not the raw group_name column, so a
+    // former FUTURE STUDIO member no longer becomes staff by accident.
+    let activeGroups = [];
+    try {
+      activeGroups = await getEffectiveGroupsForUser(userCid);
+    } catch (_) {}
+    let finalRole = resolveEffectiveRole({
+      role: user.role,
+      groups: activeGroups,
+      group_name: user.group_name,
+      isTeam: isTeamLogin,
+      isFamily: isFamilyLogin,
+      legacySa: user.id === "sa",
+    });
 
     // The person's Venture memberships are read ONCE here, because two rules in
     // this route need them: whether an unassigned participant is really neutral,
@@ -258,34 +254,19 @@ export async function POST(req) {
       } catch (_) {}
     }
 
-    // A participant with no real relationship (program, LMS course or venture
-    // membership) is effectively an unassigned neutral member. Instead of
-    // rejecting them, downgrade to member so they land on the empty workspace
-    // hub (no assignment is a valid state). A plain group alone is NOT a
-    // relationship — it cannot keep the participant designation.
-    if (finalRole === "participant" && !isFamilyLogin) {
-      const hasDirectProgram =
-        user.program_id && String(user.program_id).trim();
-      let hasParticipantPrograms = false;
-      let hasLms = false;
-      if (!hasDirectProgram && userCid) {
-        try {
-          const [participantProgramResult, lmsEnrollmentResult] = await Promise.all([
-            getParticipantProgramRecordForSessionLogin(userCid),
-            getLmsEnrollmentRecordForSessionLogin(userCid),
-          ]);
-          hasParticipantPrograms = participantProgramResult.rows.length > 0;
-          hasLms = lmsEnrollmentResult.rows.length > 0;
-        } catch (_) {}
-      }
-      if (
-        !hasDirectProgram &&
-        !hasParticipantPrograms &&
-        !hasLms &&
-        ventureMemberships.length === 0
-      ) {
-        finalRole = "member";
-      }
+    // (The old "participant with no relationship → member" downgrade is gone:
+    // member IS the personal identity now. The relationship decides the landing,
+    // never the identity.)
+
+    // D-1 — the landing of a staff member carrying the program-manager PROFILE
+    // is the PM space. Profiles are read only for a baseline staff identity, so
+    // every other login keeps its previous cost.
+    let activeProfiles = [];
+    if (!isTeamLogin && !isFamilyLogin && finalRole === "staff") {
+      try {
+        const profileResult = await listActiveProfileKeys(userCid);
+        activeProfiles = (profileResult.rows || []).map((row) => String(row.profile_key));
+      } catch (_) {}
     }
 
     // --- 7. BUILD RESPONSE USER ---
@@ -295,7 +276,7 @@ export async function POST(req) {
         cid: user.registration_id,
         name: user.name,
         email: user.shared_email,
-        role: "participant",
+        role: "member",
         group_name: user.name,
         is_entity: true,
         permission: permission,
@@ -336,6 +317,7 @@ export async function POST(req) {
       teamId: responseUser.team_id || null,
       ventures: ventureMemberships,
       isInvestor,
+      profiles: activeProfiles,
     });
 
     // --- LOGIN ACTIVITY TRACKING (successful login only) ---

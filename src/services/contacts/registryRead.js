@@ -23,6 +23,7 @@ import {
   getParticipantProgramCids,
   getContactRoleAssignmentCids,
 } from "@/models/contacts/directory";
+import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
 
 /**
  * The registry rows this caller may see, or `{ denied: true }` when a
@@ -52,10 +53,12 @@ export async function readRegistryContacts({
   } else if (session.role === "super_admin") {
     rows = (await getContactsForSuperAdmin(roleFilter, statusFilter, groupFilter)).rows || [];
   } else {
-    // Staff/PM (with contacts.view): active contacts only, with the
-    // role-appropriate status window (PMs also see pending contacts so they
-    // can find unapproved people and assign them as facilitators).
-    rows = (await getContactsForStaff(session.role, groupFilter)).rows || [];
+    // Staff (with contacts.view): active contacts only, with the
+    // role-appropriate status window (program managers also see pending
+    // contacts so they can find unapproved people and assign them as
+    // facilitators).
+    const includePending = await isProgramManagerProfileSession(session);
+    rows = (await getContactsForStaff(includePending, groupFilter)).rows || [];
   }
 
   return { contacts: await enrichRegistryRows(rows) };
@@ -85,9 +88,8 @@ async function enrichRegistryRows(rows) {
   return (await attachInvitationStatus(rows)).map(
     ({ password: _password, ...safeContact }) => ({
       ...safeContact,
-      // Derived flags: a participant enrollment OR the legacy role value.
-      is_participant:
-        participantCids.has(safeContact.cid) || safeContact.role === "participant",
+      // Derived flag: an active participant enrollment.
+      is_participant: participantCids.has(safeContact.cid),
       has_assignment: assignmentCids.has(safeContact.cid),
     }),
   );

@@ -23,6 +23,13 @@ import { useTheme } from "@/lib/ThemeProvider";
 import { clearResponseCache } from "@/lib/hooks/useApi";
 import { useDashboardBadges } from "./shell/useDashboardBadges";
 import { useDashboardNavigation } from "./shell/useDashboardNavigation";
+import {
+  holdsProfile,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+  PROGRAM_MANAGER_PROFILE,
+} from "@/lib/identity";
 
 import { PermissionProvider, usePermissions } from "@/lib/PermissionProvider";
 
@@ -96,7 +103,14 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
   const setCollapsed = participantSurface ? writeParticipantCollapse : setLegacyCollapsed;
 
-  const { permissions: effectiveCaps } = usePermissions();
+  const { permissions: effectiveCaps, profiles: activeProfiles } = usePermissions();
+  // "Program manager" is a PROFILE (D-1). The shell asks the profile the server
+  // resolved instead of the retired role label, and it does so once, before the
+  // badge hook and the manager read that both depend on it.
+  const isProgramManager = holdsProfile(
+    activeProfiles,
+    PROGRAM_MANAGER_PROFILE,
+  );
 
   const {
     showNotifications,
@@ -121,7 +135,11 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     fetchPendingUsersCount,
     fetchPendingInvites,
     fetchPendingAssignments,
-  } = useDashboardBadges({ effectiveCaps, pathname });
+  } = useDashboardBadges({
+    effectiveCaps,
+    hasProgramManagerProfile: isProgramManager,
+    pathname,
+  });
 
 
   const { theme, setTheme } = useTheme();
@@ -277,23 +295,23 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     setUnreadCount,
   ]);
 
-  // Fetch PM programs for program_manager / super_admin roles.
+  // Programs this person MAY MANAGE: the platform owner reads every program, a
+  // manager reads the ones naming them as manager, and a staff member who
+  // manages none gets an empty list — hence no manager sub-menu.
   useEffect(() => {
     if (!user.cid && !user.id) return;
-    if (user.role !== "program_manager" && user.role !== "super_admin") {
-      return;
-    }
-    const url =
-      user.role === "super_admin"
-        ? "/api/pm/programs"
-        : "/api/pm/programs?assigned_pm_id=" + (user.cid || user.id);
+    const isOwner = isPlatformOwnerRole(user.role);
+    if (!isOwner && !isProgramManager) return;
+    const url = isOwner
+      ? "/api/pm/programs"
+      : "/api/pm/programs?assigned_pm_id=" + (user.cid || user.id);
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if (data.success) setPmPrograms(data.programs || []);
       })
       .catch((error) => console.error(error));
-  }, [user.role, user.cid, user.id]);
+  }, [user.role, user.cid, user.id, isProgramManager]);
 
 
   // Personal relationships (program participation + venture membership) —
@@ -322,7 +340,12 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const [ventureAssignCount, setVentureAssignCount] = useState(null);
   useEffect(() => {
     if (!user.cid) return;
-    if (!["staff", "program_manager"].includes(user.role)) return;
+    if (
+      !isInternalStaffRole(user.role) &&
+      !isLegacyProgramManagerRole(user.role)
+    ) {
+      return;
+    }
     let alive = true;
     fetch("/api/ventures/assigned")
       .then((response) => response.json())
@@ -399,6 +422,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     collapsed,
     setCollapsed,
     role: activeRole,
+    profiles: activeProfiles,
     user,
     navItems,
     openMenus,

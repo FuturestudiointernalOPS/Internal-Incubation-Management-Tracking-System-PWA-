@@ -1,6 +1,6 @@
 import db from "@/lib/db";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
-import { CAPABILITY_CATALOG } from "@/models/authorization/capability-catalog";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 
 /**
  * Responsibilities model — data access for the responsibilities controllers
@@ -144,6 +144,16 @@ function responsibilityViewModules(responsibilityKey) {
 }
 
 /**
+ * Run one statement through the transaction when one is supplied.
+ *
+ * A responsibility grant writes TWO tables (the capability and its ledger).
+ * Written separately, a failure between them leaves a right nobody can revoke;
+ * the runner is what lets both writes share one transaction.
+ */
+const run = (runner, sql, args) =>
+  runner ? runner(sql, args) : db.execute({ sql, args });
+
+/**
  * Grant the base `view` capability of every module owned by the
  * responsibility's feature, so a responsibility is never a dead-end (sidebar
  * shows the area AND its pages can actually load).
@@ -161,49 +171,66 @@ function responsibilityViewModules(responsibilityKey) {
  * @returns {Promise<string[]>} granted `<module>.view` entries (informational).
  */
 export async function grantResponsibilityBaseAccess({ userCid, responsibilityKey, grantedBy = null }) {
-  const granted = [];
-  if (!userCid || !responsibilityKey) return granted;
+  if (!userCid || !responsibilityKey) return [];
 
-  for (const moduleName of responsibilityViewModules(responsibilityKey)) {
-    // RETURNING tells us whether THIS call created the grant. A capability the
-    // user already held (manual grant, another responsibility) returns no row,
-    // so it is neither reported nor tracked — and never revoked later.
-    const grantResult = await db.execute({
-      sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by)
-            VALUES (?, ?, 'view', 1, ?)
-            ON CONFLICT (user_cid, module, capability) DO NOTHING
-            RETURNING module`,
-      args: [userCid, moduleName, grantedBy],
-    });
-    if (!(grantResult.rows || []).length) continue;
-    await trackResponsibilityGrant({
-      userCid,
-      responsibilityKey,
-      module: moduleName,
-      capability: "view",
-    });
-    granted.push(`${moduleName}.view`);
-  }
-  return granted;
+  const modules = responsibilityViewModules(responsibilityKey);
+  if (modules.length === 0) return [];
+
+  // ALL OR NOTHING: every module of the responsibility is granted with its
+  // ledger row, or none is. A half-applied responsibility is a right the admin
+  // cannot see in the ledger and therefore cannot revoke.
+  return db.transaction(async (query) => {
+    const granted = [];
+    for (const moduleName of modules) {
+      // RETURNING tells us whether THIS call created the grant. A capability the
+      // user already held (manual grant, another responsibility) returns no row,
+      // so it is neither reported nor tracked — and never revoked later.
+      const grantResult = await run(
+        query,
+        `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by)
+              VALUES (?, ?, 'view', 1, ?)
+              ON CONFLICT (user_cid, module, capability) DO NOTHING
+              RETURNING module`,
+        [userCid, moduleName, grantedBy],
+      );
+      if (!(grantResult.rows || []).length) continue;
+      await trackResponsibilityGrant(
+        {
+          userCid,
+          responsibilityKey,
+          module: moduleName,
+          capability: "view",
+        },
+        query,
+      );
+      granted.push(`${moduleName}.view`);
+    }
+    return granted;
+  });
 }
 
 /** Record a capability a responsibility CREATE, so removal can revoke it. */
-export async function trackResponsibilityGrant({ userCid, responsibilityKey, module, capability }) {
-  return db.execute({
-    sql: `INSERT INTO responsibility_capability_grants (user_cid, responsibility_key, module, capability)
+export async function trackResponsibilityGrant(
+  { userCid, responsibilityKey, module, capability },
+  runner = null,
+) {
+  return run(
+    runner,
+    `INSERT INTO responsibility_capability_grants (user_cid, responsibility_key, module, capability)
           VALUES (?, ?, ?, ?)
           ON CONFLICT (user_cid, responsibility_key, module, capability) DO NOTHING`,
-    args: [userCid, responsibilityKey, module, capability],
-  });
+    [userCid, responsibilityKey, module, capability],
+  );
 }
 
 /** The capability grants a responsibility created for one user. */
-export async function listResponsibilityGrants(userCid, responsibilityKey) {
-  return db.execute({
-    sql: `SELECT module, capability FROM responsibility_capability_grants
+export function listResponsibilityGrants(userCid, responsibilityKey, runner = null) {
+  return run(
+    runner,
+    `SELECT module, capability FROM responsibility_capability_grants
           WHERE user_cid = ? AND responsibility_key = ?`,
-    args: [userCid, responsibilityKey],
-  });
+    [userCid, responsibilityKey],
+  );
 }
 
 /**
@@ -218,42 +245,49 @@ export async function listResponsibilityGrants(userCid, responsibilityKey) {
  * @returns {Promise<string[]>} revoked `<module>.<capability>` entries.
  */
 export async function revokeResponsibilityBaseAccess({ userCid, responsibilityKey }) {
-  const revoked = [];
-  if (!userCid || !responsibilityKey) return revoked;
+  if (!userCid || !responsibilityKey) return [];
 
-  const tracked = await listResponsibilityGrants(userCid, responsibilityKey);
-  const trackedGrants = tracked.rows || [];
+  // ALL OR NOTHING: the ledger and the grants it created move together. A
+  // failure after the ledger delete would leave a right with no record of who
+  // granted it.
+  return db.transaction(async (query) => {
+    const tracked = await listResponsibilityGrants(userCid, responsibilityKey, query);
+    const trackedGrants = tracked.rows || [];
 
-  // Drop this responsibility's ledger FIRST, so the guard below only sees OTHER
-  // responsibilities that still hold the same capability.
-  await db.execute({
-    sql: `DELETE FROM responsibility_capability_grants
+    // Drop this responsibility's ledger FIRST, so the guard below only sees
+    // OTHER responsibilities that still hold the same capability.
+    await run(
+      query,
+      `DELETE FROM responsibility_capability_grants
           WHERE user_cid = ? AND responsibility_key = ?`,
-    args: [userCid, responsibilityKey],
-  });
+      [userCid, responsibilityKey],
+    );
 
-  for (const row of trackedGrants) {
-    const revokeResult = await db.execute({
-      sql: `DELETE FROM user_capabilities
+    const revoked = [];
+    for (const row of trackedGrants) {
+      const revokeResult = await run(
+        query,
+        `DELETE FROM user_capabilities
             WHERE user_cid = ? AND module = ? AND capability = ? AND access_level = 1
               AND NOT EXISTS (
                 SELECT 1 FROM responsibility_capability_grants g
                 WHERE g.user_cid = ? AND g.module = ? AND g.capability = ?
               )`,
-      args: [
-        userCid,
-        row.module,
-        row.capability,
-        userCid,
-        row.module,
-        row.capability,
-      ],
-    });
-    if (Number(revokeResult.rowsAffected ?? 0) > 0) {
-      revoked.push(`${row.module}.${row.capability}`);
+        [
+          userCid,
+          row.module,
+          row.capability,
+          userCid,
+          row.module,
+          row.capability,
+        ],
+      );
+      if (Number(revokeResult.rowsAffected ?? 0) > 0) {
+        revoked.push(`${row.module}.${row.capability}`);
+      }
     }
-  }
-  return revoked;
+    return revoked;
+  });
 }
 
 // ── PUT /api/responsibilities/access ─────────────────────────────────────────

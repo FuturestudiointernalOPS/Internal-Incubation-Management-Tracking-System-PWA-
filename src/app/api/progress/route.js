@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   countDeliverablesForProgram,
   countApprovedSubmissions,
   getMaxApprovedWeek,
 } from "@/models/workspace";
 
-export const GET = createHandler({ roles: ["staff", "super_admin"] }, async (req) => {
+export const GET = createHandler(async (req) => {
+  const capError = await requireAuthorization("programs", "view");
+  if (capError) return capError;
+
   const { searchParams } = new URL(req.url);
   const program_id = searchParams.get("program_id");
   const group_id = searchParams.get("group_id");

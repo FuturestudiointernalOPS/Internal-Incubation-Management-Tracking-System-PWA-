@@ -18,6 +18,9 @@ jest.mock("@/lib/db", () => ({
 jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
+jest.mock("@/models/authorization/index", () => ({
+  requireAuthorization: jest.fn().mockResolvedValue(null),
+}));
 jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));

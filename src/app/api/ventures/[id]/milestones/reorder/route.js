@@ -22,7 +22,7 @@ export const POST = createHandler(async (req, { params }) => {
   const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
   if (!allowed) {
     return NextResponse.json(
-      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can reorder milestones." },
+      { success: false, error: "errors.ventureManagerOnly" },
       { status: 403 },
     );
   }

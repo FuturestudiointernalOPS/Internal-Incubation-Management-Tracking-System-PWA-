@@ -12,7 +12,6 @@ export const dynamic = "force-dynamic";
  * they decide how the deals already on the stage are counted.
  */
 export const PATCH = createHandler(
-  { roles: ["super_admin"] },
   async (req, { params }) => {
     const authError = await requireAuthorization("crm", "manage");
     if (authError) return authError;

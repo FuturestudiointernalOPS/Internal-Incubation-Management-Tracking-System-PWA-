@@ -34,7 +34,7 @@ export async function listTaskComments({ taskId, role, sessionCid }) {
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
   if (!canAccessTask({ task, role, cid: sessionCid })) {
-    return { status: 403, error: "You do not have access to this task." };
+    return { status: 403, error: "errors.taskAccessDenied" };
   }
 
   const result = await getCommentsByTaskId(taskId);
@@ -66,7 +66,7 @@ export async function postTaskComment({
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
   if (!canAccessTask({ task, role, cid: sessionCid })) {
-    return { status: 403, error: "You do not have access to this task." };
+    return { status: 403, error: "errors.taskAccessDenied" };
   }
 
   const result = await createComment(taskId, senderId, authorName, body, parentId);
@@ -136,7 +136,7 @@ export async function deleteTaskComment({ id, role, sessionCid }) {
       String(comment.sender_id) !== String(sessionCid) &&
       role !== "super_admin"
     ) {
-      return { status: 403, error: "Only the author can delete this comment." };
+      return { status: 403, error: "errors.commentDeleteAuthorOnly" };
     }
     await deleteComment(id);
   }
@@ -156,7 +156,7 @@ export async function editTaskComment({ id, body, role, sessionCid }) {
     String(commentResult.rows[0].sender_id) !== String(sessionCid) &&
     role !== "super_admin"
   ) {
-    return { status: 403, error: "Only the author can edit this comment." };
+    return { status: 403, error: "errors.commentEditAuthorOnly" };
   }
 
   await updateCommentBody(id, body);

@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { requireAssignmentAccess } from "@/server/authz/guards";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import {
   defaultAttendanceDate,
   ensureAttendanceSchema,
@@ -47,7 +47,7 @@ export async function POST(req) {
     // Server-side enforcement: facilitators must be assigned to the program,
     // hold attendance.record, and may only write participants in their teams.
     let allowedParticipantIds = null; // null = no restriction
-    if (session && !hasProgramManagementAccess(session.role)) {
+    if (session && !(await isProgramManagerSession(session))) {
       const programId = records[0]?.program_id || null;
       if (!programId) {
         return NextResponse.json(
@@ -148,7 +148,7 @@ export async function GET(req) {
     if (
       session &&
       !programId &&
-      !hasProgramManagementAccess(session.role) &&
+      !(await isProgramManagerSession(session)) &&
       session.role !== "staff"
     ) {
       participantId = session.cid;
@@ -158,7 +158,7 @@ export async function GET(req) {
     // the v2_teams where they are the handler.
     let facilitatorGroupFilter = null;
     let facilitatorGroupArgs = [];
-    if (session && programId && !hasProgramManagementAccess(session.role)) {
+    if (session && programId && !(await isProgramManagerSession(session))) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: programId,

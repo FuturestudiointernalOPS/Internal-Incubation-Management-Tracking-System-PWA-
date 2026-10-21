@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireVentureAccess, roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
 import {
@@ -37,14 +38,15 @@ export async function GET(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
+    const { session } = access;
 
     const staff =
       roleIsPrivileged(session.role) ||
       (session.cid ? await isStaffActorForVenture(id, session) : false);
     if (!staff) {
-      return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
     }
 
     const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));

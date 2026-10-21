@@ -95,7 +95,7 @@ feature decisions move into `services/**`.
 | Area | Home | Status |
 |---|---|---|
 | Session, cookie, password, guards | `server/auth/**` + `models/sessions.js` | ✅ moved |
-| Capabilities vocabulary | `server/authz/capabilities.js` | ✅ moved |
+| Capabilities vocabulary (declared once) | `models/authorization/constants/feature-module-capability.js` — `server/authz/capabilities.js` re-exports `PERMISSION_MODULES` and owns `ACCESS_LEVELS` | ✅ moved |
 | Program access resolution + resource guards | `server/authz/{programAccess,guards}.js` + `models/authorization/accessQueries.js` | ✅ moved |
 | Authorization reads (project membership, assignment probes, team scope, supervision) + the permission audit write | `models/authorization/accessQueries.js` | ✅ moved |
 | Runtime schema self-heal + default grants (role capabilities, Access Profiles, responsibilities catalogue) | `models/authorization/bootstrap.js` | ✅ moved |

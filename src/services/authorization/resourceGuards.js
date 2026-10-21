@@ -19,8 +19,15 @@
 
 import { requireSession } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { FACILITATOR_BYPASS_ROLES } from "@/server/authz/capabilities";
+import { getAuthorizationContext } from "./contextCache";
+import { isProgramManagerSession } from "./programManagement";
 import { resolveProgramAssignment, getFacilitatorPermissionLevel } from "@/server/authz/programAccess";
+import {
+  PROGRAM_MANAGER_PROFILE,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 import {
   projectExists,
   isProjectMember,
@@ -39,10 +46,10 @@ export async function evaluateProjectAccess(projectId) {
   try {
     const session = await requireSession(); // any authenticated user
 
-    // Super_admin bypass
-    if (session.role === "super_admin") return ALLOWED;
+    // Platform-owner bypass
+    if (isPlatformOwnerRole(session.role)) return ALLOWED;
 
-    if (!(await projectExists(projectId))) return denied(404, "Project not found");
+    if (!(await projectExists(projectId))) return denied(404, "errors.projectNotFound");
 
     // Member or lead (covers both owners and collaborators)
     if (await isProjectMember(projectId, session.cid)) return ALLOWED;
@@ -63,7 +70,7 @@ export async function evaluateProgramFacilitator(programId) {
   try {
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
-    if (session.role === "super_admin") return ALLOWED;
+    if (isPlatformOwnerRole(session.role)) return ALLOWED;
     const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
     if (!resolved) return denied(403, "errors.insufficientPermissions");
     return ALLOWED;
@@ -81,7 +88,7 @@ export async function evaluateFacilitatorProgramAccess(programId, capability = n
   try {
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
-    if (session.role === "super_admin") return ALLOWED;
+    if (isPlatformOwnerRole(session.role)) return ALLOWED;
     const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
     if (!resolved) return denied(403, "errors.insufficientPermissions");
     if (capability) {
@@ -118,6 +125,43 @@ export async function evaluateParticipantFacilitatorConflict(programId, contactC
  * are not wired yet and are denied. `requireStatus` optionally enforces an
  * assignment status on top.
  */
+/**
+ * D-1 — the program-manager function as a PROFILE, independent of the baseline
+ * role. A legacy `program_manager` session still passes (transitional), and a
+ * baseline staff identity passes when the resolved context carries the
+ * `program_manager` profile. Pure so the matrix is testable without a request.
+ */
+export function programManagerAccessDecision({ session, context }) {
+  if (!session) return denied(401, "errors.authRequired");
+  if (isPlatformOwnerRole(session.role) || context?.isSuperAdmin) return ALLOWED;
+  if (isLegacyProgramManagerRole(session.role)) return ALLOWED;
+  if (
+    isInternalStaffRole(session.role) &&
+    Array.isArray(context?.profiles) &&
+    context.profiles.includes(PROGRAM_MANAGER_PROFILE)
+  ) {
+    return ALLOWED;
+  }
+  return denied(403, "errors.insufficientPermissions");
+}
+
+/** Resolve the session if the caller did not, then apply the pure decision. */
+export async function evaluateProgramManagerAccess(session = undefined) {
+  try {
+    const current = session === undefined || session === null ? await getSession() : session;
+    if (!current) return denied(401, "errors.authRequired");
+    // No profile lookup is needed for the two roles that already decide.
+    if (isPlatformOwnerRole(current.role) || isLegacyProgramManagerRole(current.role)) {
+      return ALLOWED;
+    }
+    const context = await getAuthorizationContext(current);
+    return programManagerAccessDecision({ session: current, context });
+  } catch (error) {
+    console.error("[evaluateProgramManagerAccess] error:", error?.message);
+    return denied(500, "errors.authzSystemFailure");
+  }
+}
+
 export async function evaluateAssignmentAccess({
   resource = "program",
   contextId,
@@ -129,7 +173,7 @@ export async function evaluateAssignmentAccess({
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
 
-    if (FACILITATOR_BYPASS_ROLES.includes(session.role)) return ALLOWED;
+    if (await isProgramManagerSession(session)) return ALLOWED;
 
     if (resource !== "program") return denied(403, "errors.insufficientPermissions");
 

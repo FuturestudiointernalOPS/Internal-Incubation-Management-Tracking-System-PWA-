@@ -12,7 +12,9 @@
  *   rows that have never been configured, then the Permissions UI owns the
  *   configuration. Nothing at boot ever overwrites an administrator's edit.
  * - Missing rows = NOT eligible (fail closed).
- * - An explicit `eligible = 0` row wins over any `eligible = 1` row.
+ * - D4 — UNION of the identities: as soon as ONE identity allows the feature the
+ *   section is open; an `eligible = 0` on one identity never vetoes another
+ *   identity's allow (see `evaluateEligibility`).
  * - Super Admin bypasses eligibility entirely (preserved V2 behavior).
  *
  * Layer (see docs/LAYER_SPLIT.md): this module is the REPOSITORY — the schema,
@@ -25,52 +27,19 @@ import { BASELINE_IDENTITIES } from "@/lib/identity";
 import {
   FEATURE_ELIGIBILITY_DEFAULTS,
   FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
-} from "./eligibility-defaults";
+  PROGRAM_ASSIGNMENT_ROWS,
+} from "./constants";
 
-export { FEATURE_ELIGIBILITY_DEFAULTS, FEATURE_ELIGIBILITY_PROFILE_DEFAULTS };
-export { FEATURE_ORDER } from "./eligibility-defaults";
-
-// Capability module → feature key. Features ARE the dashboard sections; the
-// modules are their sub-sections. The resolver authorizes against capability
-// modules (PERMISSION_MODULES); eligibility is expressed per feature.
-export const MODULE_TO_FEATURE = {
-  // CRM — people data + the CRM records layer
-  contacts: "crm",
-  duplicates: "crm",
-  bulk_upload: "crm",
-  crm: "crm",
-  // Communication
-  messaging: "communication",
-  internal_comms: "communication",
-  forms: "communication",
-  runs: "communication",
-  // Programs
-  programs: "programs",
-  facilitator: "programs",
-  // Ventures / Investors
-  ventures: "ventures",
-  investor: "investors",
-  // Finance
-  finance: "finance",
-  // Operations — projects + tasks share the dashboard OPERATIONS section
-  projects: "operations",
-  tasks: "operations",
-  // Reports
-  reports: "reports",
-  // Knowledge
-  knowledge: "knowledge",
-  // LMS
-  lms: "lms",
-  // Security — user administration + permissions
-  users: "security",
-  permissions: "security",
-  // Settings — system configuration + engineering operations
-  settings: "settings",
-  engineering: "settings",
-};
-
-// FEATURE_ELIGIBILITY_DEFAULTS lives in ./eligibility-defaults (pure module,
-// single source of truth shared with the responsibility defaults).
+// The pure feature/eligibility vocabulary lives in ./constants (one file per
+// theme). Re-exported here so the historic import path
+// (`@/models/authorization/eligibility`) keeps exposing it unchanged.
+export {
+  FEATURE_ORDER,
+  MODULE_TO_FEATURE,
+  FEATURE_ELIGIBILITY_DEFAULTS,
+  FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
+  PROGRAM_ASSIGNMENT_ROWS,
+} from "./constants";
 
 let eligibilitySchemaPromise = null;
 
@@ -211,23 +180,6 @@ export function removeNonBaselineRoleEligibility() {
     args: [...BASELINE_IDENTITIES],
   });
 }
-
-/**
- * Assignment-derived program access: the eligibility rows the per-program
- * assignment model needs on databases that bootstrapped before it existed.
- *
- * A facilitator / program manager receives capabilities from the program
- * assignment (Context Roles → profile → additive grants). Eligibility is
- * checked BEFORE capability and fails closed, so without these rows the grant
- * would look inert and the person would be refused — the opposite of the
- * "already in production, must not be blocked" requirement.
- *
- * Insert-only (ON CONFLICT DO NOTHING): an administrator's decision — including
- * an explicit deny — is never overwritten. MIRRORS FEATURE_ELIGIBILITY_DEFAULTS.programs.
- */
-export const PROGRAM_ASSIGNMENT_ROWS = {
-  programs: ["member"],
-};
 
 export async function seedProgramAssignmentEligibility() {
   for (const [featureKey, roles] of Object.entries(PROGRAM_ASSIGNMENT_ROWS)) {

@@ -34,7 +34,7 @@ export async function getParticipantProgramDetailService({ cid, email, programId
   if (!isAssigned) {
     return {
       status: 403,
-      body: { success: false, error: "You are not enrolled in this program." },
+      body: { success: false, error: "errors.notEnrolledInProgram" },
     };
   }
 

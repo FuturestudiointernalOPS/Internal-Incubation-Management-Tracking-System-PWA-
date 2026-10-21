@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/PermissionProvider";
 import { getLocalToday } from "@/lib/constants";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
@@ -66,7 +67,15 @@ function ProgramWorkspace() {
   // shape the screen has always rendered against.
   const { user: sessionUser } = useSessionUser();
   const user = sessionUser || {};
+  // The contextual profiles the server resolved alongside the capability
+  // matrix. The workspace mirrors profile-specific chrome (manager tabs, edit
+  // affordances) from this answer, never from the role label.
+  const { profiles } = usePermissions();
   const [program, setProgram] = useState(null);
+  // The write decision the server returned with the bundle (see
+  // `projectProgramAccess`). null = the server has not answered yet, which is
+  // read-only until it does.
+  const [serverAccess, setServerAccess] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [teams, setTeams] = useState([]);
   const [participants, setParticipants] = useState([]);
@@ -266,6 +275,8 @@ function ProgramWorkspace() {
           setStaffList(payload.staffList || []);
           setReports(payload.reports || []);
           setFamilies(payload.families || []);
+          // Lot 7.3 — the server's own write decision for this program.
+          setServerAccess(payload.access || null);
         }
       };
       let painted = false;
@@ -311,7 +322,12 @@ function ProgramWorkspace() {
   // Access flags: derived BEFORE `values`, which lists canEdit/canContribute —
   // declaring them after would be a temporal-dead-zone throw on render.
   const { isAssignedPm, isTeamMember, canEdit, canContribute } =
-    selectProgramAccess({ program, programTeamMembers, user });
+    selectProgramAccess({
+      program,
+      programTeamMembers,
+      user,
+      serverAccess,
+    });
 
   // Every write of this screen, grouped by concern. The factories read what they
   // need from `values`; the two view blocks below read `ctx`, which is those
@@ -475,7 +491,7 @@ function ProgramWorkspace() {
 
   const pendingSubmissionCount = countPendingSubmissions(submissions);
 
-  const tabs = selectWorkspaceTabs({ t, isAssignedPm, isTeamMember, user });
+  const tabs = selectWorkspaceTabs({ t, isAssignedPm, isTeamMember, user, profiles });
 
   return (
     <ProgramWorkspaceView

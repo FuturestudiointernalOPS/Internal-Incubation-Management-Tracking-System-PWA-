@@ -1,16 +1,18 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getPipelineAnalytics } from "@/services/ventures/fundraising";
 import { getInvestmentAnalytics, getInvestmentReportSummary } from "@/services/ventures/investmentAnalytics";
 import { getVentureMatches } from "@/services/ventures/investorMatching";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
+  const { session } = access;
   if (!(await isStaffActorForVenture(id, session))) {
-    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }
   const searchParams = new URL(req.url).searchParams;
   const type = searchParams.get("type") || "overview";

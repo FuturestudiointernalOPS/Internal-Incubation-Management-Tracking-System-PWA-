@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { getSession } from "@/server/auth/session";
 import {
   listBlockerDiscussions,
   postBlockerDiscussion,
@@ -14,11 +15,12 @@ import {
  *
  * POST /api/blockers/discuss
  *   - Creates a new discussion message on a blocker
- *   - Body: { blocker_id, sender_id, sender_name, body }
+ *   - Body: { blocker_id, body } — the sender is the session, never the body
  *   - Notifies the blocker creator if someone else comments
  *
  * Auth and response shaping only; the decisions live in
- * `@/services/tasks/blockers` (see docs/LAYER_SPLIT.md).
+ * `@/services/tasks/blockers` (see docs/LAYER_SPLIT.md). The discussion follows
+ * the task-access rule, like every other task sub-resource.
  */
 
 export async function GET(req) {
@@ -26,10 +28,15 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
+    const session = await getSession();
     const { searchParams } = new URL(req.url);
     const blocker_id = searchParams.get("blocker_id");
 
-    const result = await listBlockerDiscussions({ blocker_id });
+    const result = await listBlockerDiscussions({
+      blocker_id,
+      role: session?.role,
+      sessionCid: session?.cid,
+    });
     if (result.error) {
       return NextResponse.json(
         { success: false, error: result.error },
@@ -52,8 +59,9 @@ export async function POST(req) {
     const authError = await requireAuth();
     if (authError) return authError;
     const body = await req.json();
+    const session = await getSession();
 
-    const result = await postBlockerDiscussion({ input: body });
+    const result = await postBlockerDiscussion({ input: body, session });
     if (result.error) {
       return NextResponse.json(
         { success: false, error: result.error },

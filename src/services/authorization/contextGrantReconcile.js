@@ -38,6 +38,7 @@ import {
   deleteContextAppliedGrant,
   refreshContextAppliedGrantSource,
   refreshUserCapabilityExpiry,
+  withContextGrantTransaction,
 } from "@/models/authorization/contextGrantsStore";
 import { contextGrantSentinel, planContextGrantChanges } from "./contextGrantPlan";
 import {
@@ -143,28 +144,51 @@ export async function syncContextGrantsForUser(
     });
 
     // 4. Apply (additive; manual grants are never overwritten by the planner).
+    //    Lot 6 — the RIGHT and its PROVENANCE row are written in ONE
+    //    transaction: a crash between them would leave access nobody can
+    //    attribute, or provenance for access that was never granted.
     for (const item of plan.toApply) {
-      await upsertUserCapability(cid, {
-        module: item.module,
-        capability: item.capability,
-        level: item.level,
-        sentinel,
-        expiresAt: managesExpiry ? expiresAt : null,
-      });
-      await upsertContextAppliedGrant(cid, {
-        context,
-        roleKey,
-        sourceRef: sourceIds.join(",") || null,
-        module: item.module,
-        capability: item.capability,
-        level: item.level,
+      await withContextGrantTransaction(async (query) => {
+        await upsertUserCapability(
+          cid,
+          {
+            module: item.module,
+            capability: item.capability,
+            level: item.level,
+            sentinel,
+            expiresAt: managesExpiry ? expiresAt : null,
+          },
+          query,
+        );
+        await upsertContextAppliedGrant(
+          cid,
+          {
+            context,
+            roleKey,
+            sourceRef: sourceIds.join(",") || null,
+            module: item.module,
+            capability: item.capability,
+            level: item.level,
+          },
+          query,
+        );
       });
     }
 
-    // 5. Revoke only what this mechanism created (sentinel-guarded).
+    // 5. Revoke only what this mechanism created (sentinel-guarded). The same
+    //    pair, in the same all-or-nothing unit.
     for (const item of plan.toRevoke) {
-      await deleteUserCapability(cid, item.module, item.capability, sentinel);
-      await deleteContextAppliedGrant(cid, context, roleKey, item.module, item.capability);
+      await withContextGrantTransaction(async (query) => {
+        await deleteUserCapability(cid, item.module, item.capability, sentinel, query);
+        await deleteContextAppliedGrant(
+          cid,
+          context,
+          roleKey,
+          item.module,
+          item.capability,
+          query,
+        );
+      });
     }
 
     // 6. Keep the justifying-relationship list AND the expiry fresh even when

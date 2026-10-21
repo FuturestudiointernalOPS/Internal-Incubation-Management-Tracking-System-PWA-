@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getVentureIdByCodeForCoaching, listCoachingSessions,
   addCoachingFollowUpDateColumn, addCoachingStartTimeColumn,
@@ -10,8 +10,8 @@ import {
 } from "@/models/ventureAssets";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin"];
-const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
+const ROLES = ["member","staff","program_manager","super_admin"];
+const ALLOWED = ["member","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureIdByCodeForCoaching(ventureId);
@@ -20,8 +20,9 @@ async function resolveVentureDbId(ventureId) {
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const sessionsResult = await listCoachingSessions(dbId);
@@ -31,8 +32,9 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const { advisor_contact_id, session_date, start_time, location, meeting_link, notes, observations, recommendations, follow_up_date } = await req.json();
@@ -49,8 +51,9 @@ export async function POST(req, { params }) {
 
 export async function PATCH(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const coachingId = new URL(req.url).searchParams.get("id");

@@ -118,11 +118,19 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
+// The review-queue READ moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "coach-1", name: "Coach One", role: "staff" },
+  }),
+}));
+
 jest.mock("@/services/ventures/notify", () => ({
   notifyAndEmailVentureFounders: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 const mockVentureAuth = require("@/lib/ventureAuth");
+const mockVentureScoped = require("@/lib/ventureScopedAccess");
 
 const { POST: reviewPOST } = require("@/app/api/ventures/[id]/tasks/[taskId]/submissions/route");
 const { GET: queueGET } = require("@/app/api/ventures/[id]/submissions/review-queue/route");
@@ -156,12 +164,19 @@ function resetFixtures() {
   };
   mockVentureAuth.requireVentureAccess.mockReset();
   mockVentureAuth.requireVentureAccess.mockResolvedValue({ session: { cid: "coach-1", name: "Coach One", role: "staff" } });
+  mockVentureScoped.requireVentureScopedAccess.mockReset();
+  mockVentureScoped.requireVentureScopedAccess.mockResolvedValue({
+    session: { cid: "coach-1", name: "Coach One", role: "staff" },
+  });
   mockVentureAuth.isStaffActorForVenture.mockReset();
   mockVentureAuth.isStaffActorForVenture.mockResolvedValue(true);
 }
 
 const asRole = (role, cid = "coach-1") => {
   mockVentureAuth.requireVentureAccess.mockResolvedValue({ session: { cid, name: "Coach One", role } });
+  mockVentureScoped.requireVentureScopedAccess.mockResolvedValue({
+    session: { cid, name: "Coach One", role },
+  });
 };
 
 beforeEach(() => {
@@ -250,7 +265,7 @@ describe("POST submissions {action:'review'} — assignment-scope gate", () => {
     const res = await reviewPOST(reviewRequest(TASK_2, REVIEW_BODY), { params: { id: "VNT-TEST", taskId: String(TASK_2) } });
     expect(res.status).toBe(403);
     const data = await readJson(res);
-    expect(data.error).toBe("This review is outside your assigned scope.");
+    expect(data.error).toBe("errors.outsideAssignedScope");
     expect(executed.some((query) => query.sql.includes("UPDATE venture_task_submissions"))).toBe(false);
   });
 
@@ -272,7 +287,7 @@ describe("POST submissions {action:'review'} — assignment-scope gate", () => {
     asRole("participant", "founder-1");
     const res = await reviewPOST(reviewRequest(TASK_1, REVIEW_BODY), { params: { id: "VNT-TEST", taskId: String(TASK_1) } });
     expect(res.status).toBe(403);
-    expect((await readJson(res)).error).toBe("Only Future Studio staff can review submissions.");
+    expect((await readJson(res)).error).toBe("errors.submissionReviewInternalOnly");
     expect(executed.some((query) => query.sql.includes("UPDATE venture_task_submissions"))).toBe(false);
   });
 
@@ -287,7 +302,7 @@ describe("POST submissions {action:'review'} — assignment-scope gate", () => {
     mockDb.flags.assignmentsThrow = true;
     const res = await reviewPOST(reviewRequest(TASK_1, REVIEW_BODY), { params: { id: "VNT-TEST", taskId: String(TASK_1) } });
     expect(res.status).toBe(403);
-    expect((await readJson(res)).error).toBe("This review is outside your assigned scope.");
+    expect((await readJson(res)).error).toBe("errors.outsideAssignedScope");
     expect(executed.some((query) => query.sql.includes("UPDATE venture_task_submissions"))).toBe(false);
   });
 
@@ -352,7 +367,7 @@ describe("GET submissions/review-queue — assignment-scoped attention list", ()
     mockVentureAuth.isStaffActorForVenture.mockResolvedValue(false);
     const res = await queueGET(new Request("http://localhost/api/ventures/VNT-TEST/submissions/review-queue"), { params: { id: "VNT-TEST" } });
     expect(res.status).toBe(403);
-    expect((await readJson(res)).error).toBe("This operation requires staff access to the Venture.");
+    expect((await readJson(res)).error).toBe("errors.ventureStaffOnly");
   });
 
   test("actor WITHOUT assignment rows keeps the full queue (legacy)", async () => {

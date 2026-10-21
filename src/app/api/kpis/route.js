@@ -57,7 +57,7 @@ export async function POST(req) {
     if (!program_id || !title) return badRequest("program_id and title required");
 
     // Program scope (wave: groups) — targets belong to the cohorts wave.
-    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const details = await createKpiDefinition({
@@ -85,7 +85,7 @@ export async function PUT(req) {
     // Program scope (wave: groups) — the handler receives only a KPI id, so the
     // owning program is read first.
     const programId = await resolveKpiProgramId(id);
-    const scopeError = await requireProgramScope({ programId, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId, wave: "groups", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const details = await updateKpiDefinition({ id, title, targetValue: target_value });
@@ -108,7 +108,7 @@ export async function DELETE(req) {
 
     // Program scope (wave: groups) — read the owning program before deleting.
     const programId = await resolveKpiProgramId(id);
-    const scopeError = await requireProgramScope({ programId, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId, wave: "groups", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     await deleteKpiDefinition(id);

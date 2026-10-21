@@ -1,3 +1,5 @@
+import { carriesContextualValue } from "@/lib/identity";
+
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
 // rather than rebuilt on every render.
@@ -13,7 +15,9 @@ export const pickAnalytics = (payload) => (payload?.success ? payload.analytics 
 export const pickActiveStaff = (payload) =>
   payload?.success
     ? (payload.contacts || []).filter(
-        (contact) => contact.status === "active" && contact.role !== "participant",
+        (contact) =>
+          contact.status === "active" &&
+          !carriesContextualValue(contact.role, "participant"),
       )
     : [];
 

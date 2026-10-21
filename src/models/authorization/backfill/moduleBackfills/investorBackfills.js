@@ -15,9 +15,9 @@ import { profileKeyForAccessProfileName } from "@/models/authorization/profileTa
 // files): GET → investor.view, POST → investor.create, PUT → investor.edit.
 //
 // Backfills:
-//   - staff: investor caps via Staff Default profile + role_capabilities
+//   - staff: investor caps via Staff Default profile
 //   - investor role: investor caps via the Mentor profile (the investor role's
-//     default profile per the role → profile defaults) + role_capabilities
+//     default profile per the role → profile defaults)
 //   - mentor role inherits the Mentor profile caps but is NOT eligible for
 //     the investor feature → no access change
 //
@@ -38,18 +38,6 @@ const INVESTOR_BACKFILL = {
       ["investor", "edit", 3],
     ],
     Mentor: [
-      ["investor", "view", 1],
-      ["investor", "create", 2],
-      ["investor", "edit", 3],
-    ],
-  },
-  roles: {
-    staff: [
-      ["investor", "view", 1],
-      ["investor", "create", 2],
-      ["investor", "edit", 3],
-    ],
-    investor: [
       ["investor", "view", 1],
       ["investor", "create", 2],
       ["investor", "edit", 3],
@@ -82,17 +70,6 @@ async function ensureInvestorBackfill() {
               VALUES (?, ?, ?, ?)
               ON CONFLICT (profile_key, module, capability) DO NOTHING`,
         args: [key, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(INVESTOR_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
       });
     }
   }

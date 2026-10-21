@@ -81,6 +81,7 @@ export function listActiveProfileKeys(cid) {
           WHERE contact_cid = ?
             AND status = 'active'
             AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())
           ORDER BY profile_key`,
     args: [String(cid)],
   });
@@ -96,7 +97,8 @@ export function countActiveAssignmentsForProfileKey(profileKey) {
     sql: `SELECT COUNT(DISTINCT contact_cid)::int AS n
           FROM profile_assignments
           WHERE profile_key = ? AND status = 'active'
-            AND (ends_at IS NULL OR ends_at > NOW())`,
+            AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())`,
     args: [String(profileKey)],
   });
 }
@@ -133,6 +135,7 @@ export function listActiveAutomaticAssignments({ contactCid, profileKey, context
             AND context_type = ?
             AND source = 'automatic'
             AND status = 'active'
+            AND (started_at IS NULL OR started_at <= NOW())
           ORDER BY started_at DESC, id DESC`,
     args: [String(contactCid), String(profileKey), String(contextType)],
   });
@@ -143,14 +146,34 @@ export function listActiveAutomaticAssignments({ contactCid, profileKey, context
  * The `IS DISTINCT FROM` guard makes the statement a no-op when the period
  * already carries the right values, so a replayed reconcile changes nothing.
  */
-export function refreshAutomaticAssignmentPeriod({ id, sourceRef, endsAt }) {
-  return db.execute({
-    sql: `UPDATE profile_assignments
-          SET source_ref = ?, ends_at = ?
-          WHERE id = ? AND status = 'active'
-            AND (source_ref IS DISTINCT FROM ? OR ends_at IS DISTINCT FROM ?)`,
-    args: [sourceRef, endsAt, Number(id), sourceRef, endsAt],
-  });
+/**
+ * The statement runner. `db.execute` by default; inside
+ * `withAssignmentTransaction` the caller passes the transaction's
+ * `query(sql, args)` so every card write joins the SAME transaction.
+ */
+const runner = (run) => run || ((sql, args) => db.execute({ sql, args }));
+
+/**
+ * Run a set of registry writes atomically: every card write succeeds, or none
+ * does. `syncContextGrantsAssignments` applies an open/refresh/close plan; a
+ * failure halfway through would otherwise leave a person with a half-written
+ * history (a card opened for a relationship the same reconcile then failed to
+ * close, or the reverse).
+ *
+ * Lives in the MODEL layer so services never import `@/lib/db`.
+ */
+export function withAssignmentTransaction(callback) {
+  return db.transaction(async (query) => callback(query));
+}
+
+export function refreshAutomaticAssignmentPeriod({ id, sourceRef, endsAt }, run = null) {
+  return runner(run)(
+    `UPDATE profile_assignments
+      SET source_ref = ?, ends_at = ?
+      WHERE id = ? AND status = 'active'
+        AND (source_ref IS DISTINCT FROM ? OR ends_at IS DISTINCT FROM ?)`,
+    [sourceRef, endsAt, Number(id), sourceRef, endsAt],
+  );
 }
 
 /** The ACTIVE row of one exact (person, profile, context), or an empty set. */
@@ -169,6 +192,7 @@ export function findActiveAssignment({
             AND context_id IS NOT DISTINCT FROM ?
             AND status = 'active'
             AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())
           LIMIT 1`,
     args: [
       String(contactCid),
@@ -195,25 +219,28 @@ export function getProfileAssignmentById(id) {
  * rule "one period = one record" is the service's, enforced by never updating an
  * existing row into a new period.
  */
-export function insertProfileAssignment({
-  contactCid,
-  profileKey,
-  contextType,
-  contextId = null,
-  startedAt,
-  endsAt = null,
-  source = "manual",
-  sourceRef = null,
-  notes = "",
-  createdBy = null,
-}) {
-  return db.execute({
-    sql: `INSERT INTO profile_assignments
-            (contact_cid, profile_key, context_type, context_id, started_at, ends_at,
-             status, source, source_ref, notes, created_by)
-          VALUES (?, ?, ?, ?, COALESCE(?, NOW()), ?, 'active', ?, ?, ?, ?)
-          RETURNING id`,
-    args: [
+export function insertProfileAssignment(
+  {
+    contactCid,
+    profileKey,
+    contextType,
+    contextId = null,
+    startedAt,
+    endsAt = null,
+    source = "manual",
+    sourceRef = null,
+    notes = "",
+    createdBy = null,
+  },
+  run = null,
+) {
+  return runner(run)(
+    `INSERT INTO profile_assignments
+      (contact_cid, profile_key, context_type, context_id, started_at, ends_at,
+       status, source, source_ref, notes, created_by)
+     VALUES (?, ?, ?, ?, COALESCE(?, NOW()), ?, 'active', ?, ?, ?, ?)
+     RETURNING id`,
+    [
       String(contactCid),
       String(profileKey),
       String(contextType),
@@ -225,7 +252,7 @@ export function insertProfileAssignment({
       notes || "",
       createdBy,
     ],
-  });
+  );
 }
 
 /**
@@ -233,13 +260,13 @@ export function insertProfileAssignment({
  * guard means a second close touches no row (the caller reports 0 rows
  * affected), and an already-ended period is never rewritten.
  */
-export function closeProfileAssignment({ id, status = "ended", endedAt = null }) {
-  return db.execute({
-    sql: `UPDATE profile_assignments
-          SET status = ?, ended_at = COALESCE(?, NOW())
-          WHERE id = ? AND status = 'active'`,
-    args: [String(status), endedAt, Number(id)],
-  });
+export function closeProfileAssignment({ id, status = "ended", endedAt = null }, run = null) {
+  return runner(run)(
+    `UPDATE profile_assignments
+      SET status = ?, ended_at = COALESCE(?, NOW())
+      WHERE id = ? AND status = 'active'`,
+    [String(status), endedAt, Number(id)],
+  );
 }
 
 /**
@@ -274,6 +301,43 @@ export function listEndedAssignmentContacts(contextType, profileKey) {
             AND profile_key = ?
             AND source = 'automatic'
             AND status = 'ended'`,
-    args: [String(contextType), String(profileKey)],
+    args: [contextType, profileKey],
+  });
+}
+
+/**
+ * CONSISTENCY REPORT — read-only, never repairs.
+ *
+ * Two states that must never exist silently:
+ *   - an ACTIVE card pointing at a profile that is missing or inactive
+ *     (`profile_without_rights`): the card claims a function that grants
+ *     nothing;
+ *   - an ACTIVE card whose profile has no capability row at all
+ *     (`profile_without_capabilities`): the same break, one level down.
+ *
+ * The reverse direction (rights without an assignment card) is the readiness
+ * report's `driftToAdd` / `driftToRemove`; it is reported there, per person.
+ *
+ * Grouped by profile key so an alert can name the broken profile without
+ * listing people. A caller that finds `broken > 0` raises an alert; nothing in
+ * this module ever edits a row.
+ */
+export function listProfileAssignmentConsistency() {
+  return db.execute({
+    sql: `SELECT pa.profile_key,
+                 COUNT(*)::int AS active_cards,
+                 SUM(CASE WHEN p.key IS NULL OR p.is_active = 0 THEN 1 ELSE 0 END)::int
+                   AS profile_without_rights,
+                 SUM(CASE WHEN p.key IS NOT NULL AND NOT EXISTS (
+                       SELECT 1 FROM profile_capabilities pc
+                       WHERE pc.profile_key = pa.profile_key
+                     ) THEN 1 ELSE 0 END)::int
+                   AS profile_without_capabilities
+          FROM profile_assignments pa
+          LEFT JOIN profiles p ON p.key = pa.profile_key
+          WHERE pa.status = 'active'
+          GROUP BY pa.profile_key
+          ORDER BY pa.profile_key`,
+    args: [],
   });
 }

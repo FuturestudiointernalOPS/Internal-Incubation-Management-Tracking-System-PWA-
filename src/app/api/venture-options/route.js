@@ -15,14 +15,14 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/server/auth/guards";
-import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   listVentureOptions,
   updateVentureOption,
   upsertVentureOption,
 } from "@/models/platformConfig";
 
-const SETUP_ROLES = ["super_admin", "staff"];
+const SETUP_CAPABILITY = ["ventures", "setup"];
 
 export async function GET(req) {
   await initDb();
@@ -43,15 +43,8 @@ export async function GET(req) {
 
 export async function POST(req) {
   await initDb();
-  const authError = await requireAuth();
+  const authError = await requireAuthorization(...SETUP_CAPABILITY);
   if (authError) return authError;
-  const session = await getSession();
-  if (!session || !SETUP_ROLES.includes(session.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized. Venture Setup permission required." },
-      { status: 403 },
-    );
-  }
 
   try {
     const body = await req.json();
@@ -68,15 +61,8 @@ export async function POST(req) {
 
 export async function PATCH(req) {
   await initDb();
-  const authError = await requireAuth();
+  const authError = await requireAuthorization(...SETUP_CAPABILITY);
   if (authError) return authError;
-  const session = await getSession();
-  if (!session || !SETUP_ROLES.includes(session.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized. Venture Setup permission required." },
-      { status: 403 },
-    );
-  }
 
   try {
     const body = await req.json();

@@ -24,7 +24,7 @@ export async function markMessagesRead({ session, messageIds, conversationWith }
     ) {
       return {
         denied: {
-          error: "Cannot mark messages as read for a conversation you are not part of.",
+          error: "errors.conversationNotMember",
           status: 403,
         },
       };

@@ -1,5 +1,10 @@
 # Layer split — View → Controller → Service → Repository
 
+> **2026-10-19.** The retired permission editor (`permission-center/**`) and the
+> standalone preview centre were deleted. References to those paths below are
+> historical: they describe the split as it was performed, not files that still
+> exist. The active centre is `src/components/permissions/center/**`.
+
 > Status: **authorization + finance complete; programs models done; controller
 > frontier complete (after a correction — see slice 26)**. Slices 1–9 finished
 > authorization (service layer HTTP-free), 10–11 finished finance, 12–13 covered
@@ -2886,9 +2891,8 @@ Done: `models/lms/learning.js` → `services/lms/learning.js` + `models/lms/lear
 - `models/ventureAssets.js` (416, 47 q) — a pure repository: one statement per function; the `isFounderFor*` names return ROWS, the decision lives in the controller.
 - `models/ventureMemberAccess.js` (84) — thin reads returning booleans; its policy is already a separate pure function.
 - `models/intelligence.js` — aggregation reads plus light formatting.
-- Pure modules: `platform/roles.js`, `authorization/capability-catalog.js`,
-  `lms/constants.js`, `lms/scoring.js`, `lib/programProgress.js`,
-  `ventureChangeLog.js`, `authorization/eligibility-defaults.js`.
+- Pure modules: `platform/roles.js`, `lms/constants.js`, `lms/scoring.js`,
+  `lib/programProgress.js`, `ventureChangeLog.js`, `authorization/constants/`.
 
 > **Controllers are the new frontier.** Once the model modules are split, the
 > remaining domain logic is the orchestration inside `src/app/api/**/route.js`.

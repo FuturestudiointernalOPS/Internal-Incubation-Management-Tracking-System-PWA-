@@ -1,0 +1,32 @@
+name: authz-ratchet
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - G
+
+permissions:
+  contents: read
+
+jobs:
+  metrics:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - name: Publish the authorization dashboard
+        run: |
+          npm run authz:metrics | tee authz-metrics.txt
+          cat authz-metrics.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce the ratchet
+        run: npm run test:authz

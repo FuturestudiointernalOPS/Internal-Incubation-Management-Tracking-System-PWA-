@@ -15,7 +15,12 @@ import db from "@/lib/db";
 /**
  * Move + merge every `feature_eligibility` row of an old key onto the new key.
  * A deny (eligible = 0) wins over an allow: `MIN` on the insert, `LEAST` on the
- * conflict — the same precedence `evaluateEligibility` applies.
+ * conflict — a conservative merge that keeps a one-time rename from widening
+ * access.
+ *
+ * NOTE (D4): the eligibility DECISION is a UNION now (`evaluateEligibility`), so
+ * this merge no longer mirrors it. Aligning the merge is a separate lot — a
+ * data-migration change is not mixed with a decision change.
  */
 export async function mergeFeatureEligibilityKey(newKey, oldKey) {
   return db.execute({

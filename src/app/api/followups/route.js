@@ -19,9 +19,10 @@ import {
  * Creating a follow-up also creates a calendar event in v2_events.
  */
 
-export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager", "facilitator", "participant"] },
-  async (req) => {
+// The visibility decision lives in the service: `listFollowups` scopes rows to
+// the caller (participant → own rows; everyone else → rows they created), so
+// the route only needs a session. Declared as a delegated decision.
+export const GET = createHandler(async (req) => {
     await ensureFollowupSchema();
     const session = await getSession();
     const { searchParams } = new URL(req.url);
@@ -43,9 +44,10 @@ export const GET = createHandler(
   },
 );
 
-export const POST = createHandler(
-  { roles: ["staff", "super_admin", "program_manager", "facilitator"] },
-  async (req) => {
+// Creating a follow-up is decided by `evaluateFollowupParticipantAccess`: a
+// program manager may, a facilitator only inside their team scope, and nobody
+// else. The route serializes that decision; it holds no role list.
+export const POST = createHandler(async (req) => {
     await ensureFollowupSchema();
     const session = await getSession();
     const body = await req.json();
@@ -68,8 +70,9 @@ export const POST = createHandler(
   },
 );
 
+// Updating a follow-up is scoped by `updateScopedFollowup` (same rule as the
+// create path, fetched from the record's own program and participant).
 export const PATCH = createHandler(
-  { roles: ["staff", "super_admin", "program_manager", "facilitator"] },
   async (req) => {
     const { id, status, notes, meeting_link, scheduled_at } = await req.json();
 

@@ -19,6 +19,7 @@ import {
   CLOSE_ACTIONS,
   validateProfileAssignment,
 } from "@/services/authorization/profileAssignments";
+import { profileRoleAssignmentGate } from "@/services/authorization/profileCatalog";
 
 export const dynamic = "force-dynamic";
 
@@ -109,6 +110,25 @@ export async function POST(req) {
       return NextResponse.json(
         { success: false, error: check.errors.join("; ") },
         { status: 400 },
+      );
+    }
+
+    // §3.3 — a manually assigned profile card must be open to the person's
+    // BASELINE role, exactly like the automatic reconcile and the responsibility
+    // path. Without this the registry was a third way to hand someone a profile
+    // their identity is not allowed to hold.
+    const roleGate = await profileRoleAssignmentGate({
+      profileKey: check.normalized.profileKey,
+      cid: check.normalized.contactCid,
+    });
+    if (roleGate.blocked) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Profile "${roleGate.gap.profile}" is not open to role "${roleGate.gap.role}".`,
+          profile_role_gap: roleGate.gap,
+        },
+        { status: 409 },
       );
     }
 

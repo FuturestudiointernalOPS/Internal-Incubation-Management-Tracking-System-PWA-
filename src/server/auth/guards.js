@@ -16,7 +16,7 @@
  * an authentication one.
  */
 
-import { NextResponse } from "next/server";
+import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "./session";
 
 /**
@@ -59,20 +59,14 @@ export async function requireAuth(allowedRoles = null, providedSession = undefin
     return null; // authorized
   } catch (err) {
     if (err.message === "Unauthorized") {
-      return NextResponse.json(
-        { success: false, error: "errors.authRequired" },
-        { status: 401 },
-      );
+      return refusalResponse({ status: 401, errorKey: "errors.authRequired" });
     }
     if (err.message === "Forbidden") {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
-      );
+      return refusalResponse({
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+      });
     }
-    return NextResponse.json(
-      { success: false, error: "errors.authSystemFailure" },
-      { status: 500 },
-    );
+    return refusalResponse({ status: 500, errorKey: "errors.authSystemFailure" });
   }
 }

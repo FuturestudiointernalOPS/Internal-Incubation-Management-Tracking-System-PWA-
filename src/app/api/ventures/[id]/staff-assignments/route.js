@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import { listAssignments, createAssignment, removeAssignment } from "@/services/ventures/permissions";
 import {
@@ -9,15 +9,18 @@ import {
   findDuplicateVentureAssignment,
 } from "@/models/ventureWorkspace";
 
-// Phase 1: assignment management is Super Admin territory. Phase 3 will
-// extend this guard to Lead Managers whose matrix grants the assign action.
-const ROLES = ["super_admin"];
+// The platform assignment register: the same right that governs teams and
+// facilitator assignments. No standard profile carries it, so it stays with
+// the platform owner by default and can be granted without editing code.
+async function assignmentGuard() {
+  return requireAuthorization("permissions", "assign_groups");
+}
 
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(ROLES);
-    if (authError) return authError;
+    const capError = await assignmentGuard();
+    if (capError) return capError;
     const { id } = await params;
     const includeRemoved = new URL(req.url).searchParams.get("include_removed") === "1";
     const assignments = await listAssignments(id, { includeRemoved });
@@ -30,8 +33,8 @@ export async function GET(req, { params }) {
 export async function POST(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(ROLES);
-    if (authError) return authError;
+    const capError = await assignmentGuard();
+    if (capError) return capError;
     const session = await getSession();
     const { id } = await params;
     const { staff_contact_id, responsibility_code, scope_type, scope_ref_type, scope_ref_id, notes } = await req.json();
@@ -83,8 +86,8 @@ export async function POST(req, { params }) {
 export async function PATCH(req, { params }) {
   try {
     await initDb();
-    const authError = await requireAuth(ROLES);
-    if (authError) return authError;
+    const capError = await assignmentGuard();
+    if (capError) return capError;
     const { id } = await params;
     const { assignment_id, action } = await req.json();
     if (!assignment_id || action !== "remove") {

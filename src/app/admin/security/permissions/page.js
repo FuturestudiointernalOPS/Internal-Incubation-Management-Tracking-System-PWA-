@@ -1,6 +1,6 @@
 "use client";
 
-import PermissionPrototype from "@/components/permissions/PermissionPrototype";
+import PermissionCenter from "@/components/permissions/PermissionCenter";
 
-/** The permission centre follows the approved interaction prototype. */
-export default function PermissionCenterLanding() { return <PermissionPrototype />; }
+/** The permission centre follows the approved interaction model. */
+export default function PermissionCenterLanding() { return <PermissionCenter />; }

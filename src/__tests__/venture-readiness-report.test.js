@@ -109,6 +109,11 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
 }));
 
+// The operating report READ moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({ session: SESSION }),
+}));
+
 // Phase 5c: this route now goes through requireVentureScopedAccess. The mock
 // resolves as Super Admin (the scenario under test), which is the gate's
 // bypass path — capability + scope are then not consulted.
@@ -192,7 +197,7 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
   });
 
   test("non-staff viewers are rejected", async () => {
-    require("@/lib/ventureAuth").requireVentureAccess.mockResolvedValueOnce({ session: { cid: "founder-1", role: "founder" } });
+    require("@/lib/ventureScopedAccess").requireVentureScopedAccess.mockResolvedValueOnce({ session: { cid: "founder-1", role: "founder" } });
     require("@/lib/ventureAuth").isStaffActorForVenture.mockResolvedValueOnce(false);
     const res = await reportGET(new Request("http://localhost/api/ventures/VNT-TEST/journey-report"), ctx);
     expect(res.status).toBe(403);

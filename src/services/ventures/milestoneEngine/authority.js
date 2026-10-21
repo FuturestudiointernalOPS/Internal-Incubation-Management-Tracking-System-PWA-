@@ -9,6 +9,7 @@ import {
   selectVentureIdAndCodeByIdOrCode,
 } from "@/models/ventureMilestoneEngineStore";
 import { hasVentureCapability } from "@/services/ventures/permissions";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { rowsOf } from "./status";
 
 /**
@@ -21,7 +22,7 @@ import { rowsOf } from "./status";
  * roadmap.
  */
 export async function isMilestoneLeadAuthority({ code, cid, role }) {
-  if (role === "super_admin") return true;
+  if (isPlatformOwnerRole(role)) return true;
   if (!cid || !code) return false;
   try {
     return await hasVentureCapability({
@@ -51,7 +52,7 @@ export async function resolveVentureCode(id) {
  * milestones route).
  */
 export async function canManageMilestones({ id, cid, role }) {
-  if (role === "super_admin") return true;
+  if (isPlatformOwnerRole(role)) return true;
   if (!cid) return false;
   const code = await resolveVentureCode(id);
   if (!code) return false;

@@ -21,6 +21,7 @@ import {
   resolveEligibilityWrite,
   formatEligibilityAuditDetails,
 } from "@/services/authorization/eligibilityConfiguration";
+import { findOpenCeilingsWithoutRights, findRightsOnClosedCeiling, findUnassignableProfiles } from "@/services/authorization/eligibilityAdmin";
 import {
   listFeatureEligibilityRows,
   getEligibilityRow,
@@ -28,6 +29,7 @@ import {
   upsertEligibilityRow,
 } from "@/models/authorization";
 import { listProfiles, ensureProfilesSchema } from "@/models/authorization/profilesStore";
+import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
 import { ensureProfileCapabilitiesSchema } from "@/models/authorization/profileCapabilitiesStore";
 
 export const dynamic = "force-dynamic";
@@ -57,6 +59,63 @@ async function fetchAllRows() {
   return result.rows;
 }
 
+/**
+ * §12.3 — the per-PROFILE configuration alerts:
+ *   - OPEN CEILING WITH NO RIGHT: eligible, yet no capability of the feature;
+ *   - RIGHT ON A CLOSED CEILING: an explicit deny row, yet a capability held.
+ *
+ * The pure detectors decide; this only feeds them each profile's OWN rows and
+ * capabilities. Best-effort: a read failure yields no alert, never a 500.
+ */
+async function collectProfileAlerts(rows, profileKeys) {
+  const ceilingAlerts = [];
+  const rightAlerts = [];
+  for (const profileKey of profileKeys) {
+    try {
+      const openEligibility = {};
+      const closedEligibility = {};
+      for (const row of rows) {
+        if (row.identity_type !== "profile") continue;
+        if (String(row.identity_value) !== String(profileKey)) continue;
+        if (Number(row.eligible) === 1) openEligibility[row.feature_key] = true;
+        else if (Number(row.eligible) === 0) closedEligibility[row.feature_key] = true;
+      }
+
+      const capsRes = await listProfileCapabilities(profileKey);
+      const capabilities = {};
+      for (const cap of capsRes.rows || []) {
+        capabilities[cap.module] = capabilities[cap.module] || {};
+        capabilities[cap.module][cap.capability] = Number(cap.access_level) || 0;
+      }
+
+      if (Object.keys(openEligibility).length > 0) {
+        for (const finding of findOpenCeilingsWithoutRights({ eligibility: openEligibility, capabilities })) {
+          ceilingAlerts.push({
+            identityType: "profile",
+            identityValue: profileKey,
+            feature: finding.feature,
+            modules: finding.modules,
+          });
+        }
+      }
+      if (Object.keys(closedEligibility).length > 0) {
+        for (const finding of findRightsOnClosedCeiling({ closedEligibility, capabilities })) {
+          rightAlerts.push({
+            identityType: "profile",
+            identityValue: profileKey,
+            feature: finding.feature,
+            module: finding.module,
+            capabilities: finding.capabilities,
+          });
+        }
+      }
+    } catch (error) {
+      console.warn(`[eligibility] profile alert failed for ${profileKey}:`, error.message);
+    }
+  }
+  return { ceilingAlerts, rightAlerts };
+}
+
 export async function GET() {
   try {
     await initDb();
@@ -81,6 +140,11 @@ export async function GET() {
       .map((row) => row.key)
       .sort();
 
+    // §12.3 — configuration alerts: profiles whose ceiling and rights disagree,
+    // and a profile no baseline role may hold.
+    const { ceilingAlerts, rightAlerts } = await collectProfileAlerts(rows, profiles);
+    const unassignableProfiles = findUnassignableProfiles(profilesRes.rows || []);
+
     return NextResponse.json({
       success: true,
       features: FEATURE_KEYS,
@@ -96,6 +160,9 @@ export async function GET() {
       profiles,
       rows,
       canConfigure: !!canConfigure,
+      ceilingAlerts,
+      rightAlerts,
+      unassignableProfiles,
     });
   } catch (error) {
     console.error("[eligibility] GET error:", error.message);

@@ -57,6 +57,13 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: { cid: "staff-1", role: "super_admin" } }),
 }));
 
+// The progress read moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "staff-1", role: "super_admin" },
+  }),
+}));
+
 const { GET } = require("@/app/api/ventures/[id]/progress/route");
 
 const readJson = async (res) => res.json();

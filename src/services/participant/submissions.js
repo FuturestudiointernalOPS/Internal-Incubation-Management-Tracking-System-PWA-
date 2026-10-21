@@ -24,10 +24,10 @@ export function resolveSubmissionReadScope({ role, sessionCid, participantId, te
   if (PRIVILEGED_READ_ROLES.includes(role)) return { participantId, teamId };
 
   if (participantId && String(participantId) !== String(sessionCid)) {
-    return { error: "You can only access your own submissions.", status: 403 };
+    return { error: "errors.ownSubmissionsOnly", status: 403 };
   }
   if (teamId && role !== "team") {
-    return { error: "You cannot access team submissions.", status: 403 };
+    return { error: "errors.teamSubmissionsDenied", status: 403 };
   }
   if (!participantId && !teamId) return { participantId: sessionCid, teamId };
   return { participantId, teamId };
@@ -43,10 +43,10 @@ export function resolveSubmissionWriteScope({ role, sessionCid, participantId, t
   }
 
   if (participantId && String(participantId) !== String(sessionCid)) {
-    return { error: "You can only create your own submissions.", status: 403 };
+    return { error: "errors.createOwnSubmissionsOnly", status: 403 };
   }
   if (teamId && role !== "team") {
-    return { error: "You cannot create team submissions.", status: 403 };
+    return { error: "errors.teamSubmissionsCreateDenied", status: 403 };
   }
   if (!participantId && !teamId) {
     return { participantId: sessionCid, teamId, privileged: false };

@@ -7,7 +7,7 @@
  * `@/models/authorization/profileCapabilitiesStore`.
  */
 
-import { PERMISSION_MODULES } from "@/server/authz/capabilities";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
 import {
   ensureProfileCapabilitiesSchema,
   listProfileCapabilities as listProfileCapabilitiesRows,

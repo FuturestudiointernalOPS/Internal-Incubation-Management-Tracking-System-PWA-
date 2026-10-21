@@ -36,11 +36,13 @@ let mockWithin = false;
 jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async () => "VNT-1"),
   isWithinScope: jest.fn(async () => mockWithin),
+  // D-6 — the record exists, so a refusal stays out-of-scope (403).
+  ventureExists: jest.fn(async () => true),
 }));
 
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
 const { requireAuthorization } = require("@/models/authorization/index");
-const { isWithinScope } = require("@/services/authorization/scope");
+const { isWithinScope, ventureExists } = require("@/services/authorization/scope");
 // The pure aggregation moved out of the model: models hold data access only.
 const { summarizeVentureStrictAudit } = require("@/services/authorization/ventureStrictAudit");
 
@@ -103,6 +105,30 @@ describe("Phase 5c — the venture gate (strict only)", () => {
       capability: "ventures.view",
       scope: "venture_own",
     });
+  });
+
+  test("D-6 — a venture that does not exist answers 404, not 403", async () => {
+    mockCapError = null;
+    mockWithin = false;
+    ventureExists.mockResolvedValueOnce(false);
+
+    const out = await callHelper({ ventureId: "VNT-MISSING" });
+
+    expect(out.error.status).toBe(404);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("not-found");
+    expect(await out.error.json()).toEqual({
+      success: false,
+      error: "errors.notFound",
+    });
+  });
+
+  test("D-6 — the existence read runs only on the refusal path", async () => {
+    mockCapError = null;
+    mockWithin = true;
+
+    await callHelper();
+
+    expect(ventureExists).not.toHaveBeenCalled();
   });
 
   test("capability + scope → allowed", async () => {
@@ -192,7 +218,9 @@ describe("Phase 5c — the old gate cannot come back", () => {
         if (!line.includes("requireVentureScopedAccess") || !line.includes("ventureId: id")) return;
         let declared = false;
         for (let scanIndex = lineIndex - 1; scanIndex >= 0; scanIndex--) {
-          if (/const \{ id \}[^=]*= await params/.test(lines[scanIndex])) { declared = true; break; }
+          // Accept `const { id }` AND a wider destructuring (`{ id, docId }`,
+          // `{ id, taskId }`): the regression is about `id` being declared.
+          if (/const \{[^}]*\bid\b[^}]*\}[^=]*= await params/.test(lines[scanIndex])) { declared = true; break; }
           if (/export (async )?function|export const [A-Z]+ = createHandler/.test(lines[scanIndex])) break;
         }
         if (!declared) offenders.push(`${path.relative(process.cwd(), file)}:${lineIndex + 1}`);

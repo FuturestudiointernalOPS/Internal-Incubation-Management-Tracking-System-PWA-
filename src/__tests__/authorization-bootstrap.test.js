@@ -19,7 +19,10 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn(async () => {}),
 }));
 
-const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+const insertsInto = (table) =>
+  mockExecute.mock.calls.filter((call) =>
+    String(call[0]?.sql || call[0] || "").includes(`INSERT INTO ${table}`),
+  );
 
 /** Fresh module state (the memos live at module scope, per process). */
 function load() {
@@ -27,8 +30,6 @@ function load() {
   return require("@/models/authorization/bootstrap");
 }
 
-const insertsInto = (table) =>
-  mockExecute.mock.calls.filter((call) => String(call[0]?.sql || call[0] || "").includes(`INSERT INTO ${table}`));
 
 beforeEach(() => {
   mockExecute.mockReset();
@@ -39,72 +40,6 @@ beforeEach(() => {
 
 afterEach(() => {
   jest.restoreAllMocks();
-});
-
-describe("seedDefaultRoleCapabilities", () => {
-  it("grants every capability of every module to super_admin, at the top level", async () => {
-    const { seedDefaultRoleCapabilities } = load();
-
-    await expect(seedDefaultRoleCapabilities()).resolves.toEqual({ success: true });
-
-    const inserts = insertsInto("role_capabilities");
-    const superAdmin = inserts.filter((call) => call[0].args[0] === "super_admin");
-    const expected = Object.values(PERMISSION_MODULES).reduce(
-      (total, module) => total + module.capabilities.length,
-      0,
-    );
-
-    expect(superAdmin).toHaveLength(expected);
-    expect(superAdmin.every((call) => call[0].args[3] === 5 && call[0].args[4] === 5)).toBe(true);
-  });
-
-  it("grants the baseline roles their documented capabilities only", async () => {
-    const { seedDefaultRoleCapabilities } = load();
-
-    await seedDefaultRoleCapabilities();
-
-    const byRole = (role) =>
-      insertsInto("role_capabilities")
-        .filter((call) => call[0].args[0] === role)
-        .map((call) => `${call[0].args[1]}.${call[0].args[2]}`)
-        .sort();
-
-    expect(byRole("staff")).toEqual(
-      [
-        "contacts.view",
-        "messaging.send",
-        "messaging.view",
-        "programs.view",
-        "projects.create",
-        "projects.edit",
-        "projects.view",
-        "reports.create",
-        "reports.view",
-      ].sort(),
-    );
-    expect(byRole("participant")).toEqual(["messaging.send", "messaging.view", "projects.view"].sort());
-  });
-
-  it("is idempotent — every grant is an upsert", async () => {
-    const { seedDefaultRoleCapabilities } = load();
-
-    await seedDefaultRoleCapabilities();
-
-    for (const call of insertsInto("role_capabilities")) {
-      expect(String(call[0].sql)).toContain("ON CONFLICT (role, module, capability) DO UPDATE SET access_level = ?");
-      expect(call[0].args).toHaveLength(5);
-    }
-  });
-
-  it("reports the failure instead of throwing", async () => {
-    const { seedDefaultRoleCapabilities } = load();
-    mockExecute.mockRejectedValue(new Error("connection terminated"));
-
-    await expect(seedDefaultRoleCapabilities()).resolves.toEqual({
-      success: false,
-      error: "connection terminated",
-    });
-  });
 });
 
 describe("the runtime schema self-heal", () => {
@@ -153,7 +88,8 @@ describe("the runtime schema self-heal", () => {
 
     expect(mockExecute.mock.calls.length).toBe(afterFirst);
     const ddl = mockExecute.mock.calls.map((call) => String(call[0] || ""));
-    expect(ddl.some((sql) => sql.includes("CREATE TABLE IF NOT EXISTS role_capabilities"))).toBe(true);
+    expect(ddl.some((sql) => sql.includes("CREATE TABLE IF NOT EXISTS group_capabilities"))).toBe(true);
+    expect(ddl.some((sql) => sql.includes("CREATE TABLE IF NOT EXISTS role_capabilities"))).toBe(false);
   });
 });
 

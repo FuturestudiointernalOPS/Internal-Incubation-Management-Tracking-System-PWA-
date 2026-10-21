@@ -42,7 +42,7 @@ export const POST = createHandler(
     const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "create"))) {
-      return NextResponse.json({ success: false, error: "Your assignment does not allow creating operating plans." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.operatingPlansCreateDenied" }, { status: 403 });
     }
     const body = await req.json();
     const name = String(body.name || "").trim();

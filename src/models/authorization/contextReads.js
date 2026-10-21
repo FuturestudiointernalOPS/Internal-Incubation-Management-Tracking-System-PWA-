@@ -42,10 +42,10 @@ export function getUserCapabilityRestrictions(cid) {
   });
 }
 
-/** The person's profile override and their group fallback. */
+/** The person's profile override, their group fallback, and their account status. */
 export function getContactAccessProfileAndGroup(cid) {
   return db.execute({
-    sql: "SELECT profile_key, group_name FROM contacts WHERE cid = ?",
+    sql: "SELECT profile_key, group_name, status FROM contacts WHERE cid = ?",
     args: [cid],
   });
 }
@@ -84,20 +84,16 @@ export function resolveRoleDefaultBaseProfile(role) {
 }
 
 /**
- * The BASE capability rows for a person: the resolved profile's rows when there
- * is one, otherwise the identity's `role_capabilities` rows. Exactly one
- * statement runs.
+ * The BASE capability rows for a person: the resolved profile's rows. A
+ * profile-less identity has NO base capabilities (fail closed). The legacy
+ * per-role fallback table was retired: a role now names a default PROFILE, and
+ * that profile is the only source of base rights.
  */
-export function getBaseCapabilityRows({ profileKey, role }) {
-  if (profileKey) {
-    return db.execute({
-      sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
-      args: [profileKey],
-    });
-  }
+export function getBaseCapabilityRows({ profileKey }) {
+  if (!profileKey) return Promise.resolve({ rows: [] });
   return db.execute({
-    sql: "SELECT module, capability, access_level FROM role_capabilities WHERE role = ?",
-    args: [role],
+    sql: "SELECT module, capability, access_level FROM profile_capabilities WHERE profile_key = ?",
+    args: [profileKey],
   });
 }
 
@@ -122,7 +118,8 @@ export function getGroupCapabilityRows(groups) {
  * profiles (the endpoint suites match on SQL text); the profile branch is added
  * only when the person actually holds profiles, so an identity with none pays
  * exactly the query it always did. Profile rows OR with the others, exactly like
- * role and group rows (any allow; an explicit deny still wins in the decision).
+ * role and group rows (D4 union: any allow opens the section; an identity's
+ * explicit deny never cancels another identity's allow).
  */
 export function getFeatureEligibilityRows(role, groups, profiles = []) {
   const placeholders = groups.length ? groups.map(() => "?").join(",") : "NULL";

@@ -6,13 +6,18 @@
  * re-exported unchanged by `src/services/ventures/profile.js`.
  */
 import { selectFounderIdByEmail, selectFounderMemberIdByCid, selectVentureCodeByIdText } from "@/models/ventureProfileStore";
+import {
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 
 /**
  * Check if a user is authorized to edit a venture's startup profile.
  */
 export async function canEditStartupProfile(ventureId, session) {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  if (isPlatformOwnerRole(session.role)) return true;
 
   // Check if user is a founder of this venture
   const founderRes = await selectFounderIdByEmail(ventureId, session.email || "");
@@ -51,11 +56,14 @@ async function hasDelegatedVentureAssignment(ventureId, session) {
  */
 export async function canReadStartupProfile(ventureId, session) {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  if (isPlatformOwnerRole(session.role)) return true;
 
   // Delegated staff (Phase 2): read access derives from an explicit Venture
   // assignment — never from the staff role alone.
-  if (["staff", "program_manager"].includes(session.role)) {
+  if (
+    isInternalStaffRole(session.role) ||
+    isLegacyProgramManagerRole(session.role)
+  ) {
     return hasDelegatedVentureAssignment(ventureId, session);
   }
 
