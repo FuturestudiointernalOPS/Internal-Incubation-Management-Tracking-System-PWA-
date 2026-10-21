@@ -58,6 +58,10 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const history = data?.history || [];
   const accessHistory = data?.access_history || [];
   const isInvestor = viewer.type === "investor";
+  // The files are the Venture's own: its founders (and staff explicitly granted
+  // document rights) file them. The Lead Manager requests categories and the
+  // Super Admin reviews, but neither uploads — so neither is invited to.
+  const canUpload = viewer.can_manage && viewer.type !== "super_admin" && !isInvestor;
 
   const categories = useMemo(() => {
     if (data?.categories?.length) return data.categories;
@@ -187,7 +191,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
             {isInvestor ? t("dataRoom.investorSubtitle") : t("dataRoom.subtitle")}
           </p>
         </div>
-        {viewer.can_manage && documents.length > 0 ? (
+        {canUpload && documents.length > 0 ? (
           <button
             type="button"
             onClick={() => setUploadState({ mode: "create" })}
@@ -304,9 +308,15 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
             <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-8 text-center space-y-1">
               <FileText size={22} className="mx-auto text-[var(--text-secondary)]" />
               <p className="text-[11px] text-[var(--text-secondary)]">
-                {documents.length === 0 ? t("dataRoom.emptyRoom") : t("dataRoom.noDocuments")}
+                {documents.length === 0
+                  ? canUpload
+                    ? t("dataRoom.emptyRoom")
+                    : isInvestor
+                      ? t("dataRoom.emptyRoomInvestor")
+                      : t("dataRoom.emptyRoomAwaitingUpload")
+                  : t("dataRoom.noDocuments")}
               </p>
-              {documents.length === 0 && viewer.can_manage ? (
+              {documents.length === 0 && canUpload ? (
                 <button
                   type="button"
                   onClick={() => setUploadState({ mode: "create" })}

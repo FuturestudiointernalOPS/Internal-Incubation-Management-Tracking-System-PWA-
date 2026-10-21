@@ -24,6 +24,8 @@
     "allStatuses": "Tous les statuts",
     "noDocuments": "Aucun document dans cette catégorie pour le moment.",
     "emptyRoom": "Aucun document n'a encore été téléversé. Téléversez le premier pour démarrer la Data Room.",
+    "emptyRoomAwaitingUpload": "Aucun document n'a encore été téléversé. Ce sont les fondateurs du Venture qui déposent les fichiers ici — vous pourrez les examiner à mesure qu'ils arrivent.",
+    "emptyRoomInvestor": "Aucun document n'a encore été partagé avec vous.",
     "emptyCategory": "Vide — disponible pour tout document qui y trouve sa place.",
     "documentsCount": "{{count}} document(s)",
     "loading": "Chargement du Data Room…",

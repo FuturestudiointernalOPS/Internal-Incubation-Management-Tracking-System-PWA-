@@ -24,6 +24,8 @@
     "allStatuses": "All statuses",
     "noDocuments": "No documents in this category yet.",
     "emptyRoom": "No document has been uploaded yet. Upload the first one to start the Data Room.",
+    "emptyRoomAwaitingUpload": "No document has been uploaded yet. The Venture's founders upload the files here — you will be able to review them as they arrive.",
+    "emptyRoomInvestor": "No document has been shared with you yet.",
     "emptyCategory": "Empty — available for any document that belongs here.",
     "documentsCount": "{{count}} document(s)",
     "loading": "Loading the Data Room…",
