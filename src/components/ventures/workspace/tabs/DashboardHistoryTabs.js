@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import KpiCard from "@/components/ui/KpiCard";
 import DashboardWorkQueue from "./DashboardWorkQueue";
+import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
 
 /**
  * Founder dashboard — the Venture's state at a glance, and what needs doing.
@@ -35,6 +36,7 @@ export function DashboardTab({ onSection }) {
     myWorkLoading,
     myWorkFailed,
     fetchMyWork,
+    params,
   } = useVenture();
 
   // Overview helpers: current/next Journey stage + upcoming Venture events.
@@ -168,6 +170,9 @@ export function DashboardTab({ onSection }) {
           loading={myWorkLoading && !myWork}
         />
       </div>
+
+      {/* ── Who supports the Venture ─────────────────────────────────────── */}
+      {params?.id && <VentureSupportCard ventureId={params.id} />}
 
       {/* ── Journey position + next milestone ────────────────────────────── */}
       <div className="stf-grid c2">

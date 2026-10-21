@@ -308,6 +308,31 @@
     "progressSummary": "Résumé d'avancement",
     "profileCompletion": "Complétion du profil",
     "noProgressData": "Aucune donnée de progression",
+    "support": {
+      "title": "Votre référent Venture",
+      "subtitle": "Les personnes qui accompagnent cette Venture, et comment les joindre",
+      "primary": "Référent principal",
+      "noLongerAssigned": "Plus affecté",
+      "noLead": "Aucun référent n'est actuellement affecté.",
+      "noEmail": "Aucune adresse e-mail enregistrée",
+      "unnamed": "Contact sans nom",
+      "leadFallback": "votre référent Venture",
+      "alsoSupporting": "Accompagnent également",
+      "previous": "Accompagnement précédent ({count})",
+      "contact": "Écrire",
+      "contactTitle": "Message à {name}",
+      "contactHint": "Votre message est envoyé par e-mail à chaque référent actuellement affecté. Ils peuvent vous répondre directement à votre adresse.",
+      "messagePlaceholder": "Écrivez votre message…",
+      "send": "Envoyer le message",
+      "sent": "Message envoyé à {count} référent(s).",
+      "noReplyTo": "Votre compte n'a pas d'adresse e-mail utilisable : le message a été envoyé sans lien de réponse. Votre adresse est incluse dans le texte du message.",
+      "someUnreachable": "Non joints — aucune adresse e-mail enregistrée : {names}",
+      "someFailed": "Non délivré à : {names}",
+      "empty": "Aucun accompagnement n'a encore été affecté.",
+      "emptyHint": "Lorsque l'équipe Future Studio affecte quelqu'un à votre Venture, cette personne apparaît ici.",
+      "loadFailed": "Votre équipe d'accompagnement n'a pas pu être chargée.",
+      "loadFailedHint": "Rechargez la page. Le reste de cette Venture fonctionne toujours."
+    },
     "myWork": {
       "title": "Ce qui vous attend",
       "subtitle": "Votre travail d'abord, puis le reste de la Venture",
@@ -1142,7 +1167,11 @@
         "sessionRescheduled": "Session reprogrammée",
         "sessionRescheduledMsg": "La session \"{title}\" a été reprogrammée.",
         "milestoneApproved": "Jalon approuvé",
-        "milestoneApprovedMsg": "Le jalon \"{milestoneTitle}\" a été terminé et approuvé."
+        "milestoneApprovedMsg": "Le jalon \"{milestoneTitle}\" a été terminé et approuvé.",
+        "leadAssigned": "Référent affecté",
+        "leadAssignedMsg": "{name} accompagne désormais votre Venture — vous pouvez le joindre depuis votre tableau de bord.",
+        "leadRemoved": "Référent mis à jour",
+        "leadRemovedMsg": "{name} n'est plus affecté à votre Venture."
       }
     }
   }
