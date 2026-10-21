@@ -16,6 +16,7 @@ import { getVentureNameByIdOrCode } from "@/models/ventureWorkspace";
 import { sendManualReminder } from "@/services/reminders/engine";
 import { normalizeEmail, resolveWorkItemRecipients } from "@/services/reminders/recipients";
 import { normalizeDaysBefore, normalizeRuleKind, REMINDER_TRIGGERS } from "@/services/reminders/rules";
+import { ensureVentureSchema } from "@/services/ventures/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,13 @@ export async function POST(req, { params }) {
 
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
     if (access.error) return access.error;
+
+    // Self-heal: the log's own content columns (subject, body, attachment) ship
+    // inside ensureVentureSchema(), and no reminder path used to run it — so a
+    // database whose schema predates them failed the INSERT with
+    // `column "subject" of relation "venture_reminder_log" does not exist`.
+    // Only the WRITE path pays for this; the read keeps degrading as before.
+    await ensureVentureSchema().catch(() => {});
 
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
