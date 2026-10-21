@@ -70,6 +70,11 @@
 .stf-card-title svg { color: var(--brand-orange); flex: none; }
 .stf-kpi .stf-k { display: flex; justify-content: space-between; }
 .stf-kpi .big { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin-top: 6px; font-variant-numeric: tabular-nums; }
+/* Compact figure: a row of them summarises a section without taking the room
+   the list below needs. */
+.stf-kpi.sm { padding: 10px 12px; }
+.stf-kpi.sm .stf-k { gap: 6px; }
+.stf-kpi.sm .big { font-size: 20px; margin-top: 2px; }
 .stf-empty { text-align: center; padding: 28px 16px; color: var(--text-secondary); font-size: 13px; }
 .stf-empty svg { margin: 0 auto 6px; display: block; }
 
