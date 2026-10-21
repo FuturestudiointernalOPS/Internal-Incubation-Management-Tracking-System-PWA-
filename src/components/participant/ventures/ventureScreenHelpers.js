@@ -1,11 +1,9 @@
 // Pure helpers for the Venture detail screen.
 //
 // These are the pieces the screen used to declare inline: the whole-form payload
-// the profile editor sends, the role merge the permissions panel needs, the
-// document query string built from the two filters, the two shared styles and
-// the notifier. None of them holds state or reads anything, so they live here
-// and the screen imports them, keeping its own body about state and
-// orchestration only.
+// the profile editor sends, the two shared styles and the notifier. None of them
+// holds state or reads anything, so they live here and the screen imports them,
+// keeping its own body about state and orchestration only.
 
 // The profile form → the `PUT /api/ventures` body. A pure shaping of the form
 // the person is editing; every optional field falls back exactly as the screen
@@ -25,24 +23,6 @@ export function ventureToPayload(id, form) {
   };
 }
 
-// The permissions panel always shows all five roles: a role the answer omitted
-// is offered at the least access ('view') rather than left out.
-export function mergePermissionRoles(existing = []) {
-  const roles = ['founder', 'team', 'advisor', 'administrator', 'investor'];
-  return roles.map(role => {
-    const found = existing.find(permission => permission.role_scope === role);
-    return found || { role_scope: role, access_level: 'view' };
-  });
-}
-
-// The document list is ADDRESSED on the two filters, so the query string is a
-// pure function of them.
-export function buildDocumentQuery(search, category) {
-  const documentParams = new URLSearchParams();
-  if (search) documentParams.set("search", search);
-  if (category) documentParams.set("category", category);
-  return documentParams.toString();
-}
 
 // Form fields and cards follow the ACTIVE THEME. They used to carry
 // dark-mode literals (a slate-900 background with `var(--text-primary)`), which

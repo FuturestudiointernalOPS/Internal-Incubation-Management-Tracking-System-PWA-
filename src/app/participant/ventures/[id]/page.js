@@ -11,11 +11,10 @@ import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
   pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP, pickBm,
   pickInterviews, pickValidations, pickAssessments, pickMilestones,
-  pickDocuments, pickInvestmentReadiness, pickOptionLists,
+  pickInvestmentReadiness, pickOptionLists,
 } from "@/components/participant/ventures/ventureScreenModel";
 import {
-  ventureToPayload, mergePermissionRoles, buildDocumentQuery,
-  inputStyle, cardStyle, notifyMsg,
+  ventureToPayload, inputStyle, cardStyle, notifyMsg,
 } from "@/components/participant/ventures/ventureScreenHelpers";
 import { createVentureLoaders } from "@/components/participant/ventures/ventureScreenLoaders";
 
@@ -58,18 +57,6 @@ export default function VentureDetail() {
   const [blockerForm, setBlockerForm] = useState({});
 
   // Track 4 state
-  const [showAddDocument, setShowAddDocument] = useState(false);
-  const [documentForm, setDocumentForm] = useState({});
-  const [showVersions, setShowVersions] = useState(false);
-  const [versionsDoc, setVersionsDoc] = useState(null);
-  const [versions, setVersions] = useState([]);
-  const [showReview, setShowReview] = useState(false);
-  const [reviewDoc, setReviewDoc] = useState(null);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviews, setReviews] = useState([]);
-  const [showPermissions, setShowPermissions] = useState(false);
-  const [permissionsDoc, setPermissionsDoc] = useState(null);
-  const [permissions, setPermissions] = useState([]);
   const [playbookEntries, setPlaybookEntries] = useState([]);
   const [currentWeekStandup, setCurrentWeekStandup] = useState(true);
   const [currentWeekRetro, setCurrentWeekRetro] = useState(true);
@@ -85,8 +72,6 @@ export default function VentureDetail() {
   const [editingCoaching, setEditingCoaching] = useState(null);
   const [advisorForm, setAdvisorForm] = useState({});
   const [coachingForm, setCoachingForm] = useState({});
-  const [documentSearch, setDocumentSearch] = useState('');
-  const [documentCategory, setDocumentCategory] = useState('');
 
   // Add member modal — a founder invites by EMAIL; the person only joins once
   // they open the emailed link and accept.
@@ -260,16 +245,6 @@ export default function VentureDetail() {
       if (data.success) { fetchTasks(true); fetchProgress(true); }
     } catch {}
   }
-  // The document list is ADDRESSED on the two filters, so writing in the search
-  // box or choosing a category re-asks by itself: the tab no longer has to call
-  // this to reload, which is why its debounce and its key-up reload are gone.
-  const documentQuery = buildDocumentQuery(documentSearch, documentCategory);
-  const { data: documents, refresh: fetchDocuments } = useApi(
-    onJourney && journeySub === "documents"
-      ? `/api/ventures/${params.id}/documents${documentQuery ? `?${documentQuery}` : ""}`
-      : null,
-    { defaultValue: [], transform: pickDocuments },
-  );
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
     fetchBlockers(true);
@@ -282,45 +257,6 @@ export default function VentureDetail() {
     if (!(await confirm({ message: t('venture.confirmRemoveAdvisor'), tone: "danger" }))) return;
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, action: "remove" }) });
     fetchAdvisors(true);
-  }
-  async function handleDocumentTransition(docId, approval_status) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "transition", document_id: docId, approval_status }) });
-    await fetchDocuments(null, null, true);
-  }
-  async function handleDocumentUpdate(docId, file_url) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "update", document_id: docId, updates: { file_url } }) });
-    fetchDocuments(null, null, true);
-  }
-  async function handleDocumentDelete(docId) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "delete", document_id: docId }) });
-    fetchDocuments(null, null, true);
-  }
-  async function handleVersionRestore(file_url) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "update", document_id: versionsDoc.id, updates: { file_url } }) });
-    setShowVersions(false); fetchDocuments(null, null, true);
-  }
-  async function handleReview(docId) {
-    const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`);
-    const data = await response.json(); if (data.success) setReviews(data.reviews);
-    setReviewDoc({id: docId}); setShowReview(true);
-  }
-  async function handleSubmitReview(docId, decision) {
-    await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ comment: reviewComment, decision }) });
-    setShowReview(false); setReviews([]); fetchDocuments(null, null, true);
-  }
-  async function handlePermissions(docId) {
-    try {
-      const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`);
-      const data = await response.json();
-      if (data.success) {
-        setPermissions(mergePermissionRoles(data.permissions || []));
-      }
-    } catch{}
-    setPermissionsDoc({id: docId}); setShowPermissions(true);
-  }
-  async function handleSavePermission(docId, role_scope, access_level) {
-    await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
-    handlePermissions(docId);
   }
   const { data: investmentReadiness, refresh: fetchInvestmentReadiness } = useApi(
     ready && activeTab === "investment"
@@ -444,7 +380,7 @@ export default function VentureDetail() {
     dashboardLoading, calendarLoading,
     bmData, setBmData, interviews, validations, assessments, milestones,
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
-    progressData, documents, advisors, coachingSessions,
+    progressData, advisors, coachingSessions,
     progressLoading, progressFailed,
     myWork, myWorkLoading, myWorkFailed,
     journeyStages, playbookEntries, investmentReadiness,
@@ -459,29 +395,22 @@ export default function VentureDetail() {
     showAddStandup, setShowAddStandup,
     showAddRetro, setShowAddRetro,
     showAddBlocker, setShowAddBlocker,
-    showAddDocument, setShowAddDocument,
     showAddAdvisor, setShowAddAdvisor,
     showAddCoaching, setShowAddCoaching,
     showAddMember, setShowAddMember,
-    showVersions, setShowVersions, versionsDoc, setVersionsDoc, versions, setVersions,
-    showReview, setShowReview, reviewDoc, setReviewDoc, reviewComment, setReviewComment, reviews, setReviews,
-    showPermissions, setShowPermissions, permissionsDoc, setPermissionsDoc, permissions, setPermissions,
     showEditCoaching, setShowEditCoaching, editingCoaching, setEditingCoaching,
     addMemberType, setAddMemberType, inviteEmail, setInviteEmail, inviting, removeConfirm, setRemoveConfirm,
     invitations, handleInviteMember, handleRevokeInvitation,
     interviewForm, setInterviewForm, validationForm, setValidationForm, pmfForm, setPmfForm,
     milestoneForm, setMilestoneForm, actionForm, setActionForm, taskForm, setTaskForm,
     standupForm, setStandupForm, retroForm, setRetroForm, blockerForm, setBlockerForm,
-    documentForm, setDocumentForm, advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
-    documentSearch, setDocumentSearch, documentCategory, setDocumentCategory,
+    advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
     loadMembers, handleSave, handleUpdateMemberRole, handleRemoveMember,
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
-    handleDocumentTransition, handleDocumentUpdate, handleDocumentDelete, handleVersionRestore,
-    handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
     fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
     fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
     fetchMyWork,
-    fetchDocuments, fetchAdvisors, fetchCoaching,
+    fetchAdvisors, fetchCoaching,
     fetchJourney, fetchPlaybook, fetchInvestmentReadiness,
   };
 

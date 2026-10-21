@@ -108,7 +108,7 @@ export function groupWork(myWork) {
     },
   ].filter((group) => group.items.length > 0);
 }
-export const pickDocuments = pickList("documents");
+
 // The roadmap read also reports whether the deliverable (evidence) list could be
 // loaded. A failure there used to render as an empty roadmap, which is
 // indistinguishable from "this Venture has no evidence" — so the flag travels
