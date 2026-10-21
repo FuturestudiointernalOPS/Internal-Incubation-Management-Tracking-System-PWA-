@@ -9,7 +9,7 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWorkspaceScreen";
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
-  pickProgress, pickCalendar, pickJourney, EMPTY_ROADMAP, pickBm,
+  pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP, pickBm,
   pickInterviews, pickValidations, pickAssessments, pickMilestones,
   pickDocuments, pickInvestmentReadiness, pickOptionLists,
 } from "@/components/participant/ventures/ventureScreenModel";
@@ -144,10 +144,11 @@ export default function VentureDetail() {
   const onDashboard = ready && activeTab === "dashboard";
   const onJourney = ready && activeTab === "journey";
 
+  // The roster is the TEAM tab's read. The dashboard no longer needs it: its
+  // people figures now come from the dashboard aggregate (`team`), so one read
+  // has stopped being fetched to be unused.
   const { data: members, refresh: loadMembers } = useApi(
-    ready && (activeTab === "team" || activeTab === "dashboard")
-      ? `/api/ventures/${params.id}/members`
-      : null,
+    ready && activeTab === "team" ? `/api/ventures/${params.id}/members` : null,
     { defaultValue: [], transform: pickMembers },
   );
 
@@ -160,17 +161,47 @@ export default function VentureDetail() {
     { defaultValue: [], transform: pickInvitations },
   );
 
-  const { data: dashboardData } = useApi(
+  const { data: dashboardData, loading: dashboardLoading } = useApi(
     onDashboard ? `/api/ventures/${params.id}/dashboard` : null,
     { defaultValue: null, transform: pickDashboard },
   );
 
-  const { data: progressData, refresh: fetchProgress } = useApi(
+  const {
+    data: progressData,
+    loading: progressLoading,
+    error: progressError,
+    status: progressStatus,
+    refresh: fetchProgress,
+  } = useApi(
     onDashboard ? `/api/ventures/${params.id}/progress` : null,
     { defaultValue: null, transform: pickProgress },
   );
+  // Same three failure shapes as the work queue: a refused or broken read must
+  // never be drawn as 0%.
+  const progressFailed =
+    Boolean(progressError) || (progressStatus !== null && progressStatus >= 400);
 
-  const { data: calendarEvents, refresh: fetchCalendar } = useApi(
+  // The caller's own work queue (WS1). Addressed on the dashboard only, so the
+  // Journey tab never pays for it.
+  const {
+    data: myWork,
+    loading: myWorkLoading,
+    error: myWorkError,
+    status: myWorkStatus,
+    refresh: fetchMyWork,
+  } = useApi(
+    onDashboard ? `/api/ventures/${params.id}/my-work` : null,
+    { defaultValue: null, transform: pickMyWork },
+  );
+
+  // THREE ways this read can fail, and none of them is an empty queue: a network
+  // throw (`error`), an HTTP refusal (`status` ≥ 400), or a 200 body carrying
+  // `success: false` (which the shaper turns into null). The screen must say so
+  // rather than showing zero counts.
+  const myWorkFailed =
+    Boolean(myWorkError) || (myWorkStatus !== null && myWorkStatus >= 400);
+
+  const { data: calendarEvents, loading: calendarLoading, refresh: fetchCalendar } = useApi(
     onDashboard ? `/api/ventures/${params.id}/calendar` : null,
     { defaultValue: [], transform: pickCalendar },
   );
@@ -410,9 +441,12 @@ export default function VentureDetail() {
   const ws = {
     params, user, inputStyle, cardStyle, notifyMsg, optionLists,
     form, setForm, saving, members, dashboardData, historyData,
+    dashboardLoading, calendarLoading,
     bmData, setBmData, interviews, validations, assessments, milestones,
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
     progressData, documents, advisors, coachingSessions,
+    progressLoading, progressFailed,
+    myWork, myWorkLoading, myWorkFailed,
     journeyStages, playbookEntries, investmentReadiness,
     journeyDeliverablesUnavailable: roadmap.deliverablesUnavailable,
     currentWeekStandup, currentWeekRetro, currentWeekNum, currentWeekYear,
@@ -446,6 +480,7 @@ export default function VentureDetail() {
     handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
     fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
     fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
+    fetchMyWork,
     fetchDocuments, fetchAdvisors, fetchCoaching,
     fetchJourney, fetchPlaybook, fetchInvestmentReadiness,
   };

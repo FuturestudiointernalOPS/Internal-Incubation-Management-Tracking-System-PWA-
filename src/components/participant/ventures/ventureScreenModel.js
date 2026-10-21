@@ -63,6 +63,50 @@ export const pickAssessments = pickList("assessments");
 export const pickMilestones = pickList("milestones");
 export const pickCalendar = pickList("events");
 export const pickProgress = pickThing("progress");
+// The caller's own work queue (WS1). A refusal or an empty box is NOT an empty
+// queue: the shaper returns null, and the screen reports the failure instead of
+// painting zeroes.
+export const pickMyWork = (payload) => (payload?.success ? payload.my_work || null : null);
+
+/**
+ * The dashboard work queue, grouped for display.
+ *
+ * The API's buckets overlap on purpose (a returned task is also past due), so
+ * each record is claimed by the FIRST group that lists it — and the group order
+ * is the priority order the dashboard promises: overdue, returned for changes,
+ * due soon, waiting on you, with a reviewer, then the rest of the Venture.
+ *
+ * Pure: it reads the answer and returns rows. No deadline is recomputed, no
+ * status is re-derived, nothing is fetched. Empty groups are dropped so the
+ * screen never prints a heading with nothing under it.
+ */
+export function groupWork(myWork) {
+  const personal = myWork?.personal || {};
+  const venture = myWork?.venture || {};
+  const printed = new Set();
+  const take = (list = []) =>
+    list.filter((item) => {
+      if (!item || printed.has(item.id)) return false;
+      printed.add(item.id);
+      return true;
+    });
+
+  return [
+    { key: "overdue", items: take(personal.overdue) },
+    { key: "returned", items: take(personal.returned_for_changes) },
+    { key: "dueSoon", items: take(personal.due_soon) },
+    { key: "waiting", items: take(personal.awaiting_my_action) },
+    { key: "withReviewer", items: take(personal.awaiting_review) },
+    {
+      key: "ventureWide",
+      items: take([
+        ...(venture.overdue || []),
+        ...(venture.due_soon || []),
+        ...(venture.awaiting_review || []),
+      ]),
+    },
+  ].filter((group) => group.items.length > 0);
+}
 export const pickDocuments = pickList("documents");
 // The roadmap read also reports whether the deliverable (evidence) list could be
 // loaded. A failure there used to render as an empty roadmap, which is

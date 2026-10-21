@@ -63,7 +63,7 @@ export default function VentureWorkspaceView({
 
 
       {/* Dashboard is the overview. Journey is the operating workspace. */}
-      {activeTab === "dashboard" && <DashboardTab />}
+      {activeTab === "dashboard" && <DashboardTab onSection={onSection} />}
       {activeTab === "journey" && (
         <div className="space-y-4">
           {journeySub === "timeline" ? (

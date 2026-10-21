@@ -98,6 +98,31 @@ export function selectWorkDeliverables(dbId, ventureCode) {
   });
 }
 
+/**
+ * The LATEST submission of every Activity that has one.
+ *
+ * Only the highest `version` per task comes back: that is the row a review acts
+ * on (see `selectVentureReviewQueue`), so a founder is never shown a stale
+ * decision from an older version as though it were the current state. A task
+ * with no submission simply has no row here — never an invented empty one.
+ */
+export function selectWorkSubmissions(dbId, ventureCode) {
+  return db.execute({
+    sql: `SELECT s.id, s.task_id, s.version, s.status,
+                 s.review_decision, s.review_comment, s.reviewed_at,
+                 s.submitted_by, s.submitted_by_name, s.created_at
+          FROM venture_task_submissions s
+          JOIN venture_tasks t ON t.id = s.task_id
+          WHERE t.venture_id::text IN (?, ?)
+            AND s.version = (
+              SELECT MAX(s2.version) FROM venture_task_submissions s2
+               WHERE s2.task_id = s.task_id
+            )
+          ORDER BY s.created_at DESC`,
+    args: [String(dbId), String(ventureCode)],
+  });
+}
+
 /** Dependency edges between this Venture's work items. */
 export function selectWorkDependencyEdges(dbId, ventureCode) {
   return db.execute({

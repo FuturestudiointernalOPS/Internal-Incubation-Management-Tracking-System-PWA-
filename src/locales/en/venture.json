@@ -308,6 +308,34 @@
     "progressSummary": "Progress Summary",
     "profileCompletion": "Profile Completion",
     "noProgressData": "No progress data yet",
+    "myWork": {
+      "title": "What needs you",
+      "subtitle": "Your own work first, then the rest of the Venture",
+      "group": {
+        "overdue": "Overdue",
+        "returned": "Returned for changes",
+        "dueSoon": "Due soon",
+        "waiting": "Waiting on you",
+        "withReviewer": "With the team for review",
+        "ventureWide": "Elsewhere in the Venture"
+      },
+      "feedback": "Reviewer feedback",
+      "dueOn": "Due {date}",
+      "noDeadline": "No deadline",
+      "open": "Open Journey",
+      "empty": "Nothing needs you right now.",
+      "emptyHint": "Your next milestone and upcoming sessions are below.",
+      "loadFailed": "Your work could not be loaded.",
+      "loadFailedHint": "Reload the page. The rest of this dashboard still works.",
+      "partial": "Part of your work could not be loaded, so this list may be incomplete."
+    },
+    "progressOverview": {
+      "development": "Venture development",
+      "developmentHint": "Profile, team, documents and business discovery",
+      "doneOf": "{done} of {total} tasks",
+      "openWork": "Open work",
+      "nextMilestone": "Next milestone"
+    },
     "standardJourney": "Standard Venture Journey",
     "journeyDesc": "Your Venture journey is defined by the Future Studio team supporting you. Stages unlock as the team marks each one complete.",
     "evidenceUnavailable": "Some evidence could not be loaded. Reload the page, and tell your lead manager if it stays missing.",

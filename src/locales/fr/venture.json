@@ -308,6 +308,34 @@
     "progressSummary": "Résumé d'avancement",
     "profileCompletion": "Complétion du profil",
     "noProgressData": "Aucune donnée de progression",
+    "myWork": {
+      "title": "Ce qui vous attend",
+      "subtitle": "Votre travail d'abord, puis le reste de la Venture",
+      "group": {
+        "overdue": "En retard",
+        "returned": "Renvoyé pour corrections",
+        "dueSoon": "À rendre bientôt",
+        "waiting": "En attente de vous",
+        "withReviewer": "Chez l'équipe pour revue",
+        "ventureWide": "Ailleurs dans la Venture"
+      },
+      "feedback": "Retour du réviseur",
+      "dueOn": "Échéance {date}",
+      "noDeadline": "Aucune échéance",
+      "open": "Ouvrir le parcours",
+      "empty": "Rien ne vous attend pour le moment.",
+      "emptyHint": "Votre prochain jalon et vos prochaines sessions sont ci-dessous.",
+      "loadFailed": "Votre travail n'a pas pu être chargé.",
+      "loadFailedHint": "Rechargez la page. Le reste de ce tableau de bord fonctionne toujours.",
+      "partial": "Une partie de votre travail n'a pas pu être chargée : cette liste peut être incomplète."
+    },
+    "progressOverview": {
+      "development": "Développement de la Venture",
+      "developmentHint": "Profil, équipe, documents et exploration du marché",
+      "doneOf": "{done} tâches sur {total}",
+      "openWork": "Travail ouvert",
+      "nextMilestone": "Prochain jalon"
+    },
     "standardJourney": "Parcours Standard",
     "journeyDesc": "Votre parcours Venture est défini par l’équipe Future Studio qui vous accompagne. Les étapes se débloquent au fur et à mesure que l’équipe les valide.",
     "evidenceUnavailable": "Certaines preuves n'ont pas pu être chargées. Rechargez la page et prévenez votre lead manager si elles restent absentes.",
