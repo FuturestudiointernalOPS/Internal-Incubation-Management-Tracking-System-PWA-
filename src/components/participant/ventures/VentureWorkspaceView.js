@@ -65,36 +65,40 @@ export default function VentureWorkspaceView({
       {activeTab === "dashboard" && <DashboardTab onSection={onSection} />}
       {activeTab === "journey" && (
         <div className="space-y-4">
-          {journeySub === "timeline" ? (
-            <>
-              <JourneyTab />
-              {/* Venture work tools stay inside Journey while milestone
-                  workspaces bind tasks, documents and sessions to items.
-                  Documents live in the Data Room tab, so JOURNEY_TOOLS
-                  deliberately does not include them. */}
-              <div className="rounded-xl border p-4">
-                <p className="text-[10px] font-black uppercase tracking-widest mb-3" style={{ color: "var(--text-secondary)" }}>{t("venture.workMaterials")}</p>
-                <div className="flex flex-wrap gap-2">
-                  {JOURNEY_TOOLS.map((tool) => (
-                    <button key={tool} onClick={() => onJourneySub(tool)}
-                      className="px-3 py-1.5 rounded-lg border text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all"
-                      style={{ color: "var(--text-secondary)", borderColor: "var(--border-primary)" }}
-                    >{t(`venture.${tool}`)}</button>
-                  ))}
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="space-y-4">
-              <button onClick={() => onJourneySub("timeline")} className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest transition-colors" style={{ color: "var(--text-secondary)" }}>
-                <ArrowLeft size={14} /> {t("venture.backToJourney")}
+          {/* The four Journey tools are first-class sub-tabs, not a box inside
+              the timeline. Documents stay in the Data Room tab, so they are
+              deliberately absent here. */}
+          <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border-primary)] pb-2">
+            <button
+              onClick={() => onJourneySub("timeline")}
+              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${
+                journeySub === "timeline"
+                  ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                  : "text-[var(--text-secondary)] hover:bg-tertiary"
+              }`}
+            >
+              {t("venture.journeyTimeline")}
+            </button>
+            {JOURNEY_TOOLS.map((tool) => (
+              <button
+                key={tool}
+                onClick={() => onJourneySub(tool)}
+                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${
+                  journeySub === tool
+                    ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+                    : "text-[var(--text-secondary)] hover:bg-tertiary"
+                }`}
+              >
+                {t(`venture.${tool}`)}
               </button>
-              {journeySub === "businessModel" && <BusinessModelTab />}
-              {journeySub === "discovery" && <DiscoveryTab />}
-              {journeySub === "validation" && <ValidationTab />}
-              {journeySub === "pmf" && <PmfTab />}
-            </div>
-          )}
+            ))}
+          </div>
+
+          {journeySub === "timeline" && <JourneyTab />}
+          {journeySub === "businessModel" && <BusinessModelTab />}
+          {journeySub === "discovery" && <DiscoveryTab />}
+          {journeySub === "validation" && <ValidationTab />}
+          {journeySub === "pmf" && <PmfTab />}
         </div>
       )}
       {activeTab === "investment" && <InvestmentTab />}
