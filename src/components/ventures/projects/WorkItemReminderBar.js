@@ -4,6 +4,7 @@ import React, { useRef, useState } from "react";
 import { AlertTriangle, Loader2, Mail, Paperclip, Send, X } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
+import { notify } from "@/lib/notify";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
@@ -115,6 +116,39 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
     }
   };
 
+  /**
+   * Say out loud what the send did.
+   *
+   * The block under the recipient list carries the detail, but a manager who
+   * pressed Send and looked away must not have to hunt for the answer. A send
+   * that reached nobody, or reached some and failed the rest, is reported as a
+   * failure — never as a success.
+   */
+  const announceSend = (result) => {
+    if (!result) {
+      notify("error", t("errors.somethingWrong"));
+      return;
+    }
+    const sent = Number(result.sent) || 0;
+    const failed = Array.isArray(result.failed) ? result.failed.length : 0;
+
+    if (sent > 0) {
+      if (failed > 0) {
+        notify("error", t("venture.reminders.sentWithFailures", { sent, failed }));
+      } else if (result.attachment_dropped) {
+        notify("warning", t("venture.reminders.sentWithoutFile", { count: sent }));
+      } else {
+        notify("success", t("venture.reminders.sentToast", { count: sent }));
+      }
+      return;
+    }
+    if (failed > 0) {
+      notify("error", t("venture.reminders.sendFailed"));
+      return;
+    }
+    notify("error", t("venture.reminders.nobodyReachable"));
+  };
+
   const send = async () => {
     setSending(true);
     setOutcome(null);
@@ -144,6 +178,11 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
       setAttachment(null);
       refresh();
       onChanged?.();
+      announceSend(payload.outcome);
+    } catch {
+      // A request that never completed has no payload to report: say so instead
+      // of letting the button fall back to idle with nothing shown.
+      await alert({ message: t("venture.reminders.sendFailed"), tone: "danger" });
     } finally {
       setSending(false);
     }
