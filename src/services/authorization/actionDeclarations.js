@@ -141,6 +141,7 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/notifications/overdue/route.js", kind: "cron", reason: "Relances planifiées (secret)." },
   { file: "src/app/api/platform/scheduled-result-emails/route.js", kind: "cron", reason: "Envoi planifié des courriels de résultat (secret)." },
   { file: "src/app/api/reminders/sweep/route.js", kind: "cron", reason: "Balayage planifié des rappels (secret)." },
+  { file: "src/app/api/translations/sweep/route.js", kind: "cron", reason: "Préchauffage planifié de la mémoire de traduction des Ventures ; secret `x-cron-secret`, refus 503 si non configuré. Aucune donnée n'est lue pour un appelant anonyme." },
   { file: "src/app/api/tasks/notify-deadlines/route.js", kind: "cron", reason: "Notifications d'échéance planifiées (secret)." },
   { file: "src/app/api/webhooks/kkiapay/route.js", kind: "webhook", reason: "Webhook de paiement signé par le fournisseur ; 401 si la signature est invalide." },
   { file: "src/app/api/integrations/google-calendar/webhook/route.js", kind: "webhook", reason: "Notification push Google ; jeton de canal vérifié." },

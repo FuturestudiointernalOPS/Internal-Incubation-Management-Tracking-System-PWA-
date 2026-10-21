@@ -32,6 +32,15 @@ jest.mock("@/services/workItems", () => ({
   buildWorkItems: jest.fn(async () => SERVICE_RESULT),
 }));
 
+// The read warms the translation memory from the payload it already read. That
+// is a background side effect of the READ (never a write to the Venture's work),
+// and this suite is not about the translator: it is mocked so a unit test never
+// reaches a provider.
+const mockWarm = jest.fn(async () => ({ texts: 0 }));
+jest.mock("@/services/translations/ventureContent", () => ({
+  warmVenturePayloadTranslations: mockWarm,
+}));
+
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
 const { buildWorkItems } = require("@/services/workItems");
 
@@ -97,6 +106,16 @@ describe("the payload", () => {
     await callRoute("VNT-KORAHCK");
 
     expect(buildWorkItems).toHaveBeenCalledWith({ dbId: "db-1", ventureCode: "VNT-KORAHCK" });
+  });
+
+  test("warms the translation memory from the payload already read, not a second read", async () => {
+    await callRoute();
+    await Promise.resolve();
+
+    expect(mockWarm).toHaveBeenCalledWith({
+      payload: { items: SERVICE_RESULT.items, options: SERVICE_RESULT.options },
+    });
+    expect(buildWorkItems).toHaveBeenCalledTimes(1);
   });
 });
 

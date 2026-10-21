@@ -4,6 +4,7 @@ import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
 import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/services/ventures/deliverables";
+import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 import { getVentureDbIdByCodeOrId, getVentureMilestoneForDeliverables } from "@/models/ventureWorkspace";
 import {
   readDeliverableDecision,
@@ -108,6 +109,9 @@ export const POST = createHandler(async (req, { params }) => {
       description: `Deliverable "${title}" added to a milestone`,
     });
   } catch (_) {}
+
+  // New wording: warm it after the save, not inside it.
+  scheduleVentureTranslationWarmup(id);
 
   return NextResponse.json({ success: true, id: created?.id || null });
 });
@@ -239,5 +243,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   }
 
   await updateDeliverable(deliverableId, updates, session?.cid || null, session?.name || null);
+  // The title or the description may have changed.
+  scheduleVentureTranslationWarmup(id);
   return NextResponse.json({ success: true });
 });

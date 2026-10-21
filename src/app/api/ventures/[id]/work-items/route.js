@@ -3,6 +3,7 @@ import { initDb } from "@/lib/db";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import { buildWorkItems } from "@/services/workItems";
+import { warmVenturePayloadTranslations } from "@/services/translations/ventureContent";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,13 @@ export async function GET(req, { params }) {
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
     const { items, options, summary, today } = await buildWorkItems({ dbId, ventureCode: id });
+
+    // Warm the translation memory from the payload we ALREADY read, without
+    // making the reader wait for it: the first visit still shows the source text
+    // and fills in place, and every later visit finds it translated. This is the
+    // safety net that catches the write paths nobody remembered to hook (plan
+    // import, templates, duplication) — it needs no call site at all.
+    void warmVenturePayloadTranslations({ payload: { items, options } }).catch(() => {});
 
     return NextResponse.json({ success: true, items, options, summary, today });
   } catch (error) {

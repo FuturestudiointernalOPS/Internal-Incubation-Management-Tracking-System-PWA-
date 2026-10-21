@@ -4,6 +4,7 @@ import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getMilestone } from "@/services/ventures/deliverables";
 import { listTasks, getTask, createTask, updateTask, listTaskComments, addTaskComment, deleteTaskComment, listTaskAttachments, addTaskAttachment, deleteTaskAttachment, setTaskDependencies, syncTaskBlockState, releaseTasksBlockedBy, listVentureTaskDependencyEdges } from "@/services/ventures/tasks";
 import { archiveTask } from "@/services/ventures/archive";
+import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import {
   getVentureDbIdForTasks,
@@ -83,6 +84,8 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   const task = await getTask(createdId);
+  // New wording: warm it after the save, not inside it (see the service).
+  scheduleVentureTranslationWarmup(id);
   return NextResponse.json({ success: true, task, warning });
 });
 
@@ -192,6 +195,8 @@ export const PATCH = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: false, ...payload }, { status });
   }
   await updateTask(parseInt(taskId), body);
+  // The title, the description or the Definition of Done may have changed.
+  scheduleVentureTranslationWarmup(id);
 
   // Blocked tasks released, block state synced, milestone follows a status
   // change: services/ventures/taskBoard.
