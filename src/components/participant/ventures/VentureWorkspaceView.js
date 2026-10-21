@@ -7,7 +7,7 @@ import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
-import { DocumentsTab } from "@/components/ventures/workspace/tabs/DocumentsTabs";
+import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
 import { VerificationTab } from "@/components/ventures/workspace/tabs/VerificationTab";
 import { TABS, JOURNEY_TOOLS } from "@/components/participant/ventures/ventureScreenModel";
@@ -92,7 +92,7 @@ export default function VentureWorkspaceView({
               {journeySub === "discovery" && <DiscoveryTab />}
               {journeySub === "validation" && <ValidationTab />}
               {journeySub === "pmf" && <PmfTab />}
-              {journeySub === "documents" && <DocumentsTab />}
+              {journeySub === "documents" && <VentureDataRoom ventureId={venture.venture_id || venture.id} />}
             </div>
           )}
         </div>

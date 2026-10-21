@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield, FolderKanban } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield, FolderKanban, FolderOpen } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
@@ -15,6 +15,7 @@ import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
 import DataBankPanel from "@/components/ventures/DataBankPanel";
+import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 
@@ -45,6 +46,11 @@ const TABS = [
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
   { id: "dataBank", label: "venture.verification", icon: Shield },
+  // The Data Room is the venture's confidential fundraising / due-diligence
+  // set. It is deliberately separate from the Data bank: the Data bank is the
+  // compliance checklist that is verified, the Data Room is the material the
+  // venture chooses to disclose (including to granted investors).
+  { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
   { id: "plan", label: "venture.operatingPlan", icon: FileText },
   { id: "documents", label: "venture.documentTypes.title", icon: FileText },
 ];
@@ -436,6 +442,8 @@ export default function StaffVentureWorkspace() {
           canReview={myRoles.some((role) => role.responsibility_code === "lead_manager")}
         />
       )}
+
+      {activeTab === "dataRoom" && <VentureDataRoom ventureId={id} />}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 
