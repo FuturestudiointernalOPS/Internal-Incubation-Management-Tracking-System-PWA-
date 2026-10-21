@@ -11,15 +11,15 @@
  *   • "My Dashboard" (/staff/me) — a second dashboard with its own calendar;
  *   • the dashboard carrying a row of context cards instead of the sidebar
  *     carrying the doors;
- *   • a member landing on the workspace hub (/workspaces) instead of on the
- *     dashboard, which made "the workspace show first";
+ *   • a member WITH A PROGRAM landing on the workspace hub (/workspaces) instead
+ *     of on the dashboard, which made "the workspace show first";
  *   • the context switcher listing staff program assignments as destinations.
  */
 
 const fs = require("fs");
 const path = require("path");
 
-const { ROLE_HOME, roleHomeHref } = require("@/models/platform/roles");
+const { ROLE_HOME, roleHomeHref, resolveLanding } = require("@/models/platform/roles");
 const { ROLE_ACCESS } = require("@/lib/masterNavigation");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
@@ -127,13 +127,17 @@ describe("founder classification — ownership, not the role string", () => {
   });
 });
 
-describe("landing — the dashboard shows first, not the workspace hub", () => {
-  test("a member lands on the dashboard", () => {
-    expect(ROLE_HOME.member).toBe("/participant");
-    expect(roleHomeHref("member")).toBe("/participant");
+describe("landing — the participant page follows a program, not the bare badge", () => {
+  test("a member has no section of its own in the map", () => {
+    // "member" is what anyone without a role resolves to, so the map cannot
+    // hand out the Participant page as a default. The enrollment does.
+    expect(ROLE_HOME.member).toBeUndefined();
+    expect(roleHomeHref("member")).toBeNull();
+    expect(resolveLanding({ role: "member" })).toBe("/workspaces");
+    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/participant");
   });
 
-  test("the member sidebar Dashboard door points at the dashboard too", () => {
+  test("the member sidebar Dashboard door points at the dashboard once they have one", () => {
     // nav contract: buildRoleNav("member") resolves dashboard → /participant.
     // (The per-page sidebar is built from /api/me/relationships; this locks
     // the fallback contract so the two can never disagree.)

@@ -19,6 +19,7 @@ import {
   ventureJourneyStageExists,
 } from "@/models/ventureWorkspace";
 import { recordMilestoneEdit, settleMilestoneCompletion } from "@/services/ventures/milestoneCompletion";
+import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -211,6 +212,9 @@ export const PATCH = createHandler(async (req, { params }) => {
   // Journey settles (releases, notices, history, automatic journey close):
   // services/ventures/milestoneCompletion.
   await recordMilestoneEdit({ dbId: ventureDbIdForScope, milestoneId, milestoneBefore, body, session });
+  // The wording just changed: warm the translation memory after the save (never
+  // inside it). Fire-and-forget — a translation failure must not fail the edit.
+  scheduleVentureTranslationWarmup(id);
   const journeyOutcome = completing
     ? await settleMilestoneCompletion({ ventureParam: id, milestoneId, session })
     : null;

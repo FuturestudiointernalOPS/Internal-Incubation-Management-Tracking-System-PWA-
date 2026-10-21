@@ -151,6 +151,17 @@ la ligne « investisseur · table investor_profiles présente » (0 ou 1).
 Un module absent ne bloque donc jamais la correction des trois familles
 principales.
 
+**Dates de fin de programme.** Sur la base mesurée, `v2_programs.end_date` est
+un **texte**, pas une date. La migration le convertit explicitement
+(`::timestamptz`) avant de l'écrire dans `profile_assignments.ends_at` ; sans
+cela, PostgreSQL refuse l'insertion :
+
+```
+column "ends_at" is of type timestamp with time zone but expression is of type text
+```
+
+La simulation applique la même conversion : si elle passe, la migration passera.
+
 ### Après le déploiement — vérification
 
 Colle `scripts/db-audit/legacy-identity-verification.sql`. Attendu : migration

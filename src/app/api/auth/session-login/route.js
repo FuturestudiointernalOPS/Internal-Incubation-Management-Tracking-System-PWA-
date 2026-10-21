@@ -14,6 +14,8 @@ import { listActiveProfileKeys } from "@/models/authorization/profileAssignments
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   getVentureMembershipsForContact,
+  hasParticipantProgramMembership,
+  hasV2ParticipantRecord,
 } from "@/models/contacts/programMembership";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import {
@@ -239,18 +241,36 @@ export async function POST(req) {
     // who has been made an investor belongs in the investor space, and that fact
     // lives in their investor profile, not in their badge.
     //
+    // The PROGRAM ENROLLMENT rides in it too: the Participant page is a program
+    // seat, so whether this person is actually enrolled is what decides whether
+    // they may land on it at all (§7b).
+    //
     // A global identity's landing never depends on these, so such a login pays
     // for no extra read.
     let ventureMemberships = [];
     let isInvestor = false;
-    if (!isTeamLogin && !isFamilyLogin && landingNeedsRelationships(finalRole)) {
+    let isProgramParticipant = false;
+    // A family login's person is the registration id it acts as; every other
+    // login uses the contact id.
+    const landingCid = isFamilyLogin ? user.registration_id : userCid;
+    if (!isTeamLogin && landingNeedsRelationships(finalRole)) {
       try {
-        const [ventureMembershipsResult, investorProfileResult] = await Promise.all([
-          getVentureMembershipsForContact(userCid),
-          getApprovedInvestorProfileIdByUserId(userCid),
+        const [
+          ventureMembershipsResult,
+          investorProfileResult,
+          participantProgramResult,
+          v2ParticipantResult,
+        ] = await Promise.all([
+          getVentureMembershipsForContact(landingCid),
+          getApprovedInvestorProfileIdByUserId(landingCid),
+          hasParticipantProgramMembership(landingCid),
+          hasV2ParticipantRecord(landingCid),
         ]);
         ventureMemberships = ventureMembershipsResult.rows || [];
         isInvestor = (investorProfileResult.rows || []).length > 0;
+        isProgramParticipant =
+          (participantProgramResult.rows || []).length > 0 ||
+          (v2ParticipantResult.rows || []).length > 0;
       } catch (_) {}
     }
 
@@ -317,6 +337,7 @@ export async function POST(req) {
       teamId: responseUser.team_id || null,
       ventures: ventureMemberships,
       isInvestor,
+      isProgramParticipant,
       profiles: activeProfiles,
     });
 

@@ -931,6 +931,7 @@
       "withSupport": "avec {names}",
       "startShort": "Début",
       "finishShort": "Échéance",
+      "translating": "Traduction des intitulés du projet…",
       "kind": {
         "milestone": "Jalon",
         "activity": "Activité",
