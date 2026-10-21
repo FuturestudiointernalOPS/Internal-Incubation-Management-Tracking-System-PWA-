@@ -1,6 +1,7 @@
 {
   "errors": {
     "required": "This field is required.",
+    "invalidRequest": "Invalid request.",
     "invalidEmail": "Invalid email address.",
     "invalidAttachment": "That file cannot be attached to this reminder.",
     "minLength": "Must be at least {min} characters.",

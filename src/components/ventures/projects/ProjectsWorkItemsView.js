@@ -12,6 +12,8 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
+import { useContentTranslation } from "@/lib/hooks/useContentTranslation";
+import { WORK_ITEM_TEXT_PATHS } from "@/lib/workItemText";
 import { useI18n } from "@/lib/i18n";
 import { statusLabel, statusChipClass } from "@/lib/ventureStatuses";
 import AppTable from "@/components/ui/AppTable";
@@ -52,6 +54,12 @@ export default function ProjectsWorkItemsView({ ventureId }) {
     ventureId ? `/api/ventures/${ventureId}/work-items` : null,
     { deps: [ventureId], defaultValue: null },
   );
+
+  // One deduplicated request for the whole screen; the answer is remembered, so
+  // the next visit asks the provider for nothing. The payload is untouched — a
+  // reminder still sends the title exactly as the tracker stored it. The Venture
+  // travels with the request because the server checks the reader may see it.
+  const { tv, translating } = useContentTranslation(data, WORK_ITEM_TEXT_PATHS, { ventureId });
 
   const [bucket, setBucket] = useState(ANY);
   const [owner, setOwner] = useState(ANY);
@@ -105,6 +113,8 @@ export default function ProjectsWorkItemsView({ ventureId }) {
       if (milestone !== ANY && String(item.milestone?.id || "") !== milestone) return false;
       if (status !== ANY && item.status?.id !== status) return false;
       if (!needle) return true;
+      // Both wordings are searchable: a reader who types the original language
+      // finds the row, and so does the reader who types the displayed one.
       const haystack = [
         item.title,
         item.ref,
@@ -117,11 +127,12 @@ export default function ProjectsWorkItemsView({ ventureId }) {
         item.milestone?.title,
       ]
         .filter(Boolean)
+        .flatMap((value) => [value, tv(value)])
         .join(" ")
         .toLowerCase();
       return haystack.includes(needle);
     });
-  }, [data, bucket, owner, supporting, journey, milestone, status, search]);
+  }, [data, bucket, owner, supporting, journey, milestone, status, search, tv]);
 
   const selectOptions = (values, anyLabel) => [
     { value: ANY, label: anyLabel },
@@ -140,9 +151,9 @@ export default function ProjectsWorkItemsView({ ventureId }) {
             <span className="stf-tag">{t(`venture.projects.kind.${item.kind}`)}</span>
             {item.ref && <span className="stf-tag o">{item.ref}</span>}
           </div>
-          <p className="font-semibold text-[var(--text-primary)] break-words leading-snug">{item.title}</p>
+          <p className="font-semibold text-[var(--text-primary)] break-words leading-snug">{tv(item.title)}</p>
           {item.deliverable && item.deliverable !== item.title && (
-            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-1">{item.deliverable}</p>
+            <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-1">{tv(item.deliverable)}</p>
           )}
         </div>
       ),
@@ -205,9 +216,9 @@ export default function ProjectsWorkItemsView({ ventureId }) {
       render: (_value, item) =>
         item.journey?.name || item.milestone?.title ? (
           <div className="min-w-[160px] max-w-[260px]">
-            {item.journey?.name && <p className="text-[var(--text-secondary)] text-[12px]">{item.journey.name}</p>}
+            {item.journey?.name && <p className="text-[var(--text-secondary)] text-[12px]">{tv(item.journey.name)}</p>}
             {item.milestone?.title && (
-              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-2">{item.milestone.title}</p>
+              <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5 line-clamp-2">{tv(item.milestone.title)}</p>
             )}
           </div>
         ) : (
@@ -282,7 +293,7 @@ export default function ProjectsWorkItemsView({ ventureId }) {
             onChange={(event) => setJourney(event.target.value)}
             options={[
               { value: ANY, label: t("venture.projects.anyOption") },
-              ...(options.journeys || []).map((entry) => ({ value: String(entry.id), label: entry.name })),
+              ...(options.journeys || []).map((entry) => ({ value: String(entry.id), label: tv(entry.name) })),
             ]}
           />
           <AppSelect
@@ -291,7 +302,7 @@ export default function ProjectsWorkItemsView({ ventureId }) {
             onChange={(event) => setMilestone(event.target.value)}
             options={[
               { value: ANY, label: t("venture.projects.anyOption") },
-              ...(options.milestones || []).map((entry) => ({ value: String(entry.id), label: entry.title })),
+              ...(options.milestones || []).map((entry) => ({ value: String(entry.id), label: tv(entry.title) })),
             ]}
           />
         </div>
@@ -302,6 +313,14 @@ export default function ProjectsWorkItemsView({ ventureId }) {
         title={t("venture.projects.workItems")}
         subtitle={t("venture.projects.itemCount", { count: filtered.length, total: summary.total })}
       />
+
+      {/* The source text stays on screen while the answer lands — no spinner
+          over the list, only a quiet note that the wording is still settling. */}
+      {translating && (
+        <p className="stf-k" style={{ marginTop: -6, marginBottom: 8 }}>
+          {t("venture.projects.translating")}
+        </p>
+      )}
 
       {error ? (
         <AppEmptyState
@@ -324,6 +343,7 @@ export default function ProjectsWorkItemsView({ ventureId }) {
       <WorkItemDetailModal
         item={selected}
         ventureId={ventureId}
+        tv={tv}
         onClose={() => setSelected(null)}
         onChanged={() => refresh()}
       />

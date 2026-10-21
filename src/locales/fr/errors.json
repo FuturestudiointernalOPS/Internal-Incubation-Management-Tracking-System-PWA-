@@ -1,6 +1,7 @@
 {
   "errors": {
     "required": "Ce champ est requis.",
+    "invalidRequest": "Requête invalide.",
     "invalidEmail": "Adresse email invalide.",
     "invalidAttachment": "Ce fichier ne peut pas être joint à ce rappel.",
     "minLength": "Doit contenir au moins {min} caractères.",

@@ -931,6 +931,7 @@
       "withSupport": "with {names}",
       "startShort": "Start",
       "finishShort": "Due",
+      "translating": "Translating the project wording…",
       "kind": {
         "milestone": "Milestone",
         "activity": "Activity",
