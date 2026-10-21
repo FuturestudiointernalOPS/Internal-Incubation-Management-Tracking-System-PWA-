@@ -10,13 +10,6 @@ export const TABS = [
   "profile", "team",
 ];
 
-// Secondary Venture tools that live inside Journey. They stay reachable from the
-// Journey page while milestone workspaces bind their content to the items; they
-// are NOT top-level workspace navigation. The former "documents" tool is gone:
-// documents are the Data Room's job now, and it has its own tab.
-export const JOURNEY_TOOLS = [
-  "businessModel", "discovery", "validation", "pmf",
-];
 
 // The venture record, and the profile form it fills in. The form is the shape
 // the Venture's stored values take in the profile editor; it is built at module

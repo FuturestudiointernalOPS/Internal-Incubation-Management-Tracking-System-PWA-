@@ -9,8 +9,7 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWorkspaceScreen";
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
-  pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP, pickBm,
-  pickInterviews, pickValidations, pickAssessments, pickMilestones,
+  pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP,
   pickInvestmentReadiness, pickOptionLists,
 } from "@/components/participant/ventures/ventureScreenModel";
 import {
@@ -21,9 +20,6 @@ import { createVentureLoaders } from "@/components/participant/ventures/ventureS
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
-  // Journey view: the milestone timeline. The former work-tools box was removed;
-  // the Data Room is now a top-level tab.
-  const [journeySub, setJourneySub] = useState("timeline");
 
   // The screen's reads are declared further down, together with the addresses
   // that say which of them the open screen is asking for.
@@ -115,9 +111,8 @@ export default function VentureDetail() {
   // Navigate top-level sections. Re-entering Journey resets to the milestone
   // timeline so the primary tab always behaves predictably.
   function openSection(section) {
-    if (section === activeTab && section !== "journey") return;
+    if (section === activeTab) return;
     setActiveTab(section);
-    if (section === "journey") setJourneySub("timeline");
   }
 
   // ── The screen's reads ───────────────────────────────────────────────────
@@ -127,7 +122,6 @@ export default function VentureDetail() {
   // - the Venture record has to be known before its sub-resources are asked for.
   const ready = !!params.id && !!venture;
   const onDashboard = ready && activeTab === "dashboard";
-  const onJourney = ready && activeTab === "journey";
 
   // The roster is the TEAM tab's read. The dashboard no longer needs it: its
   // people figures now come from the dashboard aggregate (`team`), so one read
@@ -199,34 +193,7 @@ export default function VentureDetail() {
   );
   const journeyStages = roadmap.stages;
 
-  const { data: bmData, setData: setBmData, refresh: fetchBm } = useApi(
-    onJourney && journeySub === "businessModel"
-      ? `/api/ventures/${params.id}/business-model`
-      : null,
-    { defaultValue: null, transform: pickBm },
-  );
-  const { data: interviews, refresh: fetchInterviews } = useApi(
-    onJourney && journeySub === "discovery"
-      ? `/api/ventures/${params.id}/interviews`
-      : null,
-    { defaultValue: [], transform: pickInterviews },
-  );
-  const { data: validations, refresh: fetchValidations } = useApi(
-    onJourney && journeySub === "validation"
-      ? `/api/ventures/${params.id}/validations`
-      : null,
-    { defaultValue: [], transform: pickValidations },
-  );
-  const { data: assessments, refresh: fetchPmf } = useApi(
-    onJourney && journeySub === "pmf" ? `/api/ventures/${params.id}/pmf` : null,
-    { defaultValue: [], transform: pickAssessments },
-  );
-  const { data: milestones, refresh: fetchMilestones } = useApi(
-    onJourney && journeySub === "milestones"
-      ? `/api/ventures/${params.id}/milestones`
-      : null,
-    { defaultValue: [], transform: pickMilestones },
-  );
+
   const {
     fetchActionPlans, fetchTasks, fetchStandups, fetchRetros,
     fetchBlockers, fetchAdvisors, fetchCoaching, fetchPlaybook,
@@ -384,7 +351,6 @@ export default function VentureDetail() {
     params, user, inputStyle, cardStyle, notifyMsg, optionLists,
     form, setForm, saving, members, dashboardData, historyData,
     dashboardLoading, calendarLoading,
-    bmData, setBmData, interviews, validations, assessments, milestones,
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
     progressData, advisors, coachingSessions,
     progressLoading, progressFailed,
@@ -413,8 +379,8 @@ export default function VentureDetail() {
     advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
     loadMembers, handleSave, handleUpdateMemberRole, handleRemoveMember,
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
-    fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
-    fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
+    fetchActionPlans, fetchTasks, fetchStandups, fetchRetros, fetchBlockers,
+    fetchCalendar, fetchProgress,
     fetchMyWork,
     fetchAdvisors, fetchCoaching,
     fetchJourney, fetchPlaybook, fetchInvestmentReadiness,
@@ -426,9 +392,7 @@ export default function VentureDetail() {
       venture={venture}
       brandColor={form.brandColor}
       activeTab={activeTab}
-      journeySub={journeySub}
       onSection={openSection}
-      onJourneySub={setJourneySub}
       onBack={() => router.push("/participant/ventures")}
       workspace={ws}
       t={t}

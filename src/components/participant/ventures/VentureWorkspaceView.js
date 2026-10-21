@@ -5,11 +5,10 @@ import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { ProfileTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
 import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
-import { JourneyTab, BusinessModelTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
-import { DiscoveryTab, ValidationTab, PmfTab } from "@/components/ventures/workspace/tabs/LeanStartupTabs";
+import { JourneyTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
-import { TABS, JOURNEY_TOOLS } from "@/components/participant/ventures/ventureScreenModel";
+import { TABS } from "@/components/participant/ventures/ventureScreenModel";
 
 // The Venture detail screen's markup. The screen owns every piece of state, the
 // reads and the handlers; this view only paints them and reports intent back
@@ -19,9 +18,7 @@ export default function VentureWorkspaceView({
   venture,
   brandColor,
   activeTab,
-  journeySub,
   onSection,
-  onJourneySub,
   onBack,
   t,
 }) {
@@ -63,44 +60,7 @@ export default function VentureWorkspaceView({
 
       {/* Dashboard is the overview. Journey is the operating workspace. */}
       {activeTab === "dashboard" && <DashboardTab onSection={onSection} />}
-      {activeTab === "journey" && (
-        <div className="space-y-4">
-          {/* The four Journey tools are first-class sub-tabs, not a box inside
-              the timeline. Documents stay in the Data Room tab, so they are
-              deliberately absent here. */}
-          <div className="flex flex-wrap items-center gap-1 border-b border-[var(--border-primary)] pb-2">
-            <button
-              onClick={() => onJourneySub("timeline")}
-              className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${
-                journeySub === "timeline"
-                  ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                  : "text-[var(--text-secondary)] hover:bg-tertiary"
-              }`}
-            >
-              {t("venture.journeyTimeline")}
-            </button>
-            {JOURNEY_TOOLS.map((tool) => (
-              <button
-                key={tool}
-                onClick={() => onJourneySub(tool)}
-                className={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-colors ${
-                  journeySub === tool
-                    ? "bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
-                    : "text-[var(--text-secondary)] hover:bg-tertiary"
-                }`}
-              >
-                {t(`venture.${tool}`)}
-              </button>
-            ))}
-          </div>
-
-          {journeySub === "timeline" && <JourneyTab />}
-          {journeySub === "businessModel" && <BusinessModelTab />}
-          {journeySub === "discovery" && <DiscoveryTab />}
-          {journeySub === "validation" && <ValidationTab />}
-          {journeySub === "pmf" && <PmfTab />}
-        </div>
-      )}
+      {activeTab === "journey" && <JourneyTab />}
       {activeTab === "investment" && <InvestmentTab />}
       {activeTab === "dataRoom" && <VentureDataRoom ventureId={venture.venture_id || venture.id} />}
       {activeTab === "profile" && <ProfileTab />}
