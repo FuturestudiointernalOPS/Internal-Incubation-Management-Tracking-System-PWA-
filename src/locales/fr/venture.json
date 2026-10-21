@@ -261,7 +261,7 @@
     "calendar": "Calendrier",
     "noEvents": "Aucun événement pour le moment",
     "taskCompletion": "Achèvement des tâches",
-    "avgMilestoneProgress": "Progrès moyen des jalons",
+
     "standupsCount": "Standups soumis",
     "retrosCount": "Rétros soumises",
     "documents": "Data Room",
@@ -355,8 +355,8 @@
       "partial": "Une partie de votre travail n'a pas pu être chargée : cette liste peut être incomplète."
     },
     "progressOverview": {
-      "development": "Développement de la Venture",
-      "developmentHint": "Profil, équipe, documents et exploration du marché",
+      "ventureSetup": "Mise en place de la Venture",
+      "ventureSetupHint": "Équipe, documents, modèle d'affaires et découverte client",
       "doneOf": "{done} tâches sur {total}",
       "milestonesCompleted": "Jalons terminés",
       "milestonesOf": "{done} jalons sur {total}",
@@ -724,7 +724,7 @@
         "deleteFailed": "Impossible de supprimer la note."
       },
       "irTracked": "Progression de votre Venture",
-      "irTrackedDesc": "Ce que Future Studio suit vers la préparation à l'investissement — mis à jour en direct à mesure que votre parcours avance.",
+      "irTrackedDesc": "Part du travail prévu au parcours qui est terminée — mis à jour en direct à mesure que votre Venture avance.",
       "irJourneys": "Parcours",
       "irMilestones": "Jalons",
       "irTasks": "Tâches",

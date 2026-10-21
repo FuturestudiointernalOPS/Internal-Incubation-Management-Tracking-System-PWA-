@@ -175,7 +175,7 @@ export default function VentureInvestmentPage() {
           <div className="flex items-start justify-between gap-4 mb-3">
             <div className="min-w-0">
               <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
-                <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.roadmapReadiness")}
+                <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.roadmapProgress")}
               </h3>
               <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("venture.manager.irTrackedDesc")}</p>
             </div>
@@ -207,7 +207,7 @@ export default function VentureInvestmentPage() {
       ) : (
         <div className="card">
           <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide flex items-center gap-2">
-            <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.roadmapReadiness")}
+            <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.investment.roadmapProgress")}
           </h3>
           <p className="text-[10px] text-[var(--text-secondary)] mt-2">{t("common.noResults")}</p>
         </div>

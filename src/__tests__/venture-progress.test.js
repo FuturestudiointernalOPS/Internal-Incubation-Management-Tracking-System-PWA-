@@ -21,9 +21,7 @@ const mockDb = {
       // Scripted fixture: 5 tasks, 3 terminal-success
       return { rows: [{ total: 5, done: 3 }] };
     }
-    if (sql.includes("SELECT AVG(progress)") && sql.includes("FROM venture_milestones WHERE venture_id = ?")) {
-      return { rows: [{ avg_progress: 40 }] };
-    }
+
     if (sql.includes("FROM venture_members WHERE venture_id = ?")) {
       return { rows: [{ count: 2 }] };
     }
@@ -83,10 +81,10 @@ describe("GET /api/ventures/[id]/progress — completion vocabulary", () => {
       task_completion: 60,
       total_tasks: 5,
       completed_tasks: 3,
-      avg_milestone_progress: 40,
+      milestones: { total: 0, completed: 0 },
       standups_count: 0,
       retros_count: 0,
-      profile_completion: expect.any(Number),
+      venture_setup: expect.any(Number),
     });
   });
 

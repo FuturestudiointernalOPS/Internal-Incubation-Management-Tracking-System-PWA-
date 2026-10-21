@@ -13,9 +13,9 @@ import VentureSupportCard from "@/components/ventures/support/VentureSupportCard
  * Everything here is an EXISTING reading. No percentage is recomputed on this
  * screen: the work queue comes from WS1 (`/my-work`), the progress figures from
  * `/progress`, the people and feeds from `/dashboard`, the roadmap from
- * `/journey`. Where a figure's meaning is still unresolved (two readiness
- * formulas, two milestone-progress notions) it is NOT shown here — it is left
- * for the WS4 reconciliation instead of being presented as authoritative.
+ * `/journey`. The progress figures use the WS4 vocabulary: task completion and
+ * Milestones Completed are counted from live work, and "Venture setup" is the
+ * Venture's own record — never the retired profile-completion widget.
  *
  * Layout order is the point: identity → work queue → progress → journey and
  * events → activity and notifications. The action queue is second because that
@@ -136,9 +136,9 @@ export function DashboardTab({ onSection }) {
       {/* ── Progress overview ────────────────────────────────────────────── */}
       <div className="stf-grid c4">
         <KpiCard
-          label={t("venture.progressOverview.development")}
-          value={progressValue(progressData?.profile_completion)}
-          hint={t("venture.progressOverview.developmentHint")}
+          label={t("venture.progressOverview.ventureSetup")}
+          value={progressValue(progressData?.venture_setup)}
+          hint={t("venture.progressOverview.ventureSetupHint")}
           icon={Target}
           loading={milestonePending}
         />

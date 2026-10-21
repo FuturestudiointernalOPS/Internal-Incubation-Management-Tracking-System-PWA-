@@ -588,7 +588,7 @@
       "dataRoomReadiness": "Investment readiness (Data Room)",
       "dataRoomReadinessDesc": "Computed live from the Data Room: required categories verified against the requirements set for this Venture's stage.",
       "openDataRoom": "Open Data Room",
-      "roadmapReadiness": "Roadmap readiness (derived)",
+      "roadmapProgress": "Roadmap progress",
       "recordedAssessment": "Recorded assessment",
       "evaluating": "Evaluating...",
       "runAssessment": "Run Assessment",

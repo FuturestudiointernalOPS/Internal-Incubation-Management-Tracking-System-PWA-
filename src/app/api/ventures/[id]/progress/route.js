@@ -12,7 +12,6 @@ import {
   countVentureStandupsByVentureId,
   countVentureTasksWithCompletedStatuses,
   countVentureValidations,
-  getAverageVentureMilestoneProgress,
   countVentureMilestonesByStatus,
   getFirstVentureBusinessModelId,
   getVentureDbIdForProgress,
@@ -41,16 +40,21 @@ export async function GET(req, { params }) {
     const total = parseInt(tasksResult.rows?.[0]?.total||0);
     const done = parseInt(tasksResult.rows?.[0]?.done||0);
 
-    const milestonesResult = await getAverageVentureMilestoneProgress(dbId);
     // Milestones COMPLETED: the honest figure (a stored `progress` column is
-    // only refreshed when a deliverable is reviewed, so it goes stale).
+    // only refreshed when a deliverable is reviewed, so it goes stale, and the
+    // old average was retired from the dashboard in WS4).
     const milestoneCountsResult = await countVentureMilestonesByStatus(dbId);
     const milestoneCounts = milestoneCountsResult.rows?.[0] || { total: 0, done: 0 };
 
     const standupsResult = await countVentureStandupsByVentureId(dbId);
     const retrosResult = await countVentureRetrosByVentureId(dbId);
 
-    // Profile completion calculation (UAT weighted)
+    // VENTURE SETUP — how much of the Venture's own record is filled in.
+    //
+    // This is deliberately NOT "profile completeness": the startup-profile
+    // wizard was retired (WS4) because nothing wrote its table. Every input
+    // below is a real Venture record, so the figure moves when the founder
+    // actually sets the Venture up.
     const [venture, founders, docs, businessModel, discovery, validations, pmf] = await Promise.all([
       getVentureProfileFields(dbId),
       // venture_members stores venture_id as the VNT code (TEXT)
@@ -91,7 +95,7 @@ export async function GET(req, { params }) {
     else if (validationCount > 0) profileScore += Math.round(validationCount * 5 / 3);
     // PMF: 5%
     if (parseInt(pmf.rows?.[0]?.count||0) > 0) profileScore += 5;
-    const profileCompletion = Math.min(profileScore, 100);
+    const ventureSetup = Math.min(profileScore, 100);
 
     return NextResponse.json({
       success: true,
@@ -99,14 +103,13 @@ export async function GET(req, { params }) {
         task_completion: total > 0 ? Math.round((done/total)*100) : 0,
         total_tasks: total,
         completed_tasks: done,
-        avg_milestone_progress: Math.round(parseFloat(milestonesResult.rows?.[0]?.avg_progress||0)),
         milestones: {
           total: parseInt(milestoneCounts.total || 0),
           completed: parseInt(milestoneCounts.done || 0),
         },
         standups_count: parseInt(standupsResult.rows?.[0]?.count||0),
         retros_count: parseInt(retrosResult.rows?.[0]?.count||0),
-        profile_completion: profileCompletion,
+        venture_setup: ventureSetup,
       }
     });
   } catch(error) { return NextResponse.json({ success: false, error: error.message }, { status: 500 }); }

@@ -260,7 +260,7 @@
     "calendar": "Calendar",
     "noEvents": "No events yet",
     "taskCompletion": "Task Completion",
-    "avgMilestoneProgress": "Avg. Milestone Progress",
+
     "standupsCount": "Standups Submitted",
     "retrosCount": "Retros Submitted",
     "documents": "Data Room",
@@ -355,8 +355,8 @@
       "partial": "Part of your work could not be loaded, so this list may be incomplete."
     },
     "progressOverview": {
-      "development": "Venture development",
-      "developmentHint": "Profile, team, documents and business discovery",
+      "ventureSetup": "Venture setup",
+      "ventureSetupHint": "Team, documents, business model and customer discovery",
       "doneOf": "{done} of {total} tasks",
       "milestonesCompleted": "Milestones completed",
       "milestonesOf": "{done} of {total} milestones",
@@ -724,7 +724,7 @@
         "deleteFailed": "Could not delete the note."
       },
       "irTracked": "Your Venture progression",
-      "irTrackedDesc": "What Future Studio tracks towards investment readiness — updated live as your Journey progresses.",
+      "irTrackedDesc": "How much of the planned Journey work is done — updated live as your Venture progresses.",
       "irJourneys": "Journeys",
       "irMilestones": "Milestones",
       "irTasks": "Tasks",
