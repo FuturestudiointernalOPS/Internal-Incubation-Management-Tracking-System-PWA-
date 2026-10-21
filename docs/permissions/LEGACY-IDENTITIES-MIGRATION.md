@@ -171,6 +171,20 @@ libellé, une seconde ligne le dit explicitement (jamais en silence) :
 [authz] legacy identities: famille(s) ignorée(s), table absente — leur libellé devient membre sans carte [ 'investor' ]
 ```
 
+### Pourquoi une migration n'a pas tourné
+
+Un échec annule sa transaction et n'écrit pas son marqueur — c'est voulu. La
+raison est désormais **enregistrée en base**, pas seulement dans le journal du
+serveur :
+
+```sql
+SELECT * FROM authz_migration_failures;
+```
+
+ou, avec les marqueurs utiles : `scripts/db-audit/authz-migration-status.sql`.
+Une ligne décrit le dernier échec de chaque migration (elle est effacée au
+prochain succès).
+
 Absence de ligne = rien à faire (déjà migré, ou aucune étiquette legacy).
 
 ### Le lancement manuel n'existe plus
