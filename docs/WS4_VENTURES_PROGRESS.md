@@ -173,6 +173,8 @@ read failed, and the screen rendered the failure as « — » regardless of the 
 
 **Fix.** The count now compares both identifiers as text (works for either generation of
 the column), and the optional probes degrade to zero instead of taking the whole read down.
+A successful profile save also refreshes the record and the score immediately, so the
+30-second read cache cannot serve the previous value.
 
 **Verified read-only against the current database:** the three Ventures now compute to
 **15 %**, **23 %** and **46 %** instead of « — ».
