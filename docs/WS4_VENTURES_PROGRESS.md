@@ -86,7 +86,12 @@ Production data was not touched.
 
 ### Journey entry points
 
-* Business Model, Discovery, Validation and PMF are reachable again from Journey.
+* Business Model, Discovery, Validation and PMF were initially reachable again from
+  Journey.
+* **Later product decision:** those blocks were removed from the founder Journey view
+  entirely. The Journey page now shows only the roadmap timeline; the four former tools are
+  no longer displayed there. Their components remain in the codebase but are unreachable
+  from the Journey screen.
 * Documents remain in the Data Room tab; the obsolete document-upload tool was not restored.
 
 ---
