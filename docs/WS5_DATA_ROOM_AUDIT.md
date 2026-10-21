@@ -1,13 +1,14 @@
 # WS5 — Venture Data Room audit and implementation plan
 
-Status: **audit complete, implementation not started**
-Branch inspected: `Ventures` at `279402bc6` (WS4 corrections committed)
+Status: **audit complete; the three agreed scope corrections are applied; the access-log extension awaits approval**
+Branch inspected: `Ventures` at `69bd641c5` (WS4 commits + the three WS5 scope corrections)
 Scope: `src/app/api/ventures/[id]/data-room/**`, `src/services/ventures/dataRoom/**`,
 `src/models/ventureDataRoomStore.js`, `src/lib/dataRoom.js`, `src/lib/ventureEvidence.js`,
 `src/components/ventures/data-room/**`, and the four screens that mount the Data Room.
 
 No database was written to during this audit. Findings are from static inspection and the
-existing test suite; live-data and storage-bucket checks are listed as *unable to verify*.
+existing test suite; live-data checks used the read-only audit runner against `.env.local`
+(aggregate counts only). Storage-bucket checks remain *unable to verify*.
 
 ---
 
@@ -53,9 +54,10 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
 * A document whose category is outside the eleven is kept, badged **Legacy**, and excluded
   from completeness until it is re-filed. Re-filing is the existing Edit action and does
   not create a version (pinned by a new WS4 test).
-* **DR-02 (incomplete):** there is no filter or count that lists legacy documents directly;
-  they must be spotted in the catalogue. Add a `legacy` filter and a count, reusing the
-  existing catalogue read and Edit action.
+* **DR-02 — applied:** the category sidebar now shows a **Legacy documents** lens with a
+  count when any legacy row exists. It reuses the catalogue read and the existing Edit
+  action; no new storage or category was created. The live read-only audit found **0**
+  legacy documents at the moment of inspection, so the lens is dormant until one appears.
 
 ### 2.3 Search and filtering — working
 
@@ -105,10 +107,10 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
   Investor: view only, and only the granted documents/categories.
 * Every service re-resolves the viewer; UI visibility is never the gate. The document and
   version reads are resolved through the Venture and the live grant.
-* **DR-05 (correction):** expired grants are returned by `selectDataRoomGrants` /
-  `selectDataRoomDocumentGrants` and shown as live in the access dialog, although the read
-  path correctly refuses them. Mark `expires_at < NOW()` as expired in the query and show
-  that state instead of “no expiry”.
+* **DR-05 — applied:** both grant reads now return an `is_expired` flag, and the access
+  dialog shows **Expired** (with the expiry date) instead of “no expiry”. The read path
+  already refused expired grants; revocation remains available. Live audit: **0** live
+  grants, of which 0 expired.
 * **DR-06 (unable to verify):** bucket policy and signed-URL behaviour can only be
   confirmed against staging/production. Verify with a private-path read and an unauthenticated
   request.
@@ -124,6 +126,9 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
   not add without a product decision.
 
 ### 2.10 Audit history — incomplete (gap to approve)
+
+Live read-only check: the access-log table holds **0 rows**, confirming that the Data Room
+never writes view/download events today.
 
 * Written today: upload, new version, review decision, metadata/reclassification, delete,
   grant, revoke, requirement change. Read is the latest 200 rows; the screen shows 12.
@@ -146,10 +151,9 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
 * The Data Room reuses `venture_documents` / `venture_document_versions`; it does not
   duplicate milestones, tasks, users or fundraising records.
 * Dashboard recent documents and analytics read the same table.
-* **DR-11 (correction):** the founder workspace still carries the dead legacy documents
-  state/handlers (`/api/ventures/[id]/documents`) and `DocumentsTabs.js` is unreferenced.
-  Remove the dead fetch/handlers from the founder page; keep the legacy API until an
-  explicit dependency check authorises retiring it.
+* **DR-11 — applied:** the founder workspace no longer carries the dead legacy documents
+  state, fetches or handlers, and the unreferenced legacy documents component was deleted.
+  The legacy API itself is untouched, so any remaining caller keeps working.
 * **DR-12 (missing, deliberately deferred):** Data Room documents are not linked to a
   milestone, deliverable or fundraising round. The brief says “where relevant”; no current
   screen needs the link. Do not add a join table without approval.
@@ -169,15 +173,20 @@ existing table.
 
 ### Phase A — corrections (no new capability)
 
+**Applied in this round:**
+
+* **DR-05** derived expiry for grants in the two grant reads; access dialog shows
+  “Expired” and still allows revoke.
+* **DR-11** removed the dead legacy document state/handlers from the founder page.
+* **DR-02** added the **Legacy documents** lens and count.
+
+**Still proposed:**
+
 1. **DR-01** validate the category in the upload route; delete the uploaded object on early
    create refusals.
-2. **DR-05** derived expiry for grants in the two grant reads; access dialog shows
-   “Expired” and still allows revoke.
-3. **DR-04** exclude soft-deleted documents from the investment analytics count.
-4. **DR-09** count access logs by the venture code they store.
-5. **DR-11** remove the dead legacy document state/handlers from the founder page.
-6. **DR-02** add a `legacy` catalogue filter and count.
-7. **DR-10** “show all” for the audit history already returned.
+2. **DR-04** exclude soft-deleted documents from the investment analytics count.
+3. **DR-09** count access logs by the venture code they store.
+4. **DR-10** “show all” for the audit history already returned.
 
 ### Phase B — audit extension (approval requested)
 
@@ -187,6 +196,12 @@ existing table.
    not the browser — decides whether the event is legitimate.
 
 ### Phase C — tests
+
+**Applied in this round:** `data-room.test.js` covers the `is_expired` grant flag, the
+legacy-category classification, and the manager’s view of an expired grant. The focused
+Data Room suite passes (see the report in the final message).
+
+**Still proposed:**
 
 * Upload category refusal and orphan cleanup.
 * Expired grant: refused on read, shown as expired, revocable.
