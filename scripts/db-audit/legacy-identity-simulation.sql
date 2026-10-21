@@ -7,6 +7,13 @@
 -- The relationship rules are the ones the migration writes (programmes ended on
 -- a past date do not count). If one side changes, change both.
 --
+-- OPTIONAL MODULES. The migration probes each family's table and skips a family
+-- whose table is absent (measured: production has no `investor_profiles`). This
+-- script therefore covers the three core families and REPORTS whether the
+-- investor table exists; run `legacy-identity-simulation-investor.sql` only
+-- when it does. A plain SQL query cannot reference a missing relation, which is
+-- why the investor block is a separate file rather than a conditional here.
+--
 -- Writes nothing. Safe to paste in any SQL console.
 
 WITH
@@ -43,14 +50,6 @@ founder_rel AS (
   WHERE LOWER(c.role) = 'founder'
     AND vm.removed_at IS NULL
     AND (vm.member_type = 'founder' OR vm.role IN ('founder', 'co-founder'))
-),
-
-investor_rel AS (
-  SELECT DISTINCT c.cid
-  FROM contacts c
-  JOIN investor_profiles ip
-    ON ip.user_id = c.cid AND ip.approval_status = 'approved'
-  WHERE LOWER(c.role) = 'investor'
 ),
 
 participant_cards AS (
@@ -106,28 +105,10 @@ founder_cards AS (
     )
 ),
 
-investor_cards AS (
-  SELECT DISTINCT c.cid
-  FROM contacts c
-  JOIN investor_profiles ip
-    ON ip.user_id = c.cid AND ip.approval_status = 'approved'
-  WHERE LOWER(c.role) = 'investor'
-    AND NOT EXISTS (
-      SELECT 1 FROM profile_assignments pa
-      WHERE pa.contact_cid = c.cid
-        AND pa.profile_key = 'investor'
-        AND pa.context_type = 'investor'
-        AND pa.context_id = CAST(ip.id AS TEXT)
-        AND pa.status = 'active'
-    )
-),
-
 report AS (
   SELECT 'participant' AS famille, t.cid FROM targets t WHERE t.role = 'participant'
   UNION ALL
   SELECT 'facilitateur', t.cid FROM targets t WHERE t.role = 'facilitator'
-  UNION ALL
-  SELECT 'investisseur', t.cid FROM targets t WHERE t.role = 'investor'
   UNION ALL
   SELECT 'fondateur', t.cid FROM targets t WHERE t.role = 'founder'
 )
@@ -175,27 +156,6 @@ SELECT * FROM (
     AND NOT EXISTS (SELECT 1 FROM facilitator_rel x WHERE x.cid = r.cid)
 
   UNION ALL
-  SELECT 'investisseur · personnes', COUNT(*)::int, '—'
-  FROM report WHERE famille = 'investisseur'
-  UNION ALL
-  SELECT 'investisseur · relations actives', COUNT(*)::int, '—'
-  FROM investor_rel
-  UNION ALL
-  SELECT 'investisseur · cartes à créer', COUNT(*)::int, '—'
-  FROM investor_cards
-  UNION ALL
-  SELECT 'investisseur · relation active sans carte', COUNT(*)::int, '0'
-  FROM report r
-  WHERE r.famille = 'investisseur'
-    AND EXISTS (SELECT 1 FROM investor_rel x WHERE x.cid = r.cid)
-    AND NOT EXISTS (SELECT 1 FROM investor_cards x WHERE x.cid = r.cid)
-  UNION ALL
-  SELECT 'investisseur · sans relation (membre sans carte)', COUNT(*)::int, 'signalé'
-  FROM report r
-  WHERE r.famille = 'investisseur'
-    AND NOT EXISTS (SELECT 1 FROM investor_rel x WHERE x.cid = r.cid)
-
-  UNION ALL
   SELECT 'fondateur · personnes', COUNT(*)::int, '—'
   FROM report WHERE famille = 'fondateur'
   UNION ALL
@@ -215,6 +175,12 @@ SELECT * FROM (
   FROM report r
   WHERE r.famille = 'fondateur'
     AND NOT EXISTS (SELECT 1 FROM founder_rel x WHERE x.cid = r.cid)
+
+  UNION ALL
+  -- The investor family is skipped when this table is absent. 0 = absent.
+  SELECT 'investisseur · table investor_profiles présente', COUNT(*)::int, '0 ou 1'
+  FROM (SELECT to_regclass('public.investor_profiles') AS name) t
+  WHERE t.name IS NOT NULL
 
   UNION ALL
   SELECT 'sessions ouvertes sous un ancien nom', COUNT(*)::int, 'signalé'

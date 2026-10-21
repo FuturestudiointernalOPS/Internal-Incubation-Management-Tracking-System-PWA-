@@ -96,6 +96,13 @@ un script local. Elle s'applique au premier démarrage du nouveau déploiement.
    | investisseur | 0 | 0 | 0 | **0** |
    | fondateur | 1 | 1 | 1 | **0** |
 
+   La famille investisseur est **optionnelle** : la production mesurée n'a pas
+   la table `investor_profiles`. Le script principal ne la référence donc pas et
+   affiche une ligne de présence (0/1) ; s'il vaut 1, lancer aussi
+   `scripts/db-audit/legacy-identity-simulation-investor.sql`. La migration
+   sonde chaque famille et ignore celle dont la table est absente, sans jamais
+   bloquer les trois autres.
+
 2. **Déployer.** Le démarrage exécute la migration une fois. Journal attendu :
 
    ```
