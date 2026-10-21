@@ -90,16 +90,7 @@ const ROLE_MOTIFS = {
  * d'ajouter ici sans revue.
  */
 const ROLE_MOTIF_EXCEPTIONS = new Set([
-  "src/app/admin/announcements/page.js#M3",
-  "src/app/admin/blockers/page.js#M3",
   "src/app/admin/communications/contacts/BulkProgramModal.js#M3",
-  "src/app/admin/hooks/useAdminDashboardData.js#M3",
-  "src/app/admin/hooks/useAdminWidgetData.js#M3",
-  "src/app/admin/investors/page.js#M3",
-  "src/app/admin/layout.js#M4",
-  "src/app/admin/op-reports/page.js#M3",
-  "src/app/admin/programs/[id]/teams/page.js#M3",
-  "src/app/admin/work/page.js#M3",
 
   "src/app/api/admin/projects/[id]/reports/generate/route.js#M1",
   "src/app/api/attendance/route.js#M3",

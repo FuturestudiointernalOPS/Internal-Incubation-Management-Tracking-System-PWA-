@@ -105,9 +105,10 @@ describe("static contract — the investor intake wiring", () => {
     expect(src).toMatch(/provisionInvestorFromApproval/);
   });
 
-  test("the admin link button is super-admin only and no longer points at the old wizard", () => {
+  test("the admin link button is platform-owner only and no longer points at the old wizard", () => {
     const src = read(ADMIN_PAGE);
-    expect(src).toMatch(/role === "super_admin"/);
+    // The rule is the named predicate, not the role label: same answer.
+    expect(src).toMatch(/isPlatformOwnerRole\(role\)/);
     expect(src).toMatch(/investorAdmin\.list\.addInvestor/);
     expect(src).toMatch(/platform\/seed\/investor-application/);
     // The fixed questionnaire link is gone.

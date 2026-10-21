@@ -9,6 +9,7 @@
  */
 
 import { SCOPE_POLICIES } from "@/models/authorization/scope-catalog";
+import { isPlatformOwnerRole } from "@/lib/identity";
 
 /** Days before an invitation expiry that counts as "soon". */
 const EXPIRING_DAYS = 7;
@@ -119,7 +120,7 @@ export function journalKpis(bundle = {}) {
   }).length;
 
   return {
-    superAdmins: contacts.filter((contact) => String(contact.role).toLowerCase() === "super_admin").length,
+    superAdmins: contacts.filter((contact) => isPlatformOwnerRole(contact.role)).length,
     profiles: profiles.length,
     changes: auditTotal,
     expiring,

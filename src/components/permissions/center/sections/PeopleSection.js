@@ -13,6 +13,7 @@
 
 import { useMemo, useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import AppButton from "@/components/ui/AppButton";
 import AppPagination from "@/components/ui/AppPagination";
 import { buildRightRows, countRights } from "../personAccess";
@@ -31,7 +32,7 @@ import {
 const PAGE_SIZE = 25;
 const NO_GROUP = "\u0000no-group";
 
-const isSuperAdmin = (person) => String(person.role || "").toLowerCase() === "super_admin";
+const isSuperAdmin = (person) => isPlatformOwnerRole(person.role);
 
 export default function PeopleSection({ data, tab, openDrawer, onOpenPerson }) {
   if (tab === "groups") return <GroupsTab data={data} openDrawer={openDrawer} />;

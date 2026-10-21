@@ -1,6 +1,6 @@
 # Lot 0 — actions serveur sans capacité (liste exacte)
 
-Mesuré le 2026-10-21T05:44:06.369Z.
+Mesuré le 2026-10-21T05:50:32.769Z.
 
 Définition : une action est « sans capacité » quand aucun contrôle de fichier ne vérifie une capacité. Les catégories distinguent les trous des déclarations légitimes.
 
