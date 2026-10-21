@@ -161,4 +161,18 @@ work.
    no longer linked from any active workspace; it was left intact rather than deleting a
    compliance workflow. It is documented as separate from Investment Readiness.
 4. **No database migration** was introduced by WS4.
-5. **WS5** is audited in `docs/WS5_DATA_ROOM_AUDIT.md`; implementation awaits review.
+5. **WS5** is audited in `docs/WS5_DATA_ROOM_AUDIT.md`.
+
+---
+
+## 5. Addendum — Venture Setup displayed « — »
+
+**Cause.** The founder count compared the readable Venture code with the membership
+table's internal identifier column. PostgreSQL refused the comparison, the whole progress
+read failed, and the screen rendered the failure as « — » regardless of the profile.
+
+**Fix.** The count now compares both identifiers as text (works for either generation of
+the column), and the optional probes degrade to zero instead of taking the whole read down.
+
+**Verified read-only against the current database:** the three Ventures now compute to
+**15 %**, **23 %** and **46 %** instead of « — ».

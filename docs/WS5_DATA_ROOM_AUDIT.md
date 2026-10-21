@@ -1,7 +1,7 @@
 # WS5 — Venture Data Room audit and implementation plan
 
-Status: **audit complete; the three agreed scope corrections are applied; the access-log extension awaits approval**
-Branch inspected: `Ventures` at `69bd641c5` (WS4 commits + the three WS5 scope corrections)
+Status: **audit complete; the three agreed scope corrections and the access journal are applied**
+Branch inspected: `Ventures` at `c6bf98655`
 Scope: `src/app/api/ventures/[id]/data-room/**`, `src/services/ventures/dataRoom/**`,
 `src/models/ventureDataRoomStore.js`, `src/lib/dataRoom.js`, `src/lib/ventureEvidence.js`,
 `src/components/ventures/data-room/**`, and the four screens that mount the Data Room.
@@ -97,8 +97,8 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
   rejected 0.5, everything else 0; `null` when nothing is required).
 * Batch and single-Venture readers feed the same engine and are pinned by
   `ws4-readiness.test.js`.
-* **DR-04 (correction):** the investment analytics document count
-  (`countAnalyticsDocuments`) includes soft-deleted rows. Add `is_deleted = false`.
+* **DR-04 — applied:** the investment analytics document count now excludes
+  soft-deleted rows.
 
 ### 2.8 Permissions — working, two corrections
 
@@ -132,17 +132,13 @@ never writes view/download events today.
 
 * Written today: upload, new version, review decision, metadata/reclassification, delete,
   grant, revoke, requirement change. Read is the latest 200 rows; the screen shows 12.
-* **DR-08 (missing): document open/download events.** `venture_document_access_logs` exists
-  and the investment analytics screen counts views/downloads from it, but the Data Room
-  never writes a row. As a result those analytics are permanently zero.
-  **Smallest safe extension:** reuse the existing table — add one model insert and record
-  `view` when the single-document endpoint is read, and `download` when the documented
-  download action is called. Validate the viewer server-side exactly as the read does.
-  No schema change is needed.
-* **DR-09 (correction):** `countDocumentViews` / `countDocumentDownloads` resolve the
-  internal UUID but the log table's `venture_id` references the VNT code. Query by the code
-  the table stores (or store the code when logging). Without this, even a correctly written
-  log would never be counted.
+* **DR-08 — applied:** the Data Room now records an explicit `view` when a document is
+  opened and a `download` when a file (current or historical) is downloaded. The viewer is
+  re-validated server-side against the same grant rule; the write is best-effort and never
+  blocks the file. The journal is shown to managers/reviewers as **Consultations and
+downloads**, and it feeds the analytics counters.
+* **DR-09 — applied:** the analytics counters now join through the document, so they no
+  longer depend on the journal's Venture key (which stores the readable code).
 * **DR-10 (incomplete):** the audit UI shows only the latest 12 events. Add “show all” using
   the 200 rows already returned; do not add pagination until it is needed.
 
@@ -179,27 +175,27 @@ existing table.
   “Expired” and still allows revoke.
 * **DR-11** removed the dead legacy document state/handlers from the founder page.
 * **DR-02** added the **Legacy documents** lens and count.
+* **DR-04** excluded soft-deleted documents from the analytic count.
+* **DR-09** counted the journal through the document.
 
 **Still proposed:**
 
 1. **DR-01** validate the category in the upload route; delete the uploaded object on early
    create refusals.
-2. **DR-04** exclude soft-deleted documents from the investment analytics count.
-3. **DR-09** count access logs by the venture code they store.
-4. **DR-10** “show all” for the audit history already returned.
+2. **DR-10** “show all” for the audit history already returned.
 
-### Phase B — audit extension (approval requested)
+### Phase B — audit extension (applied)
 
-8. **DR-08** write `view` / `download` rows to `venture_document_access_logs`, reusing the
-   existing model/service shape and the existing viewer verdict. The download event is an
-   explicit POST action (`record_access`) before the signed URL is opened, so the server —
-   not the browser — decides whether the event is legitimate.
+8. **DR-08 — applied.** `view` / `download` rows are written to the existing access-log
+   table; the download event goes through an explicit server-side action before the signed
+   URL is opened. No schema change.
 
 ### Phase C — tests
 
 **Applied in this round:** `data-room.test.js` covers the `is_expired` grant flag, the
-legacy-category classification, and the manager’s view of an expired grant. The focused
-Data Room suite passes (see the report in the final message).
+legacy-category classification, and the manager’s view of an expired grant;
+`data-room-writes.test.js` covers the access-journal write/refusal rules; `ws4-readiness`
+covers the access counters and the soft-delete exclusion.
 
 **Still proposed:**
 
