@@ -83,6 +83,12 @@ describe("migrateLegacyIdentities", () => {
 
     expect(insertIndexes).toHaveLength(4);
     expect(Math.max(...insertIndexes)).toBeLessThan(updateIndex);
+    // `v2_programs.end_date` is TEXT on the measured production schema: without
+    // the cast, the facilitator insert is refused (text into timestamptz).
+    const facilitatorInsert = queryLog.find((sql) =>
+      sql.includes("'facilitator', 'program'"),
+    );
+    expect(facilitatorInsert).toContain("::timestamptz");
     expect(result).toMatchObject({
       cards: 564,
       updated: 569,

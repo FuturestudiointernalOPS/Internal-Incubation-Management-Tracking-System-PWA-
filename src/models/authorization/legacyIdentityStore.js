@@ -58,6 +58,16 @@ async function tableExists(query, name) {
 }
 
 /**
+ * `v2_programs.end_date` is a DATE in most schemas but a TEXT column in the
+ * measured production one. Casting through text parses both shapes and turns an
+ * empty string into NULL, so the same statement runs on either schema. Without
+ * it, PostgreSQL refuses the insert: "column ends_at is of type timestamp with
+ * time zone but expression is of type text".
+ */
+const END_DATE_AS_TIMESTAMPTZ =
+  "NULLIF(TRIM(p.end_date::text), '')::timestamptz";
+
+/**
  * Apply the normalization. Returns what happened; throws (rolling back) when a
  * post-condition fails.
  *
@@ -100,7 +110,7 @@ export async function migrateLegacyIdentities() {
            JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
            WHERE c.role = 'facilitator'
              AND LOWER(COALESCE(ps.role, '')) = 'facilitator'
-             AND (p.end_date IS NULL OR p.end_date >= CURRENT_DATE)
+             AND (p.end_date IS NULL OR ${END_DATE_AS_TIMESTAMPTZ} >= CURRENT_DATE)
          )`
       : null;
 
@@ -195,14 +205,14 @@ export async function migrateLegacyIdentities() {
              SELECT
                c.cid,
                CAST(ps.program_id AS TEXT) AS program_id,
-               MAX(p.end_date) OVER (PARTITION BY c.cid) AS ends_at
+               MAX(${END_DATE_AS_TIMESTAMPTZ}) OVER (PARTITION BY c.cid) AS ends_at
              FROM contacts c
              JOIN v2_program_staff ps
                ON (ps.staff_id = c.cid OR LOWER(TRIM(ps.staff_id)) = LOWER(c.email))
              JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
              WHERE c.role = 'facilitator'
                AND LOWER(COALESCE(ps.role, '')) = 'facilitator'
-               AND (p.end_date IS NULL OR p.end_date >= CURRENT_DATE)
+               AND (p.end_date IS NULL OR ${END_DATE_AS_TIMESTAMPTZ} >= CURRENT_DATE)
            )
            INSERT INTO profile_assignments
              (contact_cid, profile_key, context_type, context_id, started_at, ends_at,
