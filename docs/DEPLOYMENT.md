@@ -86,9 +86,7 @@ git config --local --add credential.helper store
 ## 3. Deployment
 
 Deployments are produced by the **Vercel ↔ GitHub integration**, not by anything
-in this repository. There is deliberately no `.vercel/` directory and no
-`vercel.json`: the project's framework and build settings live in the Vercel
-dashboard, and a committed override would silently disagree with them.
+in this repository. Production is served from **https://impactos.futurestudio.bj**.
 
 | Branch | Vercel |
 |---|---|
@@ -97,26 +95,57 @@ dashboard, and a committed override would silently disagree with them.
 | `Ventures` | Preview |
 
 So "deploying to FutureStudio" means **merging into `main` on the FutureStudio
-repository**; Vercel picks it up and builds it in the FutureStudio project. The
-domains reported by that project are the ones ending in
-`futurestudiointernalops-projects.vercel.app`.
+repository**; Vercel picks it up and builds it in the FutureStudio project.
 
 Promotion to `main` is gated by the **production test** —
 `docs/PRODUCTION_TEST.md`. A green build is not a substitute: production and
 staging are different databases.
 
-### If Vercel CLI deploys are ever needed
+### This workstation is linked (do not re-link blindly)
 
-`.vercel` is gitignored, so a link is per-machine. Without it, `npx vercel` only
-offers to create a **new** project under whichever account happens to be logged
-in — which is exactly the drift this document exists to prevent. Always link
-explicitly, to the existing FutureStudio project and scope:
+`vercel link` writes `.vercel/project.json`, which `.gitignore` excludes — so the
+link is **per machine** and must be recreated on a new checkout. This machine is
+linked to:
+
+| Setting | Value |
+|---|---|
+| Project | `internal-incubation-management-tracking-system-pwa` |
+| Project ID | `prj_cJF1IF7D2sdrDsA4IUsfzldHZ2Vn` |
+| Team (org) ID | `team_hu1bP8PCeANzCNu25wSu9tTF` |
+| Account | `futurestudiointernalops` |
+| Active team | `futurestudiointernalops-projects` |
+| Production domain | https://impactos.futurestudio.bj |
+
+Recreate it on a new machine with the exact command — never auto-link:
 
 ```bash
-npx vercel link --yes --project <futurestudio-project> --scope futurestudiointernalops-projects
+npx vercel login                          # browser device flow, approve as futurestudiointernalops
+npx vercel link --yes \
+  --project internal-incubation-management-tracking-system-pwa \
+  --scope futurestudiointernalops-projects
 ```
 
-Do **not** run `npx vercel` (auto-link) or `npx vercel --yes` from this folder.
+Verify:
+
+```bash
+npx vercel whoami                 # futurestudiointernalops
+npx vercel project ls             # project must already exist in the list
+cat .vercel/project.json          # projectId + orgId as above
+```
+
+> **`vercel link` edits `.env.local`.** It downloads a fresh `VERCEL_OIDC_TOKEN`
+> and writes that line. It does not touch `DATABASE_URL` — verified after
+> linking: the file kept its 7 keys and `DATABASE_URL` still pointed at the
+> Supabase `eu-west-1` pooler. Still, re-check before running anything that
+> touches the database, because a link against the wrong project can rewrite
+> the whole file.
+
+### The one remaining way to drift
+
+Running bare `npx vercel` in a folder with **no** `.vercel/project.json` offers
+to create a **new** project under whatever account is logged in. That is how a
+deploy ends up somewhere other than FutureStudio. Always check
+`vercel whoami` first, and always link explicitly as shown above.
 
 ---
 
@@ -125,5 +154,6 @@ Do **not** run `npx vercel` (auto-link) or `npx vercel --yes` from this folder.
 - [ ] `git config --local --get remote.origin.url` → FutureStudio repository
 - [ ] `git config --local --get user.email` → `ops@futurestudio.bj`
 - [ ] `GIT_TERMINAL_PROMPT=0 git ls-remote origin HEAD` succeeds
+- [ ] `npx vercel whoami` → `futurestudiointernalops` (only if deploying via CLI)
 - [ ] Pushing to `main`? Run `docs/PRODUCTION_TEST.md` first
 - [ ] Never `git add -A`; stage files explicitly
