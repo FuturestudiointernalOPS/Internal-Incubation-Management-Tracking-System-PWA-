@@ -95,7 +95,8 @@
       "title": "Exigences documentaires",
       "description": "Ce qui est demandé à cette entreprise à son stade actuel. Les documents requis comptent pour la préparation ; les recommandés et conditionnels jamais.",
       "customized": "Personnalisé",
-      "editableHint": "Les réviseurs peuvent ajuster une exigence pour cette entreprise."
+      "editableHint": "Les réviseurs peuvent ajuster une exigence pour cette Venture.",
+      "leadManagerHint": "Vous définissez ce que cette Venture doit fournir. Les fondateurs de la Venture téléversent les fichiers."
     },
     "reviewModal": {
       "title": "Réviser le document",

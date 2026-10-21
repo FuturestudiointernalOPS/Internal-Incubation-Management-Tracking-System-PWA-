@@ -249,6 +249,29 @@ describe("resolveDataRoomViewer", () => {
     expect(viewer).toMatchObject({ allowed: true, canManage: true, canReview: false });
   });
 
+  test("a Lead Manager requests categories and reviews, but never uploads", async () => {
+    hasAnyVentureAssignment.mockResolvedValue(true);
+    hasVentureCapability.mockResolvedValue(true);
+    canManageVerification.mockResolvedValue({ allowed: true });
+    const db = makeDb(async ({ sql }) => {
+      if (sql.includes("FROM venture_staff_assignments")) return { rows: [{ 1: 1 }] };
+      return { rows: [] };
+    });
+
+    const viewer = await resolveDataRoomViewer({
+      ventureId: VENTURE,
+      session: { cid: "USR-LEAD", role: "staff", name: "Lead" },
+      database: db,
+    });
+
+    expect(viewer).toMatchObject({
+      allowed: true,
+      viewerType: "staff",
+      canManage: false,
+      canReview: true,
+    });
+  });
+
   test("an ordinary member sees the room but cannot manage it", async () => {
     const db = makeDb(async ({ sql }) => {
       if (sql.includes("FROM venture_members")) return { rows: [{ member_type: "team_member" }] };

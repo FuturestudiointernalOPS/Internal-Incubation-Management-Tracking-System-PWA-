@@ -95,7 +95,8 @@
       "title": "Document requirements",
       "description": "What this venture is asked for at its current stage. Required documents count towards readiness; recommended and conditional ones never do.",
       "customized": "Customized",
-      "editableHint": "Reviewers can adjust a requirement for this venture."
+      "editableHint": "Reviewers can adjust a requirement for this venture.",
+      "leadManagerHint": "You can set what this Venture must provide. The Venture's founders upload the files."
     },
     "reviewModal": {
       "title": "Review document",

@@ -343,6 +343,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         <RequirementsPanel
           requirements={requirements}
           canReview={viewer.can_review}
+          canManage={viewer.can_manage}
           t={t}
           onChange={setRequirement}
         />
@@ -470,7 +471,7 @@ function CategoryRow({ active, label, count, level, onClick }) {
   );
 }
 
-function RequirementsPanel({ requirements, canReview, t, onChange }) {
+function RequirementsPanel({ requirements, canReview, canManage, t, onChange }) {
   return (
     <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-4 space-y-2">
       <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
@@ -507,7 +508,11 @@ function RequirementsPanel({ requirements, canReview, t, onChange }) {
         })}
       </div>
       {canReview ? (
-        <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.requirements.editableHint")}</p>
+        <p className="text-[9px] text-[var(--text-secondary)]">
+          {canManage
+            ? t("dataRoom.requirements.editableHint")
+            : t("dataRoom.requirements.leadManagerHint")}
+        </p>
       ) : null}
     </div>
   );

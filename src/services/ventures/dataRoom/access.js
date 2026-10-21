@@ -40,6 +40,7 @@ import {
 } from "@/services/ventures/permissions";
 import { resolveInvestorScope } from "@/models/authorization/investorScope";
 import { getAuthorizationContext } from "@/models/authorization/index";
+import { selectLeadManagerAssignment } from "@/models/ventureDocumentTypesStore";
 import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./shared";
 
 // ── Who is asking ───────────────────────────────────────────────────────────
@@ -79,10 +80,20 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
     assigned = await hasAnyVentureAssignment({ ventureId, contactId: cid });
   }
 
+  // A Lead Manager RUNS the Venture but does not file its documents: they
+  // request the categories and review what the founder uploads. Detecting the
+  // responsibility explicitly keeps that rule out of the generic document
+  // capability matrix, which other staff roles still use.
+  let isLeadManager = false;
+  if (assigned && cid) {
+    const leadResult = await selectLeadManagerAssignment(ventureId, cid, database).catch(() => ({ rows: [] }));
+    isLeadManager = (leadResult.rows || []).length > 0;
+  }
+
   const canView = superAdmin || isMember || assigned;
 
   let canManage = superAdmin || isFounder;
-  if (!canManage && assigned && cid) {
+  if (!canManage && assigned && cid && !isLeadManager) {
     canManage =
       (await hasVentureCapability({ ventureId, contactId: cid, area: "documents", action: "edit" })) ||
       (await hasVentureCapability({ ventureId, contactId: cid, area: "documents", action: "upload" })) ||
