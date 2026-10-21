@@ -49,6 +49,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const requirements = data?.requirements || [];
   const grants = data?.grants || [];
   const history = data?.history || [];
+  const accessHistory = data?.access_history || [];
   const isInvestor = viewer.type === "investor";
 
   const categories = useMemo(() => {
@@ -95,13 +96,28 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
     .filter(Boolean)
     .map((entry) => t(entry.labelKey));
 
-  const openDocument = async (documentEntry) => {
-    if (documentEntry.file_url_signed) {
-      window.open(documentEntry.file_url_signed, "_blank", "noopener,noreferrer");
-    }
+  // The journal is an audit side effect: it never blocks the file. Opening is
+  // fired without awaiting so the browser still sees a direct user gesture;
+  // downloading awaits the event so a slow journal cannot reorder the trace.
+  const recordAccess = (documentEntry, accessType) =>
+    fetch(`/api/ventures/${ventureId}/data-room`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "record_access",
+        document_id: documentEntry.id,
+        access_type: accessType,
+      }),
+    }).catch(() => {});
+
+  const openDocument = (documentEntry) => {
+    if (!documentEntry.file_url_signed) return;
+    void recordAccess(documentEntry, "view");
+    window.open(documentEntry.file_url_signed, "_blank", "noopener,noreferrer");
   };
 
   const download = async (documentEntry) => {
+    await recordAccess(documentEntry, "download");
     await downloadDocument(documentEntry);
   };
 
@@ -332,6 +348,26 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
               </span>
               <span className="text-[var(--text-secondary)] shrink-0">
                 {event.actor_name || event.actor_cid} · {new Date(event.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {!isInvestor && accessHistory.length > 0 ? (
+        <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-4 space-y-2">
+          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
+            {t("dataRoom.accessHistory.title")}
+          </p>
+          {accessHistory.slice(0, 12).map((event) => (
+            <div key={event.id} className="flex items-center justify-between gap-2 text-[10px]">
+              <span className="text-[var(--text-primary)] min-w-0 truncate">
+                {t(`dataRoom.accessHistory.actions.${event.access_type}`)}
+                {" · "}
+                <span className="text-[var(--text-secondary)]">{event.document_title || t("dataRoom.accessHistory.document")}</span>
+              </span>
+              <span className="text-[var(--text-secondary)] shrink-0">
+                {event.viewer_name || event.viewer_email || t("dataRoom.accessHistory.someone")} · {new Date(event.created_at).toLocaleDateString()}
               </span>
             </div>
           ))}

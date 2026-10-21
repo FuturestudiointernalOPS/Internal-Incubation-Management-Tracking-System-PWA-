@@ -546,6 +546,67 @@ export async function selectVentureMembership(ventureRef, cid, database = db) {
   });
 }
 
+// ── Access journal ──────────────────────────────────────────────────────────
+
+/**
+ * The readable VNT code of a Venture from either its internal id or its code.
+ *
+ * The access journal stores that code (its foreign key is the business key),
+ * while the Data Room mostly holds the internal id. Resolving it here keeps the
+ * writer honest instead of guessing which form the caller passed.
+ */
+export function selectDataRoomVentureCode(ventureRef, database = db) {
+  const value = String(ventureRef || "").trim();
+  return database.execute({
+    sql: `SELECT venture_id FROM ventures
+           WHERE id::text = ? OR venture_id = ? LIMIT 1`,
+    args: [value, value],
+  });
+}
+
+/**
+ * Recent access events of a Venture, newest first. Manager/reviewer only —
+ * the caller decides who may receive it, exactly as it does for the audit log.
+ */
+export function selectDataRoomAccessLog(ventureRef, { limit = 50 } = {}, database = db) {
+  return database.execute({
+    sql: `SELECT al.id, al.document_id, al.access_type,
+                 al.viewer_email, al.viewer_name, al.created_at,
+                 COALESCE(d.title, d.name, 'document') AS document_title
+            FROM venture_document_access_logs al
+            LEFT JOIN venture_documents d ON d.id = al.document_id
+           WHERE al.venture_id = (
+             SELECT venture_id FROM ventures
+              WHERE id::text = ? OR venture_id = ? LIMIT 1
+           )
+           ORDER BY al.created_at DESC
+           LIMIT ?`,
+    args: [String(ventureRef || ""), String(ventureRef || ""), Number(limit) || 50],
+  });
+}
+
+/**
+ * One consultation / download event. Reuses the existing access-log table; no
+ * schema change and no file contents are recorded.
+ */
+export function insertDataRoomAccessLog({
+  documentId,
+  ventureCode,
+  accessType,
+  viewerEmail = null,
+  viewerName = null,
+  ipAddress = null,
+  userAgent = null,
+}, database = db) {
+  return database.execute({
+    sql: `INSERT INTO venture_document_access_logs
+            (document_id, venture_id, access_type, viewer_email, viewer_name,
+             ip_address, user_agent)
+          VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    args: [documentId, ventureCode, accessType, viewerEmail, viewerName, ipAddress, userAgent],
+  });
+}
+
 // ── Audit ───────────────────────────────────────────────────────────────────
 
 /**

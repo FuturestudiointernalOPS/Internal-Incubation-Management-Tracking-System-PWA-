@@ -101,6 +101,7 @@ const reports = require("@/models/ventureWorkspace/journeyAndReports/journeyRepo
 const timeline = require("@/models/ventureTimelineStore");
 const intelligence = require("@/models/intelligence");
 const dashboardDocuments = require("@/models/ventureWorkspace/dashboardAndCheckins");
+const investmentAnalytics = require("@/models/ventureInvestmentAnalyticsStore");
 
 const sqlOf = (needle) => executed.filter((call) => call.sql.includes(needle)).map((call) => call.sql);
 
@@ -269,6 +270,25 @@ describe("Analytics and report reads use the same rules as the rest of the app",
 
     expect(sql).toContain("COUNT(*)");
     expect(sql).not.toContain("LIMIT");
+  });
+
+  test("analytics counts consultations through the document, not the log's Venture code", async () => {
+    await investmentAnalytics.countDocumentViews(UUID_A);
+    await investmentAnalytics.countDocumentDownloads(UUID_A);
+
+    const queries = sqlOf("FROM venture_document_access_logs");
+    expect(queries).toHaveLength(2);
+    for (const sql of queries) {
+      expect(sql).toContain("JOIN venture_documents d ON d.id = al.document_id");
+      expect(sql).toContain("d.venture_id = ?");
+    }
+  });
+
+  test("analytics ignores soft-deleted documents", async () => {
+    await investmentAnalytics.countAnalyticsDocuments(UUID_A);
+    const sql = sqlOf("FROM venture_documents WHERE venture_id=?")[0];
+
+    expect(sql).toContain("is_deleted = false");
   });
 });
 

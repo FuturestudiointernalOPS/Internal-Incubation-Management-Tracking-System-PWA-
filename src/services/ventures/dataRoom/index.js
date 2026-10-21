@@ -18,6 +18,7 @@ export {
   computeDataRoomCompleteness,
   buildDataRoom,
   loadDataRoomDocument,
+  recordDataRoomAccess,
 } from "./access";
 
 export {

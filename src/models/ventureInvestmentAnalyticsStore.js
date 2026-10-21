@@ -51,24 +51,46 @@ export async function selectAnalyticsPipelineTotals(ventureRef) {
   });
 }
 
-/** Count the Venture's documents. */
+/** Count the Venture's live documents (soft-deleted rows excluded). */
 export async function countAnalyticsDocuments(ventureRef) {
   // venture_documents is uuid since Phase 0; the analytics route carries the code and
   // the service swallows a failure into a zero, which reads as "no documents".
   const ventureId = await resolveVentureInternalId(ventureRef);
-  return db.execute({ sql: "SELECT COUNT(*) as t FROM venture_documents WHERE venture_id=?", args: [ventureId] });
+  return db.execute({
+    sql: "SELECT COUNT(*) as t FROM venture_documents WHERE venture_id=? AND is_deleted = false",
+    args: [ventureId],
+  });
 }
 
-/** Count the Venture's document views. */
+/**
+ * Count the Venture's document views.
+ *
+ * The access journal stores the readable VNT code in its Venture column, while
+ * this reader holds the internal id. Counting through the document join avoids
+ * the identifier mismatch entirely and works whether the journal row was written
+ * by the Data Room or by any older path.
+ */
 export async function countDocumentViews(ventureRef) {
   const ventureId = await resolveVentureInternalId(ventureRef);
-  return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_document_access_logs WHERE venture_id=? AND access_type='view'", args: [ventureId] });
+  return db.execute({
+    sql: `SELECT COUNT(*) as c
+            FROM venture_document_access_logs al
+            JOIN venture_documents d ON d.id = al.document_id
+           WHERE d.venture_id = ? AND al.access_type='view'`,
+    args: [ventureId],
+  });
 }
 
 /** Count the Venture's document downloads. */
 export async function countDocumentDownloads(ventureRef) {
   const ventureId = await resolveVentureInternalId(ventureRef);
-  return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_document_access_logs WHERE venture_id=? AND access_type='download'", args: [ventureId] });
+  return db.execute({
+    sql: `SELECT COUNT(*) as c
+            FROM venture_document_access_logs al
+            JOIN venture_documents d ON d.id = al.document_id
+           WHERE d.venture_id = ? AND al.access_type='download'`,
+    args: [ventureId],
+  });
 }
 
 /** Count the Venture's pitch-deck views. */

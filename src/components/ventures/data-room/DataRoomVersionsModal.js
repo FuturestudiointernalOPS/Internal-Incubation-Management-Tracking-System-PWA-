@@ -40,6 +40,21 @@ export default function DataRoomVersionsModal({ documentEntry, ventureId, t, onC
   const message = (value) => (String(value || "").startsWith("dataRoom.") ? t(value) : value);
   const current = Number(documentEntry.current_version || versions[versions.length - 1]?.version_number || 1);
 
+  // A historical file is still a download of this document. The journal records
+  // the document, not the version number, so the trace stays consistent with the
+  // current file's download entry.
+  const recordDownload = () => {
+    fetch(`/api/ventures/${ventureId}/data-room`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "record_access",
+        document_id: documentEntry.id,
+        access_type: "download",
+      }),
+    }).catch(() => {});
+  };
+
   return (
     <Overlay onClose={onClose} label={t("dataRoom.versionsModal.title")}>
       <div className="space-y-4">
@@ -86,6 +101,7 @@ export default function DataRoomVersionsModal({ documentEntry, ventureId, t, onC
                         href={version.file_url_signed}
                         target="_blank"
                         rel="noreferrer"
+                        onClick={recordDownload}
                         className="p-1 rounded text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10"
                         title={t("dataRoom.download")}
                       >

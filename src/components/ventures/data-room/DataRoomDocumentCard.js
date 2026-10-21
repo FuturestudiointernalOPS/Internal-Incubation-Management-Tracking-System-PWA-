@@ -31,14 +31,6 @@ export default function DataRoomDocumentCard({
   const href = documentEntry.file_url_signed;
   const title = documentTitle(documentEntry);
 
-  const open = () => {
-    if (href) window.open(href, "_blank", "noopener,noreferrer");
-  };
-
-  const download = () => {
-    if (href) onOpen(documentEntry, "download");
-  };
-
   return (
     <div className="rounded-xl border border-[var(--border-primary)] bg-surface-2 p-3 space-y-2">
       <div className="flex items-start gap-2.5">
@@ -92,8 +84,8 @@ export default function DataRoomDocumentCard({
       <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
         {href ? (
           <>
-            <ActionButton icon={Eye} label={t("dataRoom.view")} onClick={open} />
-            <ActionButton icon={Download} label={t("dataRoom.download")} onClick={download} />
+            <ActionButton icon={Eye} label={t("dataRoom.view")} onClick={() => onOpen(documentEntry, "view")} />
+            <ActionButton icon={Download} label={t("dataRoom.download")} onClick={() => onOpen(documentEntry, "download")} />
           </>
         ) : (
           <span className="text-[10px] text-[var(--text-secondary)]">—</span>

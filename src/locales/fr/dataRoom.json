@@ -144,6 +144,15 @@
         "DATA_ROOM_REQUIREMENT_UPDATED": "Exigence mise à jour"
       }
     },
+    "accessHistory": {
+      "title": "Consultations et téléchargements",
+      "document": "Document",
+      "someone": "Quelqu'un",
+      "actions": {
+        "view": "Ouvert",
+        "download": "Téléchargé"
+      }
+    },
     "category": {
       "companyOverview": "Présentation de l'entreprise",
       "legalCorporate": "Juridique et statutaire",
@@ -164,6 +173,7 @@
       "invalidExpiry": "Saisissez une date d'expiration valide.",
       "saveFailed": "Le document n'a pas pu être enregistré. Rien n'a été conservé — veuillez réessayer.",
       "decisionInvalid": "Choisissez une décision de révision valide.",
+      "invalidAccessType": "Événement d'accès non pris en charge.",
       "rejectionReasonRequired": "Un motif est obligatoire pour rejeter un document.",
       "scopeRequired": "Choisissez un document ou une catégorie à partager.",
       "alreadyGranted": "Cette personne a déjà accès à cette portée.",

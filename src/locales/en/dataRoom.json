@@ -144,6 +144,15 @@
         "DATA_ROOM_REQUIREMENT_UPDATED": "Requirement updated"
       }
     },
+    "accessHistory": {
+      "title": "Consultations and downloads",
+      "document": "Document",
+      "someone": "Someone",
+      "actions": {
+        "view": "Opened",
+        "download": "Downloaded"
+      }
+    },
     "category": {
       "companyOverview": "Company Overview",
       "legalCorporate": "Legal & Corporate",
@@ -164,6 +173,7 @@
       "invalidExpiry": "Enter a valid expiry date.",
       "saveFailed": "The document could not be saved. Nothing was recorded — please try again.",
       "decisionInvalid": "Choose a valid review decision.",
+      "invalidAccessType": "Unsupported access event.",
       "rejectionReasonRequired": "A reason is required when rejecting a document.",
       "scopeRequired": "Choose a document or a category to share.",
       "alreadyGranted": "That person already has access to this scope.",

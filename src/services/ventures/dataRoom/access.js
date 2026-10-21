@@ -20,6 +20,9 @@ import {
   updateDataRoomRequirementsForStage,
   selectVentureMembership,
   selectDataRoomActivity,
+  selectDataRoomAccessLog,
+  selectDataRoomVentureCode,
+  insertDataRoomAccessLog,
 } from "@/models/ventureDataRoomStore";
 import {
   DATA_ROOM_CATEGORIES,
@@ -285,14 +288,27 @@ export async function buildDataRoom({ ventureId, session, access, filters = {}, 
   }
 
   let history = [];
+  let accessHistory = [];
   if (viewer.canManage || viewer.canReview) {
-    const activityResult = await selectDataRoomActivity(ventureId, database).catch(() => ({ rows: [] }));
+    const [activityResult, accessResult] = await Promise.all([
+      selectDataRoomActivity(ventureId, database).catch(() => ({ rows: [] })),
+      selectDataRoomAccessLog(ventureId, { limit: 50 }, database).catch(() => ({ rows: [] })),
+    ]);
     history = (activityResult.rows || []).map((row) => ({
       id: row.id,
       action: row.action,
       actor_cid: row.actor_cid,
       actor_name: row.actor_name,
       details: parseDetails(row.details),
+      created_at: row.created_at,
+    }));
+    accessHistory = (accessResult.rows || []).map((row) => ({
+      id: row.id,
+      document_id: row.document_id,
+      document_title: row.document_title || null,
+      access_type: row.access_type,
+      viewer_name: row.viewer_name || null,
+      viewer_email: row.viewer_email || null,
       created_at: row.created_at,
     }));
   }
@@ -311,8 +327,83 @@ export async function buildDataRoom({ ventureId, session, access, filters = {}, 
     completeness,
     grants,
     history,
+    access_history: accessHistory,
     max_file_mb: DATA_ROOM_MAX_FILE_MB,
   };
+}
+
+// ── Access journal ──────────────────────────────────────────────────────────
+
+const DATA_ROOM_ACCESS_TYPES = ["view", "download"];
+
+/**
+ * Record one explicit consultation or download.
+ *
+ * This is an AUDIT side effect, never an access decision: the viewer has already
+ * been resolved and the document re-read through the same grant rule as the
+ * catalogue. A journal write failure is logged and the file still opens — the
+ * journal must not become a second way to lose access to a document.
+ *
+ * The stored Venture key is the readable VNT code, because the existing access
+ * table's foreign key is the business key. The document's internal id is resolved
+ * to that code first; the caller's own reference is only a fallback.
+ */
+export async function recordDataRoomAccess({
+  ventureId,
+  documentId,
+  session,
+  accessType,
+  meta = {},
+  database,
+} = {}) {
+  const viewer = await resolveDataRoomViewer({ ventureId, session, database });
+  if (!viewer.allowed) return refusal(404, "errors.notFound");
+
+  const type = String(accessType || "");
+  if (!DATA_ROOM_ACCESS_TYPES.includes(type)) {
+    return refusal(400, "dataRoom.errors.invalidAccessType");
+  }
+  if (!documentId) return refusal(404, "errors.notFound");
+
+  const result = await selectDataRoomDocument(
+    ventureId,
+    documentId,
+    { granteeCid: viewer.granteeCid || null },
+    database,
+  );
+  const document = result.rows?.[0];
+  if (!document) return refusal(404, "errors.notFound");
+
+  let ventureCode = null;
+  try {
+    const codeResult = await selectDataRoomVentureCode(document.venture_id, database);
+    ventureCode = codeResult.rows?.[0]?.venture_id || null;
+  } catch (_) {
+    ventureCode = null;
+  }
+  if (!ventureCode && /^VNT-/i.test(String(ventureId || ""))) {
+    ventureCode = String(ventureId);
+  }
+  if (!ventureCode) return { ok: true, recorded: false };
+
+  try {
+    await insertDataRoomAccessLog(
+      {
+        documentId: document.id,
+        ventureCode,
+        accessType: type,
+        viewerEmail: session?.email || null,
+        viewerName: session?.name || null,
+        ipAddress: meta.ip || null,
+        userAgent: meta.userAgent || null,
+      },
+      database,
+    );
+    return { ok: true, recorded: true };
+  } catch (error) {
+    console.error("[data-room-access] journal write failed:", error?.message || error);
+    return { ok: true, recorded: false };
+  }
 }
 
 /** One document with its versions and (for managers) its live grants. */

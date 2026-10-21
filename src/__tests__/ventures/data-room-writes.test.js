@@ -54,6 +54,7 @@ const {
   reviewDataRoomDocument,
   updateDataRoomMetadata,
   grantDataRoomAccess,
+  recordDataRoomAccess,
 } = require("@/services/ventures/dataRoom");
 const {
   ensureDataRoomSchema,
@@ -209,6 +210,60 @@ describe("createDataRoomDocument", () => {
       call[0].sql.includes("INSERT INTO venture_activity_log"),
     );
     expect(audit[0].args).toContain("DATA_ROOM_DOCUMENT_UPLOADED");
+  });
+});
+
+describe("recordDataRoomAccess — the consultation journal", () => {
+  test("records one view for an authorised founder, under the readable Venture code", async () => {
+    const db = founderDb();
+
+    const result = await recordDataRoomAccess({
+      ventureId: VENTURE,
+      documentId: "DOC-1",
+      session: founderSession,
+      accessType: "view",
+      database: db,
+    });
+
+    expect(result).toEqual({ ok: true, recorded: true });
+
+    const insert = db.execute.mock.calls.find((call) =>
+      call[0].sql.includes("INSERT INTO venture_document_access_logs"),
+    );
+    expect(insert).toBeTruthy();
+    expect(insert[0].args).toEqual(["DOC-1", "VNT-1", "view", null, "Founder", null, null]);
+  });
+
+  test("refuses an unsupported event before writing anything", async () => {
+    const db = founderDb();
+
+    await expect(
+      recordDataRoomAccess({
+        ventureId: VENTURE,
+        documentId: "DOC-1",
+        session: founderSession,
+        accessType: "print",
+        database: db,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: "dataRoom.errors.invalidAccessType" });
+
+    expect(
+      db.execute.mock.calls.some((call) => call[0].sql.includes("INSERT INTO venture_document_access_logs")),
+    ).toBe(false);
+  });
+
+  test("refuses a viewer who has no access to the Venture at all", async () => {
+    const db = makeDb(async () => ({ rows: [] }));
+
+    await expect(
+      recordDataRoomAccess({
+        ventureId: VENTURE,
+        documentId: "DOC-1",
+        session: { cid: "USR-OUTSIDER", role: "member" },
+        accessType: "view",
+        database: db,
+      }),
+    ).resolves.toMatchObject({ ok: false, status: 404 });
   });
 });
 

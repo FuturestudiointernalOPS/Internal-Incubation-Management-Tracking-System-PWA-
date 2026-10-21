@@ -11,6 +11,7 @@ import {
   grantDataRoomAccess,
   revokeDataRoomAccess,
   setDataRoomRequirement,
+  recordDataRoomAccess,
 } from "@/services/ventures/dataRoom";
 
 /**
@@ -116,6 +117,18 @@ export const POST = createHandler(async (req, { params }) => {
       break;
     case "revoke_grant":
       result = await revokeDataRoomAccess({ ventureId: id, grantId: body.grant_id, session });
+      break;
+    case "record_access":
+      result = await recordDataRoomAccess({
+        ventureId: id,
+        documentId: body.document_id,
+        session,
+        accessType: body.access_type,
+        meta: {
+          ip: String(req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || null,
+          userAgent: req.headers.get("user-agent") || null,
+        },
+      });
       break;
     case "set_requirement":
       result = await setDataRoomRequirement({
