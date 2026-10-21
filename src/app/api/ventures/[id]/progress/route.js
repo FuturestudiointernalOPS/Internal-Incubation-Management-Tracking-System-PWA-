@@ -6,7 +6,7 @@ import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
 import {
   countVentureCustomerInterviews,
   countVentureDocumentsByVentureId,
-  countVentureFoundersByCode,
+  countVentureFoundersForVenture,
   countVenturePmfAssessments,
   countVentureRetrosByVentureId,
   countVentureStandupsByVentureId,
@@ -55,15 +55,17 @@ export async function GET(req, { params }) {
     // wizard was retired (WS4) because nothing wrote its table. Every input
     // below is a real Venture record, so the figure moves when the founder
     // actually sets the Venture up.
+    // Each optional probe degrades to "nothing recorded" instead of taking the
+    // whole score down. A missing table or a column-type mismatch used to turn
+    // the entire read into an error, which the screen drew as « — » forever.
     const [venture, founders, docs, businessModel, discovery, validations, pmf] = await Promise.all([
-      getVentureProfileFields(dbId),
-      // venture_members stores venture_id as the VNT code (TEXT)
-      countVentureFoundersByCode(id),
-      countVentureDocumentsByVentureId(dbId),
-      getFirstVentureBusinessModelId(dbId),
-      countVentureCustomerInterviews(dbId),
-      countVentureValidations(dbId),
-      countVenturePmfAssessments(dbId),
+      getVentureProfileFields(dbId).catch(() => ({ rows: [] })),
+      countVentureFoundersForVenture(id, dbId).catch(() => ({ rows: [] })),
+      countVentureDocumentsByVentureId(dbId).catch(() => ({ rows: [] })),
+      getFirstVentureBusinessModelId(dbId).catch(() => ({ rows: [] })),
+      countVentureCustomerInterviews(dbId).catch(() => ({ rows: [] })),
+      countVentureValidations(dbId).catch(() => ({ rows: [] })),
+      countVenturePmfAssessments(dbId).catch(() => ({ rows: [] })),
     ]);
 
     const ventureRow = venture.rows?.[0] || {};

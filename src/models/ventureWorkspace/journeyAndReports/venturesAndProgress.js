@@ -131,11 +131,24 @@ export async function getVentureProfileFields(dbId) {
   });
 }
 
-/** Active founder count by VNT code (progress founders %, arg is the VNT code). */
-export async function countVentureFoundersByCode(venture_id) {
+/**
+ * Active founder count for a Venture.
+ *
+ * The membership table keys on the INTERNAL id (`uuid` in the current schema),
+ * while the progress screen also holds the readable VNT code. Comparing the code
+ * straight to that column raised “operator does not exist: uuid = text” (or an
+ * invalid-uuid error), which took the whole progress read down and left Venture
+ * Setup at « — ». The text cast works for either generation of the column, and
+ * both references are accepted so a legacy code-keyed row still counts.
+ */
+export async function countVentureFoundersForVenture(ventureRef, dbId) {
   return db.execute({
-    sql: "SELECT COUNT(*) as count FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [venture_id],
+    sql: `SELECT COUNT(*) as count
+            FROM venture_members
+           WHERE venture_id::text IN (?, ?)
+             AND member_type = 'founder'
+             AND removed_at IS NULL`,
+    args: [String(dbId || ""), String(ventureRef || "")],
   });
 }
 
