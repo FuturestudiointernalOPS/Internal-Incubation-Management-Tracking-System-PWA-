@@ -71,8 +71,9 @@ describe("grantResponsibilityBaseAccess", () => {
       "internal_comms.view",
       "forms.view",
       "runs.view",
+      "collections.view",
     ]);
-    expect(db.execute).toHaveBeenCalledTimes(8); // 4 modules × (grant + ledger)
+    expect(db.execute).toHaveBeenCalledTimes(10); // 5 modules × (grant + ledger)
   });
 
   test("operations owns projects + tasks (dashboard section merge)", async () => {

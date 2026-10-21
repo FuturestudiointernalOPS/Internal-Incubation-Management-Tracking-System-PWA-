@@ -6,7 +6,7 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { NextResponse } from "next/server";
 import {
   findV2FacilitatorsGroupByProgram,
@@ -20,7 +20,7 @@ import {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
+    const authError = await requireAuthorization("programs", "groups");
     if (authError) return authError;
     const body = await req.json();
     const { program_id, name, project_description, type } = body;
@@ -73,7 +73,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
+    const authError = await requireAuthorization("programs", "groups");
     if (authError) return authError;
     const body = await req.json();
     const { id, name, project_description, demo_link, resources_link, pitch_deck_url } = body;
@@ -118,7 +118,7 @@ export async function PUT(req) {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff", "program_manager"]);
+    const authError = await requireAuthorization("programs", "groups");
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");

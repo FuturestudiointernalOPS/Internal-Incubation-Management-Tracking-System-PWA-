@@ -42,6 +42,7 @@ export const MODULE_TO_FEATURE = {
   internal_comms: "communication",
   forms: "communication",
   runs: "communication",
+  collections: "communication",
   // Programs
   programs: "programs",
   facilitator: "programs",

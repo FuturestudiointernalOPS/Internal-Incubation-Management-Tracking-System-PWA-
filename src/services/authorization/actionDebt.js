@@ -13,12 +13,6 @@ export const UNDECLARED_ACTIONS = [
   { file: "src/app/api/auth/invite-family/route.js", category: "a_proteger" },
   { file: "src/app/api/integrations/google-calendar/connect/route.js", category: "a_proteger" },
   { file: "src/app/api/journey-reports/route.js", category: "a_proteger" },
-  { file: "src/app/api/platform/collections/route.js", category: "a_proteger" },
-  { file: "src/app/api/v2/groups/route.js", category: "a_proteger" },
-  { file: "src/app/api/venture-kpi-definitions/route.js", category: "a_proteger" },
-  { file: "src/app/api/venture-options/route.js", category: "a_proteger" },
-  { file: "src/app/api/venture-permissions/scopes/route.js", category: "a_proteger" },
-  { file: "src/app/api/venture-templates/route.js", category: "a_proteger" },
   { file: "src/app/api/ventures/assigned/route.js", category: "a_proteger" },
   { file: "src/app/api/ventures/lead-manager/home/route.js", category: "a_proteger" },
 ];

@@ -24,6 +24,7 @@ import {
   ensureProfileCatalogueSeed,
   ensureFacilitatorProfileSeed,
   ensureVentureMemberEditBackfill,
+  ensureDelegatedCapabilityDefaults,
 } from "./profileCatalogueSeed";
 import { backfillProgramAssignmentProfileKeys, backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
@@ -162,6 +163,14 @@ export function ensureCapabilityBackfills() {
           // the canonical write gate preserves the access the legacy
           // membership gate gave every active member.
           runAuthzMigration("venture-member-edit-v1", ensureVentureMemberEditBackfill),
+          // Lot 4.8 — the capabilities that replace a role list are granted to
+          // the profiles that already held the access (staff, program manager).
+          // Insert-only; without this an existing database would deny them at
+          // the route switch.
+          runAuthzMigration(
+            "profile-capability-defaults-v1",
+            ensureDelegatedCapabilityDefaults,
+          ),
           // The per-assignment profile override moves from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
           // column and fills it NULL-only from the legacy id.

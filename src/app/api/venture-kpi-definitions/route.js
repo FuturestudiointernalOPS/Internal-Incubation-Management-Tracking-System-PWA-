@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import {
   createVentureKpiDefinition,
@@ -11,7 +12,6 @@ import {
 // Global, reusable catalog (business rule 49) — not venture-scoped, so this is a
 // plain role check, not the venture_members membership check used elsewhere.
 const READ_ROLES = ["member", "staff", "program_manager", "super_admin"];
-const WRITE_ROLES = ["staff", "program_manager", "super_admin"];
 
 export async function GET(_req) {
   try {
@@ -28,7 +28,7 @@ export async function GET(_req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(WRITE_ROLES);
+    const authError = await requireAuthorization("ventures", "kpis");
     if (authError) return authError;
     const session = await getSession();
     const { name, description, unit, auto_calc_source, formula, frequency, measurement_method, default_target } = await req.json();
@@ -43,7 +43,7 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     await initDb();
-    const authError = await requireAuth(WRITE_ROLES);
+    const authError = await requireAuthorization("ventures", "kpis");
     if (authError) return authError;
     const { id, name, description, unit, auto_calc_source, formula, frequency, measurement_method, default_target, is_active } = await req.json();
     if (!id) return NextResponse.json({ success: false, error: "id required" }, { status: 400 });

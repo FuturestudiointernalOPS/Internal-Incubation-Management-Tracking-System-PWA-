@@ -124,6 +124,17 @@ export const FEATURE_MODULE_CAPABILITY = {
         delete: { label: "Delete", risk: "high", description: "Archive or permanently delete forms" },
       },
     },
+    // Platform collections — the content shelves forms and runs are filed
+    // under. A distinct module because the right is distinct from editing a
+    // form: a member of staff reads the tree, the platform owner changes it.
+    collections: {
+      name: "Collections",
+      risk: "medium",
+      capabilities: {
+        view: { label: "View", risk: "low", description: "See platform collections" },
+        manage: { label: "Manage", risk: "high", description: "Create, rename and archive platform collections" },
+      },
+    },
     runs: {
       name: "Runs",
       risk: "medium",
@@ -150,6 +161,9 @@ export const FEATURE_MODULE_CAPABILITY = {
         delete: { label: "Delete", risk: "high", description: "Delete programs" },
         // Family child: `publish` is a refinement of `edit` (independent grant).
         publish: { label: "Publish", risk: "medium", parent: "edit", description: "Publish program content" },
+        // Program cohorts. Separate from `edit` so a program manager can create
+        // and rename groups without gaining the right to rewrite the programme.
+        groups: { label: "Manage Groups", risk: "medium", description: "Create, rename and archive program groups" },
       },
     },
     // Declared in ./facilitator-capabilities.js and imported here, so the PM
@@ -165,6 +179,15 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "medium", description: "Register ventures" },
         edit: { label: "Edit", risk: "medium", description: "Edit ventures" },
         delete: { label: "Delete", risk: "high", description: "Delete ventures" },
+        // Venture Setup — taxonomies and playbooks. The route comment already
+        // anticipated this key; it keeps the right separate from editing a
+        // Venture's own content.
+        setup: { label: "Setup", risk: "medium", description: "Configure venture taxonomies and playbooks" },
+        // The reusable KPI catalogue (business rule 49). A program manager
+        // writes it through their programme profile, a member only reads it.
+        kpis: { label: "Manage KPIs", risk: "medium", description: "Manage the reusable venture KPI catalogue" },
+        // Reading the scope-type vocabulary the permission screens render.
+        permissions_view: { label: "View Permission Scopes", risk: "low", description: "See the venture permission scope types" },
       },
     },
   },

@@ -44,11 +44,12 @@ export const PROFILE_CATALOGUE_SEED = [
   { key: "super_admin_default", label: "Super Admin Default", context: "global", allowedRoles: ["super_admin"], allCapabilities: true },
   { key: "staff_default", label: "Staff Default", context: "global", allowedRoles: ["staff"], capabilities: {
     projects: { view: 1, create: 2, edit: 3 },
-    programs: { view: 1 },
-    ventures: { view: 1, edit: 3 },
+    programs: { view: 1, groups: 2 },
+    ventures: { view: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1 },
     reports: { view: 1, create: 2 },
     messaging: { view: 1, send: 2 },
     contacts: { view: 1 },
+    collections: { view: 1 },
   } },
   // D-7: a member of a Venture works IN it — writing stays bounded by the
   // `venture_own` perimeter, so the capability grants nothing across Ventures.
@@ -76,7 +77,8 @@ export const PROFILE_CATALOGUE_SEED = [
   // PROGRAM-ONLY, by product decision: the role default and the assignment both
   // resolve to this one profile.
   { key: "program_manager", label: "Assigned Program Manager", context: "program", allowedRoles: ["staff"], capabilities: {
-    programs: { view: 1, edit: 3, publish: 4 },
+    programs: { view: 1, edit: 3, publish: 4, groups: 2 },
+    ventures: { kpis: 3 },
   } },
   { key: "project_owner", label: "Project Owner", context: "staff", allowedRoles: ["staff"], capabilities: {
     projects: { view: 1, create: 2, edit: 3, delete: 4 },
@@ -230,4 +232,48 @@ export async function ensureVentureMemberEditBackfill() {
     args: [],
   });
   return { success: true, inserted: inserted?.rowsAffected ?? 0 };
+}
+
+/**
+ * The capabilities that replaced a ROLE LIST in an action, granted to the
+ * profiles that already held the access.
+ *
+ * Why a backfill: the catalogue seed is recorded once per database, so adding a
+ * capability to `staff_default` / `program_manager` above never reaches a
+ * database seeded before it. Without these rows the route switch would DENY the
+ * staff and program managers who can do the work today.
+ *
+ * Insert-only: an administrator's explicit level (or removal) is never
+ * overwritten. Every entry below replaces a `requireAuth([...])` that admitted
+ * the profile's baseline role.
+ */
+export async function ensureDelegatedCapabilityDefaults() {
+  await ensureProfileCapabilitiesSchema();
+
+  const rows = [
+    // staff_default — the role list was ["super_admin", "staff"] (or included
+    // staff) on each of these routes.
+    ["staff_default", "ventures", "setup", 3],
+    ["staff_default", "ventures", "kpis", 3],
+    ["staff_default", "ventures", "permissions_view", 1],
+    ["staff_default", "programs", "groups", 2],
+    ["staff_default", "collections", "view", 1],
+    // program_manager — admitted by the role list on the groups route and the
+    // KPI catalogue write.
+    ["program_manager", "programs", "groups", 2],
+    ["program_manager", "ventures", "kpis", 3],
+  ];
+
+  let inserted = 0;
+  for (const [profileKey, module, capability, level] of rows) {
+    const result = await db.execute({
+      sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+      args: [profileKey, module, capability, level],
+    });
+    inserted += result?.rowsAffected ?? 0;
+  }
+
+  return { success: true, inserted };
 }

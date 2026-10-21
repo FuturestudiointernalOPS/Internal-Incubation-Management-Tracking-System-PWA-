@@ -132,7 +132,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/journey-reports/route.js#M4",
   "src/app/api/participant-programs/bulk/route.js#M1",
   "src/app/api/participants/route.js#M1",
-  "src/app/api/platform/collections/route.js#M1",
   "src/app/api/platform/form-runs/handlers/get.js#M3",
 
   "src/app/api/pm/programs/[id]/manager/route.js#M3",
@@ -150,11 +149,8 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/teams/route.js#M3",
 
   "src/app/api/user-groups/route.js#M3",
-  "src/app/api/v2/groups/route.js#M1",
 
   "src/app/api/v2/program-staff/route.js#M1",
-  "src/app/api/venture-options/route.js#M4",
-  "src/app/api/venture-templates/route.js#M4",
   "src/app/api/ventures/[id]/blockers/route.js#M4",
   "src/app/api/ventures/[id]/dashboard/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js#M4",
