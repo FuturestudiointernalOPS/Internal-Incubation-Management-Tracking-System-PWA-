@@ -44,7 +44,11 @@ export function buildDocumentQuery(search, category) {
   return documentParams.toString();
 }
 
-export const inputStyle = { backgroundColor: "rgb(15 23 42)", borderColor: "rgb(255 255 255 / 0.15)", color: "var(--text-primary)" };
-export const cardStyle = { backgroundColor: "rgb(255 255 255 / 0.05)", borderColor: "rgb(255 255 255 / 0.1)" };
+// Form fields and cards follow the ACTIVE THEME. They used to carry
+// dark-mode literals (a slate-900 background with `var(--text-primary)`), which
+// in light mode painted the dark navy text on a dark navy field — the typed
+// value was unreadable. Theme tokens keep both modes legible.
+export const inputStyle = { backgroundColor: "var(--surface-1)", borderColor: "var(--border-primary)", color: "var(--text-primary)" };
+export const cardStyle = { backgroundColor: "var(--surface-1)", borderColor: "var(--border-primary)" };
 
 export const notifyMsg = (message, type = "info") => window.dispatchEvent(new CustomEvent("impactos:notify", { detail: { type, message: String(message || ""), duration: 4000 } }));
