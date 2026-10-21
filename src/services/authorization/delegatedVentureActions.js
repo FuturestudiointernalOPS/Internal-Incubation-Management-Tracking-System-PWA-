@@ -150,6 +150,27 @@ const DELEGATED_VENTURE_ACTIONS = [
     rule: "canSubmitVerification + canAccessVerification",
     reason: "Les versions d'un document de vérification suivent la même autorité que la vérification elle-même.",
   },
+  // ── Data Room — la décision est la relation (membre, affectation, grant) ──
+  // Un investisseur n'entre que par un grant explicite ; la route ne peut pas
+  // l'exprimer avec une liste de rôles, donc le verdict vit dans le service.
+  {
+    file: "src/app/api/ventures/[id]/data-room/route.js",
+    service: "src/services/ventures/dataRoom/access.js",
+    rule: "resolveDataRoomViewer + canManage / canReview (par action)",
+    reason: "Lire le Data Room dépend de la relation à la venture (membre, affectation, grant investisseur) ; écrire et vérifier dépendent de deux autorités distinctes, toutes deux calculées dans le service.",
+  },
+  {
+    file: "src/app/api/ventures/[id]/data-room/upload/route.js",
+    service: "src/services/ventures/dataRoom/access.js",
+    rule: "resolveDataRoomViewer (canManage)",
+    reason: "Écrire dans le préfixe de stockage d'une venture exige la gestion de SON Data Room ; le service applique la même règle que la création du document.",
+  },
+  {
+    file: "src/app/api/ventures/[id]/data-room/[docId]/route.js",
+    service: "src/services/ventures/dataRoom/access.js",
+    rule: "resolveDataRoomViewer + loadDataRoomDocument (document scopé à la venture)",
+    reason: "Un identifiant de document vient de l'URL : il est relu À TRAVERS la venture, et un investisseur ne le reçoit que si un grant vivant le couvre.",
+  },
 ];
 
 module.exports = { DELEGATED_VENTURE_ACTIONS };
