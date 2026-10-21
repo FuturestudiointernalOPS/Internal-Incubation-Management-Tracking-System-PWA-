@@ -1,0 +1,223 @@
+# WS5 — Venture Data Room audit and implementation plan
+
+Status: **audit complete, implementation not started**
+Branch inspected: `Ventures` at `279402bc6` (WS4 corrections committed)
+Scope: `src/app/api/ventures/[id]/data-room/**`, `src/services/ventures/dataRoom/**`,
+`src/models/ventureDataRoomStore.js`, `src/lib/dataRoom.js`, `src/lib/ventureEvidence.js`,
+`src/components/ventures/data-room/**`, and the four screens that mount the Data Room.
+
+No database was written to during this audit. Findings are from static inspection and the
+existing test suite; live-data and storage-bucket checks are listed as *unable to verify*.
+
+---
+
+## 1. What already exists (reuse map)
+
+| Concern | Existing implementation | Reuse verdict |
+|---|---|---|
+| Document table | `venture_documents` (the original pitch-deck / data-room table) | Reuse — no new table |
+| Version table | `venture_document_versions` | Reuse — no new table |
+| File storage | private `deliverable-evidence` bucket, `data-room/<venture>/<category>/` prefix | Reuse |
+| Signed reads | `signEvidencePath` / `withSignedUrl` (1-hour URLs) | Reuse |
+| Vocabulary | `src/lib/dataRoom.js` — 11 categories, 5 statuses, 4 requirement levels, stage matrix | Reuse |
+| Catalogue and requirements | `dataRoom/access.js` (`buildDataRoom`, `loadDataRoomRequirements`, `computeDataRoomCompleteness`) | Reuse |
+| Writes | `dataRoom/documents.js` (create, replace, review, metadata, delete) | Reuse |
+| Investor grants and requirement config | `dataRoom/grants.js` | Reuse |
+| Readiness | `dataRoom/readiness.js` (batch + single, same engine) | Reuse — WS4 canonical |
+| Schema | `ensureDataRoomSchema` (additive, idempotent) | Reuse |
+| Audit | `venture_activity_log` (`DATA_ROOM*` actions) | Reuse — no new table |
+| Access log table | `venture_document_access_logs` exists | Reuse — currently no writer |
+| UI | one shared `VentureDataRoom` mounted by founder, staff, Super Admin and investor | Reuse |
+| Tests | `src/__tests__/ventures/data-room.test.js`, `data-room-writes.test.js`, `data-room-postgres.integration.test.js`, `ws4-readiness.test.js` | Extend, do not replace |
+
+No duplicate document table, storage system or readiness formula is needed.
+
+---
+
+## 2. Findings
+
+Status values: **working** · **incomplete** · **correction** · **missing** · **unable to verify**.
+
+### 2.1 Upload and storage — working, one correction
+
+* The upload route requires `canManage`, writes to the private bucket, and returns only the
+  storage path. `createDataRoomDocument` re-validates the path belongs to the Venture.
+* **DR-01 (correction):** the upload route accepts any `category` string before the create
+  action validates it. A refused create leaves the uploaded object orphaned in storage.
+  Validate `isDataRoomCategory(category)` in the upload route, and delete the uploaded path
+  on the early refusals inside `createDataRoomDocument`.
+
+### 2.2 Categories and metadata — working
+
+* Eleven categories, title, description, expiry, version notes, and metadata editing.
+* A document whose category is outside the eleven is kept, badged **Legacy**, and excluded
+  from completeness until it is re-filed. Re-filing is the existing Edit action and does
+  not create a version (pinned by a new WS4 test).
+* **DR-02 (incomplete):** there is no filter or count that lists legacy documents directly;
+  they must be spotted in the catalogue. Add a `legacy` filter and a count, reusing the
+  existing catalogue read and Edit action.
+
+### 2.3 Search and filtering — working
+
+* Server-side `category`, `status`, `search` (title, description, file name) and
+  client-side filtering of the loaded list. Investors get the same search over their
+  granted subset only.
+
+### 2.4 Version history — working
+
+* Every version is listed with its signed URL, size, author, date and notes.
+* A new version resets the review state and clears the reviewer fields, so version 2 never
+  inherits version 1's verification. The first upload is version 1.
+* Version restore is not offered; viewing and downloading previous versions is. That meets
+  “access previous versions where permitted”.
+
+### 2.5 Review and verification — working, one gap in history
+
+* States: `uploaded` → `under_review` → `verified` / `rejected`; `expired` is derived on
+  read from `expires_at` without rewriting the stored decision.
+* A rejection requires a reason. The reviewed version is recorded, and the decision is
+  written to `venture_activity_log`.
+* **DR-03 (incomplete):** the document holds only the latest review notes; earlier feedback
+  is visible only as audit events, not in the review dialog. Add a read of the existing
+  `DATA_ROOM_DOCUMENT_*` audit rows to the review/versions dialog. No new table.
+
+### 2.6 Stage-based requirements — working
+
+* Requirements are seeded from the Venture's stage, roll forward when the stage changes,
+  and a deliberately customized level is never overwritten.
+* Levels: `required`, `recommended`, `conditional`, `not_applicable`. Only `required`
+  categories enter the completeness denominator.
+* Reviewers (Super Admin, or staff with the review capability) can change a level.
+
+### 2.7 Completeness — working
+
+* One engine: `computeDataRoomCompleteness` (required categories only; verified 1,
+  rejected 0.5, everything else 0; `null` when nothing is required).
+* Batch and single-Venture readers feed the same engine and are pinned by
+  `ws4-readiness.test.js`.
+* **DR-04 (correction):** the investment analytics document count
+  (`countAnalyticsDocuments`) includes soft-deleted rows. Add `is_deleted = false`.
+
+### 2.8 Permissions — working, two corrections
+
+* Super Admin: view, manage, review. Founder/owner: view, manage. Other member: view.
+  Assigned staff: view, plus manage/review only with the matching `documents.*` capability.
+  Investor: view only, and only the granted documents/categories.
+* Every service re-resolves the viewer; UI visibility is never the gate. The document and
+  version reads are resolved through the Venture and the live grant.
+* **DR-05 (correction):** expired grants are returned by `selectDataRoomGrants` /
+  `selectDataRoomDocumentGrants` and shown as live in the access dialog, although the read
+  path correctly refuses them. Mark `expires_at < NOW()` as expired in the query and show
+  that state instead of “no expiry”.
+* **DR-06 (unable to verify):** bucket policy and signed-URL behaviour can only be
+  confirmed against staging/production. Verify with a private-path read and an unauthenticated
+  request.
+
+### 2.9 Investor sharing and revocation — working
+
+* Grants target a real contact holding an investor profile, cover one document or one
+  category, are read-only, can expire, are unique while live, and are revoked with an audit
+  row. Removal takes effect on the next read.
+* **DR-05** above applies to the presentation of expired grants.
+* **DR-07 (incomplete):** access is granted per person only; there is no bulk “share the
+  whole room” and no automatic expiry notification. Neither is required by the brief; do
+  not add without a product decision.
+
+### 2.10 Audit history — incomplete (gap to approve)
+
+* Written today: upload, new version, review decision, metadata/reclassification, delete,
+  grant, revoke, requirement change. Read is the latest 200 rows; the screen shows 12.
+* **DR-08 (missing): document open/download events.** `venture_document_access_logs` exists
+  and the investment analytics screen counts views/downloads from it, but the Data Room
+  never writes a row. As a result those analytics are permanently zero.
+  **Smallest safe extension:** reuse the existing table — add one model insert and record
+  `view` when the single-document endpoint is read, and `download` when the documented
+  download action is called. Validate the viewer server-side exactly as the read does.
+  No schema change is needed.
+* **DR-09 (correction):** `countDocumentViews` / `countDocumentDownloads` resolve the
+  internal UUID but the log table's `venture_id` references the VNT code. Query by the code
+  the table stores (or store the code when logging). Without this, even a correctly written
+  log would never be counted.
+* **DR-10 (incomplete):** the audit UI shows only the latest 12 events. Add “show all” using
+  the 200 rows already returned; do not add pagination until it is needed.
+
+### 2.11 Integration with venture operations — working, one cleanup
+
+* The Data Room reuses `venture_documents` / `venture_document_versions`; it does not
+  duplicate milestones, tasks, users or fundraising records.
+* Dashboard recent documents and analytics read the same table.
+* **DR-11 (correction):** the founder workspace still carries the dead legacy documents
+  state/handlers (`/api/ventures/[id]/documents`) and `DocumentsTabs.js` is unreferenced.
+  Remove the dead fetch/handlers from the founder page; keep the legacy API until an
+  explicit dependency check authorises retiring it.
+* **DR-12 (missing, deliberately deferred):** Data Room documents are not linked to a
+  milestone, deliverable or fundraising round. The brief says “where relevant”; no current
+  screen needs the link. Do not add a join table without approval.
+
+### 2.12 Language parity — working
+
+* `src/locales/en/dataRoom.json` and `fr/dataRoom.json` have identical key sets (verified).
+* Every Data Room string goes through `t()`. Visual confirmation in both languages requires
+  a running app and is part of the manual test plan.
+
+---
+
+## 3. Proposed WS5 implementation plan
+
+Ordered, smallest safe change first. **No database migration is proposed.** DR-08 reuses an
+existing table.
+
+### Phase A — corrections (no new capability)
+
+1. **DR-01** validate the category in the upload route; delete the uploaded object on early
+   create refusals.
+2. **DR-05** derived expiry for grants in the two grant reads; access dialog shows
+   “Expired” and still allows revoke.
+3. **DR-04** exclude soft-deleted documents from the investment analytics count.
+4. **DR-09** count access logs by the venture code they store.
+5. **DR-11** remove the dead legacy document state/handlers from the founder page.
+6. **DR-02** add a `legacy` catalogue filter and count.
+7. **DR-10** “show all” for the audit history already returned.
+
+### Phase B — audit extension (approval requested)
+
+8. **DR-08** write `view` / `download` rows to `venture_document_access_logs`, reusing the
+   existing model/service shape and the existing viewer verdict. The download event is an
+   explicit POST action (`record_access`) before the signed URL is opened, so the server —
+   not the browser — decides whether the event is legitimate.
+
+### Phase C — tests
+
+* Upload category refusal and orphan cleanup.
+* Expired grant: refused on read, shown as expired, revocable.
+* Legacy filter: legacy document appears, is excluded from completeness, and disappears
+  from the legacy filter after reclassification.
+* Access log: view/download rows are written and counted; wrong Venture gets 404.
+* Unauthorized attempts: no session (401), non-member (404), investor without grant (404),
+  investor reading another Venture's document (404), founder of another Venture (404).
+* Analytics count ignores soft-deleted documents.
+* English/French parity and production build.
+
+### Phase D — staging acceptance (manual, read-only observations where possible)
+
+1. Founder: list, upload, replace, metadata edit, version download.
+2. Staff/lead manager: review to under-review, verify, reject with reason, requirement edit.
+3. Investor: grant a document and a category, open them, revoke, wait for/force expiry,
+   confirm the catalogue shrinks.
+4. Super Admin: directory readiness agrees with the Data Room percentage and the investment
+   page.
+5. Legacy: re-file an old `business_plan` row and confirm completeness moves only after
+   verification.
+
+---
+
+## 4. Risks and decisions needed
+
+1. **DR-08 approval** — it adds audit rows on reads. It is additive and uses an existing
+   table, but it changes write volume and should be accepted explicitly.
+2. **Storage verification** — signed URLs and bucket privacy must be checked on staging
+   before promotion; a green unit test cannot prove bucket policy.
+3. **Legacy document set** — reclassification is manual by design. The audit can identify
+   the obsolete categories read-only but will not rewrite them automatically.
+4. **No migrations** — this plan needs none. If DR-12 (document ↔ milestone linkage) is
+   wanted later, it needs a schema decision and separate approval.
