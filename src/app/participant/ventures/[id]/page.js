@@ -93,7 +93,7 @@ export default function VentureDetail() {
 
   // The venture record is read through the shared hook, which owns the cache,
   // the cache-first paint and the discarding of a stale answer.
-  const { data: venture, loading } = useApi(
+  const { data: venture, loading, refresh: refreshVenture } = useApi(
     params.id ? `/api/ventures/${params.id}` : null,
     { defaultValue: null, transform: pickVenture },
   );
@@ -284,6 +284,12 @@ export default function VentureDetail() {
       });
       const data = await response.json();
       notifyMsg(data.success ? t("venture.updateSuccess") : (data.error || t("venture.updateError")));
+      if (data.success) {
+        // The profile changed, so the setup score must not be served from the
+        // 30-second read cache. Refresh the record and the progress read now.
+        await refreshVenture();
+        fetchProgress(true);
+      }
     } catch {
       notifyMsg(t("venture.updateError"));
     } finally { setSaving(false); }
