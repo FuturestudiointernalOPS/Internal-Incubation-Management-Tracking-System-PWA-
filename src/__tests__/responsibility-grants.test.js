@@ -9,9 +9,18 @@
  * those and never a pre-existing manual grant.
  */
 
+const mockExecute = jest.fn(async () => ({ rows: [] }));
+
 jest.mock("@/lib/db", () => ({
   __esModule: true,
-  default: { execute: jest.fn(async () => ({ rows: [] })) },
+  default: {
+    execute: mockExecute,
+    // The grant and the revoke write two tables; the transaction runner is the
+    // same fake statement runner, so the tests still observe every call.
+    transaction: jest.fn(async (callback) =>
+      callback(async (sql, args) => mockExecute({ sql, args })),
+    ),
+  },
   initDb: jest.fn(async () => true),
 }));
 
@@ -83,6 +92,29 @@ describe("grantResponsibilityBaseAccess", () => {
       grantedBy: "SA-1",
     });
     expect(granted).toEqual(["projects.view", "tasks.view"]);
+  });
+
+  test("a failing ledger write aborts the whole grant (one transaction)", async () => {
+    db.execute.mockImplementation(async ({ sql }) => {
+      const text = String(sql);
+      if (text.includes("INSERT INTO user_capabilities")) {
+        return { rows: [{ module: "contacts" }], rowsAffected: 1 };
+      }
+      if (text.includes("INSERT INTO responsibility_capability_grants")) {
+        throw new Error("ledger down");
+      }
+      return { rows: [] };
+    });
+
+    await expect(
+      grantResponsibilityBaseAccess({
+        userCid: "USR-1",
+        responsibilityKey: "crm",
+        grantedBy: null,
+      }),
+    ).rejects.toThrow("ledger down");
+    // The grant ran inside the transaction: the throw rolls the first write back.
+    expect(db.transaction).toHaveBeenCalled();
   });
 
   test("a capability the user already held is neither reported nor tracked", async () => {
