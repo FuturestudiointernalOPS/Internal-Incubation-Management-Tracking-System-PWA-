@@ -209,7 +209,12 @@ export async function listActiveVentureAssignmentsForAccess(ventureRef, cid) {
 // ── GET /api/ventures/[id]/history ───────────────────────────────────────────
 
 /** Whether a contact is an active member of a Venture (by code or either cid column). */
-export async function isActiveVentureMember(ventureId, cid) {
+export async function isActiveVentureMember(ventureRef, cid) {
+  // `venture_members.venture_id` is a uuid: the VNT code every route and URL
+  // carries must be resolved first, or PostgreSQL rejects the comparison
+  // ("invalid input syntax for type uuid") and the caller's fail-open guard
+  // turns a founder's own Venture into a refusal.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
     args: [ventureId, cid || "", cid || ""],
