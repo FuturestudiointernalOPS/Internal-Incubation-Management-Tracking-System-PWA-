@@ -89,9 +89,8 @@ Production data was not touched.
 * Business Model, Discovery, Validation and PMF were initially reachable again from
   Journey.
 * **Later product decision:** those blocks were removed from the founder Journey view
-  entirely. The Journey page now shows only the roadmap timeline; the four former tools are
-  no longer displayed there. Their components remain in the codebase but are unreachable
-  from the Journey screen.
+  entirely. The Journey page now shows only the roadmap timeline, and the old screens were
+  deleted. Their underlying data and endpoints remain for historical records and reporting.
 * Documents remain in the Data Room tab; the obsolete document-upload tool was not restored.
 
 ---

@@ -46,6 +46,8 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
 * **DR-01 — applied:** the upload route validates the category before writing any bytes,
   and an early refusal in the catalogue step removes the object the upload step already
   stored. A refused create no longer leaves an orphan.
+* **Empty state:** when the room has no document, the upload action sits in the centre of
+  the empty section; the header action appears only once documents exist.
 
 ### 2.2 Categories and metadata — working
 
@@ -103,7 +105,9 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
 
 * Super Admin: view, manage, review. Founder/owner: view, manage. Other member: view.
   Assigned staff: view, plus manage/review only with the matching `documents.*` capability.
-  Investor: view only, and only the granted documents/categories.
+  **Lead Manager: view and configure the requested categories, plus review where their role
+  allows it, but never upload or edit documents.** Investor: view only, and only the granted
+  documents/categories.
 * Every service re-resolves the viewer; UI visibility is never the gate. The document and
   version reads are resolved through the Venture and the live grant.
 * **DR-05 — applied:** both grant reads now return an `is_expired` flag, and the access
