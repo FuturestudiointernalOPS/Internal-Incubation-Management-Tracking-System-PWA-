@@ -57,7 +57,9 @@
     },
     "legacy": {
       "badge": "Hérité",
-      "hint": "Pas encore de catégorie Data Room — ne compte pour rien tant qu'il n'est pas reclassé"
+      "hint": "Pas encore de catégorie Data Room — ne compte pour rien tant qu'il n'est pas reclassé",
+      "filter": "Documents hérités",
+      "filterHint": "Déposés avant la Data Room. Utilisez Modifier pour les reclasser dans une catégorie ; leurs versions sont conservées."
     },
     "metadata": {
       "uploadedBy": "Téléversé par",
@@ -115,6 +117,8 @@
       "scopeLabel": "Portée",
       "expiresAt": "Jusqu'au {{date}}",
       "noExpiry": "Sans expiration",
+      "expired": "Expiré",
+      "expiredHint": "Expiré le {{date}}",
       "notInvestor": "Cette personne n'a pas de profil investisseur."
     },
     "versionsModal": {

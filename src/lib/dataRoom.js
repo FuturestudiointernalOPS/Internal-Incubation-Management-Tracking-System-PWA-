@@ -106,6 +106,15 @@ export function dataRoomCategory(code) {
 }
 
 /**
+ * A document filed before the Data Room existed (or with a retired category).
+ * It is kept and shown, but it counts towards nothing until it is re-filed —
+ * reclassification is metadata-only and preserves every version.
+ */
+export function isLegacyDocumentCategory(code) {
+  return !isDataRoomCategory(code);
+}
+
+/**
  * The life cycle of one document. `uploaded` is the entry state and is never
  * skipped: a document is verified by a reviewer, never by the act of uploading.
  *

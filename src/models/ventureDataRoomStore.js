@@ -380,7 +380,8 @@ export async function selectDataRoomGrants(ventureRef, database = db) {
   const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
     sql: `SELECT g.*, c.name AS grantee_name, c.email AS grantee_email,
-                 COALESCE(d.title, d.name) AS document_title
+                 COALESCE(d.title, d.name) AS document_title,
+                 (g.expires_at IS NOT NULL AND g.expires_at < NOW()) AS is_expired
           FROM venture_data_room_grants g
           LEFT JOIN contacts c ON c.cid = g.grantee_cid
           LEFT JOIN venture_documents d ON d.id = g.document_id
@@ -394,7 +395,8 @@ export async function selectDataRoomGrants(ventureRef, database = db) {
 export async function selectDataRoomDocumentGrants(ventureRef, documentId, database = db) {
   const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
-    sql: `SELECT g.*, c.name AS grantee_name, c.email AS grantee_email
+    sql: `SELECT g.*, c.name AS grantee_name, c.email AS grantee_email,
+                 (g.expires_at IS NOT NULL AND g.expires_at < NOW()) AS is_expired
           FROM venture_data_room_grants g
           LEFT JOIN contacts c ON c.cid = g.grantee_cid
           WHERE g.venture_id = ? AND g.document_id = ? AND g.revoked_at IS NULL

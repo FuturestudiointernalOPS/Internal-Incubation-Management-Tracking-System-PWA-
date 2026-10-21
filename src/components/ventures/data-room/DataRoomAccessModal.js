@@ -29,7 +29,13 @@ export default function DataRoomAccessModal({
   const [error, setError] = useState(null);
 
   const message = (value) => (String(value || "").startsWith("dataRoom.") ? t(value) : value);
-  const live = grants.filter(
+  // An expired grant is NOT live for access purposes, but it is still shown here
+  // so a manager can see it and revoke it. The server already refuses it on
+  // read; this only stops the dialog from calling it "no expiry".
+  const isExpired = (grantEntry) =>
+    grantEntry.is_expired === true ||
+    Boolean(grantEntry.expires_at && new Date(grantEntry.expires_at) < new Date());
+  const visibleGrants = grants.filter(
     (grantEntry) =>
       !grantEntry.revoked_at &&
       (String(grantEntry.document_id || "") === String(documentEntry?.id || "") ||
@@ -146,10 +152,12 @@ export default function DataRoomAccessModal({
           <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
             {t("dataRoom.accessModal.grantedTo")}
           </p>
-          {live.length === 0 ? (
+          {visibleGrants.length === 0 ? (
             <p className="text-[10px] text-[var(--text-secondary)]">{t("dataRoom.accessModal.noGrants")}</p>
           ) : (
-            live.map((entry) => (
+            visibleGrants.map((entry) => {
+              const expired = isExpired(entry);
+              return (
               <div
                 key={entry.id}
                 className="flex items-center justify-between gap-2 rounded-xl border border-[var(--border-primary)] bg-surface-2 px-3 py-2"
@@ -157,6 +165,11 @@ export default function DataRoomAccessModal({
                 <div className="min-w-0">
                   <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">
                     {entry.grantee_name || entry.grantee_email || entry.grantee_cid}
+                    {expired ? (
+                      <span className="ml-1.5 text-[8px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded bg-slate-500/15 text-slate-400">
+                        {t("dataRoom.accessModal.expired")}
+                      </span>
+                    ) : null}
                   </p>
                   <p className="text-[9px] text-[var(--text-secondary)] truncate">
                     {entry.document_id
@@ -165,9 +178,11 @@ export default function DataRoomAccessModal({
                         ? `${t("dataRoom.fields.wholeCategory")}${dataRoomCategory(entry.category) ? ` — ${t(dataRoomCategory(entry.category).labelKey)}` : ""}`
                         : ""}
                     {" · "}
-                    {entry.expires_at
-                      ? t("dataRoom.accessModal.expiresAt", { date: formatDate(entry.expires_at) })
-                      : t("dataRoom.accessModal.noExpiry")}
+                    {expired
+                      ? t("dataRoom.accessModal.expiredHint", { date: formatDate(entry.expires_at) })
+                      : entry.expires_at
+                        ? t("dataRoom.accessModal.expiresAt", { date: formatDate(entry.expires_at) })
+                        : t("dataRoom.accessModal.noExpiry")}
                   </p>
                 </div>
                 <button
@@ -180,7 +195,8 @@ export default function DataRoomAccessModal({
                   {busy === `revoke-${entry.id}` ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
                 </button>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>

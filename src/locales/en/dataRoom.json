@@ -57,7 +57,9 @@
     },
     "legacy": {
       "badge": "Legacy",
-      "hint": "No Data Room category yet — counts towards nothing until it is re-filed"
+      "hint": "No Data Room category yet — counts towards nothing until it is re-filed",
+      "filter": "Legacy documents",
+      "filterHint": "Filed before the Data Room existed. Use Edit to re-file one into a Data Room category; its versions are kept."
     },
     "metadata": {
       "uploadedBy": "Uploaded by",
@@ -115,6 +117,8 @@
       "scopeLabel": "Scope",
       "expiresAt": "Until {{date}}",
       "noExpiry": "No expiry",
+      "expired": "Expired",
+      "expiredHint": "Expired on {{date}}",
       "notInvestor": "This person does not hold an investor profile."
     },
     "versionsModal": {

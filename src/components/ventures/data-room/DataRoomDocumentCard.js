@@ -1,7 +1,7 @@
 "use client";
 
 import { Download, Eye, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
-import { dataRoomCategory } from "@/lib/dataRoom";
+import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
 import { formatBytes, formatDate, STATUS_CLASS, documentTitle } from "./dataRoomUi";
 
 /**
@@ -27,6 +27,7 @@ export default function DataRoomDocumentCard({
 }) {
   const status = documentEntry.status || "uploaded";
   const category = dataRoomCategory(documentEntry.category);
+  const isLegacy = isLegacyDocumentCategory(documentEntry.category);
   const href = documentEntry.file_url_signed;
   const title = documentTitle(documentEntry);
 
@@ -48,7 +49,7 @@ export default function DataRoomDocumentCard({
           <div className="flex items-start justify-between gap-2">
             <p className="text-[11px] font-bold text-[var(--text-primary)] break-words">{title}</p>
             <span className="flex items-center gap-1 shrink-0">
-              {!category && (
+              {isLegacy && (
                 // A document filed before the Data Room existed: its category is
                 // not one of the eleven. It is kept and shown — never hidden —
                 // and it does not count toward completeness until someone
@@ -64,7 +65,7 @@ export default function DataRoomDocumentCard({
           </div>
           <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
             {category ? t(category.labelKey) : documentEntry.category}
-            {!category ? ` · ${t("dataRoom.legacy.hint")}` : ""}
+            {isLegacy ? ` · ${t("dataRoom.legacy.hint")}` : ""}
             {documentEntry.current_version ? ` · v${documentEntry.current_version}` : ""}
             {formatBytes(documentEntry.file_size) ? ` · ${formatBytes(documentEntry.file_size)}` : ""}
             {formatDate(documentEntry.created_at) ? ` · ${formatDate(documentEntry.created_at)}` : ""}

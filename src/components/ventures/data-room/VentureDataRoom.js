@@ -5,7 +5,7 @@ import { AlertTriangle, FileText, Loader2, RefreshCw, Search, ShieldCheck, Uploa
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { DATA_ROOM_CATEGORIES, dataRoomCategory } from "@/lib/dataRoom";
+import { DATA_ROOM_CATEGORIES, dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
 import DataRoomDocumentCard from "./DataRoomDocumentCard";
 import DataRoomUploadModal from "./DataRoomUploadModal";
 import DataRoomReviewModal from "./DataRoomReviewModal";
@@ -14,6 +14,9 @@ import DataRoomVersionsModal from "./DataRoomVersionsModal";
 import { downloadDocument, STATUS_ORDER } from "./dataRoomUi";
 
 const pickDataRoom = (payload) => (payload?.success ? payload : null);
+
+/** A catalogue lens, not a category: rows filed before the Data Room existed. */
+const LEGACY_FILTER = "__legacy__";
 
 /**
  * VENTURE DATA ROOM — the venture's confidential document set.
@@ -64,10 +67,21 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
     return [];
   }, [data, documents, isInvestor]);
 
+  // Legacy documents are kept and shown, but they are not a Data Room category.
+  // This count and lens make them findable so they can be re-filed.
+  const legacyCount = useMemo(
+    () => documents.filter((entry) => isLegacyDocumentCategory(entry.category)).length,
+    [documents],
+  );
+
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return documents.filter((entry) => {
-      if (category !== "all" && entry.category !== category) return false;
+      if (category === LEGACY_FILTER) {
+        if (!isLegacyDocumentCategory(entry.category)) return false;
+      } else if (category !== "all" && entry.category !== category) {
+        return false;
+      }
       if (documentStatus !== "all" && entry.status !== documentStatus) return false;
       if (!needle) return true;
       return [entry.title, entry.name, entry.description, entry.file_name]
@@ -229,6 +243,14 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                 onClick={() => setCategory(entry.code)}
               />
             ))}
+            {legacyCount > 0 ? (
+              <CategoryRow
+                active={category === LEGACY_FILTER}
+                label={t("dataRoom.legacy.filter")}
+                count={legacyCount}
+                onClick={() => setCategory(LEGACY_FILTER)}
+              />
+            ) : null}
           </div>
         ) : null}
 
@@ -259,7 +281,9 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
             <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-6 text-center space-y-1">
               <FileText size={20} className="mx-auto text-[var(--text-secondary)]" />
               <p className="text-[11px] text-[var(--text-secondary)]">{t("dataRoom.noDocuments")}</p>
-              {category !== "all" && !isInvestor ? (
+              {category === LEGACY_FILTER ? (
+                <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.legacy.filterHint")}</p>
+              ) : category !== "all" && !isInvestor ? (
                 <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.emptyCategory")}</p>
               ) : null}
             </div>

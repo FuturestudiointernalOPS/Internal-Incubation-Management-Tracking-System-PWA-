@@ -49,6 +49,7 @@ const { hasAnyVentureAssignment, hasVentureCapability } = require("@/services/ve
 const { canManageVerification } = require("@/services/ventures/verification/categories");
 
 const {
+  buildDataRoom,
   computeDataRoomCompleteness,
   loadDataRoomRequirements,
   resolveDataRoomViewer,
@@ -303,4 +304,49 @@ test("the Data Room ships with eleven categories", () => {
   const { DATA_ROOM_CATEGORIES } = require("@/lib/dataRoom");
   expect(DATA_ROOM_CATEGORIES).toHaveLength(11);
   expect(DEFAULT_VENTURE_DOCUMENT_TYPES.length).toBe(6);
+});
+
+test("a category outside the eleven is legacy, never silently reclassified", () => {
+  const { isLegacyDocumentCategory } = require("@/lib/dataRoom");
+
+  expect(isLegacyDocumentCategory("company_overview")).toBe(false);
+  expect(isLegacyDocumentCategory("business_plan")).toBe(true);
+  expect(isLegacyDocumentCategory("general")).toBe(true);
+  expect(isLegacyDocumentCategory(null)).toBe(true);
+});
+
+describe("buildDataRoom — expired grants", () => {
+  test("a manager still sees an expired grant, marked expired, so it can be revoked", async () => {
+    const db = makeDb(async ({ sql }) => {
+      if (sql.includes("FROM venture_documents d")) return { rows: [] };
+      if (sql.includes("FROM venture_data_room_requirements")) return { rows: [] };
+      if (sql.includes("FROM venture_data_room_grants")) {
+        return {
+          rows: [
+            {
+              id: 7,
+              grantee_cid: "USR-INVESTOR",
+              grantee_name: "Investor",
+              expires_at: "2020-01-01T00:00:00.000Z",
+              is_expired: true,
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    });
+
+    const room = await buildDataRoom({
+      ventureId: VENTURE,
+      session: superAdminSession,
+      database: db,
+    });
+
+    expect(room.ok).toBe(true);
+    expect(room.grants).toHaveLength(1);
+    expect(room.grants[0].is_expired).toBe(true);
+    expect(
+      db.execute.mock.calls.some((call) => String(call[0].sql).includes("is_expired")),
+    ).toBe(true);
+  });
 });
