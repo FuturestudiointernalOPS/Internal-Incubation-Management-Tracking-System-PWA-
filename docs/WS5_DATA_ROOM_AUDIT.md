@@ -90,7 +90,8 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
   and a deliberately customized level is never overwritten.
 * Levels: `required`, `recommended`, `conditional`, `not_applicable`. Only `required`
   categories enter the completeness denominator.
-* Reviewers (Super Admin, or staff with the review capability) can change a level.
+* Super Admin, reviewers, and the Venture's Lead Manager can change a level. The Lead
+  Manager does not review the documents themselves; the two rights are separate.
 
 ### 2.7 Completeness — working
 
@@ -105,9 +106,8 @@ Status values: **working** · **incomplete** · **correction** · **missing** ·
 
 * Super Admin: view, manage, review. Founder/owner: view, manage. Other member: view.
   Assigned staff: view, plus manage/review only with the matching `documents.*` capability.
-  **Lead Manager: view and configure the requested categories, plus review where their role
-  allows it, but never upload or edit documents.** Investor: view only, and only the granted
-  documents/categories.
+  **Lead Manager: view and configure the requested categories; never upload, edit, or
+  review a document.** Investor: view only, and only the granted documents/categories.
 * Every service re-resolves the viewer; UI visibility is never the gate. The document and
   version reads are resolved through the Venture and the live grant.
 * **DR-05 — applied:** both grant reads now return an `is_expired` flag, and the access
