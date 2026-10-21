@@ -329,8 +329,10 @@ export async function findDuplicateVentureAssignment({
 /** Task totals (all + completed) for a venture, the completed statuses injected. */
 export async function countVentureTasksWithCompletedStatuses(dbId, completedStatuses) {
   const completedSet = completedStatuses.map(() => "?").join(", ");
+  // Archived work is not progress: it is hidden from every work list, so it
+  // must not keep dragging the completion figure down here either.
   return db.execute({
-    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
+    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [...completedStatuses, dbId],
   });
 }

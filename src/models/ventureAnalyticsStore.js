@@ -16,14 +16,43 @@ import db from "@/lib/db";
 
 // ── Summary counts ───────────────────────────────────────────────────────────
 
-/** Analytics milestones count for a Venture. */
+/**
+ * Analytics milestone count for a Venture.
+ *
+ * `delayed` used to count `status = 'delayed'`, a value the application never
+ * writes — so the number was structurally always 0 while two report screens
+ * displayed it. It now means what those screens say: a milestone past its date
+ * that is neither completed nor cancelled.
+ */
 export function selectAnalyticsMilestoneCounts(ventureId) {
-  return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as done, SUM(CASE WHEN status='delayed' THEN 1 ELSE 0 END) as delayed FROM venture_milestones WHERE venture_id=?", args: [ventureId] });
+  return db.execute({
+    sql: `SELECT COUNT(*) as t,
+                 SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as done,
+                 SUM(CASE WHEN COALESCE(target_date, due_date) < NOW() AND status NOT IN ('completed','cancelled') THEN 1 ELSE 0 END) as delayed
+            FROM venture_milestones
+           WHERE venture_id=? AND COALESCE(is_archived, FALSE) = FALSE`,
+    args: [ventureId],
+  });
 }
 
-/** Analytics tasks count for a Venture. */
+/**
+ * Analytics task count for a Venture.
+ *
+ * Completion uses the SAME terminal list as every other surface
+ * (`done | accepted | completed`); the old query counted `done` alone, so every
+ * task closed through review read as unfinished here and finished everywhere
+ * else. Archived tasks are excluded, as they are from every work list.
+ */
 export function selectAnalyticsTaskCounts(ventureId) {
-  return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done, SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) as blocked, SUM(CASE WHEN due_date<NOW() AND status NOT IN ('done','cancelled') THEN 1 ELSE 0 END) as overdue FROM venture_tasks WHERE venture_id=?", args: [ventureId] });
+  return db.execute({
+    sql: `SELECT COUNT(*) as t,
+                 SUM(CASE WHEN status IN ('done','accepted','completed') THEN 1 ELSE 0 END) as done,
+                 SUM(CASE WHEN status='blocked' THEN 1 ELSE 0 END) as blocked,
+                 SUM(CASE WHEN due_date<NOW() AND status NOT IN ('done','accepted','completed','cancelled') THEN 1 ELSE 0 END) as overdue
+            FROM venture_tasks
+           WHERE venture_id=? AND COALESCE(is_archived, FALSE) = FALSE`,
+    args: [ventureId],
+  });
 }
 
 /** Analytics deliverables count for a Venture. */
@@ -31,21 +60,23 @@ export function selectAnalyticsDeliverableCounts(ventureId) {
   return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status IN ('approved','completed') THEN 1 ELSE 0 END) as done FROM venture_deliverables WHERE venture_id=?", args: [ventureId] });
 }
 
-/** Average days to completion of a Venture's done tasks. */
+/** Average days to completion of a Venture's finished tasks (archived excluded). */
 export function selectAvgTaskCompletionDays(ventureId) {
   return db.execute({
     sql: `SELECT AVG(EXTRACT(EPOCH FROM (updated_at - created_at))/86400) as avg_days
-          FROM venture_tasks WHERE venture_id=? AND status='done' AND updated_at > created_at`,
+          FROM venture_tasks WHERE venture_id=? AND status IN ('done','accepted','completed')
+            AND updated_at > created_at AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [ventureId],
   });
 }
 
-/** On-time/total counts of a Venture's done tasks. */
+/** On-time/total counts of a Venture's finished tasks (archived excluded). */
 export function selectOnTimeTaskCounts(ventureId) {
   return db.execute({
     sql: `SELECT COUNT(*) as total,
        SUM(CASE WHEN due_date IS NOT NULL AND updated_at <= due_date THEN 1 ELSE 0 END) as on_time
-       FROM venture_tasks WHERE venture_id=? AND status='done' AND due_date IS NOT NULL`,
+       FROM venture_tasks WHERE venture_id=? AND status IN ('done','accepted','completed')
+         AND due_date IS NOT NULL AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [ventureId],
   });
 }

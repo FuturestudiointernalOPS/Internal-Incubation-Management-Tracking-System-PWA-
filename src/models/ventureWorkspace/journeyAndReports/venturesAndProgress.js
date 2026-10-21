@@ -84,10 +84,25 @@ export async function getVentureDbIdForProgress(venture_id) {
   });
 }
 
-/** Average milestone progress for a venture. */
+/** Average milestone progress for a venture (archived milestones excluded). */
 export async function getAverageVentureMilestoneProgress(dbId) {
   return db.execute({
-    sql: "SELECT AVG(progress) as avg_progress FROM venture_milestones WHERE venture_id = ?",
+    sql: "SELECT AVG(progress) as avg_progress FROM venture_milestones WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE",
+    args: [dbId],
+  });
+}
+
+/**
+ * Milestones COMPLETED — the count the dashboard shows instead of the average
+ * of a stored `progress` column that is only written when a deliverable is
+ * reviewed (so a milestone closed through its tasks kept reading 0).
+ */
+export async function countVentureMilestonesByStatus(dbId) {
+  return db.execute({
+    sql: `SELECT COUNT(*) AS total,
+                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS done
+            FROM venture_milestones
+           WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [dbId],
   });
 }

@@ -13,6 +13,7 @@ import {
   countVentureTasksWithCompletedStatuses,
   countVentureValidations,
   getAverageVentureMilestoneProgress,
+  countVentureMilestonesByStatus,
   getFirstVentureBusinessModelId,
   getVentureDbIdForProgress,
   getVentureProfileFields,
@@ -41,6 +42,10 @@ export async function GET(req, { params }) {
     const done = parseInt(tasksResult.rows?.[0]?.done||0);
 
     const milestonesResult = await getAverageVentureMilestoneProgress(dbId);
+    // Milestones COMPLETED: the honest figure (a stored `progress` column is
+    // only refreshed when a deliverable is reviewed, so it goes stale).
+    const milestoneCountsResult = await countVentureMilestonesByStatus(dbId);
+    const milestoneCounts = milestoneCountsResult.rows?.[0] || { total: 0, done: 0 };
 
     const standupsResult = await countVentureStandupsByVentureId(dbId);
     const retrosResult = await countVentureRetrosByVentureId(dbId);
@@ -95,6 +100,10 @@ export async function GET(req, { params }) {
         total_tasks: total,
         completed_tasks: done,
         avg_milestone_progress: Math.round(parseFloat(milestonesResult.rows?.[0]?.avg_progress||0)),
+        milestones: {
+          total: parseInt(milestoneCounts.total || 0),
+          completed: parseInt(milestoneCounts.done || 0),
+        },
         standups_count: parseInt(standupsResult.rows?.[0]?.count||0),
         retros_count: parseInt(retrosResult.rows?.[0]?.count||0),
         profile_completion: profileCompletion,

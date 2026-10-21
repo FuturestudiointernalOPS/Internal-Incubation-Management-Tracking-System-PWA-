@@ -34,29 +34,39 @@ export function selectReadinessStageStatusesPlain(dbId) {
   });
 }
 
-/** Milestone statuses across the owner values. */
+/** Milestone statuses across the owner values (archived milestones excluded). */
 export function selectReadinessMilestoneStatuses(ownersSql, args) {
   return db.execute({
-    sql: `SELECT status FROM venture_milestones WHERE venture_id ${ownersSql}`,
+    sql: `SELECT status FROM venture_milestones WHERE venture_id ${ownersSql} AND COALESCE(is_archived, FALSE) = FALSE`,
     args,
   });
 }
 
-/** Task statuses across the owner values. */
+/** Task statuses across the owner values (archived tasks excluded). */
 export function selectReadinessTaskStatuses(ownersSql, args) {
   return db.execute({
-    sql: `SELECT status FROM venture_tasks WHERE venture_id ${ownersSql}`,
+    sql: `SELECT status FROM venture_tasks WHERE venture_id ${ownersSql} AND COALESCE(is_archived, FALSE) = FALSE`,
     args,
   });
 }
 
-/** Submission states (status + review decision) across the owner values. */
+/**
+ * Submission states (status + review decision) across the owner values.
+ *
+ * ONE ROW PER TASK — the LATEST version. Without this, a task submitted three
+ * times contributed three rows, so re-submitting work inflated the denominator
+ * of the deliverables component instead of describing the task.
+ */
 export function selectReadinessSubmissionStates(ownersSql, args) {
   return db.execute({
     sql: `SELECT s.status, s.review_decision
             FROM venture_task_submissions s
             JOIN venture_tasks t ON t.id = s.task_id
-            WHERE t.venture_id ${ownersSql}`,
+            WHERE t.venture_id ${ownersSql}
+              AND s.version = (
+                SELECT MAX(s2.version) FROM venture_task_submissions s2
+                 WHERE s2.task_id = s.task_id
+              )`,
     args,
   });
 }

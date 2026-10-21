@@ -13,6 +13,7 @@
  * No SQL, no HTTP.
  */
 import { getOrCreateStartupProfile } from "@/services/ventures/profile";
+import { normalizeBusinessStage } from "@/lib/ventureStage";
 import { getOrCreateVerification } from "@/services/ventures/verification";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 import {
@@ -258,7 +259,13 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     } catch { return { coaches: [], advisors: [], coaching_sessions: 0, total: 0 }; }
   })();
 
-  // ── Investment Readiness (from the Venture's real verification evidence) ──
+  // ── Stage & Evidence Score (from the Venture's real verification evidence) ──
+  //
+  // This is NOT Investment Readiness. Investment Readiness is the Data Room's
+  // completeness figure, and it is shown on the investment screen from its own
+  // engine (`services/ventures/dataRoom/readiness`). This composite is a
+  // different question — business stage plus how much evidence has been filed —
+  // so it is labelled separately wherever it appears (WS4).
   //
   // This used to be weighted on `startup_profiles` completion, but no screen ever
   // writes that table — the wizard behind it has no caller, and
@@ -275,7 +282,8 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
       const [venture, verificationData] = await Promise.all([ventureInfo, verification]);
       const stage = venture?.business_stage || "idea";
       const stageScores = { idea: 10, validation: 25, early_traction: 45, growth: 65, scaling: 85 };
-      const stageScore = stageScores[stage] || 10;
+      // mvp scores as early_traction, scale as scaling (lib/ventureStage).
+      const stageScore = stageScores[normalizeBusinessStage(stage)] || 10;
 
       const totalCategories = verificationData?.total_count || 0;
       const verifiedCategories = verificationData?.verified_count || 0;

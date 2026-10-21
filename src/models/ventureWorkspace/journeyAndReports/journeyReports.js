@@ -29,15 +29,16 @@ export function listVentureMilestonesForReport(owners) {
   // (which failed the whole read and dropped the milestones from the report).
   return db.execute({
     sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
-              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL`,
+              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL
+                AND COALESCE(is_archived, FALSE) = FALSE`,
     args: owners,
   });
 }
 
-/** Task statuses + due dates of a Venture (owner ids). */
+/** Task statuses + due dates of a Venture (owner ids; archived tasks excluded). */
 export function listVentureTaskDeadlinesForReport(owners) {
   return db.execute({
-    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")})`,
+    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND COALESCE(is_archived, FALSE) = FALSE`,
     args: owners,
   });
 }

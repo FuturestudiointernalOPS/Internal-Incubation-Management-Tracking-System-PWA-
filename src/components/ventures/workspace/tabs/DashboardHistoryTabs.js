@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, BarChart3, Clock, Bell, CheckCircle2, Target, ListTodo } from "lucide-react";
+import { Users, BarChart3, Clock, Bell, CheckCircle2, Target, ListTodo, Flag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import KpiCard from "@/components/ui/KpiCard";
@@ -157,9 +157,17 @@ export function DashboardTab({ onSection }) {
           loading={milestonePending}
         />
         <KpiCard
-          label={t("venture.avgMilestoneProgress")}
-          value={progressValue(progressData?.avg_milestone_progress)}
-          icon={BarChart3}
+          label={t("venture.progressOverview.milestonesCompleted")}
+          value={progressFailed ? "—" : progressData?.milestones?.completed ?? 0}
+          hint={
+            progressData
+              ? t("venture.progressOverview.milestonesOf", {
+                  done: progressData.milestones?.completed ?? 0,
+                  total: progressData.milestones?.total ?? 0,
+                })
+              : null
+          }
+          icon={Flag}
           loading={milestonePending}
         />
         <KpiCard
