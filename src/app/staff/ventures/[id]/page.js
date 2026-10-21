@@ -6,15 +6,13 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield, FolderKanban, FolderOpen } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
 import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
-import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
-import DataBankPanel from "@/components/ventures/DataBankPanel";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
@@ -45,14 +43,10 @@ const TABS = [
   { id: "tasks", label: "venture.tasks", icon: ListTodo },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
-  { id: "dataBank", label: "venture.verification", icon: Shield },
   // The Data Room is the venture's confidential fundraising / due-diligence
-  // set. It is deliberately separate from the Data bank: the Data bank is the
-  // compliance checklist that is verified, the Data Room is the material the
-  // venture chooses to disclose (including to granted investors).
+  // document set (including the material shared with granted investors).
   { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
   { id: "plan", label: "venture.operatingPlan", icon: FileText },
-  { id: "documents", label: "venture.documentTypes.title", icon: FileText },
 ];
 
 export default function StaffVentureWorkspace() {
@@ -433,25 +427,11 @@ export default function StaffVentureWorkspace() {
 
       {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}
 
-      {activeTab === "dataBank" && (
-        <DataBankPanel
-          ventureId={id}
-          // The Data bank sign-off belongs to the Lead Manager — the same rule
-          // the server applies on the write (canManageVerification). A scoped
-          // coach sees the file read-only.
-          canReview={myRoles.some((role) => role.responsibility_code === "lead_manager")}
-        />
-      )}
-
       {activeTab === "dataRoom" && <VentureDataRoom ventureId={id} />}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 
       {activeTab === "plan" && <OperatingPlanPanel ventureId={id} />}
-
-      {activeTab === "documents" && (
-        <DocumentTypeManager ventureId={id} backHref={`/staff/ventures/${id}`} />
-      )}
     </div>
   );
 }

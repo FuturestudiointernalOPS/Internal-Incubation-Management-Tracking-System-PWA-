@@ -6,15 +6,8 @@
 // them, keeping the screen's body about state and orchestration only.
 
 export const TABS = [
-  "dashboard", "journey", "investment", "verification",
+  "dashboard", "journey", "investment", "dataRoom",
   "profile", "team",
-];
-
-// Secondary Venture tools that live inside Journey. They stay reachable from
-// the Journey page while milestone workspaces bind their content to the items;
-// they are NOT top-level workspace navigation.
-export const JOURNEY_TOOLS = [
-  "businessModel", "discovery", "validation", "pmf", "documents",
 ];
 
 // The venture record, and the profile form it fills in. The form is the shape

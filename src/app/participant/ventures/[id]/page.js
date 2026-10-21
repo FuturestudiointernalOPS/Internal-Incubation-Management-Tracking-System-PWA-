@@ -22,8 +22,8 @@ import { createVentureLoaders } from "@/components/participant/ventures/ventureS
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
-  // Journey view: the milestone timeline by default, or one of the Venture
-  // work tools (JOURNEY_TOOLS) that live inside Journey.
+  // Journey view: the milestone timeline. The former work-tools box was removed;
+  // the Data Room is now a top-level tab.
   const [journeySub, setJourneySub] = useState("timeline");
 
   // The screen's reads are declared further down, together with the addresses
