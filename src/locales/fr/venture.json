@@ -358,8 +358,22 @@
       "development": "Développement de la Venture",
       "developmentHint": "Profil, équipe, documents et exploration du marché",
       "doneOf": "{done} tâches sur {total}",
+      "milestonesCompleted": "Jalons terminés",
+      "milestonesOf": "{done} jalons sur {total}",
       "openWork": "Travail ouvert",
       "nextMilestone": "Prochain jalon"
+    },
+    "roadmapProgress": {
+      "title": "Avancement du parcours",
+      "desc": "Part du travail prévu au parcours qui est terminée — parcours, jalons, tâches et livrables."
+    },
+    "dataRoomReadiness": {
+      "title": "Préparation à l'investissement",
+      "desc": "Part des catégories obligatoires de la Data Room qui sont déposées et vérifiées.",
+      "hint": "La préparation à l'investissement est le taux de complétude de la Data Room elle-même. Elle répond à une autre question que l'avancement du parcours : les deux ne sont jamais fusionnés en un seul chiffre.",
+      "where": "D'où cela vient : les documents que vous déposez dans la Data Room, mesurés aux exigences définies pour votre stade de développement.",
+      "indeterminate": "Pas encore mesurable — aucune catégorie de la Data Room n'est marquée obligatoire pour cette Venture.",
+      "counts": "{verified} catégories obligatoires sur {total} vérifiées"
     },
     "standardJourney": "Parcours Standard",
     "journeyDesc": "Votre parcours Venture est défini par l’équipe Future Studio qui vous accompagne. Les étapes se débloquent au fur et à mesure que l’équipe les valide.",

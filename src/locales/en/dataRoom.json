@@ -55,6 +55,10 @@
       "conditional": "Conditional",
       "not_applicable": "Not applicable"
     },
+    "legacy": {
+      "badge": "Legacy",
+      "hint": "No Data Room category yet — counts towards nothing until it is re-filed"
+    },
     "metadata": {
       "uploadedBy": "Uploaded by",
       "uploadedAt": "Uploaded",

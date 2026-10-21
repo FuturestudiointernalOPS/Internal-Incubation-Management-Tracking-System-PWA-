@@ -55,6 +55,10 @@
       "conditional": "Conditionnel",
       "not_applicable": "Non applicable"
     },
+    "legacy": {
+      "badge": "Hérité",
+      "hint": "Pas encore de catégorie Data Room — ne compte pour rien tant qu'il n'est pas reclassé"
+    },
     "metadata": {
       "uploadedBy": "Téléversé par",
       "uploadedAt": "Téléversé",

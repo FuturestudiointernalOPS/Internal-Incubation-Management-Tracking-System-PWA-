@@ -358,8 +358,22 @@
       "development": "Venture development",
       "developmentHint": "Profile, team, documents and business discovery",
       "doneOf": "{done} of {total} tasks",
+      "milestonesCompleted": "Milestones completed",
+      "milestonesOf": "{done} of {total} milestones",
       "openWork": "Open work",
       "nextMilestone": "Next milestone"
+    },
+    "roadmapProgress": {
+      "title": "Roadmap progress",
+      "desc": "How much of the planned Journey work is done — journeys, milestones, tasks and deliverables."
+    },
+    "dataRoomReadiness": {
+      "title": "Investment readiness",
+      "desc": "Share of the required Data Room categories that are filed and verified.",
+      "hint": "Investment readiness is the Data Room's own completeness figure. It answers a different question from roadmap progress, so the two are never merged into one number.",
+      "where": "Where this comes from: the documents you file in the Data Room, measured against the requirements set for your business stage.",
+      "indeterminate": "Not measurable yet — no Data Room category is marked required for this Venture.",
+      "counts": "{verified} of {total} required categories verified"
     },
     "standardJourney": "Standard Venture Journey",
     "journeyDesc": "Your Venture journey is defined by the Future Studio team supporting you. Stages unlock as the team marks each one complete.",

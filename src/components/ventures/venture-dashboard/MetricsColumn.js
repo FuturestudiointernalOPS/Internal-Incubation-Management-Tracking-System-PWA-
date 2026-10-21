@@ -46,8 +46,8 @@ export default function MetricsColumn({ id, data, widgetState, refreshWidget, ve
         </div>
       </WidgetCard>
 
-      {/* 2. Investment Readiness */}
-      <WidgetCard title={t("vadmin.dashboard.investmentReadiness")} icon={TrendingUp} iconColor="bg-purple-500/10"
+      {/* 2. Stage & Evidence Score — NOT the Data Room's Investment Readiness. */}
+      <WidgetCard title={t("vadmin.dashboard.stageEvidenceScore")} icon={TrendingUp} iconColor="bg-purple-500/10"
         loading={widgetState("investment_readiness").loading} error={widgetState("investment_readiness").error}
         empty={widgetState("investment_readiness").empty} emptyMessage={t("vadmin.dashboard.completeProfileForScore")}
         onRefresh={() => refreshWidget("investment_readiness")}

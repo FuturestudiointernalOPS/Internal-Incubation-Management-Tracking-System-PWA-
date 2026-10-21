@@ -26,9 +26,9 @@ export default function HealthSummary({ data }) {
         <p className="text-[10px] text-blue-500/60 mt-0.5">{t("vadmin.dashboard.activeMembers")}</p>
       </div>
       <div className="p-4 rounded-2xl bg-gradient-to-br from-purple-500/10 to-purple-500/5 border border-purple-500/20">
-        <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.readiness")}</p>
+        <p className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-1">{t("vadmin.dashboard.stageEvidenceScore")}</p>
         <p className="text-2xl font-black text-purple-400">{data.investment_readiness?.score || 0}%</p>
-        <p className="text-[10px] text-purple-500/60 mt-0.5">{t("vadmin.dashboard.investmentScore")}</p>
+        <p className="text-[10px] text-purple-500/60 mt-0.5">{t("vadmin.dashboard.stageEvidenceHint")}</p>
       </div>
     </div>
   );

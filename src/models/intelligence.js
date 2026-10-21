@@ -1,6 +1,8 @@
 import db from "@/lib/db";
 import { getWeekNumber } from "@/lib/constants";
-import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
+// A deliberate model→service edge (the same pattern as models/authorization):
+// readiness is a DECISION, and this module only aggregates numbers.
+import { listDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
 import {
   getTaskStatusStats,
   getBlockerStatusStats,
@@ -46,7 +48,7 @@ export async function getVentureMetrics() {
   const totalVentures = totalRes.rows[0]?.total ?? 0;
   const ventureIds = (venturesRes.rows || []).map((row) => row.venture_id);
 
-  const readinessList = await listVentureDocumentReadiness(ventureIds);
+  const readinessList = await listDataRoomReadiness(ventureIds);
   const readyCount = readinessList.filter((row) => row.is_ready).length;
 
   return {

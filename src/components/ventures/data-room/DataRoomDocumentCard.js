@@ -47,12 +47,24 @@ export default function DataRoomDocumentCard({
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             <p className="text-[11px] font-bold text-[var(--text-primary)] break-words">{title}</p>
-            <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border shrink-0 ${STATUS_CLASS[status] || STATUS_CLASS.uploaded}`}>
-              {t(`dataRoom.status.${status}`)}
+            <span className="flex items-center gap-1 shrink-0">
+              {!category && (
+                // A document filed before the Data Room existed: its category is
+                // not one of the eleven. It is kept and shown — never hidden —
+                // and it does not count toward completeness until someone
+                // re-files it with the Edit action.
+                <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border border-amber-500/40 text-amber-400">
+                  {t("dataRoom.legacy.badge")}
+                </span>
+              )}
+              <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${STATUS_CLASS[status] || STATUS_CLASS.uploaded}`}>
+                {t(`dataRoom.status.${status}`)}
+              </span>
             </span>
           </div>
           <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
             {category ? t(category.labelKey) : documentEntry.category}
+            {!category ? ` · ${t("dataRoom.legacy.hint")}` : ""}
             {documentEntry.current_version ? ` · v${documentEntry.current_version}` : ""}
             {formatBytes(documentEntry.file_size) ? ` · ${formatBytes(documentEntry.file_size)}` : ""}
             {formatDate(documentEntry.created_at) ? ` · ${formatDate(documentEntry.created_at)}` : ""}

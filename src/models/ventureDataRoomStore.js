@@ -102,6 +102,61 @@ export async function selectVentureStage(ventureRef, database = db) {
   });
 }
 
+// ── Batch reads for readiness (many Ventures, constant number of queries) ────
+//
+// The directory and the Intelligence dashboard need one readiness figure per
+// Venture. Calling the per-Venture engine in a loop would cost 3 queries per
+// row; these three statements answer the whole page at once and feed the SAME
+// `computeDataRoomCompleteness` the Data Room screen uses, so a list and a
+// detail page can never disagree.
+
+/** Business stages for many Ventures (keyed by internal id). */
+export function selectVentureStagesForVentures(ventureIds = []) {
+  const ids = (ventureIds || []).filter(Boolean).map(String);
+  if (ids.length === 0) return Promise.resolve({ rows: [] });
+  const placeholders = ids.map(() => "?").join(", ");
+  return db.execute({
+    sql: `SELECT id::text AS id, business_stage FROM ventures WHERE id::text IN (${placeholders})`,
+    args: ids,
+  });
+}
+
+/** Stored requirement levels for many Ventures. No seeding: this is a READ. */
+export function selectDataRoomRequirementsForVentures(ventureIds = []) {
+  const ids = (ventureIds || []).filter(Boolean).map(String);
+  if (ids.length === 0) return Promise.resolve({ rows: [] });
+  const placeholders = ids.map(() => "?").join(", ");
+  return db.execute({
+    sql: `SELECT venture_id::text AS venture_id, category, level
+            FROM venture_data_room_requirements
+           WHERE venture_id::text IN (${placeholders})`,
+    args: ids,
+  });
+}
+
+/**
+ * Live document statuses for many Ventures, with the SAME expiry rule the
+ * per-Venture catalogue applies — a document whose expiry has passed reads as
+ * `expired` without a write, so a list never counts a stale file as verified.
+ */
+export function selectDataRoomDocumentStatusesForVentures(ventureIds = []) {
+  const ids = (ventureIds || []).filter(Boolean).map(String);
+  if (ids.length === 0) return Promise.resolve({ rows: [] });
+  const placeholders = ids.map(() => "?").join(", ");
+  return db.execute({
+    sql: `SELECT d.venture_id::text AS venture_id, d.category,
+                 CASE
+                   WHEN d.expires_at IS NOT NULL AND d.expires_at < NOW()
+                    AND COALESCE(NULLIF(d.review_status, ''), 'uploaded') <> 'rejected'
+                   THEN 'expired'
+                   ELSE COALESCE(NULLIF(d.review_status, ''), 'uploaded')
+                 END AS status
+            FROM venture_documents d
+           WHERE d.venture_id::text IN (${placeholders}) AND d.is_deleted = false`,
+    args: ids,
+  });
+}
+
 /**
  * The live documents of one Venture, newest first.
  *
