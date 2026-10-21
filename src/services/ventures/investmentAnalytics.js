@@ -13,8 +13,8 @@
  * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
+import { getDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
 import {
-  selectAnalyticsReadinessScore,
   selectAnalyticsMatchTotals,
   countEngagedMatches,
   selectAnalyticsPipelineTotals,
@@ -34,11 +34,13 @@ import {
 export async function getInvestmentAnalytics(ventureId) {
   const results = {};
 
-  // 1. Investment Readiness
+  // 1. Investment Readiness — the Data Room's completeness figure, the same
+  //    engine every other screen reads. `null` means INDETERMINATE (nothing is
+  //    required yet) and the screen shows « — », never a fake 0%.
   try {
-    const assessmentResult = await selectAnalyticsReadinessScore(ventureId);
-    results.readiness_score = assessmentResult.rows[0]?.overall_score || 0;
-  } catch { results.readiness_score = 0; }
+    const readiness = await getDataRoomReadiness(ventureId);
+    results.readiness_score = readiness?.readiness_percent ?? null;
+  } catch { results.readiness_score = null; }
 
   // 2. Investor Matches
   try {
@@ -115,7 +117,7 @@ export async function getInvestmentReportSummary(ventureId) {
   const summary = {
     generated_at: new Date().toISOString(),
     kpis: {
-      "Investment Readiness": `${analytics.readiness_score || 0}%`,
+      "Investment Readiness": analytics.readiness_score == null ? "—" : `${analytics.readiness_score}%`,
       "Investor Matches": analytics.total_matches || 0,
       "Avg Match Score": `${analytics.avg_match_score || 0}%`,
       "Active Opportunities": analytics.active_opportunities || 0,
