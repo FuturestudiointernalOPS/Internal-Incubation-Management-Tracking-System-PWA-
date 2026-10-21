@@ -52,6 +52,7 @@ const {
   createDataRoomDocument,
   replaceDataRoomDocument,
   reviewDataRoomDocument,
+  updateDataRoomMetadata,
   grantDataRoomAccess,
 } = require("@/services/ventures/dataRoom");
 const {
@@ -208,6 +209,37 @@ describe("createDataRoomDocument", () => {
       call[0].sql.includes("INSERT INTO venture_activity_log"),
     );
     expect(audit[0].args).toContain("DATA_ROOM_DOCUMENT_UPLOADED");
+  });
+});
+
+describe("updateDataRoomMetadata — safe reclassification of legacy documents", () => {
+  test("a legacy category can be re-filed without creating a new version", async () => {
+    const db = founderDb();
+
+    const result = await updateDataRoomMetadata({
+      ventureId: VENTURE,
+      documentId: "DOC-1",
+      session: founderSession,
+      input: { category: "financials_projections" },
+      database: db,
+    });
+
+    expect(result).toEqual({ ok: true, updated: true });
+
+    // The catalogue row changes; the version history does not. Re-filing is
+    // metadata, not a new upload, so nothing is lost from the audit trail.
+    const update = db.execute.mock.calls.find((call) =>
+      call[0].sql.includes("UPDATE venture_documents SET"),
+    );
+    expect(update[0].args).toContain("financials_projections");
+    expect(
+      db.execute.mock.calls.some((call) => call[0].sql.includes("INSERT INTO venture_document_versions")),
+    ).toBe(false);
+
+    const audit = db.execute.mock.calls.find((call) =>
+      call[0].sql.includes("INSERT INTO venture_activity_log"),
+    );
+    expect(audit[0].args).toContain("DATA_ROOM_DOCUMENT_UPDATED");
   });
 });
 

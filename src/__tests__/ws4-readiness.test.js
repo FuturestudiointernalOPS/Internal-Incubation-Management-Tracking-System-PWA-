@@ -98,6 +98,9 @@ const { normalizeBusinessStage } = require("@/lib/ventureStage");
 const { dataRoomCategory } = require("@/lib/dataRoom");
 const analytics = require("@/models/ventureAnalyticsStore");
 const reports = require("@/models/ventureWorkspace/journeyAndReports/journeyReports");
+const timeline = require("@/models/ventureTimelineStore");
+const intelligence = require("@/models/intelligence");
+const dashboardDocuments = require("@/models/ventureWorkspace/dashboardAndCheckins");
 
 const sqlOf = (needle) => executed.filter((call) => call.sql.includes(needle)).map((call) => call.sql);
 
@@ -228,5 +231,80 @@ describe("Analytics and report reads use the same rules as the rest of the app",
 
     expect(sqlOf("journey_stage_id IS NOT NULL")[0]).toContain("COALESCE(is_archived, FALSE) = FALSE");
     expect(sqlOf("SELECT status, due_date FROM venture_tasks")[0]).toContain("COALESCE(is_archived, FALSE) = FALSE");
+  });
+
+  test("the operating report counts reviewed work once per task, like Roadmap Progress", async () => {
+    await reports.listVentureReviewedSubmissionsForReport(["VNT-A"]);
+    const sql = sqlOf("SELECT s.review_decision, s.reviewed_at")[0];
+
+    expect(sql).toContain("MAX(s2.version)");
+    expect(sql).toContain("COALESCE(t.is_archived, FALSE) = FALSE");
+  });
+
+  test("Intelligence counts an overdue milestone by its date, not by a stored status", async () => {
+    await intelligence.getVentureMetrics();
+    const sql = sqlOf("COUNT(*)::int AS overdue")[0];
+
+    expect(sql).toContain("COALESCE(target_date, due_date) < NOW()");
+    expect(sql).toContain("COALESCE(is_archived, FALSE) = FALSE");
+    expect(sql).not.toContain("status = 'delayed'");
+  });
+
+  test("timeline progress uses the same delayed and completion definitions", async () => {
+    await timeline.selectMilestoneProgressCounts(UUID_A);
+    await timeline.selectTaskProgressCounts(UUID_A);
+
+    const milestoneSql = sqlOf("FROM venture_milestones WHERE venture_id = ?")[0];
+    const taskSql = sqlOf("FROM venture_tasks WHERE venture_id = ?")[0];
+
+    expect(milestoneSql).toContain("COALESCE(target_date, due_date) < NOW()");
+    expect(milestoneSql).not.toContain("status = 'delayed'");
+    expect(taskSql).toContain("IN ('done', 'accepted', 'completed')");
+    expect(taskSql).toContain("COALESCE(is_archived, FALSE) = FALSE");
+  });
+
+  test("the dashboard document total is a COUNT, not the widget's first five", async () => {
+    await dashboardDocuments.countVentureDocumentsForDashboard(UUID_A);
+    const sql = sqlOf("FROM venture_documents WHERE venture_id = ?")[0];
+
+    expect(sql).toContain("COUNT(*)");
+    expect(sql).not.toContain("LIMIT");
+  });
+});
+
+describe("The broken Profile Completion surface is retired", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const read = (relative) => fs.readFileSync(path.join(process.cwd(), relative), "utf8");
+
+  test("the investment analytics screen reads the Data Room, not the retired assessment table", () => {
+    const source = read("src/services/ventures/investmentAnalytics.js");
+    expect(source).toContain("getDataRoomReadiness");
+    expect(source).not.toContain("selectAnalyticsReadinessScore");
+  });
+
+  test("the admin dashboard no longer links to the non-existent wizard route", () => {
+    const source = read("src/components/ventures/venture-dashboard/MetricsColumn.js");
+    expect(source).not.toContain("/wizard");
+    expect(source).not.toContain("profile_completion");
+  });
+
+  test("the dashboard aggregate no longer computes startup-profile completion", () => {
+    const source = read("src/services/ventures/dashboard.js");
+    expect(source).not.toContain("getOrCreateStartupProfile");
+    expect(source).not.toContain("profile_completion");
+  });
+
+  test("investor matching uses the Data Room readiness and the shared stage aliases", () => {
+    const source = read("src/services/ventures/investorMatching.js");
+    expect(source).toContain("getDataRoomReadiness");
+    expect(source).toContain("normalizeBusinessStage");
+    expect(source).not.toContain("selectLatestReadinessScore");
+  });
+
+  test("the founder dashboard distinguishes Venture setup from profile completion", () => {
+    const source = read("src/components/ventures/workspace/tabs/DashboardHistoryTabs.js");
+    expect(source).toContain("venture_setup");
+    expect(source).not.toContain("profile_completion");
   });
 });
