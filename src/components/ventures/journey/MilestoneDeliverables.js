@@ -226,6 +226,16 @@ export default function MilestoneDeliverables({
                 <span className={`stf-tag ${TAG_TONE[status?.tone] || ""} shrink-0`}>
                   {statusLabel(status, t)}
                 </span>
+                {milestoneAuthority && deliverable.approval_status !== "approved" && (
+                  <button
+                    type="button"
+                    onClick={() => reviewDeliverable(deliverable, "approved")}
+                    disabled={deliverableBusy === deliverable.id}
+                    className="stf-btn sm ok shrink-0"
+                  >
+                    {t("venture.manager.approveDeliverable")}
+                  </button>
+                )}
                 {milestoneAuthority && (
                   <AppMenu
                     label={t("venture.manager.deliverableActions")}

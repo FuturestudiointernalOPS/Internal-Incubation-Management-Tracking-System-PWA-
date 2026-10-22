@@ -12,7 +12,7 @@
 
 import { deliverableStatusWord } from "@/lib/ventureStatuses";
 import {
-  CheckCircle2,
+  
   RotateCcw,
   Pencil,
   Upload,
@@ -249,7 +249,6 @@ export function deliverableWrites({
     { key: "edit", label: t("venture.manager.editDeliverable"), icon: Pencil, onSelect: () => startDeliverableEdit(deliverable) },
     { key: "submit", label: t("venture.manager.submitEvidence"), icon: Upload, onSelect: () => { setDeliverableAction({ id: deliverable.id, mode: "submit" }); setDeliverableText(/^https?:\/\//i.test(deliverable.attachment_url || "") ? deliverable.attachment_url : ""); } },
     { separator: true },
-    { key: "approve", label: t("venture.manager.approveDeliverable"), icon: CheckCircle2, onSelect: () => reviewDeliverable(deliverable, "approved") },
     { key: "changes", label: t("venture.manager.requestChanges"), icon: RotateCcw, onSelect: () => { setDeliverableAction({ id: deliverable.id, mode: "review" }); setDeliverableText(""); } },
   ];
 

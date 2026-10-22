@@ -63,6 +63,9 @@ export default function VentureNotesPanel({ ventureId }) {
   const [openNote, setOpenNote] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [toast, setToast] = useState(null);
+  // Each kind of work keeps its own notes: the Sessions list never carries a
+  // milestone's notes, and the Milestones list never carries a session's memo.
+  const [section, setSection] = useState("milestones");
 
   // The notes and the milestone choices are two separate addresses, and both are
   // read through the shared hook so the panel keeps no copy of its own.
@@ -80,9 +83,12 @@ export default function VentureNotesPanel({ ventureId }) {
     { defaultValue: EMPTY_LIST, transform: pickSessionMemos, deps: [ventureId] },
   );
 
-  const notes = [...notesRead.notes, ...sessionMemos].sort(
-    (left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime(),
-  );
+  const byNewest = (left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+  const sections = {
+    milestones: [...notesRead.notes].sort(byNewest),
+    sessions: [...sessionMemos].sort(byNewest),
+  };
+  const notes = sections[section];
   const canPost = notesRead.canPost;
   // The notes are what the panel waits for; the milestone choices arrive with
   // them, and waiting for both keeps the composer from reporting "no milestones"
@@ -164,7 +170,7 @@ export default function VentureNotesPanel({ ventureId }) {
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
           <StickyNote className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.notesPanel.title", { n: notes.length })}
         </h3>
-        {canPost && (
+        {canPost && section === "milestones" && (
           <button
             onClick={() => setShowComposer(!showComposer)}
             className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
@@ -175,9 +181,22 @@ export default function VentureNotesPanel({ ventureId }) {
         )}
       </div>
 
-      <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.notesPanel.hint")}</p>
+      <div className="flex items-center gap-2 mb-3">
+        {["milestones", "sessions"].map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setSection(key); setShowComposer(false); }}
+            className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${section === key ? "bg-[var(--brand-orange)] text-black border-transparent" : "border-[var(--border-primary)] text-slate-500"}`}
+          >
+            {t(`venture.notesPanel.section.${key}`)} ({sections[key].length})
+          </button>
+        ))}
+      </div>
 
-      {showComposer && (
+      <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t(section === "sessions" ? "venture.notesPanel.sessionsHint" : "venture.notesPanel.hint")}</p>
+
+      {showComposer && section === "milestones" && (
         <form onSubmit={submit} className="mb-4 p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary space-y-3">
           <input
             value={form.title}
