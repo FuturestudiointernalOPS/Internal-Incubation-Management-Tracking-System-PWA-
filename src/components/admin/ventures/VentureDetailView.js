@@ -256,7 +256,7 @@ export default function VentureDetailView({ ctx }) {
         {activeTab === "dashboard" && (
           /* Full Dashboard is the first view when opening a Venture (merged
              with the former standalone dashboard page content). */
-          <VentureDashboard id={id} embedded />
+          <VentureDashboard id={id} embedded onOpenProfile={() => setActiveTab("profile")} />
         )}
 
         {(activeTab === "profile" || activeTab === "overview") && (
