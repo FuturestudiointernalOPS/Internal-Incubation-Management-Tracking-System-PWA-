@@ -258,7 +258,6 @@
     "calendar": "Calendar",
     "noEvents": "No events yet",
     "taskCompletion": "Task Completion",
-
     "standupsCount": "Standups Submitted",
     "retrosCount": "Retros Submitted",
     "documents": "Data Room",
@@ -1213,6 +1212,13 @@
         "leadRemoved": "Venture Lead updated",
         "leadRemovedMsg": "{name} is no longer assigned to your Venture."
       }
+    },
+    "quickNote": {
+      "button": "Note",
+      "title": "Add a note",
+      "prefix": "Note",
+      "saved": "Note saved — it is in the Notes tab.",
+      "memo": "Session memo"
     }
   }
 }

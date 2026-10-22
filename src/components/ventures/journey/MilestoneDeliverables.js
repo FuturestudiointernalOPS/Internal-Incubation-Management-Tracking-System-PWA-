@@ -1,5 +1,6 @@
 "use client";
 
+import QuickNote from "@/components/ventures/journey/QuickNote";
 import ActivityReport from "@/components/ventures/journey/ActivityReport";
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
@@ -285,6 +286,11 @@ export default function MilestoneDeliverables({
               stage={stage}
             />
           )}
+            <QuickNote
+              ventureId={ventureId}
+              milestoneId={milestone.id}
+              subject={`${group.activity?.source_ref ? `${group.activity.source_ref} · ` : ""}${group.activity?.title || milestone.title || ""}`.trim()}
+            />
             <ActivityReport ventureId={ventureId} milestone={milestone} activity={group.activity} />
           </div>
         </div>
