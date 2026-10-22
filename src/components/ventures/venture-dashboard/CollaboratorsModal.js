@@ -1,6 +1,7 @@
 "use client";
 
-import { AlertTriangle, Mail, Plus } from "lucide-react";
+import { useState } from "react";
+import { AlertTriangle, Loader2, Mail, Plus } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import AppModal from "@/components/ui/AppModal";
@@ -22,9 +23,14 @@ export default function CollaboratorsModal({ ventureId, isOpen, onClose }) {
     { deps: [ventureId, isOpen], defaultValue: null },
   );
   const { addEmail, savingName } = useAssigneeEmail(ventureId);
+  // Addresses saved from this dialog, shown at once: the server stores one in a
+  // few seconds, and the list read that follows takes as long again.
+  const [saved, setSaved] = useState({});
 
   if (!isOpen) return null;
-  const people = Array.isArray(data?.people) ? data.people : [];
+  const people = (Array.isArray(data?.people) ? data.people : []).map((person) =>
+    !person.email && saved[person.name] ? { ...person, email: saved[person.name] } : person,
+  );
   const withoutEmail = people.filter((person) => !person.email).length;
 
   return (
@@ -32,7 +38,8 @@ export default function CollaboratorsModal({ ventureId, isOpen, onClose }) {
       <div className="space-y-4">
         <p className="text-[13px] text-[var(--text-secondary)]">{t("vadmin.dashboard.collaborators.subtitle")}</p>
 
-        {loading ? (
+        {/* Only the first read replaces the list: a refresh after a save keeps it on screen. */}
+        {loading && !data ? (
           <p className="text-[13px] text-[var(--text-secondary)]">{t("common.loading")}</p>
         ) : error ? (
           <p className="text-[13px] text-rose-400">{t("venture.people.loadFailed")}</p>
@@ -70,9 +77,17 @@ export default function CollaboratorsModal({ ventureId, isOpen, onClose }) {
                         type="button"
                         className="stf-btn sm pr"
                         disabled={savingName === person.name}
-                        onClick={() => addEmail(person.name, { onDone: refresh })}
+                        onClick={() =>
+                          addEmail(person.name, {
+                            onDone: (email) => {
+                              setSaved((previous) => ({ ...previous, [person.name]: email }));
+                              refresh();
+                            },
+                          })
+                        }
                       >
-                        <Plus size={13} /> {t("vadmin.dashboard.collaborators.addEmail")}
+                        {savingName === person.name ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}{" "}
+                        {savingName === person.name ? t("venture.saving") : t("vadmin.dashboard.collaborators.addEmail")}
                       </button>
                     </>
                   )}

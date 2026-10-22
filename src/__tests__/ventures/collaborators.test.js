@@ -82,3 +82,25 @@ test("a refusal from the server is announced, not swallowed", async () => {
   fireEvent.click(screen.getAllByRole("button", { name: /Add email/ })[0]);
   await waitFor(() => expect(mockAlert).toHaveBeenCalled());
 });
+
+test("the saved address shows at once, even before the list read comes back with it", async () => {
+  mockPrompt.mockResolvedValue("kofi@example.org");
+  open();
+  await screen.findByText("Kofi");
+  fireEvent.click(screen.getAllByRole("button", { name: /Add email/ })[1]);
+  // The mocked list read still answers without the address: the dialog must not depend on it.
+  expect(await screen.findByText("kofi@example.org")).toBeTruthy();
+  expect(screen.getAllByRole("button", { name: /Add email/ })).toHaveLength(1); // only David is left
+});
+
+test("a confirmation toast names the person", async () => {
+  const toasts = [];
+  const onNotify = (event) => toasts.push(event.detail);
+  window.addEventListener("impactos:notify", onNotify);
+  mockPrompt.mockResolvedValue("kofi@example.org");
+  open();
+  await screen.findByText("Kofi");
+  fireEvent.click(screen.getAllByRole("button", { name: /Add email/ })[1]);
+  await waitFor(() => expect(toasts.some((toast) => /Email added for Kofi/.test(toast.message))).toBe(true));
+  window.removeEventListener("impactos:notify", onNotify);
+});
