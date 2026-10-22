@@ -32,6 +32,7 @@ export default function JourneyStageList({ ctx }) {
     deliverableFile,
     deliverableForm,
     deliverableMenuItems,
+    canApproveDeliverable,
     deliverableNewUrl,
     deliverableSaving,
     deliverableStatus,
@@ -186,6 +187,7 @@ export default function JourneyStageList({ ctx }) {
               deliverableFile={deliverableFile}
               deliverableForm={deliverableForm}
               deliverableMenuItems={deliverableMenuItems}
+              canApproveDeliverable={canApproveDeliverable}
               deliverableNewUrl={deliverableNewUrl}
               deliverableSaving={deliverableSaving}
               deliverableStatus={deliverableStatus}

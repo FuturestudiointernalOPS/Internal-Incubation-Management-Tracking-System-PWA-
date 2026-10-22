@@ -35,6 +35,8 @@ export function deliverableWrites({
   deliverableNewUrl,
   deliverableNewFile,
   refreshJourney,
+  stages,
+  setStages,
   setDeliverableForm,
   setDeliverableNewFile,
   setDeliverableNewUrl,
@@ -48,7 +50,7 @@ export function deliverableWrites({
   setDeliverableBusy,
 }) {
   const addMilestoneDeliverable = () =>
-    setMilestoneDeliverables((prev) => [...prev, { title: "", deliverable_type: "document", due_date: "" }]);
+    setMilestoneDeliverables((prev) => [...prev, { title: "", deliverable_type: "document", start_date: "", due_date: "" }]);
   const updateMilestoneDeliverable = (index, patch) =>
     setMilestoneDeliverables((prev) => prev.map((deliverable, itemIndex) => (itemIndex === index ? { ...deliverable, ...patch } : deliverable)));
   const removeMilestoneDeliverable = (index) =>
@@ -226,20 +228,53 @@ export function deliverableWrites({
     }
   };
 
+  // Something is waiting for a decision only once evidence has been handed in
+  // and no decision has been taken on it yet.
+  const canApproveDeliverable = (deliverable) => {
+    const word = deliverableStatusWord(deliverable).id;
+    if (word === "awaiting_review") return true;
+    return Boolean(deliverable.attachment_url) && word !== "approved" && word !== "changes_requested";
+  };
+
+  // The decision is published on screen from what was just written, in place:
+  // no second read of the journey, so the page keeps its scroll and its open rows.
+  const applyDeliverableDecision = (deliverableId, decision, reason) => {
+    setStages(stages.map((stage) => ({
+      ...stage,
+      milestones: (stage.milestones || []).map((milestone) => ({
+        ...milestone,
+        deliverables: (milestone.deliverables || []).map((item) => (
+          item.id !== deliverableId
+            ? item
+            : {
+                ...item,
+                approval_status: decision === "approved" ? "approved" : "rejected",
+                rejection_reason: decision === "approved" ? null : reason || null,
+              }
+        )),
+      })),
+    })));
+  };
+
   const reviewDeliverable = async (deliverable, decision) => {
+    if (decision === "approved" && !canApproveDeliverable(deliverable)) {
+      notify(t("venture.manager.nothingToApprove"), "error");
+      return;
+    }
     setDeliverableBusy(deliverable.id);
+    const reason = decision === "changes_requested" ? deliverableText.trim() : undefined;
     const ok = await patchDeliverable({
       id: deliverable.id,
       action: "review",
       decision,
-      comments: decision === "changes_requested" ? deliverableText.trim() : undefined,
+      comments: reason,
     });
     setDeliverableBusy(null);
     if (ok) {
       notify(t("venture.manager.deliverableReviewed", { decision: t(decision === "approved" ? "venture.manager.approveDeliverable" : "venture.manager.requestChanges") }));
       setDeliverableAction(null);
       setDeliverableText("");
-      await refreshJourney();
+      applyDeliverableDecision(deliverable.id, decision, reason);
     }
   };
 
@@ -264,6 +299,7 @@ export function deliverableWrites({
     saveDeliverableEdit,
     submitDeliverableEvidence,
     reviewDeliverable,
+    canApproveDeliverable,
     deliverableStatus,
     deliverableMenuItems,
   };

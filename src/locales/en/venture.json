@@ -800,7 +800,11 @@
         "authorId": "Author ID",
         "updatedOn": "Last edited",
         "reference": "Reference"
-      }
+      },
+      "milestoneDatesRequired": "Set a start date and an end date for the milestone.",
+      "milestoneStartAfterEnd": "The start date cannot be after the end date.",
+      "deliverableDatesRequired": "Each deliverable needs a start date and an end date, the start not after the end.",
+      "nothingToApprove": "Nothing to approve yet: no evidence has been submitted."
     },
     "personal": {
       "title": "My Dashboard",

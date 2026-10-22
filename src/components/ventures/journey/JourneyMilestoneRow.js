@@ -56,6 +56,7 @@ export default function JourneyMilestoneRow({
   deliverableFile,
   deliverableForm,
   deliverableMenuItems,
+  canApproveDeliverable,
   deliverableNewUrl,
   deliverableSaving,
   deliverableStatus,
@@ -244,6 +245,7 @@ export default function JourneyMilestoneRow({
             deliverableForm={deliverableForm}
             deliverableList={deliverableList}
             deliverableMenuItems={deliverableMenuItems}
+            canApproveDeliverable={canApproveDeliverable}
             deliverableNewUrl={deliverableNewUrl}
             deliverableSaving={deliverableSaving}
             deliverableStatus={deliverableStatus}
