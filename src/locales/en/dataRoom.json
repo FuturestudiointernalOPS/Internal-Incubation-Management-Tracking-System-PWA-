@@ -46,9 +46,9 @@
       "expiresInDays": "Expires after (days, optional)"
     },
     "status": {
-      "uploaded": "Uploaded",
+      "uploaded": "Awaiting review",
       "under_review": "Under review",
-      "verified": "Verified",
+      "verified": "Approved",
       "rejected": "Rejected",
       "expired": "Expired"
     },

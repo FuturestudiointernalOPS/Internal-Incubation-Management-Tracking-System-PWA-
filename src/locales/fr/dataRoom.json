@@ -46,9 +46,9 @@
       "expiresInDays": "Expire après (jours, facultatif)"
     },
     "status": {
-      "uploaded": "Téléversé",
+      "uploaded": "En attente de validation",
       "under_review": "En cours de révision",
-      "verified": "Vérifié",
+      "verified": "Approuvé",
       "rejected": "Rejeté",
       "expired": "Expiré"
     },

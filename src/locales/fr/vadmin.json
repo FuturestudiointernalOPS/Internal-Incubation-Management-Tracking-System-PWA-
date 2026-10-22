@@ -164,7 +164,15 @@
       "atTime": "à {time}",
       "backToVenture": "Retour à {name}",
       "coaches": "Coachs",
-      "coachingAndAdvisors": "Coaching et conseillers",
+      "coachingAndAdvisors": "Collaborateurs",
+      "collaborators": {
+        "title": "Collaborateurs",
+        "subtitle": "Les personnes nommées dans le travail de cette Venture — la même liste que la page Project. Ajoute un e-mail à celles qui n'en ont pas pour que les rappels les atteignent.",
+        "openHint": "Ouvrir la liste des collaborateurs",
+        "noEmail": "Pas d'e-mail",
+        "addEmail": "Ajouter un e-mail",
+        "withoutEmail": "{count} sans e-mail"
+      },
       "completeProfileForScore": "Complétez votre profil pour voir le score",
       "currentMilestone": "Jalon actuel",
       "dashboardError": "Erreur du tableau de bord",
@@ -174,6 +182,30 @@
       "investmentScore": "Score d'investissement",
       "stageEvidenceScore": "Score stade & preuves",
       "stageEvidenceHint": "Stade de développement plus les preuves déjà déposées — pas la préparation à l'investissement",
+      "evidence": {
+        "title": "Comment le score est calculé",
+        "stagePart": "Stade",
+        "evidencePart": "Preuves",
+        "evidenceWeight": "des documents requis · 60 %",
+        "total": "Score",
+        "notMeasurable": "Aucun document n'est marqué comme requis à ce stade : les preuves ne peuvent pas encore être mesurées, le score repose donc sur le stade seul. Marque des documents comme requis dans le Data Room pour les mesurer.",
+        "explain": "Les preuves sont la part des documents REQUIS qui sont approuvés : {verified} sur {total}. Un document approuvé compte en entier ; ceux en attente compteront dès leur approbation.",
+        "untitled": "Document sans titre",
+        "noDocument": "Aucun document déposé",
+        "section": {
+          "verified": "Compté maintenant — approuvé",
+          "awaiting": "En attente d'approbation — comptera une fois approuvé",
+          "rejected": "Rejeté — compte pour moitié jusqu'au nouveau dépôt",
+          "missing": "Manquant — aucun document utilisable déposé"
+        },
+        "verdict": {
+          "verified": "Approuvé",
+          "awaiting": "En attente de validation",
+          "rejected": "Rejeté",
+          "missing": "Manquant",
+          "expired": "Expiré"
+        }
+      },
       "inviteFounder": "Inviter un fondateur",
       "knowledgeHub": "Centre de connaissances",
       "kpis": "KPIs",
