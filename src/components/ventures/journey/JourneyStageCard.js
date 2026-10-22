@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { CheckCircle2, RotateCcw, Save, Square, CheckSquare } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, RotateCcw, Save, Square, CheckSquare } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
 import JourneyReportSection from "@/components/ventures/journey/JourneyReportSection";
 import JourneyMilestoneRow from "@/components/ventures/journey/JourneyMilestoneRow";
@@ -123,6 +123,9 @@ export default function JourneyStageCard({
 }) {
   const { t, lang } = useI18n();
   const isEditing = editId === stage.id;
+  // A journey folds down to its header (title, status, progress). Open by default;
+  // purely a view choice, so it lives here and nothing else depends on it.
+  const [collapsed, setCollapsed] = React.useState(false);
   const milestones = stage.milestones || [];
   const done = stage.milestone_counts?.completed || 0;
   const total = stage.milestone_counts?.total || 0;
@@ -187,6 +190,16 @@ export default function JourneyStageCard({
                 </span>
                 <div className="jy-sh-body">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <button
+                      type="button"
+                      onClick={() => setCollapsed((value) => !value)}
+                      aria-expanded={!collapsed}
+                      aria-label={t(collapsed ? "common.expand" : "common.collapse")}
+                      title={t(collapsed ? "common.expand" : "common.collapse")}
+                      className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
+                    </button>
                     {access.manage && !stage.is_archived && (
                       <button
                         type="button"
@@ -199,13 +212,13 @@ export default function JourneyStageCard({
                     )}
                     <h4 className={`jy-sh-title ${isDone ? "is-done" : ""}`}>{stage.name}</h4>
                   </div>
-                  {stage.description && <p className="jy-sh-meta">{stage.description}</p>}
-                  {stage.objective && (
+                  {!collapsed && stage.description && <p className="jy-sh-meta">{stage.description}</p>}
+                  {!collapsed && stage.objective && (
                     <p className="jy-obj">
                       <b>{t("venture.manager.objective")}: </b>{stage.objective}
                     </p>
                   )}
-                  {(stage.completed_at || !isDone) && (
+                  {!collapsed && (stage.completed_at || !isDone) && (
                     <div className="jy-hint">
                       {stage.completed_at && <span>{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString(lang) })}</span>}
                       {!isDone && <span>{t(isLocked ? "venture.manager.memberVisibilityLocked" : "venture.manager.memberVisibilityActive")}</span>}
@@ -241,7 +254,7 @@ export default function JourneyStageCard({
             {/* The report this journey is owed. A report BELONGS to a
                 journey, so it is written here — where the journey lives —
                 and never in a separate module. */}
-            {!stage.is_archived && (
+            {!collapsed && !stage.is_archived && (
               <JourneyReportSection
                 autoGrow={autoGrow}
                 closingMissing={closingMissing}
@@ -260,7 +273,7 @@ export default function JourneyStageCard({
               />
             )}
 
-            {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
+            {!collapsed && (milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
               <div>
                 {milestones.length > 0 && (
                   <div className="jy-ms">
