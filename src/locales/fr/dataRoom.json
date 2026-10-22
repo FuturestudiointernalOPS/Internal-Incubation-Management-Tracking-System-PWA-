@@ -192,6 +192,16 @@
       "levelInvalid": "Choisissez un niveau d'exigence valide.",
       "loadFailed": "Le Data Room n'a pas pu être chargé.",
       "uploadFailed": "Le fichier n'a pas pu être téléversé."
+    },
+    "preview": {
+      "title": "Aperçu du document",
+      "openTab": "Ouvrir dans un nouvel onglet",
+      "unavailable": "Ce type de fichier ne peut pas être prévisualisé dans le navigateur. Utilisez Télécharger pour le lire.",
+      "approve": "Approuver",
+      "reject": "Ne pas approuver",
+      "confirmReject": "Confirmer le refus",
+      "button": "Aperçu",
+      "approveConfirm": "Approuver « {title} » ?"
     }
   }
 }

@@ -269,7 +269,7 @@ describe("resolveDataRoomViewer", () => {
       viewerType: "staff",
       isLeadManager: true,
       canManage: false,
-      canReview: false,
+      canReview: true,
       canConfigureRequirements: true,
     });
   });
