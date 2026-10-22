@@ -712,6 +712,7 @@
       "searchPlaceholder": "Rechercher des entreprises par nom, ID ou secteur...",
       "noSearchResults": "Aucune entreprise ne correspond à votre recherche",
       "noVentures": "Aucune entreprise pour le moment",
+      "loadFailed": "Impossible de charger les entreprises",
       "tryDifferentSearch": "Essayez un autre terme de recherche",
       "noVenturesDesc": "Enregistrez votre première startup dans Venture OS",
       "venture": "Entreprise",

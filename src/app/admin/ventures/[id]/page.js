@@ -127,18 +127,30 @@ export default function VentureDetailPage({ params }) {
     data: venture,
     loading,
     error: readFailure,
+    status: readStatus,
   } = useApi(id ? `/api/ventures/${id}` : null, {
     defaultValue: null,
     transform: pickVenture,
     deps: [id],
   });
 
-  // Which failure the panel below reports: a request that never got an answer is
-  // the network's, and a read that came back without a Venture is the server's.
-  const error = readFailure
-    ? t("vadmin.detail.ventureLoadError")
-    : !venture
-      ? t("vadmin.detail.ventureNotFound")
+  // Distinguish a missing Venture (404) from a load fault (network / 5xx /
+  // authz). The panel used to title every empty read "Not Found", which hid
+  // real failures behind the wrong diagnosis.
+  const notFound = !loading && !venture && (readStatus === 404 || (!readFailure && readStatus === null));
+  const error = loading
+    ? null
+    : readFailure
+      ? t("vadmin.detail.ventureLoadError")
+      : notFound
+        ? t("vadmin.detail.ventureNotFound")
+        : !venture && readStatus >= 400
+          ? t("vadmin.detail.ventureLoadError")
+          : null;
+  const errorTitle = notFound
+    ? t("vadmin.detail.ventureNotFound")
+    : error
+      ? t("vadmin.detail.ventureLoadError")
       : null;
 
   const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
@@ -159,6 +171,7 @@ export default function VentureDetailPage({ params }) {
     activeTab,
     actorText,
     error,
+    errorTitle,
     getActivityColor,
     getActivityIcon,
     getStageConfig,

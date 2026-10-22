@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── GET /api/ventures/[id]/journey-report ────────────────────────────────────
 
@@ -74,12 +75,16 @@ export function listVentureSessionsForReport(owners) {
   });
 }
 
-/** Active staff assignments of a Venture (VNT code). */
-export function listVentureStaffAssignmentsForReport(id) {
+/** Active staff assignments of a Venture (code or internal id). */
+export async function listVentureStaffAssignmentsForReport(id) {
+  // `venture_staff_assignments.venture_id` is UUID on the live schema; the
+  // report route hands the decorative VNT code from the URL. Passing that code
+  // raw raises "invalid input syntax for type uuid" and emptied the staff block.
+  const ventureId = await resolveVentureInternalId(id);
   return db.execute({
     sql: `SELECT responsibility_code, staff_contact_id, scope_type
               FROM venture_staff_assignments WHERE venture_id = ? AND status = 'active'`,
-    args: [id],
+    args: [ventureId],
   });
 }
 

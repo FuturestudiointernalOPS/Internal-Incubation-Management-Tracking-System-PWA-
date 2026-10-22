@@ -712,6 +712,7 @@
       "searchPlaceholder": "Search ventures by name, ID, or industry...",
       "noSearchResults": "No ventures match your search",
       "noVentures": "No ventures yet",
+      "loadFailed": "Ventures could not be loaded",
       "tryDifferentSearch": "Try a different search term",
       "noVenturesDesc": "Register your first startup in Venture OS",
       "venture": "Venture",
