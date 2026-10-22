@@ -22,6 +22,8 @@
       "updated": "Cours mis à jour",
       "published": "Cours publié",
       "archived": "Cours archivé",
+      "unarchive": "Restaurer",
+      "unarchived": "Cours restauré",
       "deleted": "Cours supprimé",
       "noDescription": "Aucune description pour l'instant",
       "videoPlay": "Lire la vidéo de la première leçon",
@@ -193,7 +195,18 @@
       "source": "Source",
       "status": "Statut",
       "enrolledAt": "Inscrit le",
-      "loadFailed": "Impossible de charger les apprenants."
+      "loadFailed": "Impossible de charger les apprenants.",
+      "statuses": {
+        "active": "Actif",
+        "completed": "Terminé",
+        "suspended": "Suspendu"
+      },
+      "sources": {
+        "admin": "Ajouté par un admin",
+        "program": "Programme",
+        "self": "Inscription libre",
+        "purchase": "Achat"
+      }
     },
     "assessment": {
       "title": "Évaluation",
@@ -418,6 +431,8 @@
       "publishHint": "Le cours deviendra disponible pour les apprenants.",
       "archive": "Archiver ce cours ?",
       "archiveHint": "Les cours archivés conservent tous les enregistrements d'apprenants et ne sont plus disponibles pour de nouvelles inscriptions.",
+      "unarchive": "Restaurer ce cours ?",
+      "unarchiveHint": "Le cours redevient publié et ouvert aux nouvelles inscriptions. Le suivi des apprenants est conservé.",
       "deleteCourse": "Supprimer ce cours ?",
       "deleteCourseHint": "Seuls les brouillons sans inscriptions peuvent être supprimés. Cette action est irréversible.",
       "deleteSection": "Supprimer cette section ?",
@@ -558,6 +573,7 @@
       "validationItem": "{kind} « {title} » : {message}",
       "notDraft": "Seuls les brouillons peuvent être publiés.",
       "notPublished": "Seuls les cours publiés peuvent être archivés.",
+      "notArchived": "Seuls les cours archivés peuvent être restaurés.",
       "loadFailed": "Échec du chargement des cours.",
       "loadFailedCourse": "Échec du chargement du cours.",
       "saveFailed": "Échec de l'enregistrement.",

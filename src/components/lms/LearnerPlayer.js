@@ -77,7 +77,9 @@ export default function LearnerPlayer({ courseId, lessonId }) {
     deps: [courseId],
   });
   const data = courseRead.payload;
-  const error = courseRead.failure || readError || null;
+  // A request that never got an answer shows the screen's message, not the
+  // browser's raw (English) network error.
+  const error = courseRead.failure || (readError ? "lms.errors.loadFailedCourse" : null);
 
   // Ordered lesson list for prev/next navigation (assessments are not lessons).
   const lessons = useMemo(() => {
