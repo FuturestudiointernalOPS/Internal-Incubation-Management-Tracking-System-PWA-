@@ -10,6 +10,7 @@ import VentureWorkspaceView from "@/components/participant/ventures/VentureWorks
 // props below. The provider renders no DOM, so no wrapper node is introduced.
 export default function VentureWorkspaceScreen({
   loading,
+  notFound = false,
   venture,
   brandColor,
   activeTab,
@@ -26,7 +27,7 @@ export default function VentureWorkspaceScreen({
 
   if (!venture) return (
     <>
-      <div className="p-6 text-center" style={{ color: "var(--text-secondary)" }}>{t("venture.loadError")}</div>
+      <div className="p-6 text-center" style={{ color: "var(--text-secondary)" }}>{notFound ? t("venture.notFound") : t("venture.loadError")}</div>
     </>
   );
 

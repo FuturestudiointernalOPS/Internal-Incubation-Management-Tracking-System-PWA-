@@ -401,7 +401,6 @@ export function JourneyTab() {
                               {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${dateOnly(milestone.target_date)}T00:00:00`).toLocaleDateString()}</p>}
 
                               <FounderMilestoneDeliverables
-                                ventureId={params.id}
                                 milestone={milestone}
                                 stage={stage}
                                 dvDrafts={dvDrafts}

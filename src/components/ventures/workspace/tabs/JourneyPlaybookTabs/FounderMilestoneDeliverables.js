@@ -6,7 +6,6 @@ import { deliverableStatusWord, statusDotClass, statusLabel } from "@/lib/ventur
 import { groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 import FounderSessionBooking from "@/components/ventures/journey/FounderSessionBooking";
 import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
-import ActivityReport from "@/components/ventures/journey/ActivityReport";
 import { ChevronRight } from "lucide-react";
 
 // The kit tag for a status word (same tones as the Venture Manager view).
@@ -30,7 +29,7 @@ const TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes
  * ONE vocabulary, shared with the Venture Manager and Super Admin views
  * (`lib/ventureStatuses`) — the status chip is resolved through the same words.
  */
-export default function FounderMilestoneDeliverables({ ventureId, milestone, stage, dvDrafts, setDvDrafts, submitDeliverable, canBook, bookFor, bookForm, bookSaving, bookSession, openBooking, setBookFor, setBookForm }) {
+export default function FounderMilestoneDeliverables({ milestone, stage, dvDrafts, setDvDrafts, submitDeliverable, canBook, bookFor, bookForm, bookSaving, bookSession, openBooking, setBookFor, setBookForm }) {
   const { t } = useI18n();
   // Only the id is kept: the dialog then reads the CURRENT deliverable from
   // props, so a just-submitted status shows without reopening it.
@@ -128,7 +127,8 @@ export default function FounderMilestoneDeliverables({ ventureId, milestone, sta
                 <div><span>{t("venture.manager.finishDate")}</span><b>{fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date)}</b></div>
               </div>
 
-              {/* Book a session AGAINST THIS ACTIVITY, and the activity's Report */}
+              {/* Book a session AGAINST THIS ACTIVITY. The Report (notes) is staff-only: the
+                  notes API refuses founders by design, so no button is offered here. */}
               <div className="jy-btns">
                 {canBook && (
                   <FounderSessionBooking
@@ -144,7 +144,6 @@ export default function FounderMilestoneDeliverables({ ventureId, milestone, sta
                     stage={stage}
                   />
                 )}
-                <ActivityReport ventureId={ventureId} milestone={milestone} activity={group.activity} />
               </div>
             </div>
           ))}

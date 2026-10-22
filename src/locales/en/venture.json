@@ -62,6 +62,7 @@
     "createSuccess": "Venture created successfully",
     "updateSuccess": "Venture updated successfully",
     "loadError": "Failed to load ventures",
+    "notFound": "This venture does not exist, or you do not have access to it.",
     "createError": "Failed to create venture",
     "updateError": "Failed to update venture",
     "twitter": "Twitter",

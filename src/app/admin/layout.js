@@ -74,7 +74,9 @@ export default function AdminLayout({ children }) {
             program_manager: "/pm",
             participant: "/participant",
           };
-          const dest = redirectMap[role] || "/login";
+          // A signed-in person with another role goes to their hub — sending them to the
+          // login form made a valid session look like a failed sign-in.
+          const dest = redirectMap[role] || (role ? "/workspaces" : "/login");
           router.replace(dest);
           return;
         }

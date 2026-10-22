@@ -339,7 +339,9 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                     : isInvestor
                       ? t("dataRoom.emptyRoomInvestor")
                       : t("dataRoom.emptyRoomAwaitingUpload")
-                  : t("dataRoom.noDocuments")}
+                  : search.trim() || documentStatus !== "all" || category === "all"
+                    ? t("dataRoom.noMatch")
+                    : t("dataRoom.noDocuments")}
               </p>
               {documents.length === 0 && canUpload && !inlineCategory ? (
                 <button

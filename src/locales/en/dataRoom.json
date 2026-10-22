@@ -5,10 +5,10 @@
     "investorSubtitle": "Documents the venture has shared with you.",
     "upload": "Upload document",
     "uploadDocument": "Upload a document",
-    "uploadHint": "PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG or JPG. Maximum {{size}} MB.",
+    "uploadHint": "PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG or JPG. Maximum {size} MB.",
     "replaceVersion": "Upload new version",
     "editDetails": "Edit details",
-    "deleteConfirm": "Remove \"{{title}}\" from the Data Room? Its version history is kept.",
+    "deleteConfirm": "Remove \"{title}\" from the Data Room? Its version history is kept.",
     "retry": "Try again",
     "download": "Download",
     "view": "Open",
@@ -23,11 +23,12 @@
     "allCategories": "All categories",
     "allStatuses": "All statuses",
     "noDocuments": "No documents in this category yet.",
+    "noMatch": "No document matches your search or filters.",
     "emptyRoom": "No document has been uploaded yet. Upload the first one to start the Data Room.",
     "emptyRoomAwaitingUpload": "No document has been uploaded yet. The Venture's founders upload the files here — you will be able to review them as they arrive.",
     "emptyRoomInvestor": "No document has been shared with you yet.",
     "emptyCategory": "Empty — available for any document that belongs here.",
-    "documentsCount": "{{count}} document(s)",
+    "documentsCount": "{count} document(s)",
     "loading": "Loading the Data Room…",
     "readOnlyInvestor": "You have view-only access to the documents shared with you.",
     "fields": {
@@ -80,7 +81,7 @@
     },
     "completeness": {
       "title": "Data Room readiness",
-      "percent": "{{percent}}% ready",
+      "percent": "{percent}% ready",
       "notRequired": "No document is required at this stage",
       "note": "Calculated from the categories this venture is REQUIRED to provide at its stage. Recommended and conditional documents are never counted as missing.",
       "verified": "Verified",
@@ -91,7 +92,7 @@
       "requiredTotal": "Required categories",
       "ready": "Ready",
       "notReady": "Not yet ready",
-      "missingList": "Still to provide: {{categories}}"
+      "missingList": "Still to provide: {categories}"
     },
     "requirements": {
       "title": "Document requirements",
@@ -119,10 +120,10 @@
       "noGrants": "No investor has access yet.",
       "grantedTo": "Granted to",
       "scopeLabel": "Scope",
-      "expiresAt": "Until {{date}}",
+      "expiresAt": "Until {date}",
       "noExpiry": "No expiry",
       "expired": "Expired",
-      "expiredHint": "Expired on {{date}}",
+      "expiredHint": "Expired on {date}",
       "notInvestor": "This person does not hold an investor profile."
     },
     "versionsModal": {
@@ -135,7 +136,7 @@
     "history": {
       "title": "Data Room activity",
       "noEvents": "No activity recorded yet.",
-      "showAll": "Show all {{count}}",
+      "showAll": "Show all {count}",
       "showLess": "Show fewer",
       "actions": {
         "DATA_ROOM_DOCUMENT_UPLOADED": "Document uploaded",
@@ -154,7 +155,7 @@
       "title": "Consultations and downloads",
       "document": "Document",
       "someone": "Someone",
-      "showAll": "Show all {{count}}",
+      "showAll": "Show all {count}",
       "showLess": "Show fewer",
       "actions": {
         "view": "Opened",
