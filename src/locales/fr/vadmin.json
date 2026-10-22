@@ -165,12 +165,14 @@
       "backToVenture": "Retour à {name}",
       "coaches": "Coachs",
       "coachingAndAdvisors": "Collaborateurs",
+      "openProfile": "Ouvrir l'onglet Profil",
       "collaborators": {
         "title": "Collaborateurs",
         "subtitle": "Les personnes nommées dans le travail de cette Venture — la même liste que la page Project. Ajoute un e-mail à celles qui n'en ont pas pour que les rappels les atteignent.",
         "openHint": "Ouvrir la liste des collaborateurs",
         "noEmail": "Pas d'e-mail",
         "addEmail": "Ajouter un e-mail",
+        "emailAdded": "E-mail ajouté pour {name}",
         "withoutEmail": "{count} sans e-mail"
       },
       "completeProfileForScore": "Complétez votre profil pour voir le score",
@@ -180,8 +182,8 @@
       "editVenture": "Modifier l'entreprise",
       "investmentReadiness": "Préparation à l'investissement",
       "investmentScore": "Score d'investissement",
-      "stageEvidenceScore": "Score stade & preuves",
-      "stageEvidenceHint": "Stade de développement plus les preuves déjà déposées — pas la préparation à l'investissement",
+      "stageEvidenceScore": "Préparation",
+      "stageEvidenceHint": "Stade de développement plus les documents requis déjà approuvés",
       "evidence": {
         "title": "Comment le score est calculé",
         "stagePart": "Stade",
@@ -780,7 +782,9 @@
       "readiness": "Préparation",
       "ready": "Prête",
       "notReady": "Pas prête",
-      "readinessUndefined": "—"
+      "readinessUndefined": "Aucun document requis",
+      "readinessUndefinedHint": "Aucune catégorie de documents n'est marquée comme requise pour cette venture à son stade : sa préparation ne peut pas encore être mesurée. Marque des catégories comme requises dans son Data Room.",
+      "readinessHint": "Part des documents requis du Data Room qui sont approuvés."
     },
     "milestones": {
       "title": "Jalons & Livrables",
