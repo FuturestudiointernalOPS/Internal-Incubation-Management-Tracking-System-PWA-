@@ -20,6 +20,7 @@ import {
   runJourneyStageTransition,
   recordJourneyStageTransition,
 } from "@/services/ventures/journeyStageActions";
+import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 
 export const dynamic = "force-dynamic";
 
@@ -217,6 +218,9 @@ export async function PATCH(req, { params }) {
       ]);
       // Field-level history of the edit (non-fatal): services/ventures/journeyStageActions.
       await recordJourneyStageEdit({ dbId, stage, stageId, name, body, session });
+      // The Journey name sits in the Project screen's placement column, so it is
+      // prose too. Warm it after the save, never inside it.
+      scheduleVentureTranslationWarmup(id);
 
       const canManage = await allowsPlanAction(access, "manage");
       const stages = await listJourneyStages(dbId, { includeArchived: canManage });

@@ -4,7 +4,7 @@ import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
 import { updateVenture } from "@/services/ventures/record";
-import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
+import { listDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
 import {
   listVenturesWithCounts,
   recordVentureUpdatedTimeline,
@@ -72,14 +72,15 @@ export const GET = createHandler(async (req) => {
     includeArchived,
   });
 
-  // Document-driven readiness (Ready / %), computed live — spread onto each
-  // Venture row so list screens can render it without a second round-trip.
+  // Investment readiness (Ready / %), computed live by the Data Room's own
+  // completeness engine — spread onto each Venture row so list screens can
+  // render it without a second round-trip.
   // Keyed on the INTERNAL id (`v.id`), which is what the readiness rows carry
   // and what the row is looked up by below — the code (`v.venture_id`) is the
   // decorative alias, so keying on it would silently match nothing.
   let readinessByVenture = new Map();
   try {
-    const readiness = await listVentureDocumentReadiness(
+    const readiness = await listDataRoomReadiness(
       (result.rows || []).map((row) => row.id),
     );
     readinessByVenture = new Map(readiness.map((row) => [String(row.venture_id), row]));

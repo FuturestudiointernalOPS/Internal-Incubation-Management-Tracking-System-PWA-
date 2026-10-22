@@ -41,7 +41,7 @@ function Field({ label, children }) {
   );
 }
 
-export default function WorkItemDetailModal({ item, ventureId = null, onClose, onChanged }) {
+export default function WorkItemDetailModal({ item, ventureId = null, onClose, onChanged, tv = (value) => value }) {
   const { t, lang } = useI18n();
   if (!item) return null;
 
@@ -49,7 +49,7 @@ export default function WorkItemDetailModal({ item, ventureId = null, onClose, o
   const dependencies = item.depends_on || [];
 
   return (
-    <AppModal isOpen={Boolean(item)} onClose={onClose} title={item.title || kindLabel} size="lg">
+    <AppModal isOpen={Boolean(item)} onClose={onClose} title={tv(item.title) || kindLabel} size="lg">
       <div className="space-y-5">
         {/* Which kind of work this is, and the tracker's own reference. */}
         <div className="flex flex-wrap items-center gap-2">
@@ -92,14 +92,14 @@ export default function WorkItemDetailModal({ item, ventureId = null, onClose, o
             {item.finish ? formatDay(item.finish, lang) : <span className="text-[var(--text-tertiary)]">—</span>}
           </Field>
           <Field label={t("venture.projects.journey")}>
-            {item.journey?.name || <span className="text-[var(--text-tertiary)]">{t("venture.manager.notProvided")}</span>}
+            {item.journey?.name ? tv(item.journey.name) : <span className="text-[var(--text-tertiary)]">{t("venture.manager.notProvided")}</span>}
           </Field>
           <Field label={t("venture.projects.milestone")}>
-            {item.milestone?.title || <span className="text-[var(--text-tertiary)]">{t("venture.manager.notProvided")}</span>}
+            {item.milestone?.title ? tv(item.milestone.title) : <span className="text-[var(--text-tertiary)]">{t("venture.manager.notProvided")}</span>}
           </Field>
           {item.parent && (
             <Field label={t("venture.projects.parent")}>
-              <span className="text-[var(--text-secondary)]">{item.parent.title}</span>
+              <span className="text-[var(--text-secondary)]">{tv(item.parent.title)}</span>
             </Field>
           )}
         </div>
@@ -107,19 +107,19 @@ export default function WorkItemDetailModal({ item, ventureId = null, onClose, o
         {/* ACTIVITY -> DELIVERABLE -> DEFINITION OF DONE, each its own block. */}
         <Section label={t("venture.manager.activityLabel")}>
           <p className="text-sm font-semibold text-[var(--text-primary)]">
-            {item.activity || <span className="text-[var(--text-tertiary)] font-normal">{t("venture.manager.notProvided")}</span>}
+            {item.activity ? tv(item.activity) : <span className="text-[var(--text-tertiary)] font-normal">{t("venture.manager.notProvided")}</span>}
           </p>
         </Section>
 
         <Section label={t("venture.manager.deliverableLabel")}>
           <p className="text-sm font-semibold text-[var(--text-primary)]">
-            {item.deliverable || <span className="text-[var(--text-tertiary)] font-normal">{t("venture.manager.notProvided")}</span>}
+            {item.deliverable ? tv(item.deliverable) : <span className="text-[var(--text-tertiary)] font-normal">{t("venture.manager.notProvided")}</span>}
           </p>
         </Section>
 
         <Section label={t("venture.manager.definitionOfDone")}>
           <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-            {item.definition_of_done || <span className="italic">{t("venture.manager.notProvided")}</span>}
+            {item.definition_of_done ? tv(item.definition_of_done) : <span className="italic">{t("venture.manager.notProvided")}</span>}
           </p>
         </Section>
 
@@ -129,7 +129,7 @@ export default function WorkItemDetailModal({ item, ventureId = null, onClose, o
               {dependencies.map((dependency) => (
                 <li key={dependency.id} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
                   <Link2 className="w-3 h-3 shrink-0" />
-                  <span className="break-words">{dependency.label}</span>
+                  <span className="break-words">{tv(dependency.label)}</span>
                 </li>
               ))}
             </ul>
@@ -142,7 +142,7 @@ export default function WorkItemDetailModal({ item, ventureId = null, onClose, o
               {item.blocks.map((blocked) => (
                 <li key={blocked.id} className="flex items-center gap-1.5 text-xs text-[var(--text-secondary)]">
                   <Flag className="w-3 h-3 shrink-0" />
-                  <span className="break-words">{blocked.label}</span>
+                  <span className="break-words">{tv(blocked.label)}</span>
                 </li>
               ))}
             </ul>

@@ -62,9 +62,14 @@ function labelRow(label, value, { bold = false } = {}) {
  * @param {object[]} [input.attachments]   — files to carry with the message, as
  *                                          the transport expects them
  *                                          ({ filename, content, contentType })
+ * @param {string[]} [input.cc]            — addresses to COPY (the Venture's
+ *                                          Lead Managers, the sender). They
+ *                                          receive the same message, never a
+ *                                          second reminder.
  */
 export async function sendVentureReminderEmail({
   to,
+  cc = null,
   item = {},
   ventureName,
   ventureCode,
@@ -163,6 +168,7 @@ export async function sendVentureReminderEmail({
 
   return sendAndRecord({
     to,
+    cc,
     subject,
     html,
     contact_cid,

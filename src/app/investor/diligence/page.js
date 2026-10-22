@@ -14,7 +14,9 @@ import RequestsTab from "@/components/investor/diligence/RequestsTab";
 import FoundersTab from "@/components/investor/diligence/FoundersTab";
 import RisksTab from "@/components/investor/diligence/RisksTab";
 import NotesTab from "@/components/investor/diligence/NotesTab";
+import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import { useSafeBack } from "@/lib/useSafeBack";
+import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 
 // Module scope on purpose: the hook keys its internal callback on these
@@ -24,6 +26,7 @@ const pickDiligence = (response) => (response?.success ? response : null);
 const pickEvaluation = (response) => (response?.success ? response : null);
 
 function DueDiligenceContent() {
+  const { t } = useI18n();
   const goBack = useSafeBack("/investor");
   const searchParams = useSearchParams();
   const pipelineId = searchParams.get("pipeline_id");
@@ -328,6 +331,15 @@ function DueDiligenceContent() {
                 setNoteType={setNoteType}
                 addNote={addNote}
               />
+            )}
+
+            {/* Data Room — the documents the venture has explicitly granted */}
+            {activeTab === "data_room" && (
+              pipeline?.venture_id ? (
+                <VentureDataRoom ventureId={pipeline.venture_id} />
+              ) : (
+                <p className="text-xs text-[var(--text-secondary)]">{t("dataRoom.noDocuments")}</p>
+              )
             )}
           </>
         )}

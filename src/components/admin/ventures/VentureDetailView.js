@@ -15,11 +15,11 @@ import {
   ExternalLink,
   FileText,
   FolderKanban,
+  FolderOpen,
   Layers,
   Loader2,
   Rocket,
   Route,
-  Shield,
   Target,
   TrendingUp,
   User,
@@ -80,7 +80,7 @@ export default function VentureDetailView({ ctx }) {
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            {t("vadmin.detail.ventureNotFound")}
+            {ctx.errorTitle || t("vadmin.detail.ventureNotFound")}
           </h2>
           <p className="text-slate-500 mb-6">{error || t("vadmin.detail.ventureLoadError")}</p>
           <button
@@ -102,7 +102,9 @@ export default function VentureDetailView({ ctx }) {
     { id: "investment", label: "vadmin.detail.investmentReadiness", icon: TrendingUp },
     { id: "timeline", label: "vadmin.detail.timeline", icon: BarChart3 },
     { id: "reports", label: "vadmin.detail.reports", icon: FileText },
-    { id: "verification", label: "vadmin.detail.verification", icon: Shield },
+    // The Data Room is the venture's confidential fundraising / due-diligence
+    // document set. It replaces the former Data bank tab in this hub.
+    { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
     { id: "activity", label: "vadmin.detail.activity", icon: Activity },
     { id: "profile", label: "vadmin.detail.profile", icon: Building2 },
     { id: "team", label: "vadmin.detail.team", icon: Users },
@@ -114,7 +116,7 @@ export default function VentureDetailView({ ctx }) {
     investment: `/admin/ventures/${id}/investment`,
     timeline: `/admin/ventures/${id}/timeline`,
     reports: `/admin/ventures/${id}/reports`,
-    verification: `/admin/ventures/${id}/verification`,
+    dataRoom: `/admin/ventures/${id}/documents`,
   };
 
   return (
@@ -138,7 +140,7 @@ export default function VentureDetailView({ ctx }) {
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   <h1 className="text-2xl font-black text-[var(--text-primary)]">
-                    {venture.company_name}
+                    {venture.company_name || venture.name}
                   </h1>
                   <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${stage.color}`}>
                     {t(stage.label)}

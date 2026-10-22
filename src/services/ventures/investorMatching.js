@@ -13,13 +13,14 @@
  * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
+import { normalizeBusinessStage } from "@/lib/ventureStage";
+import { getDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
 import {
   selectInvestors,
   selectInvestorById,
   selectInvestorPreferences,
   insertInvestor,
   selectMatchingVenture,
-  selectLatestReadinessScore,
   selectMatchingTaskTotals,
   countMatchingAcceptedFounders,
   upsertInvestorMatch,
@@ -71,8 +72,11 @@ export async function calculateMatchScore(ventureId, investor) {
 
   const reasons = []; const strengths = []; const weaknesses = [];
   let score = 0;
-  let readinessScore = 0;
-  try { const assessmentResult = await selectLatestReadinessScore(ventureId); readinessScore = assessmentResult.rows[0]?.overall_score||0; } catch {}
+  // Readiness is the Data Room's completeness figure — the same number every
+  // other surface shows. An indeterminate Venture (nothing required) scores 0
+  // on this component rather than inheriting a stale historical assessment.
+  const readiness = await getDataRoomReadiness(ventureId).catch(() => null);
+  const readinessScore = readiness?.readiness_percent ?? 0;
 
   const investorIndustries = typeof investor.industries==="string"?JSON.parse(investor.industries):(investor.industries||[]);
 
@@ -85,7 +89,9 @@ export async function calculateMatchScore(ventureId, investor) {
 
   // Stage (20pts)
   if (investor.preferred_stage) {
-    if (investor.preferred_stage === venture.business_stage) { score += 20; reasons.push("Stage alignment"); strengths.push("Business stage matches"); }
+    // `mvp`/`early_traction` and `scale`/`scaling` are the same stage under two
+    // spellings (lib/ventureStage), so an alias is not a mismatch.
+    if (normalizeBusinessStage(investor.preferred_stage) === normalizeBusinessStage(venture.business_stage)) { score += 20; reasons.push("Stage alignment"); strengths.push("Business stage matches"); }
     else weaknesses.push(`Investor prefers ${investor.preferred_stage}`);
   } else score += 10;
 

@@ -16,25 +16,32 @@ import db from "@/lib/db";
 
 // ── Progress counts ──────────────────────────────────────────────────────────
 
-/** Milestone totals (total / done / delayed / cancelled) of a Venture. */
+/**
+ * Milestone totals (total / done / delayed / cancelled) of a Venture.
+ *
+ * `delayed` means what the delay panel means — past its date and neither
+ * completed nor cancelled — not the stored status `delayed`, which the app never
+ * writes. Archived milestones are excluded from every progress count.
+ */
 export function selectMilestoneProgressCounts(ventureId) {
   return db.execute({
     sql: `SELECT COUNT(*) as total,
        SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as done,
-       SUM(CASE WHEN status = 'delayed' THEN 1 ELSE 0 END) as delayed,
+       SUM(CASE WHEN COALESCE(target_date, due_date) < NOW()
+                 AND status NOT IN ('completed', 'cancelled') THEN 1 ELSE 0 END) as delayed,
        SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled
-       FROM venture_milestones WHERE venture_id = ?`,
+       FROM venture_milestones WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [ventureId],
   });
 }
 
-/** Task totals (total / done / blocked) of a Venture. */
+/** Task totals (total / done / blocked) of a Venture (live tasks only). */
 export function selectTaskProgressCounts(ventureId) {
   return db.execute({
     sql: `SELECT COUNT(*) as total,
-       SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+       SUM(CASE WHEN status IN ('done', 'accepted', 'completed') THEN 1 ELSE 0 END) as done,
        SUM(CASE WHEN status = 'blocked' THEN 1 ELSE 0 END) as blocked
-       FROM venture_tasks WHERE venture_id = ?`,
+       FROM venture_tasks WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [ventureId],
   });
 }
@@ -88,7 +95,11 @@ export function selectTimelineDependencies(ventureId) {
 /** A Venture's overdue tasks. */
 export function selectOverdueTasks(ventureId) {
   return db.execute({
-    sql: `SELECT id, title, status, due_date FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL AND due_date < NOW() AND status NOT IN ('done', 'cancelled') ORDER BY due_date ASC`,
+    sql: `SELECT id, title, status, due_date FROM venture_tasks
+           WHERE venture_id = ? AND due_date IS NOT NULL AND due_date < NOW()
+             AND status NOT IN ('done', 'accepted', 'completed', 'cancelled')
+             AND COALESCE(is_archived, FALSE) = FALSE
+           ORDER BY due_date ASC`,
     args: [ventureId],
   });
 }
@@ -96,7 +107,12 @@ export function selectOverdueTasks(ventureId) {
 /** A Venture's milestones past their target date (`due_date` alias kept). */
 export function selectDelayedMilestones(ventureId) {
   return db.execute({
-    sql: `SELECT id, title, status, target_date AS due_date FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL AND target_date < NOW() AND status NOT IN ('completed', 'cancelled') ORDER BY target_date ASC`,
+    sql: `SELECT id, title, status, COALESCE(target_date, due_date) AS due_date
+            FROM venture_milestones
+           WHERE venture_id = ? AND COALESCE(target_date, due_date) < NOW()
+             AND status NOT IN ('completed', 'cancelled')
+             AND COALESCE(is_archived, FALSE) = FALSE
+           ORDER BY COALESCE(target_date, due_date) ASC`,
     args: [ventureId],
   });
 }
@@ -107,8 +123,18 @@ export function selectUpcomingDeadlines(ventureId) {
     // Task ids are integers and milestone ids are UUIDs: both are cast to text so
     // the two halves of the UNION have the same type, and the result is ordered
     // by the output column (`due_date`), not by a column only one half has.
-    sql: `SELECT id::text AS id, title, 'task' as type, due_date FROM venture_tasks WHERE venture_id = ? AND due_date IS NOT NULL AND due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('done', 'cancelled') UNION ALL
-          SELECT id::text AS id, title, 'milestone' as type, target_date AS due_date FROM venture_milestones WHERE venture_id = ? AND target_date IS NOT NULL AND target_date BETWEEN NOW() AND NOW() + INTERVAL '7 days' AND status NOT IN ('completed', 'cancelled') ORDER BY due_date ASC`,
+    sql: `SELECT id::text AS id, title, 'task' as type, due_date FROM venture_tasks
+            WHERE venture_id = ? AND due_date IS NOT NULL
+              AND due_date BETWEEN NOW() AND NOW() + INTERVAL '7 days'
+              AND status NOT IN ('done', 'accepted', 'completed', 'cancelled')
+              AND COALESCE(is_archived, FALSE) = FALSE
+          UNION ALL
+          SELECT id::text AS id, title, 'milestone' as type, COALESCE(target_date, due_date) AS due_date FROM venture_milestones
+            WHERE venture_id = ? AND COALESCE(target_date, due_date) IS NOT NULL
+              AND COALESCE(target_date, due_date) BETWEEN NOW() AND NOW() + INTERVAL '7 days'
+              AND status NOT IN ('completed', 'cancelled')
+              AND COALESCE(is_archived, FALSE) = FALSE
+          ORDER BY due_date ASC`,
     args: [ventureId, ventureId],
   });
 }

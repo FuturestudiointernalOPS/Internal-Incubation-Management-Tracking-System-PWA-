@@ -141,6 +141,9 @@ export async function POST(req, { params }) {
         ventureName,
         item,
         sentBy: access.session?.name || null,
+        // The address the sender is copied at, when the session knows it. It
+        // never becomes a recipient: a copy is a record, not a second reminder.
+        sentByEmail: access.session?.email || null,
         subject,
         message,
         attachment: attachmentPath ? { path: attachmentPath, name: attachmentName || "attachment" } : null,

@@ -132,9 +132,12 @@ export async function GET(req, { params }) {
       if (TASK_COMPLETED_STATUSES.includes(task.status)) completedTasks += 1;
     }
 
-    const overdue = taskRows
+    // The list is capped for display; the KPI counts the WHOLE set. A slice is
+    // a presentation choice and must never become the reported total.
+    const overdueAll = taskRows
       .filter((task) => task.due_date && OPEN_TASK_STATUSES.includes(task.status) && new Date(task.due_date) < new Date())
-      .sort((first, second) => new Date(first.due_date) - new Date(second.due_date))
+      .sort((first, second) => new Date(first.due_date) - new Date(second.due_date));
+    const overdue = overdueAll
       .slice(0, 50)
       .map((task) => ({ id: task.id, status: task.status, due_date: task.due_date }));
 
@@ -187,6 +190,7 @@ export async function GET(req, { params }) {
           progress_pct: taskRows.length > 0 ? Math.round((completedTasks / taskRows.length) * 100) : 0,
         },
         overdue,
+        overdue_total: overdueAll.length,
         submissions,
         deliverables_awaiting_review: deliverablesAwaitingReview,
         sessions,

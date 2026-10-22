@@ -84,6 +84,27 @@ export function selectVenturesWithActiveRules() {
   });
 }
 
+/**
+ * The active Lead Managers of a Venture, with the address a reminder can copy.
+ *
+ * A reminder about the Venture's work is also copied to whoever runs it: the
+ * people named here receive the mail as CC, not as a second reminder. Read by
+ * `@/services/reminders/engine` for every activity reminder.
+ */
+export function selectLeadManagerRecipients(ventureId) {
+  return db.execute({
+    sql: `SELECT DISTINCT c.cid, c.name, c.email
+            FROM venture_staff_assignments a
+            JOIN contacts c ON c.cid = a.staff_contact_id
+           WHERE a.venture_id::text = ?::text
+             AND a.responsibility_code = 'lead_manager'
+             AND a.status = 'active'
+             AND c.email IS NOT NULL
+             AND (c.deleted = 0 OR c.deleted IS NULL)`,
+    args: [String(ventureId)],
+  });
+}
+
 /** Stamp a claimed row as actually delivered. */
 export function markReminderSent({ id, sentAt }) {
   return db.execute({
@@ -114,7 +135,7 @@ export async function selectReminderLog(ventureRef, limit = 200) {
   return db.execute({
     sql: `SELECT id, work_item_kind, work_item_id, work_item_ref, work_item_title,
                  rule_id, trigger, recipient_name, recipient_email, recipient_role,
-                 status, error, subject, attachment_name, sent_at, created_at
+                 status, error, subject, body, attachment_name, sent_at, created_at
           FROM venture_reminder_log
           WHERE venture_id::text = ?::text
           ORDER BY created_at DESC

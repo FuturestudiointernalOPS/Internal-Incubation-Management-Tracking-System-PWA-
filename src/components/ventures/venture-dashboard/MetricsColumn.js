@@ -2,52 +2,25 @@
 
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { Layers, TrendingUp, Shield, CheckCircle2, ArrowRight, Target } from "lucide-react";
+import { TrendingUp, Shield, Target } from "lucide-react";
 import WidgetCard from "./WidgetCard";
 
 /**
- * Column 1 of the metrics row: profile completion, investment readiness and
- * verification. Extracted verbatim from VentureDashboard; the dashboard keeps
- * the reads, widget state and the verification-status mapping.
+ * Column 1 of the metrics row: Stage & Evidence and verification.
+ *
+ * The Profile Completion widget is GONE (WS4). It read `startup_profiles`, a
+ * table no screen writes, and its only action opened a wizard route that does
+ * not exist. Profile completeness is not Venture setup (which
+ * the founder dashboard reports from the Venture's own records), so it is not
+ * shown here at all rather than as a permanent 0%.
  */
 export default function MetricsColumn({ id, data, widgetState, refreshWidget, verificationStatusLabel }) {
   const router = useRouter();
   const { t } = useI18n();
   return (
     <div className="space-y-6">
-      {/* 1. Profile Completion */}
-      <WidgetCard title={t("vadmin.dashboard.profileCompletion")} icon={Layers} iconColor="bg-purple-500/10"
-        loading={widgetState("profile_completion").loading} error={widgetState("profile_completion").error}
-        empty={widgetState("profile_completion").empty} emptyMessage={t("vadmin.dashboard.startProfileWizard")}
-        onRefresh={() => refreshWidget("profile_completion")}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-3xl font-black text-[var(--text-primary)]">{data.profile_completion?.percentage || 0}%</span>
-            <button onClick={() => router.push(`/ventures/${id}/wizard`)} className="text-[10px] font-bold text-[var(--brand-orange)] uppercase tracking-wider hover:underline flex items-center gap-1">
-              {t("vadmin.dashboard.open")} <ArrowRight className="w-3 h-3" />
-            </button>
-          </div>
-          <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all" style={{ width: `${data.profile_completion?.percentage || 0}%` }} />
-          </div>
-          <div className="space-y-1.5">
-            {(data.profile_completion?.items || []).map((item, index) => (
-              <div key={index} className="flex items-center gap-2">
-                {item.completed ? (
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                ) : (
-                  <div className="w-3 h-3 rounded-full border-2 border-slate-600 shrink-0" />
-                )}
-                <span className={`text-[10px] font-bold ${item.completed ? "text-emerald-400" : "text-[var(--text-secondary)]"}`}>{item.name}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </WidgetCard>
-
-      {/* 2. Investment Readiness */}
-      <WidgetCard title={t("vadmin.dashboard.investmentReadiness")} icon={TrendingUp} iconColor="bg-purple-500/10"
+      {/* 1. Stage & Evidence Score — NOT the Data Room's Investment Readiness. */}
+      <WidgetCard title={t("vadmin.dashboard.stageEvidenceScore")} icon={TrendingUp} iconColor="bg-purple-500/10"
         loading={widgetState("investment_readiness").loading} error={widgetState("investment_readiness").error}
         empty={widgetState("investment_readiness").empty} emptyMessage={t("vadmin.dashboard.completeProfileForScore")}
         onRefresh={() => refreshWidget("investment_readiness")}
@@ -74,7 +47,7 @@ export default function MetricsColumn({ id, data, widgetState, refreshWidget, ve
         </div>
       </WidgetCard>
 
-      {/* 3. Verification Status */}
+      {/* 2. Verification Status */}
       <WidgetCard title={t("vadmin.dashboard.verification")} icon={Shield} iconColor="bg-emerald-500/10"
         loading={widgetState("verification").loading} error={widgetState("verification").error}
         empty={widgetState("verification").empty} emptyMessage={t("vadmin.dashboard.noVerificationData")}

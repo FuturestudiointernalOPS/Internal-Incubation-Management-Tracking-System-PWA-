@@ -114,9 +114,15 @@ export function resolveEffectiveRole({
 }
 
 /**
- * Where each global role lands after login. Single source of truth shared by
+ * Where each GLOBAL role lands after login. Single source of truth shared by
  * the login redirect and the workspaces hub so the hub's "My Dashboard"
  * button can never drift from the real login routing.
+ *
+ * A PERSONAL identity deliberately has NO entry here: "member" is what anyone
+ * without a role resolves to, so the map cannot hand it the Participant page as
+ * a default. That page is a PROGRAM seat — an enrollment, an owned Venture or
+ * an approved investor profile decides it (see `resolveLanding`), and the
+ * neutral hub is the destination that refuses nobody.
  *
  * Roles not listed here (or dynamic targets like team/founder) fall back to
  * the neutral /workspaces hub.
@@ -127,11 +133,6 @@ export const ROLE_HOME = {
   staff: "/staff",
   facilitator: "/facilitator",
   participant: "/participant",
-  // A member starts on the DASHBOARD (the page that owns the calendar), not on
-  // the /workspaces listing — the workspace hub showed first and read like a
-  // second home. Contexts are sidebar additions and the hub stays reachable.
-  // With no program context the dashboard simply shows its empty states.
-  member: "/participant",
   finance: "/finance",
   investor: "/investor/dashboard",
 };
@@ -160,16 +161,18 @@ const isActiveVenture = (row) =>
  * Whether the LANDING depends on what the person belongs to.
  *
  * A global identity works in a section of the platform, so its home never
- * depends on a Venture membership — which is also why reading those memberships
- * for such a person would be wasted work.
+ * depends on a relationship — which is also why reading them for such a person
+ * would be wasted work. A PERSONAL identity is the opposite: it has no section
+ * of its own, and the Participant surface is a PROGRAM seat, so a relationship
+ * read is exactly what decides it.
  */
 export function landingNeedsRelationships(role) {
   const normalizedRole = String(role || "").trim().toLowerCase();
   if (normalizedRole === "team") return false; // an entity account, not a person
   const home = roleHomeHref(normalizedRole);
-  // The personal identities share the Participant surface, and an identity the
-  // map does not know has no section of its own to claim.
-  return !home || normalizedRole === "member";
+  // No section of its own, or the Participant surface: both are decided by the
+  // person's actual enrollments/memberships.
+  return !home || home === "/participant";
 }
 
 /**
@@ -191,10 +194,16 @@ export function landingNeedsRelationships(role) {
  *
  * Precedence inside the personal world: an owned Venture first (the existing
  * single-Venture shortcut is unchanged), then an approved investor context,
- * then the personal home. A person who is both keeps the Venture landing and
- * still gets the investor door in the sidebar.
+ * then a PROGRAM ENROLLMENT. A person who owns a Venture also gets the
+ * investor door in the sidebar; the Venture still wins the landing.
  *
- * The last resort is the neutral hub, which refuses nobody, so no branch here
+ * The Participant page is a PROGRAM seat, not the resting place of every
+ * personal identity: "member" is what anyone with no role resolves to, so it
+ * cannot, on its own, open a page reserved for a program's participants. A
+ * person with no program, no Venture and no investor context is offered the
+ * neutral hub, which lists the contexts they really hold.
+ *
+ * The last resort is that neutral hub, which refuses nobody, so no branch here
  * can strand someone.
  */
 export function resolveLanding({
@@ -202,6 +211,7 @@ export function resolveLanding({
   teamId = null,
   ventures = [],
   isInvestor = false,
+  isProgramParticipant = false,
   profiles = [],
 } = {}) {
   const normalizedRole = String(role || "").trim().toLowerCase();
@@ -229,9 +239,12 @@ export function resolveLanding({
   // space, not on the empty participant dashboard.
   if (isInvestor) return roleHomeHref("investor");
 
-  // Several Ventures is not a decision this rule can take for the person, and
-  // none is the empty state the personal surfaces already handle.
-  return home || "/workspaces";
+  // THE PARTICIPANT PAGE IS A PROGRAM SEAT. Only an actual enrollment hands
+  // out that destination; without one the person is offered the neutral hub,
+  // which lists the contexts they really hold and refuses nobody.
+  if (!isProgramParticipant) return "/workspaces";
+
+  return home || "/participant";
 }
 
 /**

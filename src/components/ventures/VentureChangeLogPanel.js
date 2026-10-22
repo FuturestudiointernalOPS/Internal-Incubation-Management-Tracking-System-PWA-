@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { AlertTriangle, ChevronDown, ChevronRight, History, Loader2 } from "lucide-react";
+import { AlertTriangle, ChevronDown, ChevronRight, History, Loader2, X } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 
 const ACTIONS = ["created", "updated", "activated", "locked", "reopened", "deleted", "moved", "applied"];
@@ -18,16 +18,21 @@ const ENTITIES = ["journey", "milestone", "task", "deliverable", "dependency", "
  * points as the change happens and are never edited afterwards, so this is a
  * record rather than another view to keep in step.
  *
- * Collapsed by default: history answers a question, it is not the daily screen.
+ * Standalone it starts collapsed: history answers a question, it is not the
+ * daily screen. Opened from the Journey toolbar beside "From template"
+ * (`open` + `onClose`), it starts expanded.
  */
-export default function VentureChangeLogPanel({ ventureId }) {
+export default function VentureChangeLogPanel({ ventureId, open, onClose }) {
   const { t, lang } = useI18n();
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const isOpen = open === undefined ? expanded : open;
 
   const { data: changes, loading, error } = useApi(
-    ventureId ? `/api/ventures/${ventureId}/changes?limit=50` : null,
+    ventureId && isOpen ? `/api/ventures/${ventureId}/changes?limit=50` : null,
     { defaultValue: [], transform: (payload) => (payload?.success ? payload.changes || [] : []) },
   );
+
+  if (open !== undefined && !isOpen) return null;
 
   // A verb the panel does not know is shown as it was stored rather than hidden —
   // an untranslated word beats a missing event.
@@ -37,25 +42,36 @@ export default function VentureChangeLogPanel({ ventureId }) {
 
   return (
     <div className="jy-box">
-      <button
-        type="button"
-        onClick={() => setOpen((previous) => !previous)}
-        aria-expanded={open}
-        className="w-full flex flex-wrap items-center justify-between gap-3 text-left"
-      >
+      <div className="w-full flex flex-wrap items-center justify-between gap-3">
         <h3 className="jy-h">
           <History className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
           {t("venture.changes.title")}
           <span className="px-1.5 py-0.5 rounded bg-[var(--surface-2)] text-slate-400">{changes.length}</span>
         </h3>
-        {open ? (
-          <ChevronDown className="w-3.5 h-3.5 text-slate-500" />
+        {open === undefined ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((previous) => !previous)}
+            aria-expanded={isOpen}
+            aria-label={t(isOpen ? "common.collapse" : "common.expand")}
+            className="text-slate-500"
+          >
+            {isOpen ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
+          </button>
         ) : (
-          <ChevronRight className="w-3.5 h-3.5 text-slate-500" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            title={t("common.close")}
+            className="text-slate-500 hover:text-[var(--text-primary)]"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         )}
-      </button>
+      </div>
 
-      {open && (
+      {isOpen && (
         <div className="mt-3 space-y-2">
           <p className="text-[10px] text-slate-400">{t("venture.changes.intro")}</p>
 

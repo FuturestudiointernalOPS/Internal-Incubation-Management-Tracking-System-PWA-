@@ -1,6 +1,7 @@
 {
   "errors": {
     "required": "This field is required.",
+    "invalidRequest": "Invalid request.",
     "invalidEmail": "Invalid email address.",
     "invalidAttachment": "That file cannot be attached to this reminder.",
     "minLength": "Must be at least {min} characters.",
@@ -8,6 +9,10 @@
     "passwordTooShort": "Password must be at least 4 characters.",
     "passwordsDontMatch": "Passwords do not match.",
     "networkError": "Network error. Please try again.",
+    "contactMessageRequired": "Write a message before sending.",
+    "contactMessageTooLong": "That message is too long. Keep it under 2000 characters.",
+    "noActiveVentureLead": "No Venture Lead is currently assigned, so there is nobody to write to.",
+    "contactNotDelivered": "The message could not be delivered. Please try again later.",
     "somethingWrong": "Something went wrong. Please try again.",
     "taskCreateFailed": "Could not create the task.",
     "authRequired": "Authentication required.",

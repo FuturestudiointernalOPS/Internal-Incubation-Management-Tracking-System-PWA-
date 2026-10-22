@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── GET /api/ventures/[id]/journey-report ────────────────────────────────────
 
@@ -29,26 +30,38 @@ export function listVentureMilestonesForReport(owners) {
   // (which failed the whole read and dropped the milestones from the report).
   return db.execute({
     sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
-              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL`,
+              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL
+                AND COALESCE(is_archived, FALSE) = FALSE`,
     args: owners,
   });
 }
 
-/** Task statuses + due dates of a Venture (owner ids). */
+/** Task statuses + due dates of a Venture (owner ids; archived tasks excluded). */
 export function listVentureTaskDeadlinesForReport(owners) {
   return db.execute({
-    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")})`,
+    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND COALESCE(is_archived, FALSE) = FALSE`,
     args: owners,
   });
 }
 
-/** Reviewed submissions of a Venture (owner ids). */
+/**
+ * Reviewed submissions of a Venture (owner ids), ONE row per task — the latest
+ * version, exactly as the roadmap readiness engine counts them. A task reviewed
+ * twice used to contribute both versions, so the report disagreed with Roadmap
+ * Progress about how much reviewed work existed.
+ */
 export function listVentureReviewedSubmissionsForReport(owners) {
   return db.execute({
     sql: `SELECT s.review_decision, s.reviewed_at
               FROM venture_task_submissions s
               JOIN venture_tasks t ON t.id = s.task_id
-              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")}) AND s.review_decision IS NOT NULL`,
+              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")})
+                AND COALESCE(t.is_archived, FALSE) = FALSE
+                AND s.review_decision IS NOT NULL
+                AND s.version = (
+                  SELECT MAX(s2.version) FROM venture_task_submissions s2
+                   WHERE s2.task_id = s.task_id
+                )`,
     args: owners,
   });
 }
@@ -62,12 +75,16 @@ export function listVentureSessionsForReport(owners) {
   });
 }
 
-/** Active staff assignments of a Venture (VNT code). */
-export function listVentureStaffAssignmentsForReport(id) {
+/** Active staff assignments of a Venture (code or internal id). */
+export async function listVentureStaffAssignmentsForReport(id) {
+  // `venture_staff_assignments.venture_id` is UUID on the live schema; the
+  // report route hands the decorative VNT code from the URL. Passing that code
+  // raw raises "invalid input syntax for type uuid" and emptied the staff block.
+  const ventureId = await resolveVentureInternalId(id);
   return db.execute({
     sql: `SELECT responsibility_code, staff_contact_id, scope_type
               FROM venture_staff_assignments WHERE venture_id = ? AND status = 'active'`,
-    args: [id],
+    args: [ventureId],
   });
 }
 

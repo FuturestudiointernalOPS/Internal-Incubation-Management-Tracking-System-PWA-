@@ -129,7 +129,8 @@ export async function insertAssignment({ ventureId: ventureRef, staffContactId, 
   return db.execute({
     sql: `INSERT INTO venture_staff_assignments
           (venture_id, staff_contact_id, responsibility_code, scope_type, scope_ref_type, scope_ref_id, assigned_by, notes)
-          VALUES (?,?,?,?,?,?,?,?)`,
+          VALUES (?,?,?,?,?,?,?,?)
+          RETURNING id`,
     args: [ventureId, staffContactId, responsibilityCode, scopeType, scopeRefType, scopeRefId, assignedBy, notes],
   });
 }

@@ -13,9 +13,7 @@ export default function VentureWorkspaceScreen({
   venture,
   brandColor,
   activeTab,
-  journeySub,
   onSection,
-  onJourneySub,
   onBack,
   workspace,
   t,
@@ -43,9 +41,7 @@ export default function VentureWorkspaceScreen({
         venture={venture}
         brandColor={brandColor}
         activeTab={activeTab}
-        journeySub={journeySub}
         onSection={onSection}
-        onJourneySub={onJourneySub}
         onBack={onBack}
         t={t}
       />

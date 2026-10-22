@@ -39,7 +39,7 @@ facilitator_rel AS (
   JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
   WHERE LOWER(c.role) = 'facilitator'
     AND LOWER(COALESCE(ps.role, '')) = 'facilitator'
-    AND (p.end_date IS NULL OR p.end_date >= CURRENT_DATE)
+    AND (p.end_date IS NULL OR NULLIF(TRIM(p.end_date::text), '')::timestamptz >= CURRENT_DATE)
 ),
 
 founder_rel AS (
@@ -76,7 +76,7 @@ facilitator_cards AS (
   JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
   WHERE LOWER(c.role) = 'facilitator'
     AND LOWER(COALESCE(ps.role, '')) = 'facilitator'
-    AND (p.end_date IS NULL OR p.end_date >= CURRENT_DATE)
+    AND (p.end_date IS NULL OR NULLIF(TRIM(p.end_date::text), '')::timestamptz >= CURRENT_DATE)
     AND NOT EXISTS (
       SELECT 1 FROM profile_assignments pa
       WHERE pa.contact_cid = c.cid

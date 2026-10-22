@@ -20,10 +20,16 @@ import db from "@/lib/db";
  * verified against the live schema, not assumed.
  */
 export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search, includeArchived = false }) {
+  // Compare venture ids as text on BOTH sides. On this live schema
+  // `venture_members.venture_id` / `venture_staff_assignments.venture_id` are
+  // UUID while `v.id::text` is text — `uuid = text` is refused by Postgres
+  // ("operator does not exist") and takes the whole Super Admin directory down
+  // with a 500 that the UI paints as an empty list. `::text` on both sides also
+  // keeps working if a sibling environment still stores those columns as TEXT.
   let sql = `
       SELECT v.*,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.id::text AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
-        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id = v.id::text AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id::text = v.id::text AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
+        (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id::text = v.id::text AND vm.member_type != 'founder' AND vm.removed_at IS NULL) as member_count
       FROM ventures v WHERE 1=1
     `;
   const args = [];
@@ -33,7 +39,7 @@ export async function listVenturesWithCounts({ effectiveContactId, assignedStaff
   }
 
   if (effectiveContactId) {
-    sql += " AND v.id::text IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
+    sql += " AND v.id::text IN (SELECT vm.venture_id::text FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?)";
     args.push(effectiveContactId, effectiveContactId);
   }
 
@@ -41,7 +47,7 @@ export async function listVenturesWithCounts({ effectiveContactId, assignedStaff
   // member of — never the whole directory. Membership/assignment columns hold
   // the internal id, so the comparison is on `v.id`.
   if (assignedStaffId) {
-    sql += " AND (v.id::text IN (SELECT venture_id FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.id::text IN (SELECT vm.venture_id FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
+    sql += " AND (v.id::text IN (SELECT venture_id::text FROM venture_staff_assignments WHERE staff_contact_id = ? AND status = 'active') OR v.id::text IN (SELECT vm.venture_id::text FROM venture_members vm WHERE vm.user_cid = ? OR vm.contact_id = ?))";
     args.push(assignedStaffId, assignedStaffId, assignedStaffId);
   }
 
@@ -84,10 +90,25 @@ export async function getVentureDbIdForProgress(venture_id) {
   });
 }
 
-/** Average milestone progress for a venture. */
+/** Average milestone progress for a venture (archived milestones excluded). */
 export async function getAverageVentureMilestoneProgress(dbId) {
   return db.execute({
-    sql: "SELECT AVG(progress) as avg_progress FROM venture_milestones WHERE venture_id = ?",
+    sql: "SELECT AVG(progress) as avg_progress FROM venture_milestones WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE",
+    args: [dbId],
+  });
+}
+
+/**
+ * Milestones COMPLETED — the count the dashboard shows instead of the average
+ * of a stored `progress` column that is only written when a deliverable is
+ * reviewed (so a milestone closed through its tasks kept reading 0).
+ */
+export async function countVentureMilestonesByStatus(dbId) {
+  return db.execute({
+    sql: `SELECT COUNT(*) AS total,
+                 SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS done
+            FROM venture_milestones
+           WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [dbId],
   });
 }
@@ -116,11 +137,24 @@ export async function getVentureProfileFields(dbId) {
   });
 }
 
-/** Active founder count by VNT code (progress founders %, arg is the VNT code). */
-export async function countVentureFoundersByCode(venture_id) {
+/**
+ * Active founder count for a Venture.
+ *
+ * The membership table keys on the INTERNAL id (`uuid` in the current schema),
+ * while the progress screen also holds the readable VNT code. Comparing the code
+ * straight to that column raised “operator does not exist: uuid = text” (or an
+ * invalid-uuid error), which took the whole progress read down and left Venture
+ * Setup at « — ». The text cast works for either generation of the column, and
+ * both references are accepted so a legacy code-keyed row still counts.
+ */
+export async function countVentureFoundersForVenture(ventureRef, dbId) {
   return db.execute({
-    sql: "SELECT COUNT(*) as count FROM venture_members WHERE venture_id = ? AND member_type = 'founder' AND removed_at IS NULL",
-    args: [venture_id],
+    sql: `SELECT COUNT(*) as count
+            FROM venture_members
+           WHERE venture_id::text IN (?, ?)
+             AND member_type = 'founder'
+             AND removed_at IS NULL`,
+    args: [String(dbId || ""), String(ventureRef || "")],
   });
 }
 
