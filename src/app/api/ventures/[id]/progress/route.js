@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
+import { computeRoadmapReadiness } from "@/services/ventures/readiness";
 import {
   countVentureCustomerInterviews,
   countVentureDocumentsByVentureId,
@@ -10,7 +10,6 @@ import {
   countVenturePmfAssessments,
   countVentureRetrosByVentureId,
   countVentureStandupsByVentureId,
-  countVentureTasksWithCompletedStatuses,
   countVentureValidations,
   countVentureMilestonesByStatus,
   getFirstVentureBusinessModelId,
@@ -34,11 +33,12 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    // Completion is defined once in lib/ventureStatuses (canonical terminal
-    // statuses: done | accepted | completed) — never hardcode here.
-    const tasksResult = await countVentureTasksWithCompletedStatuses(dbId, TASK_COMPLETED_STATUSES);
-    const total = parseInt(tasksResult.rows?.[0]?.total||0);
-    const done = parseInt(tasksResult.rows?.[0]?.done||0);
+    // The roadmap engine owns the counting (an approved deliverable finishes the
+    // task it belongs to), so this widget and the Investment Readiness screen
+    // cannot disagree. Completion statuses stay defined once in lib/ventureStatuses.
+    const roadmap = await computeRoadmapReadiness({ dbId, code: id });
+    const total = roadmap.counts.tasks.total;
+    const done = roadmap.counts.tasks.completed;
 
     // Milestones COMPLETED: the honest figure (a stored `progress` column is
     // only refreshed when a deliverable is reviewed, so it goes stale, and the
@@ -108,6 +108,9 @@ export async function GET(req, { params }) {
         milestones: {
           total: parseInt(milestoneCounts.total || 0),
           completed: parseInt(milestoneCounts.done || 0),
+          // How much of the milestones' own work (approved deliverables) is done,
+          // even before a milestone is signed off.
+          progress_percent: roadmap.components.milestones,
         },
         standups_count: parseInt(standupsResult.rows?.[0]?.count||0),
         retros_count: parseInt(retrosResult.rows?.[0]?.count||0),

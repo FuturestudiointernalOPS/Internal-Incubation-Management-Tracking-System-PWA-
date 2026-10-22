@@ -2,6 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { computeRoadmapReadiness } from "@/services/ventures/readiness";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
 import {
@@ -173,22 +174,42 @@ export async function GET(req, { params }) {
     const journeyTotal = stages.length;
     const journeyCompleted = stages.filter((stage) => stage.journey_complete).length;
 
+    // The percentages come from the roadmap engine, so this report, the
+    // dashboard and Investment Readiness read ONE figure: a journey or milestone
+    // advances with its approved deliverables, and an approved deliverable
+    // finishes its task. The "completed" counts stay strict (closed = closed).
+    const roadmap = await computeRoadmapReadiness({ dbId, code: id }).catch(() => null);
+    const roadmapTasks = roadmap?.counts?.tasks;
+
     return NextResponse.json({
       success: true,
       journey_report: {
         journey_progression: {
           total: journeyTotal,
           completed: journeyCompleted,
-          progress_pct: journeyTotal > 0 ? Math.round((journeyCompleted / journeyTotal) * 100) : 0,
+          progress_pct: roadmap?.components?.journeys ?? (journeyTotal > 0 ? Math.round((journeyCompleted / journeyTotal) * 100) : 0),
         },
+        milestone_progression: roadmap
+          ? {
+              total: roadmap.counts.milestones.total,
+              completed: roadmap.counts.milestones.completed,
+              progress_pct: roadmap.components.milestones ?? 0,
+            }
+          : null,
         stages,
         milestones_by_status: milestonesByStatus,
         tasks_by_status: tasksByStatus,
-        task_completion: {
-          total: taskRows.length,
-          completed: completedTasks,
-          progress_pct: taskRows.length > 0 ? Math.round((completedTasks / taskRows.length) * 100) : 0,
-        },
+        task_completion: roadmapTasks
+          ? {
+              total: roadmapTasks.total,
+              completed: roadmapTasks.completed,
+              progress_pct: roadmap.components.tasks ?? 0,
+            }
+          : {
+              total: taskRows.length,
+              completed: completedTasks,
+              progress_pct: taskRows.length > 0 ? Math.round((completedTasks / taskRows.length) * 100) : 0,
+            },
         overdue,
         overdue_total: overdueAll.length,
         submissions,
