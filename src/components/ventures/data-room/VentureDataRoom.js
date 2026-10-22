@@ -39,6 +39,8 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const [category, setCategory] = useState("all");
   const [documentStatus, setDocumentStatus] = useState("all");
   const [uploadState, setUploadState] = useState(null);
+  // Bumped after each inline save so the form comes back empty.
+  const [inlineRun, setInlineRun] = useState(0);
   const [reviewDoc, setReviewDoc] = useState(null);
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
@@ -101,6 +103,14 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         .some((value) => String(value).toLowerCase().includes(needle));
     });
   }, [documents, category, documentStatus, search]);
+
+  // On a real category the upload form sits in the page, already filed under it
+  // — but only while that category is still empty: once it holds a document the
+  // header's Upload button does the job and the form steps aside.
+  const selectedCategory =
+    canUpload && category !== "all" && category !== LEGACY_FILTER && dataRoomCategory(category) ? category : null;
+  const inlineCategory =
+    selectedCategory && !documents.some((entry) => entry.category === selectedCategory) ? selectedCategory : null;
 
   const missingLabels = (completeness?.missing_required || [])
     .map((code) => dataRoomCategory(code))
@@ -194,7 +204,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         {canUpload && documents.length > 0 ? (
           <button
             type="button"
-            onClick={() => setUploadState({ mode: "create" })}
+            onClick={() => setUploadState({ mode: "create", category: selectedCategory || undefined })}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest"
           >
             <Upload size={13} /> {t("dataRoom.upload")}
@@ -282,6 +292,21 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         ) : null}
 
         <div className="space-y-3">
+          {inlineCategory ? (
+            <DataRoomUploadModal
+              key={`${inlineCategory}-${inlineRun}`}
+              inline
+              mode="create"
+              defaultCategory={inlineCategory}
+              ventureId={ventureId}
+              maxFileMb={data.max_file_mb}
+              t={t}
+              onDone={() => {
+                setInlineRun((value) => value + 1);
+                refresh();
+              }}
+            />
+          ) : null}
           <div className="flex flex-wrap gap-2">
             <div className="relative flex-1 min-w-[160px]">
               <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
@@ -316,7 +341,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                       : t("dataRoom.emptyRoomAwaitingUpload")
                   : t("dataRoom.noDocuments")}
               </p>
-              {documents.length === 0 && canUpload ? (
+              {documents.length === 0 && canUpload && !inlineCategory ? (
                 <button
                   type="button"
                   onClick={() => setUploadState({ mode: "create" })}
@@ -425,6 +450,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         <DataRoomUploadModal
           mode={uploadState.mode}
           documentEntry={uploadState.document}
+          defaultCategory={uploadState.category}
           ventureId={ventureId}
           maxFileMb={data.max_file_mb}
           t={t}
