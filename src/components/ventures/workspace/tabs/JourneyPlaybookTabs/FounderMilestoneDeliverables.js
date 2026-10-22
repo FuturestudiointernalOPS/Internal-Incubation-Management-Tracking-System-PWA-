@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { deliverableStatusWord, statusChipClass, statusLabel } from "@/lib/ventureStatuses";
+import { deliverableStatusWord, statusDotClass, statusLabel } from "@/lib/ventureStatuses";
 import { groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 import FounderSessionBooking from "@/components/ventures/journey/FounderSessionBooking";
 import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
 import { ChevronRight } from "lucide-react";
+
+// The kit tag for a status word (same tones as the Venture Manager view).
+const TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes_requested: "r", completed: "g", approved: "g" };
 
 /**
  * The deliverables under one milestone: evidence the Venture must submit for
@@ -40,123 +43,108 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
   // deliverable has not been approved yet.
   const canSubmit = !!openDeliverable && stage.status === "active" && openStatus.id !== "approved";
 
+  const fmtDate = (value) => (value ? new Date(value).toLocaleDateString() : "—");
+
   return (
     <>
       {((milestone.deliverables || []).length > 0 || (milestone.activities || []).length > 0) && (
-        <div className="space-y-2 pt-1">
-          <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-            {t("venture.manager.deliverables")}
-          </p>
+        <div className="jy-del">
+          <p className="jy-lbl">{t("venture.manager.tasksHeading")}</p>
 
           {groups.map((group, groupIndex) => (
-            <div
-              key={group.activity?.id ?? `group-${groupIndex}`}
-              className="rounded-xl border p-3 space-y-3"
-              style={{ borderColor: "var(--border-primary)", backgroundColor: "var(--surface-2)" }}
-            >
+            <div key={group.activity?.id ?? `group-${groupIndex}`} className="jy-act">
               {/* ACTIVITY — the work that produces what follows */}
-              <div className="space-y-1">
-                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-                  {t("venture.manager.activityLabel")}
-                </p>
-                <p className="text-xs font-semibold whitespace-normal break-words" style={{ color: "var(--text-primary)" }}>
+              <div>
+                <p className="jy-lbl">{t("venture.manager.activityLabel")}</p>
+                <p className="text-[13px] font-semibold text-[var(--text-primary)] mt-0.5">
                   {group.activity?.source_ref && (
-                    <span className="mr-1.5 px-1.5 py-0.5 rounded text-[9px] font-black align-middle" style={{ backgroundColor: "var(--surface-3)", color: "var(--text-secondary)" }}>
-                      {group.activity.source_ref}
-                    </span>
+                    <span className="stf-tag mr-1.5 align-middle">{group.activity.source_ref}</span>
                   )}
                   {group.activity?.title || t("venture.manager.notProvided")}
                 </p>
                 {group.activity?.description && (
-                  <p className="text-xs whitespace-pre-line break-words" style={{ color: "var(--text-secondary)" }}>{group.activity.description}</p>
+                  <p className="text-[12px] text-[var(--text-secondary)] mt-0.5 whitespace-pre-line break-words">{group.activity.description}</p>
                 )}
               </div>
 
               {/* DELIVERABLE(S) — the output, underneath its activity */}
-              <div className="space-y-1.5">
-                {group.deliverables.length > 0 && (
-                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-                    {t("venture.manager.deliverableLabel")}
-                  </p>
-                )}
+              <div className="space-y-1">
+                {group.deliverables.length > 0 && <p className="jy-lbl">{t("venture.manager.deliverableLabel")}</p>}
                 {group.deliverables.map((deliverable) => {
                   const status = deliverableStatusWord(deliverable);
                   return (
-                    <button
-                      key={deliverable.id}
-                      type="button"
-                      onClick={() => setOpenId(deliverable.id)}
-                      aria-label={`${t("venture.manager.viewDetails")}: ${deliverable.title}`}
-                      className="w-full text-left rounded-lg border px-3 py-2 flex items-start gap-2 transition-colors hover:border-[var(--brand-orange)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60"
-                      style={{ borderColor: "var(--border-primary)", backgroundColor: "var(--surface-1)" }}
-                    >
-                      <span className="flex-1 min-w-0 space-y-0.5">
-                        <span className="block text-xs font-semibold whitespace-normal break-words" style={{ color: "var(--text-primary)" }}>
-                          {deliverable.title}
-                        </span>
-                        <span className="block text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                          {deliverable.due_date
-                            ? `${t("venture.manager.dueDate")}: ${new Date(deliverable.due_date).toLocaleDateString()}`
-                            : deliverable.deliverable_type
-                              ? t(`venture.manager.deliverableTypes.${deliverable.deliverable_type}`)
-                              : null}
-                        </span>
-                      </span>
-                      <span className={`text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded shrink-0 ${statusChipClass(status)}`}>
-                        {statusLabel(status, t)}
-                      </span>
-                      <ChevronRight className="w-4 h-4 shrink-0 mt-0.5" style={{ color: "var(--text-tertiary)" }} />
-                    </button>
+                    <div key={deliverable.id} className="jy-drow">
+                      <span className={`jy-dot ${statusDotClass(status)}`} />
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(deliverable.id)}
+                        aria-label={`${t("venture.manager.viewDetails")}: ${deliverable.title}`}
+                        className="t whitespace-normal break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]/60 rounded"
+                      >
+                        {deliverable.title}
+                      </button>
+                      {deliverable.due_date && (
+                        <span className="hidden sm:inline text-[11.5px] text-[var(--text-secondary)]">{fmtDate(deliverable.due_date)}</span>
+                      )}
+                      {deliverable.attachment_url && (
+                        <a
+                          href={deliverable.evidence_download_url || deliverable.attachment_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[11.5px] font-semibold text-[var(--brand-orange)] hover:underline shrink-0"
+                        >
+                          {deliverable.attachment_name || t("venture.manager.viewEvidence")}
+                        </a>
+                      )}
+                      <span className={`stf-tag ${TAG_TONE[status?.tone] || ""} shrink-0`}>{statusLabel(status, t)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setOpenId(deliverable.id)}
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        className="shrink-0"
+                      >
+                        <ChevronRight className="w-4 h-4" style={{ color: "var(--text-tertiary)" }} />
+                      </button>
+                    </div>
                   );
                 })}
               </div>
 
               {/* DEFINITION OF DONE — what makes the activity complete */}
-              <div className="space-y-1">
-                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-                  {t("venture.manager.definitionOfDone")}
-                </p>
-                <p className="text-xs whitespace-pre-line break-words" style={{ color: "var(--text-secondary)" }}>
+              <div>
+                <p className="jy-lbl">{t("venture.manager.definitionOfDone")}</p>
+                <p className="text-[12px] text-[var(--text-secondary)] mt-0.5 whitespace-pre-line break-words">
                   {group.activity?.definition_of_done || t("venture.manager.notProvided")}
                 </p>
               </div>
 
               {/* METADATA — people and timing, kept out of the prose */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-0.5 text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                <span>
-                  <span className="font-bold">{t("venture.manager.milestoneOwner")}:</span> {group.activity?.owner_name || group.deliverables[0]?.assigned_name || "—"}
-                </span>
-                <span>
-                  <span className="font-bold">{t("venture.manager.supporting")}:</span> {group.activity?.support_name || "—"}
-                </span>
-                <span>
-                  <span className="font-bold">{t("venture.manager.startDate")}:</span>{" "}
-                  {group.activity?.start_date ? new Date(group.activity.start_date).toLocaleDateString() : "—"}
-                </span>
-                <span>
-                  <span className="font-bold">{t("venture.manager.finishDate")}:</span>{" "}
-                  {(group.activity?.due_date || group.deliverables[0]?.due_date)
-                    ? new Date(group.activity?.due_date || group.deliverables[0]?.due_date).toLocaleDateString()
-                    : "—"}
-                </span>
+              <div className="jy-facts in">
+                <div><span>{t("venture.manager.milestoneOwner")}</span><b>{group.activity?.owner_name || group.deliverables[0]?.assigned_name || "—"}</b></div>
+                <div><span>{t("venture.manager.supporting")}</span><b>{group.activity?.support_name || "—"}</b></div>
+                <div><span>{t("venture.manager.startDate")}</span><b>{fmtDate(group.activity?.start_date)}</b></div>
+                <div><span>{t("venture.manager.finishDate")}</span><b>{fmtDate(group.activity?.due_date || group.deliverables[0]?.due_date)}</b></div>
               </div>
 
-              {/* Book a session AGAINST THIS ACTIVITY — the Venture books its
-                  own sessions, strictly against the milestone that is open. */}
-              {canBook && (
-                <FounderSessionBooking
-                  bookFor={bookFor}
-                  bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
-                  bookForm={bookForm}
-                  bookSaving={bookSaving}
-                  bookSession={bookSession}
-                  milestone={milestone}
-                  onOpen={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
-                  setBookFor={setBookFor}
-                  setBookForm={setBookForm}
-                  stage={stage}
-                />
-              )}
+              {/* Book a session AGAINST THIS ACTIVITY. The Report (notes) is staff-only: the
+                  notes API refuses founders by design, so no button is offered here. */}
+              <div className="jy-btns">
+                {canBook && (
+                  <FounderSessionBooking
+                    bookFor={bookFor}
+                    bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+                    bookForm={bookForm}
+                    bookSaving={bookSaving}
+                    bookSession={bookSession}
+                    milestone={milestone}
+                    onOpen={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+                    setBookFor={setBookFor}
+                    setBookForm={setBookForm}
+                    stage={stage}
+                  />
+                )}
+              </div>
             </div>
           ))}
         </div>

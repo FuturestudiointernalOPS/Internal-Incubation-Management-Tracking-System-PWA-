@@ -36,6 +36,7 @@ const {
 } = require("@/app/api/lms/courses/[id]/route");
 const { POST: publishPOST } = require("@/app/api/lms/courses/[id]/publish/route");
 const { POST: archivePOST } = require("@/app/api/lms/courses/[id]/archive/route");
+const { POST: unarchivePOST } = require("@/app/api/lms/courses/[id]/unarchive/route");
 const { POST: sectionsPOST } = require("@/app/api/lms/courses/[id]/sections/route");
 const { POST: sectionsReorderPOST } = require("@/app/api/lms/courses/[id]/sections/reorder/route");
 const {
@@ -232,6 +233,38 @@ describe("Publishing", () => {
     mockFake.seed("lms_courses", [{ ...draftCourse, id: "C-2" }]);
     const refusedResponse = await archivePOST(jsonReq({}), { params: { id: "C-2" } });
     expect(refusedResponse.status).toBe(409);
+  });
+
+  test("restoring an archived course publishes it again", async () => {
+    mockFake.seed("lms_courses", [{ ...draftCourse, status: "archived" }]);
+    const res = await unarchivePOST(jsonReq({}), { params: { id: "C-1" } });
+    expect(res.status).toBe(200);
+    expect(mockFake.state.lms_courses.find((course) => course.id === "C-1").status).toBe("published");
+  });
+
+  test("restoring a draft is refused; a published course is left as is", async () => {
+    mockFake.seed("lms_courses", [{ ...draftCourse }]);
+    const refused = await unarchivePOST(jsonReq({}), { params: { id: "C-1" } });
+    expect(refused.status).toBe(409);
+    expect((await readJson(refused)).error).toBe("lms.errors.notArchived");
+
+    mockFake.seed("lms_courses", [{ ...draftCourse, id: "C-2", status: "published" }]);
+    const noop = await unarchivePOST(jsonReq({}), { params: { id: "C-2" } });
+    expect(noop.status).toBe(200);
+    expect((await readJson(noop)).alreadyPublished).toBe(true);
+  });
+
+  test("restoring an unknown course is a 404", async () => {
+    const res = await unarchivePOST(jsonReq({}), { params: { id: "nope" } });
+    expect(res.status).toBe(404);
+  });
+
+  test("restoring requires lms.edit", async () => {
+    requireAuthorization.mockResolvedValueOnce(new Response(null, { status: 403 }));
+    mockFake.seed("lms_courses", [{ ...draftCourse, status: "archived" }]);
+    const res = await unarchivePOST(jsonReq({}), { params: { id: "C-1" } });
+    expect(res.status).toBe(403);
+    expect(requireAuthorization).toHaveBeenLastCalledWith("lms", "edit");
   });
 });
 

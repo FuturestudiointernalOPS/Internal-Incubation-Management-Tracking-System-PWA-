@@ -164,7 +164,15 @@
       "atTime": "at {time}",
       "backToVenture": "Back to {name}",
       "coaches": "Coaches",
-      "coachingAndAdvisors": "Coaching & Advisors",
+      "coachingAndAdvisors": "Collaborators",
+      "collaborators": {
+        "title": "Collaborators",
+        "subtitle": "The people this Venture's work names — the same list as the Project page. Give an email to those who have none so reminders can reach them.",
+        "openHint": "Open the list of collaborators",
+        "noEmail": "No email",
+        "addEmail": "Add email",
+        "withoutEmail": "{count} without email"
+      },
       "completeProfileForScore": "Complete your profile to see score",
       "currentMilestone": "Current milestone",
       "dashboardError": "Dashboard Error",
@@ -174,6 +182,30 @@
       "investmentScore": "Investment score",
       "stageEvidenceScore": "Stage & Evidence Score",
       "stageEvidenceHint": "Business stage plus the evidence already filed — not investment readiness",
+      "evidence": {
+        "title": "How the score is calculated",
+        "stagePart": "Stage",
+        "evidencePart": "Evidence",
+        "evidenceWeight": "of the required documents · 60%",
+        "total": "Score",
+        "notMeasurable": "No document is marked required for this stage, so the evidence cannot be measured yet: the score rests on the stage alone. Mark documents as required in the Data Room to measure it.",
+        "explain": "The evidence is the share of the REQUIRED documents that are approved: {verified} of {total}. Approved counts in full; the ones awaiting approval will count as soon as they are approved.",
+        "untitled": "Untitled document",
+        "noDocument": "No document filed yet",
+        "section": {
+          "verified": "Counted now — approved",
+          "awaiting": "Awaiting approval — will count once approved",
+          "rejected": "Rejected — counts half until re-filed",
+          "missing": "Missing — nothing usable filed yet"
+        },
+        "verdict": {
+          "verified": "Approved",
+          "awaiting": "Awaiting review",
+          "rejected": "Rejected",
+          "missing": "Missing",
+          "expired": "Expired"
+        }
+      },
       "inviteFounder": "Invite Founder",
       "knowledgeHub": "Knowledge Hub",
       "kpis": "KPIs",
