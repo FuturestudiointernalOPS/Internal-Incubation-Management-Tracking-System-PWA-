@@ -22,6 +22,8 @@
       "updated": "Course updated",
       "published": "Course published",
       "archived": "Course archived",
+      "unarchive": "Restore",
+      "unarchived": "Course restored",
       "deleted": "Course deleted",
       "noDescription": "No description yet",
       "videoPlay": "Play the first lesson video",
@@ -193,7 +195,18 @@
       "source": "Source",
       "status": "Status",
       "enrolledAt": "Enrolled",
-      "loadFailed": "Couldn't load the learners."
+      "loadFailed": "Couldn't load the learners.",
+      "statuses": {
+        "active": "Active",
+        "completed": "Completed",
+        "suspended": "Suspended"
+      },
+      "sources": {
+        "admin": "Added by an admin",
+        "program": "Programme",
+        "self": "Self-enrolled",
+        "purchase": "Purchase"
+      }
     },
     "assessment": {
       "title": "Assessment",
@@ -418,6 +431,8 @@
       "publishHint": "The course will become available to learners.",
       "archive": "Archive this course?",
       "archiveHint": "Archived courses keep all learner records and are no longer available for new enrollment.",
+      "unarchive": "Restore this course?",
+      "unarchiveHint": "The course becomes published again and open to new enrollment. Learner records are unchanged.",
       "deleteCourse": "Delete this course?",
       "deleteCourseHint": "Only draft courses without enrollments can be deleted. This cannot be undone.",
       "deleteSection": "Delete this section?",
@@ -558,6 +573,7 @@
       "validationItem": "{kind} \"{title}\": {message}",
       "notDraft": "Only draft courses can be published.",
       "notPublished": "Only published courses can be archived.",
+      "notArchived": "Only archived courses can be restored.",
       "loadFailed": "Failed to load courses.",
       "loadFailedCourse": "Failed to load the course.",
       "saveFailed": "Failed to save.",

@@ -62,6 +62,7 @@
     "createSuccess": "Venture created successfully",
     "updateSuccess": "Venture updated successfully",
     "loadError": "Failed to load ventures",
+    "notFound": "This venture does not exist, or you do not have access to it.",
     "createError": "Failed to create venture",
     "updateError": "Failed to update venture",
     "twitter": "Twitter",
@@ -357,10 +358,11 @@
       "partial": "Part of your work could not be loaded, so this list may be incomplete."
     },
     "progressOverview": {
-      "ventureSetup": "Venture setup",
+      "ventureSetup": "Profile",
       "ventureSetupHint": "Team, documents, business model and customer discovery",
       "doneOf": "{done} of {total} tasks",
       "milestonesCompleted": "Milestones completed",
+      "milestonesProgress": "{done} of {total} milestones · {percent}% of their work approved",
       "milestonesOf": "{done} of {total} milestones",
       "openWork": "Open work",
       "nextMilestone": "Next milestone"
@@ -438,7 +440,10 @@
     },
     "dashboardReadiness": {
       "uploadDocuments": "Upload supporting documents",
-      "completeVerification": "Complete verification ({count} pending)"
+      "completeVerification": "Complete verification ({count} pending)",
+      "fileRequired": "File {count} required document(s)",
+      "awaitingApproval": "{count} required document(s) awaiting approval",
+      "refile": "Re-file {count} rejected required document(s)"
     },
     "documentTypes": {
       "title": "Data Bank documents",
@@ -572,6 +577,7 @@
       "deliverableDateBeforeMilestone": "\"{title}\" cannot be due before its milestone ({date}).",
       "deliverableDatePast": "\"{title}\" cannot be due in the past.",
       "deliverables": "Deliverables",
+      "tasksHeading": "Tasks",
       "addDeliverable": "Add deliverable",
       "editDeliverable": "Edit deliverable",
       "deliverableActions": "Deliverable actions",
@@ -991,6 +997,8 @@
       "emptyHint": "No work item matches the current filters.",
       "itemCount": "{count} of {total} items",
       "pageTitle": "Projects",
+      "viewWork": "Work",
+      "viewTimeline": "Timeline",
       "pageSubtitle": "{company} · {code} — every milestone, activity and deliverable, with who owns it and when it is due.",
       "backToVenture": "Back to {name}",
       "allWork": "All work",

@@ -5,10 +5,10 @@
     "investorSubtitle": "Documents que l'entreprise a partagés avec vous.",
     "upload": "Téléverser un document",
     "uploadDocument": "Téléverser un document",
-    "uploadHint": "PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG ou JPG. Maximum {{size}} Mo.",
+    "uploadHint": "PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG ou JPG. Maximum {size} Mo.",
     "replaceVersion": "Téléverser une nouvelle version",
     "editDetails": "Modifier les détails",
-    "deleteConfirm": "Retirer « {{title}} » du Data Room ? Son historique de versions est conservé.",
+    "deleteConfirm": "Retirer « {title} » du Data Room ? Son historique de versions est conservé.",
     "retry": "Réessayer",
     "download": "Télécharger",
     "view": "Ouvrir",
@@ -23,11 +23,12 @@
     "allCategories": "Toutes les catégories",
     "allStatuses": "Tous les statuts",
     "noDocuments": "Aucun document dans cette catégorie pour le moment.",
+    "noMatch": "Aucun document ne correspond à ta recherche ou à tes filtres.",
     "emptyRoom": "Aucun document n'a encore été téléversé. Téléversez le premier pour démarrer la Data Room.",
     "emptyRoomAwaitingUpload": "Aucun document n'a encore été téléversé. Ce sont les fondateurs du Venture qui déposent les fichiers ici — vous pourrez les examiner à mesure qu'ils arrivent.",
     "emptyRoomInvestor": "Aucun document n'a encore été partagé avec vous.",
     "emptyCategory": "Vide — disponible pour tout document qui y trouve sa place.",
-    "documentsCount": "{{count}} document(s)",
+    "documentsCount": "{count} document(s)",
     "loading": "Chargement du Data Room…",
     "readOnlyInvestor": "Vous avez un accès en lecture seule aux documents partagés avec vous.",
     "fields": {
@@ -46,9 +47,9 @@
       "expiresInDays": "Expire après (jours, facultatif)"
     },
     "status": {
-      "uploaded": "Téléversé",
+      "uploaded": "En attente de validation",
       "under_review": "En cours de révision",
-      "verified": "Vérifié",
+      "verified": "Approuvé",
       "rejected": "Rejeté",
       "expired": "Expiré"
     },
@@ -80,7 +81,7 @@
     },
     "completeness": {
       "title": "Préparation du Data Room",
-      "percent": "{{percent}}% prêt",
+      "percent": "{percent}% prêt",
       "notRequired": "Aucun document n'est requis à ce stade",
       "note": "Calculé à partir des catégories que cette entreprise DOIT fournir à son stade. Les documents recommandés et conditionnels ne sont jamais comptés comme manquants.",
       "verified": "Vérifiés",
@@ -91,7 +92,7 @@
       "requiredTotal": "Catégories requises",
       "ready": "Prêt",
       "notReady": "Pas encore prêt",
-      "missingList": "À fournir : {{categories}}"
+      "missingList": "À fournir : {categories}"
     },
     "requirements": {
       "title": "Exigences documentaires",
@@ -119,10 +120,10 @@
       "noGrants": "Aucun investisseur n'a encore accès.",
       "grantedTo": "Accordé à",
       "scopeLabel": "Portée",
-      "expiresAt": "Jusqu'au {{date}}",
+      "expiresAt": "Jusqu'au {date}",
       "noExpiry": "Sans expiration",
       "expired": "Expiré",
-      "expiredHint": "Expiré le {{date}}",
+      "expiredHint": "Expiré le {date}",
       "notInvestor": "Cette personne n'a pas de profil investisseur."
     },
     "versionsModal": {
@@ -135,7 +136,7 @@
     "history": {
       "title": "Activité du Data Room",
       "noEvents": "Aucune activité enregistrée.",
-      "showAll": "Tout afficher ({{count}})",
+      "showAll": "Tout afficher ({count})",
       "showLess": "Afficher moins",
       "actions": {
         "DATA_ROOM_DOCUMENT_UPLOADED": "Document téléversé",
@@ -154,7 +155,7 @@
       "title": "Consultations et téléchargements",
       "document": "Document",
       "someone": "Quelqu'un",
-      "showAll": "Tout afficher ({{count}})",
+      "showAll": "Tout afficher ({count})",
       "showLess": "Afficher moins",
       "actions": {
         "view": "Ouvert",

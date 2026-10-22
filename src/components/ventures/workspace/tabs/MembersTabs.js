@@ -132,7 +132,7 @@ function MemberRow({ member, roleOptions, handleRoleChange, onRemove }) {
    founder status in the membership model (member_type). */
 export function TeamTab() {
   const { t } = useI18n();
-  const { members, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation, params } = useVenture();
+  const { members, membersLoading, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation, params } = useVenture();
   const founders = getFounderMembers(members);
   const team = getTeamMembers(members);
   const pending = Array.isArray(invitations) ? invitations : [];
@@ -141,7 +141,7 @@ export function TeamTab() {
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({members.length})</h2>
+          <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({membersLoading ? "…" : members.length})</h2>
           {/* "Invite Member" removed on the founder and team-member views for
               now. Uncomment this button (and restore the AddMemberModal render
               and the lucide import) to bring back adding team members.
@@ -224,7 +224,8 @@ export function TeamTab() {
           </div>
         )}
 
-        {members.length === 0 && (
+        {/* Not "empty" until the roster has actually answered. */}
+        {!membersLoading && members.length === 0 && (
           <div className="rounded-xl p-6 text-center border" style={cardStyle}>
             <p style={{ color: "var(--text-secondary)" }}>{t("venture.noTeamMembersYet")}</p>
           </div>

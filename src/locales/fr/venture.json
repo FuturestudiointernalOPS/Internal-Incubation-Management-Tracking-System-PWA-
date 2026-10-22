@@ -62,6 +62,7 @@
     "createSuccess": "Entreprise créée avec succès",
     "updateSuccess": "Entreprise mise à jour avec succès",
     "loadError": "Échec du chargement des entreprises",
+    "notFound": "Cette venture n'existe pas, ou tu n'y as pas accès.",
     "createError": "Échec de la création de l'entreprise",
     "updateError": "Échec de la mise à jour de l'entreprise",
     "twitter": "Twitter",
@@ -357,10 +358,11 @@
       "partial": "Une partie de votre travail n'a pas pu être chargée : cette liste peut être incomplète."
     },
     "progressOverview": {
-      "ventureSetup": "Mise en place de la Venture",
+      "ventureSetup": "Profil",
       "ventureSetupHint": "Équipe, documents, modèle d'affaires et découverte client",
       "doneOf": "{done} tâches sur {total}",
       "milestonesCompleted": "Jalons terminés",
+      "milestonesProgress": "{done} jalon(s) sur {total} · {percent} % du travail approuvé",
       "milestonesOf": "{done} jalons sur {total}",
       "openWork": "Travail ouvert",
       "nextMilestone": "Prochain jalon"
@@ -447,7 +449,10 @@
     },
     "dashboardReadiness": {
       "uploadDocuments": "Téléverser les documents justificatifs",
-      "completeVerification": "Terminer la vérification ({count} en attente)"
+      "completeVerification": "Terminer la vérification ({count} en attente)",
+      "fileRequired": "Déposer {count} document(s) requis",
+      "awaitingApproval": "{count} document(s) requis en attente d'approbation",
+      "refile": "Redéposer {count} document(s) requis rejeté(s)"
     },
     "documentTypes": {
       "title": "Documents de la banque de données",
@@ -572,6 +577,7 @@
       "deliverableDateBeforeMilestone": "« {title} » ne peut pas être attendu avant son jalon ({date}).",
       "deliverableDatePast": "« {title} » ne peut pas être attendu dans le passé.",
       "deliverables": "Livrables",
+      "tasksHeading": "Tâches",
       "addDeliverable": "Ajouter un livrable",
       "editDeliverable": "Modifier le livrable",
       "deliverableActions": "Actions du livrable",
@@ -991,6 +997,8 @@
       "emptyHint": "Aucun élément ne correspond aux filtres actuels.",
       "itemCount": "{count} sur {total} éléments",
       "pageTitle": "Projets",
+      "viewWork": "Travail",
+      "viewTimeline": "Calendrier du projet",
       "pageSubtitle": "{company} · {code} — chaque jalon, activité et livrable, avec son responsable et son échéance.",
       "backToVenture": "Retour à {name}",
       "allWork": "Tout le travail",

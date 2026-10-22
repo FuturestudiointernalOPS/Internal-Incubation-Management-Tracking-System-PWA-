@@ -21,7 +21,7 @@ export function selectDocuments(ventureId, { category, isPitchDeck, search, visi
   let sql = "SELECT id, name as title, name, description, document_type, category, file_name, file_size, file_type, file_url, thumbnail_url, is_pitch_deck, approval_status, created_at, updated_at, venture_id FROM venture_documents WHERE venture_id=? AND is_deleted = false";
   const args = [ventureId];
   if (category) { sql += " AND category=?"; args.push(category); }
-  if (isPitchDeck !== undefined) { sql += " AND is_pitch_deck=?"; args.push(isPitchDeck?1:0); }
+  if (isPitchDeck !== undefined) { sql += " AND is_pitch_deck=?"; args.push(Boolean(isPitchDeck)); }
   if (search) { sql += " AND (name ILIKE ? OR description ILIKE ?)"; args.push(`%${search}%`, `%${search}%`); }
   // Restrict visibility based on role (null = show all)
   if (visibility && Array.isArray(visibility) && visibility.length > 0) {

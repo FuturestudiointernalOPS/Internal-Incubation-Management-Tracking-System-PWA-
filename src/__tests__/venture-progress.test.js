@@ -17,9 +17,10 @@ const mockDb = {
     if (sql.includes("SELECT id FROM ventures WHERE venture_id = ?")) {
       return { rows: [{ id: VENTURE_DB_ID }] };
     }
-    if (sql.includes("SELECT COUNT(*) as total") && sql.includes("FROM venture_tasks WHERE venture_id = ?")) {
-      // Scripted fixture: 5 tasks, 3 terminal-success
-      return { rows: [{ total: 5, done: 3 }] };
+    // The roadmap engine reads the task statuses: 5 tasks, 3 terminal-success
+    // (done | accepted | completed — the canonical set, not 'done' alone).
+    if (sql.startsWith("SELECT status FROM venture_tasks")) {
+      return { rows: [{ status: "done" }, { status: "accepted" }, { status: "completed" }, { status: "backlog" }, { status: "in_progress" }] };
     }
 
     if (sql.includes("FROM venture_members")) {
@@ -81,7 +82,7 @@ describe("GET /api/ventures/[id]/progress — completion vocabulary", () => {
       task_completion: 60,
       total_tasks: 5,
       completed_tasks: 3,
-      milestones: { total: 0, completed: 0 },
+      milestones: { total: 0, completed: 0, progress_percent: null },
       standups_count: 0,
       retros_count: 0,
       venture_setup: 100,
@@ -98,10 +99,9 @@ describe("GET /api/ventures/[id]/progress — completion vocabulary", () => {
   });
 
   test("completion derives from the canonical status set, not 'done' alone", async () => {
-    await GET(new Request("http://localhost/api/ventures/VNT-TEST/progress"), { params: { id: "VNT-TEST" } });
-    const taskQuery = executed.find((query) => query.sql.includes("SELECT COUNT(*) as total") && query.sql.includes("FROM venture_tasks WHERE venture_id = ?"));
-    expect(taskQuery).toBeDefined();
-    expect(taskQuery.sql).toContain("status IN (?, ?, ?)");
-    expect(taskQuery.args).toEqual(["done", "accepted", "completed", VENTURE_DB_ID]);
+    const res = await GET(new Request("http://localhost/api/ventures/VNT-TEST/progress"), { params: { id: "VNT-TEST" } });
+    const data = await readJson(res);
+    // 'accepted' and 'completed' count, exactly like 'done'.
+    expect(data.progress.completed_tasks).toBe(3);
   });
 });

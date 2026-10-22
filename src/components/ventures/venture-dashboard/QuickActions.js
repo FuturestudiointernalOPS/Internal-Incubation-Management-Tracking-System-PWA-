@@ -2,10 +2,11 @@
 
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { Zap, Layers, Shield, User, Building2, BookOpen } from "lucide-react";
+import { Zap, Layers, Shield, Building2, BookOpen } from "lucide-react";
 
 /**
- * The quick-actions card (wizard, verification, founders, edit, knowledge).
+ * The quick-actions card (wizard, verification, edit, knowledge). Inviting a founder lives under the
+ * venture header's Staff menu..
  * Extracted verbatim from VentureDashboard.
  */
 export default function QuickActions({ id }) {
@@ -22,9 +23,6 @@ export default function QuickActions({ id }) {
         </button>
         <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
           <Shield className="w-3 h-3" /> {t("vadmin.dashboard.uploadDocuments")}
-        </button>
-        <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="px-3 py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
-          <User className="w-3 h-3" /> {t("vadmin.dashboard.inviteFounder")}
         </button>
         <button onClick={() => router.push(`/admin/ventures/${id}/edit`)} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
           <Building2 className="w-3 h-3" /> {t("vadmin.dashboard.editVenture")}

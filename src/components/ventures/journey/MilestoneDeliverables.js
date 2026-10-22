@@ -81,7 +81,7 @@ export default function MilestoneDeliverables({
   return (
     <div className="jy-del">
       <p className="jy-lbl">
-        {t("venture.manager.deliverables")}
+        {t("venture.manager.tasksHeading")}
       </p>
       {groups.map((group, groupIndex) => (
         <div key={group.activity?.id ?? `group-${groupIndex}`} className="jy-act">

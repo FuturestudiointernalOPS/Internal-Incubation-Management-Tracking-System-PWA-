@@ -57,7 +57,9 @@ export default function LearnerCourse({ courseId }) {
   // The loader showed the server's own key when it refused a payload and the
   // request's message when there was no answer; the panel translates whichever
   // arrives, with the same fallback as before.
-  const error = courseRead.failure || readError || null;
+  // A request that never got an answer shows the screen's message, not the
+  // browser's raw (English) network error.
+  const error = courseRead.failure || (readError ? "lms.errors.loadFailedCourse" : null);
 
   // Which sections the learner has opened, keyed by section id. It lives here,
   // above the early returns, because a hook may not run conditionally; the
