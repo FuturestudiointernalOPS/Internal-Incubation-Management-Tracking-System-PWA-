@@ -7,6 +7,9 @@
 > **Modèle conceptuel :**
 > [`WHITE_LABEL_ORGANIZATION_MODEL.md`](./WHITE_LABEL_ORGANIZATION_MODEL.md).
 >
+> **Plan de réalisation :**
+> [`WHITE_LABEL_DELIVERY_PLAN.md`](./WHITE_LABEL_DELIVERY_PLAN.md).
+>
 > **Documents de référence :**
 > [`ARCHITECTURE.md`](./ARCHITECTURE.md),
 > [`AUTHZ_CURRENT_STATE.md`](./AUTHZ_CURRENT_STATE.md),
