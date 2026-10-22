@@ -800,7 +800,11 @@
         "authorId": "Identifiant de l'auteur",
         "updatedOn": "Dernière modification",
         "reference": "Référence"
-      }
+      },
+      "milestoneDatesRequired": "Renseignez une date de début et une date de fin pour le jalon.",
+      "milestoneStartAfterEnd": "La date de début ne peut pas être après la date de fin.",
+      "deliverableDatesRequired": "Chaque livrable doit avoir une date de début et une date de fin, le début n'étant pas après la fin.",
+      "nothingToApprove": "Rien à approuver pour l'instant : aucune preuve n'a été soumise."
     },
     "personal": {
       "title": "Mon tableau de bord",

@@ -8,7 +8,7 @@ import { datePickerFloor, groupActivitiesWithDeliverables, sessionBookingKey } f
 import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
 import { statusDotClass, statusLabel } from "@/lib/ventureStatuses";
-import { Loader2, Plus, Save } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, Save } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
 import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
@@ -34,6 +34,7 @@ export default function MilestoneDeliverables({
   deliverableForm,
   deliverableList,
   deliverableMenuItems,
+  canApproveDeliverable,
   deliverableNewUrl,
   deliverableSaving,
   deliverableStatus,
@@ -230,10 +231,11 @@ export default function MilestoneDeliverables({
                   <button
                     type="button"
                     onClick={() => reviewDeliverable(deliverable, "approved")}
-                    disabled={deliverableBusy === deliverable.id}
-                    className="stf-btn sm ok shrink-0"
+                    disabled={deliverableBusy === deliverable.id || !canApproveDeliverable(deliverable)}
+                    title={canApproveDeliverable(deliverable) ? undefined : t("venture.manager.nothingToApprove")}
+                    className="stf-btn sm pr shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
                   >
-                    {t("venture.manager.approveDeliverable")}
+                    <CheckCircle2 className="w-3 h-3" /> {t("venture.manager.approveDeliverable")}
                   </button>
                 )}
                 {milestoneAuthority && (
