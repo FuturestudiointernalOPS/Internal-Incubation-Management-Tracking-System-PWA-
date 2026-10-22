@@ -91,6 +91,15 @@ suivies. Pour éviter la confusion :
 8. **Le pilote est borné.** Les écrans internes existants ne deviennent pas
    multi-organisations dans la première phase. Le portail client est une entrée
    séparée qui réutilise le moteur et les composants.
+9. **La séparation fonctionne dans les deux sens.** Une requête interne ne doit
+   pas voir les données clientes sans mandat, et une requête cliente ne doit
+   jamais voir la plateforme ni une autre organisation.
+10. **Les écritures existantes restent valides.** Une colonne d’organisation
+    devenue obligatoire est remplie par un mécanisme de base pour les anciens
+    chemins, avec l’organisation plateforme par défaut.
+11. **L’historique est protégé par la base.** Les suppressions et modifications
+    interdites sont refusées par des contraintes ou des déclencheurs, pas
+    seulement par le service.
 
 ---
 
@@ -475,10 +484,13 @@ autorisation nominative, une autorisation de groupe, ou un blocage.
 | `scope_type`, `scope_id` | Périmètre de l’exception (`organization`, `program`, `cohort`, `venture`, `course`, `investment`, `document`) |
 | `starts_at`, `ends_at` | Période |
 | `granted_by`, `reason` | Qui et pourquoi |
+| `revoked_at`, `revoked_by` | Révocation explicite |
 
 **Règles :**
 
 - Un **refus** gagne toujours sur une autorisation.
+- Une autorisation ne se supprime pas : elle se révoque par `revoked_at` et
+  `revoked_by`, avec un événement de journal.
 - Aucune autorisation ne traverse une organisation.
 - Un administrateur client ne peut accorder que les droits **déléguables** de
   son propre rôle.
@@ -555,11 +567,15 @@ L’accès de Future Studio au contenu d’un client.
 
 **Règles :**
 
-- Pas de mandat actif, pas d’accès au contenu client.
+- Pas de mandat actif, pas d’accès au contenu client, y compris depuis la
+  console interne.
 - Chaque usage écrit une ligne de journal.
 - La supervision est distincte de l’administration technique de la plateforme.
 - Un salarié de Future Studio n’obtient pas l’accès parce qu’il est salarié : il
   l’obtient par un mandat.
+- La supervision est un **prérequis d’activation** d’une organisation cliente :
+  aucune organisation ne passe à `active` avant que ce contrôle soit en place et
+  testé.
 
 ### 5.12 Journal et politique de conservation
 
@@ -586,7 +602,9 @@ suspendre la suppression.
 Une même personne peut cumuler plusieurs lignes. Un salarié de Future Studio qui
 intervient comme coach d’un client reçoit une appartenance et un rôle
 d’organisation distincts ; son identité interne ne lui donne aucun droit
-supplémentaire dans l’espace client.
+supplémentaire dans l’espace client. Dans la console interne, il ne voit par
+défaut que l’organisation plateforme ; pour lire un contenu client, il lui faut
+un mandat de supervision actif.
 
 **Comment le système reconnaît une personne :**
 
@@ -640,12 +658,39 @@ affichée, ou un identifiant d’organisation fourni par l’écran sans vérifi
 - **Le contenu d’un cours partagé** : le cours a un propriétaire, mais ses
   sections et leçons ne sont pas dupliquées par client.
 
+### 6.3 Isolation dans les deux sens
+
+| Requête | Organisation appliquée | Condition |
+|---|---|---|
+| Console interne, sans mandat | Organisation plateforme uniquement | Par défaut |
+| Console interne, avec mandat de supervision | Organisation supervisée | Mandat actif, portée `read` ou `export`, journalisé |
+| Portail client | Organisation active de la session | Appartenance active |
+| Lien public | Organisation encodée dans le jeton | Objet unique, organisation active |
+| Job de fond | Organisation passée explicitement | Aucun job « toutes organisations » sans mandat |
+
+**Règles :**
+
+- Une requête interne sans contexte d’organisation est limitée à l’organisation
+  plateforme ; elle ne peut pas retourner une ligne cliente.
+- Une requête interne qui vise une organisation cliente exige un mandat de
+  supervision actif, même pour le propriétaire de la plateforme.
+- Une requête cliente ne peut jamais atteindre l’organisation plateforme ni une
+  autre organisation, même en forgeant un identifiant.
+- Le contexte est posé au niveau du gestionnaire de requête et appliqué dans
+  les modèles. Les déclencheurs de base vérifient l’écriture et les portées ; un
+  verrou de lecture dans la base peut renforcer l’ensemble.
+- Les tests d’isolation sont bidirectionnels : interne → client et client →
+  interne.
+
 ---
 
 ## 7. Comment un droit est calculé
 
 Pour chaque action, dans l’ordre :
 
+0. **Poser le contexte d’organisation de la requête** : organisation plateforme
+   par défaut pour l’interne, organisation active pour le portail, organisation
+   supervisée pour un mandat.
 1. **Identifier la personne** à partir de sa connexion.
 2. **Trouver son appartenance active** dans l’organisation active.
 3. **Vérifier l’état de l’organisation** : active, non suspendue, non archivée.
@@ -689,6 +734,10 @@ toutes les organisations de la personne.
 - Une organisation ne passe jamais directement de `closed` à `active` ; une
   nouvelle organisation est créée si le client revient.
 
+**Prérequis d’activation :** une organisation ne peut passer à `active` que si
+l’isolation bidirectionnelle, la supervision et les garanties d’historique sont
+en place et testées. Sinon, elle reste en `draft`.
+
 ---
 
 ## 9. Invariants
@@ -706,6 +755,11 @@ toutes les organisations de la personne.
 | Une organisation suspendue n’accepte ni invitation ni écriture | Arrêt propre |
 | La supervision exige un mandat actif | Pas d’accès implicite |
 | Le journal est en ajout seul | Preuve |
+| Une requête interne sans contexte est limitée à l’organisation plateforme | Empêche la fuite interne → client |
+| Aucune ligne cliente n’est lisible sans mandat de supervision | Le support ne contourne pas la frontière |
+| Une écriture existante sans organisation reçoit l’organisation plateforme | Aucune création interne cassée |
+| Les tables d’historique refusent les suppressions et modifications interdites | L’historique ne dépend pas du service |
+| Aucune organisation cliente n’est activée avant les contrôles | Pas de données réelles sans isolation |
 
 ---
 
@@ -781,6 +835,15 @@ défini par Future Studio.
 8. **Éligibilité du portail** : le portail applique le plafond du modèle de rôle
    d’organisation, distinct des lignes d’éligibilité internes. Les deux régimes
    ne se mélangent pas.
+9. **Isolation interne** : verrou dans la base dès la Phase 1 (recommandé) ou
+   filtre applicatif exhaustif. Si le filtre applicatif est choisi, aucune
+   donnée cliente ne passe en production avant couverture complète.
+10. **Supervision** : implémentée avant l’activation de la première organisation
+    cliente, pas en fin de programme.
+11. **Écritures existantes** : déclencheur ou valeur par défaut vers
+    l’organisation plateforme, avec validation de l’organisation de session.
+12. **Historique** : déclencheurs de non-suppression et d’immuabilité, journal
+    en ajout seul protégé par la base.
 
 ---
 
@@ -797,7 +860,12 @@ Le modèle est considéré comme validé lorsque :
 - la fin d’une appartenance ne supprime ni la personne ni l’historique ;
 - la supervision est explicite, limitée et journalisée ;
 - le scénario Horizon est reproductible avec des données fictives ;
-- les invariants sont couverts par des tests automatisés.
+- les invariants sont couverts par des tests automatisés ;
+- une requête interne ne peut pas lire une ligne cliente sans mandat ;
+- les anciens chemins de création continuent de fonctionner et rattachent
+  correctement l’organisation plateforme ;
+- les suppressions et modifications interdites échouent au niveau de la base ;
+- la supervision est testée avant l’activation d’une organisation cliente.
 
 ---
 
@@ -809,3 +877,7 @@ Le modèle est considéré comme validé lorsque :
 | 2026-10-22 | Séparation Organisation / Entreprise CRM | À valider |
 | 2026-10-22 | Licence de contenu plutôt que copie | À valider |
 | 2026-10-22 | Portail client séparé de la console interne | À valider |
+| 2026-10-22 | Isolation bidirectionnelle, y compris pour l’interne | À valider |
+| 2026-10-22 | Supervision avant activation de la première organisation | À valider |
+| 2026-10-22 | Écritures existantes sécurisées par trigger/default plateforme | À valider |
+| 2026-10-22 | Historique protégé par des déclencheurs et des privilèges de base | À valider |

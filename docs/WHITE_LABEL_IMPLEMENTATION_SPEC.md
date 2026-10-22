@@ -45,9 +45,11 @@ permissions déjà en place.
 
 ## 2. Contraintes non négociables
 
-1. **Les routes internes gardent leur moteur et leur comportement.**
+1. **Les routes internes gardent leur moteur de permissions.**
    `resolveAuthorizationContext`, `getAuthorizationContext`, `requireAuthorization`
-   et les gardes existants ne sont pas modifiés en Phase 1.
+   et les gardes existants ne sont pas remplacés. Elles reçoivent un contexte
+   d’organisation par défaut (l’organisation plateforme) pour que les données
+   existantes restent visibles exactement comme avant.
 2. **Le portail client est une entrée séparée.**
    Il réutilise les modèles, les services purs et les composants, mais il a ses
    propres routes, son propre shell et son propre garde.
@@ -63,12 +65,29 @@ permissions déjà en place.
 6. **La migration est additive.**
    Les données existantes rejoignent l’organisation plateforme. Aucune colonne
    existante n’est supprimée, aucun rôle n’est renommé, aucun droit n’est retiré.
-7. **Pas de interrupteur d’application de la règle.**
+7. **Pas d’interrupteur d’application de la règle.**
    Le garde du portail est toujours actif pour les routes du portail. Un
    interrupteur global qui pourrait être oublié n’est pas un contrôle.
 8. **Les fichiers clients ne sont pas publics.**
    Le stockage actuel peut créer des buckets publics ; le portail client ne
    réutilise pas ce comportement pour des données privées.
+9. **L’isolation fonctionne dans les deux sens.**
+   Une requête interne sans contexte est limitée à l’organisation plateforme.
+   Une requête interne qui vise une organisation cliente exige un mandat de
+   supervision actif. Une requête cliente ne voit jamais la plateforme ni une
+   autre organisation.
+10. **Les écritures existantes restent valides.**
+    Toute colonne d’organisation devenue obligatoire est remplie pour les
+    anciens chemins de création par un déclencheur ou une valeur par défaut qui
+    utilise l’organisation de session, sinon l’organisation plateforme. Aucun
+    chemin interne ne doit échouer après la migration.
+11. **La supervision précède la donnée cliente.**
+    Aucune organisation cliente n’est activée avant que la supervision et
+    l’isolation bidirectionnelle soient en place et testées.
+12. **L’historique est garanti par la base.**
+    Les tables d’historique refusent les suppressions et les modifications
+    interdites par des déclencheurs et des privilèges, pas seulement par le
+    service.
 
 ---
 
@@ -76,15 +95,18 @@ permissions déjà en place.
 
 ```
 Phase 0  Inventaire et décisions           aucune modification applicative
-Phase 1  Fondation invisible               tables, organisation plateforme, session
+Phase 1  Fondation et isolation            tables, org plateforme, session,
+                                            filtres internes, écritures compatibles,
+                                            supervision, garanties d'historique
 Phase 2  Portail en lecture                programmes, LMS, ventures, membres
 Phase 3  Écritures, fichiers, exports      remises, livrables, documents, partages
-Phase 4  Durcissement et pilote fictif     isolation, supervision, charge
+Phase 4  Durcissement et pilote fictif     revue sécurité, charge, runbooks
 Phase 5  Promotion                          test de production
 ```
 
 Chaque phase est réversible. Tant que le portail n’est pas activé, les routes
-internes se comportent exactement comme avant.
+internes continuent de voir les données de l’organisation plateforme comme
+avant.
 
 ---
 
@@ -94,8 +116,8 @@ internes se comportent exactement comme avant.
 
 | Couche | Fichiers proposés |
 |---|---|
-| Modèles | `src/models/organizations.js` (barrel) + `src/models/organizations/{schema,core,branding,contracts,modules,memberships,roles,assignments,grants,invitations,licenses,supervision,audit,retention,scopes,tenantTables}.js` |
-| Services | `src/services/organizations/{index,organizationContext,organizationAccess,organizationAdmin,organizationInvitations,organizationBranding,organizationAudit,organizationExports,organizationFiles,organizationSupervision,organizationCache,organizationScopes}.js` |
+| Modèles | `src/models/organizations.js` (barrel) + `src/models/organizations/{schema,core,branding,contracts,modules,memberships,roles,assignments,grants,invitations,licenses,supervision,audit,retention,scopes,scopedQueries,tenantTables,dbGuards}.js` |
+| Services | `src/services/organizations/{index,organizationContext,organizationAccess,organizationAdmin,organizationInvitations,organizationBranding,organizationAudit,organizationExports,organizationFiles,organizationSupervision,organizationCache,organizationScopes,internalScope}.js` |
 | Garde HTTP | `src/server/authz/organization.js` |
 | API portail | `src/app/api/org/**/route.js` |
 | API publique d’invitation | `src/app/api/org/invitations/accept/route.js` |
@@ -103,14 +125,16 @@ internes se comportent exactement comme avant.
 | Pages portail | `src/app/o/[organizationCode]/**/page.js` + `layout.js`, `src/app/o/select/page.js`, `src/app/o/invite/[token]/page.js` |
 | Composants | `src/components/organization/**` |
 | Traductions | `src/locales/en/organization.json`, `src/locales/fr/organization.json` |
-| Migration | `supabase/migrations/YYYYMMDD_white_label_organizations.sql` |
-| Tests | `src/__tests__/organization-*.test.js` |
+| Migration | `supabase/migrations/YYYYMMDD_white_label_organizations.sql` (tables, colonnes, index, déclencheurs, privilèges) |
+| Tests | `src/__tests__/organization-*.test.js`, dont `organization-internal-isolation.test.js`, `organization-write-compatibility.test.js`, `organization-db-history.test.js` |
 
 ### 4.2 Ce qui est modifié, et seulement cela
 
 | Fichier | Modification | Raison |
 |---|---|---|
-| `supabase/migrations/…` | Nouvelle migration additive | Créer les tables et colonnes |
+| `supabase/migrations/…` | Nouvelle migration additive : tables, colonnes, index, déclencheurs, privilèges | Créer la frontière et protéger l’historique |
+| Modèles du pilote (programmes, LMS, ventures) | Ajouter une variante scopée qui exige l’organisation ; un adaptateur interne fournit l’organisation plateforme | Empêcher une requête interne de lire les données clientes |
+| `src/lib/api/createHandler.js` | Attacher `organizationId` au request context (plateforme par défaut) | Journalisation et diagnostics |
 | `src/models/sessions.js` | Lire/écrire `active_organization_id` | La session porte l’organisation active |
 | `src/server/auth/session.js` | Ajouter `activeOrganizationId` au session object ; fonction de changement d’organisation ; invalidation du cache de session | Le changement d’organisation doit être immédiat |
 | `src/server/auth/session.js` | Ne pas modifier les règles de statut, d’expiration ou de session unique | Non-régression |
@@ -136,7 +160,9 @@ modifié : le garde appelle `setRequestContext({ organizationId })`.
 - `src/lib/identity.js`
 - `src/lib/masterNavigation.js`
 - `src/components/layout/DashboardLayout.js`
-- Les routes et écrans internes existants.
+- Les écrans internes existants ne sont pas réécrits : seuls les modèles du
+  pilote gagnent un filtre d’organisation par défaut, ce qui préserve leur
+  comportement pour les données de l’organisation plateforme.
 
 ---
 
@@ -181,11 +207,17 @@ Le session object expose :
 5. L’organisation plateforme est toujours disponible pour le personnel interne,
    mais elle n’est pas proposée comme « espace client ».
 
+Un salarié de Future Studio qui possède un mandat de supervision peut choisir
+l’organisation supervisée sans appartenance. Ce choix est traité comme une
+supervision, pas comme une appartenance : il est borné dans le temps et
+journalisé.
+
 ### 5.3 Changement d’organisation
 
 `POST /api/org/context` avec `{ organization_id }` :
 
-1. Vérifier que la personne a une appartenance `active` dans cette organisation.
+1. Vérifier que la personne a une appartenance `active` **ou un mandat de
+   supervision actif** dans cette organisation.
 2. Vérifier que l’organisation est `active`.
 3. Mettre à jour `user_sessions.active_organization_id`.
 4. Invalider le cache de session du jeton courant.
@@ -195,6 +227,9 @@ Le session object expose :
 **Règles :**
 
 - Le changement d’organisation ne crée pas une nouvelle session.
+- Un membre du personnel Future Studio peut basculer sur une organisation
+  cliente uniquement avec un mandat de supervision actif ; le mandat reste
+  visible et journalisé.
 - Deux sessions simultanées peuvent avoir deux organisations actives
   différentes : l’organisation active est **par session**, pas par personne.
 - Aucune donnée de l’ancienne organisation ne reste dans le contexte renvoyé.
@@ -226,6 +261,17 @@ Le résultat contient :
 }
 ```
 
+**Qui fournit `organizationId` :**
+
+- **requête interne** : l’organisation plateforme, par défaut ;
+- **requête de supervision** : l’organisation cible, avec un mandat actif ;
+- **portail client** : l’organisation active de la session ;
+- **lien public** : l’organisation encodée dans le jeton, pour un objet unique.
+
+Aucun appelant ne peut demander « toutes les organisations ». Une requête sans
+contexte est refusée ou limitée à l’organisation plateforme ; elle n’est jamais
+non filtrée.
+
 ### 5.5 Cache
 
 Le cache existant `cid|role|profiles` **n’est pas modifié**.
@@ -247,6 +293,29 @@ Comme le cache d’autorisation existant, ce cache est **local au processus** : 
 écriture invalide l’instance qui la traite, et le TTL est le filet de sécurité
 pour les autres instances. C’est pourquoi l’appartenance active est relue à
 chaque requête : une révocation ne dépend pas de la propagation d’un cache.
+
+### 5.6 Contexte interne et supervision
+
+L’isolation doit fonctionner dans les deux sens.
+
+- Une requête interne sans mandat est limitée à l’organisation plateforme. Elle
+  ne peut pas retourner une ligne d’une organisation cliente.
+- Une requête interne qui vise une organisation cliente exige un mandat de
+  supervision actif, avec la portée `read` ou `export`. Même le propriétaire de
+  la plateforme passe par ce mandat pour lire le contenu client.
+- Une requête du portail client ne peut viser que l’organisation active de la
+  session. Elle ne peut jamais atteindre l’organisation plateforme ni une autre
+  organisation.
+- Les modèles du pilote n’exposent qu’une variante scopée : l’organisation est
+  exigée. Les appelants internes existants passent par un adaptateur qui fournit
+  l’organisation plateforme ; les appelants du portail fournissent l’organisation
+  active. Aucune variante non scopée ne subsiste.
+- Une requête sans organisation est refusée, jamais interprétée comme « toutes
+  les organisations ».
+
+La supervision n’est pas une phase de fin de programme : le schéma, le garde et
+les tests sont livrés en Phase 1, et l’accès au contenu client est bloqué tant
+qu’ils ne sont pas verts.
 
 ---
 
@@ -366,6 +435,98 @@ tables historiques qui ne s’y prêtent pas en Phase 1 :
 
 Ne pas forcer une clé composite au prix d’une migration risquée.
 
+### 6.6 Garanties de base et historique
+
+Les règles d’historique ne doivent pas dépendre du service seul. La migration
+installe des déclencheurs et des privilèges sur les tables critiques.
+
+**Tables d’historique et de cycle de vie :**
+
+- `organization_audit_events` : ajout seul ; `UPDATE` et `DELETE` refusés.
+- `organization_memberships` : pas de suppression ; `status = 'ended'`.
+- `organization_role_assignments` : pas de suppression ; `status = 'ended'`.
+- `organization_roles` : pas de suppression ; `is_active = FALSE`.
+- `organization_grants` : pas de suppression ; `revoked_at` et `revoked_by`.
+- `organization_invitations` : pas de suppression ; `status = 'revoked'`.
+- `organization_content_licenses` : pas de suppression ; `status = 'revoked'`.
+- `organization_supervision_grants` : pas de suppression ; `status = 'ended'`.
+- `organization_contracts`, `organization_modules` : pas de suppression ;
+  `status` et dates de fin.
+
+**Déclencheurs :**
+
+- `forbid_delete()` : refuse toute suppression sur les tables de cycle de vie.
+- `forbid_audit_mutation()` : refuse `UPDATE` et `DELETE` sur le journal.
+- `forbid_immutable_update()` : refuse la modification des colonnes qui ne
+  doivent plus changer après création (`organization_id`, `person_id`,
+  `created_at`, `content_id`, `owner_organization_id`).
+- `validate_scope_belongs_to_organization()` : vérifie que la fiche visée par
+  `scope_type`/`scope_id` appartient à la même organisation. Ce contrôle est
+  nécessaire parce que la portée est polymorphe et ne peut pas être une clé
+  étrangère simple.
+- `audit_lifecycle_change()` : écrit un événement minimal dans le journal pour
+  les tables critiques, même si le service a oublié de le faire. Le service peut
+  enrichir l’événement ensuite.
+
+**Privilèges :**
+
+- `REVOKE UPDATE, DELETE ON organization_audit_events FROM <application_role>`.
+- `GRANT SELECT, INSERT ON organization_audit_events TO <application_role>`.
+- Les déclencheurs restent nécessaires : le propriétaire d’une table contourne
+  les privilèges, pas un déclencheur.
+
+**Suppression légale :** une opération de conservation ou d’anonymisation passe
+par une fonction dédiée, avec un motif et un événement de journal. Aucun chemin
+applicatif ordinaire ne peut supprimer une ligne d’historique.
+
+### 6.7 Compatibilité des écritures existantes
+
+Les anciens chemins de création ne connaissent pas encore l’organisation. Pour
+qu’une colonne puisse devenir obligatoire sans les casser :
+
+1. Ajouter `organization_id` nullable.
+2. Backfiller les lignes existantes vers l’organisation plateforme.
+3. Installer un déclencheur `BEFORE INSERT` sur chaque table du pilote.
+4. Tester chaque chemin de création existant.
+5. Seulement ensuite, passer la colonne à `NOT NULL` sur les tables du pilote.
+
+Le déclencheur :
+
+- si `NEW.organization_id` est vide, utilise l’organisation de session
+  (`app.organization_id`) si elle est posée, sinon l’organisation plateforme ;
+- si `NEW.organization_id` est renseignée et que la session porte une
+  organisation différente, refuse l’écriture ;
+- si l’organisation plateforme n’existe pas, refuse l’écriture ;
+- ne remplace jamais une organisation cliente par l’organisation plateforme.
+
+Ainsi, un ancien chemin interne crée bien dans l’organisation plateforme. Pour
+le portail, le service reste la première validation : il passe l’organisation
+active et refuse toute différence. Le déclencheur est la seconde barrière,
+active lorsque le contexte de session est posé.
+
+**Chemins à tester explicitement :** création de programme, création de venture,
+inscription LMS, import CSV, invitations, formulaires publics, création de
+groupe, création de tâche, création de document. Le test vérifie
+`organization_id = plateforme` après chaque création interne.
+
+### 6.8 Isolation interne
+
+Le portail séparé ne suffit pas : les requêtes internes doivent elles aussi être
+filtrées.
+
+- Les modèles du pilote n’exposent qu’une variante scopée : l’organisation est
+  exigée. L’adaptateur interne fournit l’organisation plateforme ; le portail
+  fournit l’organisation active.
+- Aucune requête sur une table du pilote n’est autorisée sans prédicat
+  d’organisation, et aucune variante non scopée ne subsiste.
+- Le registre `tenantTables` liste les tables, la colonne et le test d’isolation.
+- Un test statique échoue si une requête sur une table du registre n’a pas de
+  filtre d’organisation, ou si une table cliente est ajoutée sans entrée.
+- Les routes qui contiennent encore du SQL en ligne sont converties ou
+  explicitement exemptées, avec un test qui empêche la réintroduction.
+- Une requête interne qui vise une organisation cliente exige un mandat de
+  supervision ; sinon, elle est limitée à l’organisation plateforme.
+
 ---
 
 ## 7. Migration
@@ -374,15 +535,23 @@ Ne pas forcer une clé composite au prix d’une migration risquée.
 
 | Étape | Contenu | Comportement visible |
 |---|---|---|
-| 0 | Inventaire des tables, points d’entrée, fichiers, exports, tâches de fond | Aucun |
+| 0 | Inventaire des tables, points d’entrée, fichiers, exports, tâches de fond, requêtes internes | Aucun |
 | 1 | Créer les tables nouvelles et l’organisation plateforme | Aucun |
 | 2 | Ajouter `organization_id` nullable aux tables du pilote, backfill vers l’organisation plateforme, créer les index | Aucun |
-| 3 | Créer les modèles de rôles et les rôles de l’organisation plateforme | Aucun |
-| 4 | Déployer le code du portail, désactivé | Aucun |
-| 5 | Créer les organisations fictives et activer le portail pour elles | Uniquement pour elles |
-| 6 | Passer `organization_id` en `NOT NULL` sur les tables du pilote | Aucun pour l’interne |
-| 7 | Ajouter les clés composites et les contraintes | Aucun pour l’interne |
-| 8 | Pilote réel, puis test de production | Uniquement pour les clients |
+| 3 | Installer les déclencheurs d’écriture compatibles (organisation de session, sinon plateforme) | Aucun |
+| 4 | Tester chaque ancien chemin de création : l’organisation plateforme est bien renseignée | Aucun |
+| 5 | Installer les déclencheurs d’historique, d’immuabilité, de portée et de journal | Aucun |
+| 6 | Déployer les modèles filtrés par organisation et la supervision | Les écrans internes ne voient que la plateforme par défaut |
+| 7 | Créer les modèles de rôles et les rôles de l’organisation plateforme | Aucun |
+| 8 | Déployer le code du portail, désactivé | Aucun |
+| 9 | Créer les organisations fictives ; activer seulement si supervision et isolation sont vertes | Uniquement pour elles |
+| 10 | Passer `organization_id` en `NOT NULL` sur les tables du pilote | Aucun pour l’interne |
+| 11 | Ajouter les clés composites et les contraintes | Aucun pour l’interne |
+| 12 | Pilote réel, puis test de production | Uniquement pour les clients |
+
+**Ordre critique :** les étapes 3 à 6 précèdent toute donnée cliente. Aucune
+organisation cliente ne passe à `active` avant que l’isolation interne, la
+supervision et la compatibilité des écritures soient testées.
 
 ### 7.2 Backfill de l’organisation plateforme
 
@@ -407,12 +576,19 @@ Le backfill doit être :
 - vérifié par un comptage avant/après ;
 - accompagné d’une sauvegarde ou d’un point de restauration sur staging.
 
+Le déclencheur d’écriture compatible est installé **après** le backfill et
+**avant** le passage à `NOT NULL`. Il ne remplace jamais une organisation
+explicite : il ne remplit que les valeurs vides, et refuse un conflit avec
+l’organisation de session.
+
 ### 7.3 Rollback
 
-- Désactiver le portail : les routes internes restent inchangées.
+- Désactiver le portail : les écrans internes restent disponibles.
 - Les tables nouvelles sont additives ; on peut les laisser en place.
-- Les colonnes `organization_id` sont nullables sur les tables historiques ;
-  les routes internes les ignorent.
+- Les colonnes `organization_id` restent en place et les filtres internes
+  restent actifs.
+- **Un rollback ne doit jamais rouvrir les filtres d’organisation.** Si le code
+  du portail est retiré, les modèles filtrés et les déclencheurs restent.
 - Ne pas supprimer une colonne ou une table contenant des données sans export
   préalable.
 - Un rollback de code ne doit jamais nécessiter un rollback de schéma.
@@ -440,6 +616,8 @@ requireOrganizationMembership()             // appartenance active
 requireOrganizationModule(moduleKey)        // module activé
 requireOrganizationAuthorization(module, capability, options)
 requireOrganizationRole(roleKey, options)
+requireInternalOrganizationScope()          // interne : plateforme par défaut
+requireSupervision(organizationId, scope)   // mandat actif pour une org cliente
 ```
 
 Chaque fonction retourne `null` si la requête peut continuer, ou une réponse
@@ -450,14 +628,20 @@ appellent `requireOrganization()`. Le garde attache `req.organization` et
 appelle `setRequestContext({ organizationId })`. Les routes publiques
 d’invitation utilisent `createHandler({ public: true }, …)` et valident le jeton.
 
+Les routes internes ne sont pas réécrites : `requireInternalOrganizationScope()`
+fixe l’organisation plateforme par défaut. Une route interne qui vise une
+organisation cliente doit appeler `requireSupervision()` **avant** de lire la
+moindre fiche.
+
 ### 8.2 Décision
 
 `evaluateOrganizationAuthorization` dans
 `src/services/organizations/organizationAccess.js` :
 
 ```
-1. session + organisation active
-2. appartenance active (relue)
+0. contexte de requête : interne / portail / supervision
+1. session + organisation active (ou cible supervisée)
+2. appartenance active (relue) ou mandat de supervision actif
 3. organisation active, non suspendue, non archivée
 4. module activé
 5. affectations de rôle actives dans l'organisation
@@ -469,6 +653,11 @@ d’invitation utilisent `createHandler({ public: true }, …)` et valident le j
 11. fiche dans l'organisation active
 12. décision + journal
 ```
+
+Pour une requête interne sans mandat, l’organisation est la plateforme : la
+décision ne peut jamais porter sur une fiche cliente. Pour une requête de
+supervision, le mandat doit être actif et couvrir la portée demandée ; sinon, la
+décision est `no-supervision`.
 
 Retour :
 
@@ -521,6 +710,8 @@ comportement attendu : ce sont deux chapeaux.
 |---|---|
 | Pas de session | `401` |
 | Pas d’appartenance à l’organisation active | `403` |
+| Requête interne vers une organisation cliente sans mandat | `403` (`no-supervision`) |
+| Requête sans contexte d’organisation | `403` (`unscoped`) |
 | Organisation suspendue ou archivée | `403` |
 | Module désactivé | `403` |
 | Capacité absente | `403` |
@@ -533,8 +724,8 @@ Les refus portent un en-tête de diagnostic, sur le modèle de
 `X-Authz-Decision` :
 
 ```
-X-Org-Decision: no-membership | module-disabled | capability-missing
-              | out-of-scope | wrong-organization | allowed
+X-Org-Decision: no-membership | no-supervision | unscoped | module-disabled
+              | capability-missing | out-of-scope | wrong-organization | allowed
 ```
 
 Ne jamais renvoyer un message qui distingue « la fiche existe mais ne vous
@@ -766,19 +957,23 @@ Les logos et favicons peuvent rester publics : ce sont des actifs de marque.
 
 ### 11.7 Supervision
 
-- Un mandat actif est obligatoire pour lire le contenu client dans le portail,
-  même pour le propriétaire de la plateforme.
+- Un mandat actif est obligatoire pour lire le contenu client, **dans le portail
+  comme dans la console interne**, même pour le propriétaire de la plateforme.
 - Le mandat a un motif, une portée et une date de fin.
 - Chaque usage écrit un événement de journal.
 - Une procédure d’urgence (« break-glass ») peut exister, mais elle est
   journalisée et alertée.
+- La supervision est livrée en Phase 1 et testée avant l’activation de la
+  première organisation cliente.
 
-### 11.8 Verrou dans la base (durcissement)
+### 11.8 Verrou dans la base (seconde ceinture)
 
-En Phase 4, on peut ajouter un second verrou dans la base sur les tables du
-pilote : la base ne rend que les lignes de l’organisation active. Ce n’est pas la
-ceinture principale, et cela ne protège ni les fichiers, ni les exports, ni les
-jobs. Cela demande :
+Le verrou principal est le **filtre d’organisation dans les modèles**, livré en
+Phase 1. Un second verrou dans la base peut être ajouté en Phase 4 ou 5 : la base
+ne rend que les lignes de l’organisation active. Ce n’est pas la ceinture
+principale, et cela ne protège ni les fichiers, ni les exports, ni les jobs.
+
+Le verrou de base demande :
 
 - un rôle de connexion applicatif distinct ;
 - l’organisation active posée par transaction ou par connexion ;
@@ -788,8 +983,13 @@ jobs. Cela demande :
   verrou ;
 - des tests de fuite inter-organisations sur les tables couvertes.
 
-Tant que ces conditions ne sont pas réunies, l’isolation applicative et les
-tests de la matrice restent la référence.
+**Limite technique :** l’exécution actuelle interroge la base par requêtes
+indépendantes sur un pool. Une politique de base ne voit l’organisation que si
+la requête partage la transaction ou la connexion qui a posé le contexte. Le
+verrou de base exige donc un `db.withOrganizationContext` et un chemin de
+requête qui utilise la même transaction. Tant que ce chemin n’existe pas, le
+verrou de base ne peut pas être la protection principale : le filtre des modèles
+et la matrice d’isolation restent la référence.
 
 ### 11.9 Journalisation
 
@@ -802,6 +1002,53 @@ tests de la matrice restent la référence.
   avant/après d’un événement ; les données sensibles sont redigées.
 - Les invitations, les exports et les téléchargements sensibles utilisent le
   limiteur de débit existant.
+
+### 11.10 Isolation bidirectionnelle
+
+| Sens | Requête | Ce qui est refusé |
+|---|---|---|
+| Interne → client | Console interne sans mandat | Toute ligne d’une organisation cliente |
+| Interne → client | Console interne avec mandat | Toute ligne hors de l’organisation supervisée ou hors de la portée du mandat |
+| Client → interne | Portail client | Toute ligne de l’organisation plateforme |
+| Client → client | Portail client | Toute ligne d’une autre organisation |
+| Public → client | Lien ou formulaire | Tout objet qui n’appartient pas à l’organisation du jeton |
+
+**Règles :**
+
+- Les modèles du pilote exigent l’organisation et ne retombent jamais sur «
+  toutes les organisations ».
+- Une requête interne sans mandat est limitée à l’organisation plateforme.
+- Une requête interne avec mandat est limitée à l’organisation supervisée et à
+  la portée du mandat.
+- Le portail ne peut pas demander une autre organisation que celle de sa
+  session, même en forgeant un identifiant.
+- Les tests d’isolation couvrent les deux sens, pas seulement le portail.
+
+### 11.11 Compatibilité des écritures existantes
+
+- Le déclencheur `BEFORE INSERT` remplit l’organisation de session si elle est
+  posée, sinon l’organisation plateforme.
+- Une organisation explicite différente de la session est refusée.
+- Les anciens chemins de création sont testés un par un avant le passage à
+  `NOT NULL`.
+- Les imports en masse, les invitations, les formulaires publics et les créations
+  de groupes sont couverts.
+- Une colonne obligatoire ne l’est qu’après la preuve que tous les chemins
+  existants la renseignent correctement.
+
+### 11.12 Garanties d’historique
+
+- Journal en ajout seul : `UPDATE` et `DELETE` refusés par déclencheur et par
+  privilèges.
+- Tables de cycle de vie : pas de suppression ; `status`, `ended_at` ou
+  `revoked_at` à la place.
+- Colonnes immuables protégées : `organization_id`, `person_id`, `created_at`,
+  `content_id`, `owner_organization_id`.
+- Portée polymorphe validée par déclencheur (la fiche visée doit appartenir à la
+  même organisation).
+- Événements d’audit écrits par déclencheur pour les tables critiques, même si
+  le service a oublié de le faire.
+- Suppression légale uniquement par une fonction dédiée, avec motif et journal.
 
 ---
 
@@ -841,6 +1088,10 @@ tests de la matrice restent la référence.
 | `organization-invitations.test.js` | Portée, expiration, révocation, domaine non autoritaire |
 | `organization-licenses.test.js` | Contenu partagé, résultats non partagés |
 | `organization-scopes.test.js` | Périmètre dans la même organisation, `404` hors organisation |
+| `organization-internal-isolation.test.js` | Une requête interne ne voit pas les lignes clientes sans mandat |
+| `organization-write-compatibility.test.js` | Chaque ancien chemin de création renseigne l’organisation plateforme |
+| `organization-db-history.test.js` | Suppressions et modifications interdites refusées par la base |
+| `organization-tenant-registry.test.js` | Toute table du pilote a un filtre et un test d’isolation |
 
 ### 13.2 Tests de service
 
@@ -849,7 +1100,8 @@ tests de la matrice restent la référence.
 | `organization-context.test.js` | Résolution de l’appartenance, modules, rôles, cache |
 | `organization-switch.test.js` | Changement d’organisation, invalidation, aucune fuite |
 | `organization-admin.test.js` | Délégation bornée, audit, refus d’escalade |
-| `organization-supervision.test.js` | Mandat obligatoire, expiration, journal |
+| `organization-supervision.test.js` | Mandat obligatoire, expiration, journal, accès interne |
+| `organization-supervision-timing.test.js` | Aucune organisation cliente activée avant la supervision |
 
 ### 13.3 Tests de route
 
@@ -860,6 +1112,9 @@ tests de la matrice restent la référence.
 | `organization-routes-modules.test.js` | Module désactivé → refus |
 | `organization-routes-csrf.test.js` | Mutations même origine, pas de `GET` mutant |
 | `organization-files.test.js` | Téléchargement contrôlé, bucket privé, lien court |
+| `organization-internal-routes.test.js` | Routes internes limitées à l’organisation plateforme |
+| `organization-legacy-writes.test.js` | Créations internes existantes : organisation plateforme correcte |
+| `organization-db-guards.test.js` | `UPDATE`/`DELETE` directs refusés, portée inter-organisations refusée |
 
 ### 13.4 Tests de non-régression
 
@@ -896,6 +1151,11 @@ Pour chaque table du pilote :
 5. Exporter depuis A : aucune ligne B.
 6. Ouvrir un fichier de B depuis A : refus.
 7. Tenter un lien public de B depuis A : refus.
+8. Lire depuis la console interne sans mandat : aucune ligne de A ni de B.
+9. Lire depuis la console interne avec un mandat sur A : uniquement A.
+10. Créer une fiche par un ancien chemin interne : organisation plateforme.
+11. Tenter un `DELETE` direct sur une ligne d’historique : refus.
+12. Tenter un `UPDATE` sur une colonne immuable : refus.
 
 Cette matrice est un test automatisé, pas une checklist manuelle.
 
@@ -926,24 +1186,33 @@ de rouvrir une fuite silencieusement.
 1. Sauvegarde / point de restauration.
 2. Migration additive.
 3. Vérification des comptages avant/après backfill.
-4. Déploiement du code.
-5. Création des organisations fictives.
-6. Exécution de la matrice d’isolation.
-7. Vérification des tests existants.
+4. Tests des anciens chemins de création avec les déclencheurs.
+5. Déploiement du code avec filtres internes et supervision.
+6. Vérification que les écrans internes ne voient pas les données clientes.
+7. Création des organisations fictives, uniquement si la supervision est verte.
+8. Exécution de la matrice d’isolation bidirectionnelle.
+9. Vérification des tests existants.
 
 ### 14.2 Production
 
 - Ne pas exécuter la migration avec `.env.local` sur ce poste : il pointe sur la
   production.
 - Utiliser l’environnement de staging pour les essais.
+- Vérifier que la supervision et l’isolation bidirectionnelle sont vertes avant
+  d’activer la première organisation cliente.
 - La promotion vers `main` suit le **test de production**
   (`docs/PRODUCTION_TEST.md`), item par item.
 
 ### 14.3 Critères go / no-go
 
-- Aucun accès croisé dans la matrice d’isolation.
+- Aucun accès croisé dans la matrice d’isolation, **dans les deux sens**.
+- Les écrans internes voient toujours les données de l’organisation plateforme
+  comme avant, et aucune ligne cliente sans mandat.
+- Les anciens chemins de création fonctionnent et rattachent l’organisation
+  plateforme.
+- Aucune organisation cliente n’est activée avant que la supervision et l’isolation soient en place.
+- Les suppressions et modifications interdites échouent au niveau de la base.
 - Aucune régression des suites de permissions existantes.
-- Aucune route interne modifiée dans son comportement.
 - Le scénario Horizon passe de bout en bout.
 - Les fichiers clients ne sont pas publics.
 - Les exports ne contiennent aucune ligne d’une autre organisation.
@@ -958,6 +1227,10 @@ de rouvrir une fuite silencieusement.
 | Risque | Mitigation |
 |---|---|
 | La longue traîne des requêtes SQL oublie un filtre | Pilote borné, registre des tables, tests d’isolation par table |
+| Une requête interne non filtrée lit les données clientes | Modèles filtrés par défaut sur la plateforme, tests bidirectionnels, registre |
+| Une ancienne création échoue ou écrit dans la mauvaise organisation | Déclencheur d’écriture compatible, tests de chaque chemin avant `NOT NULL` |
+| La supervision arrive trop tard | Supervision livrée en Phase 1, activation cliente bloquée sans elle |
+| Un service contourne l’historique | Déclencheurs de non-suppression, d’immuabilité et de journal |
 | Une route interne est modifiée par erreur | Liste « ne pas toucher », revue de diff, tests existants |
 | Le cache sert les droits de l’ancienne organisation | Clé avec organisation, invalidation au changement |
 | Un bucket public expose des fichiers clients | Bucket privé séparé, téléchargement contrôlé |
@@ -966,7 +1239,7 @@ de rouvrir une fuite silencieusement.
 | Une clé composite échoue à cause des types historiques | Vérification applicative d’abord, normalisation ensuite |
 | La migration est trop longue ou destructive | Additive, par lots, staging, sauvegarde |
 | Un administrateur client voit la console interne | Portes séparées, rôle d’organisation, test de route |
-| Un salarié Future Studio lit sans mandat | Supervision obligatoire dans le portail, journal |
+| Un salarié Future Studio lit sans mandat | Supervision obligatoire dans le portail **et** la console interne, journal |
 
 ---
 
@@ -978,13 +1251,16 @@ La fonctionnalité est terminée lorsque :
 - les tables et contraintes sont en place ;
 - l’organisation plateforme existe et toutes les données du pilote y sont
   rattachées ;
+- les requêtes internes sont filtrées sur l’organisation plateforme par défaut ;
+- les anciens chemins de création renseignent l’organisation plateforme ;
 - le portail client fonctionne en lecture pour les trois modules ;
 - les écritures du pilote sont couvertes par le garde d’organisation ;
 - les fichiers, exports, e-mails, liens publics et jobs sont filtrés ;
-- la matrice d’isolation est verte ;
+- la matrice d’isolation est verte dans les deux sens ;
+- les suppressions et modifications interdites échouent en base ;
 - les suites de non-régression sont vertes ;
 - le scénario Horizon est reproductible ;
-- la supervision est explicite et journalisée ;
+- la supervision est explicite et journalisée, avant toute activation cliente ;
 - le test de production est passé ;
 - la documentation est à jour.
 
@@ -1219,6 +1495,8 @@ CREATE TABLE IF NOT EXISTS organization_grants (
   ends_at TIMESTAMPTZ,
   granted_by TEXT,
   reason TEXT,
+  revoked_at TIMESTAMPTZ,
+  revoked_by TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (
     (scope_type = 'organization' AND scope_id IS NULL)
@@ -1229,7 +1507,11 @@ CREATE TABLE IF NOT EXISTS organization_grants (
 CREATE UNIQUE INDEX IF NOT EXISTS organization_grants_one_effect
   ON organization_grants
     (organization_id, subject_type, subject_id, module, capability,
-     effect, scope_type, COALESCE(scope_id, ''));
+     effect, scope_type, COALESCE(scope_id, ''))
+  WHERE revoked_at IS NULL;
+
+-- Une autorisation expirée est marquée révoquée par le balayage ; sinon elle
+-- bloquerait une nouvelle autorisation identique.
 
 CREATE INDEX IF NOT EXISTS organization_grants_subject
   ON organization_grants (organization_id, subject_type, subject_id);
@@ -1392,6 +1674,298 @@ une saisie manuelle. À la création d’une organisation, les rôles d’organi
 correspondants sont créés à partir des modèles actifs, avec les libellés par
 défaut.
 
+### A.2 Déclencheurs et privilèges
+
+PostgreSQL 14+ (`CREATE OR REPLACE TRIGGER`). Les fonctions ci-dessous sont
+représentatives : les noms exacts des tables de documents et d’investissement
+sont confirmés en Phase 0.
+
+```sql
+-- ─── Organisation plateforme ────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION platform_organization_id()
+RETURNS UUID
+LANGUAGE plpgsql
+STABLE
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  SELECT id INTO v_id
+  FROM organizations
+  WHERE is_platform = TRUE
+  LIMIT 1;
+
+  IF v_id IS NULL THEN
+    RAISE EXCEPTION 'platform organization is missing';
+  END IF;
+
+  RETURN v_id;
+END;
+$$;
+
+-- ─── Écriture compatible : organisation de session, sinon plateforme ────────
+
+CREATE OR REPLACE FUNCTION set_organization_on_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_session_org UUID;
+  v_platform UUID := platform_organization_id();
+BEGIN
+  BEGIN
+    v_session_org := NULLIF(current_setting('app.organization_id', true), '')::UUID;
+  EXCEPTION WHEN invalid_text_representation THEN
+    v_session_org := NULL;
+  END;
+
+  IF NEW.organization_id IS NULL THEN
+    NEW.organization_id := COALESCE(v_session_org, v_platform);
+  ELSIF v_session_org IS NOT NULL AND NEW.organization_id <> v_session_org THEN
+    RAISE EXCEPTION 'organization mismatch: row %, session %',
+      NEW.organization_id, v_session_org;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Variante pour lms_courses, dont la colonne est owner_organization_id.
+CREATE OR REPLACE FUNCTION set_course_owner_on_insert()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_session_org UUID;
+  v_platform UUID := platform_organization_id();
+BEGIN
+  BEGIN
+    v_session_org := NULLIF(current_setting('app.organization_id', true), '')::UUID;
+  EXCEPTION WHEN invalid_text_representation THEN
+    v_session_org := NULL;
+  END;
+
+  IF NEW.owner_organization_id IS NULL THEN
+    NEW.owner_organization_id := COALESCE(v_session_org, v_platform);
+  ELSIF v_session_org IS NOT NULL AND NEW.owner_organization_id <> v_session_org THEN
+    RAISE EXCEPTION 'organization mismatch: course %, session %',
+      NEW.owner_organization_id, v_session_org;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- ─── Historique ─────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION forbid_delete()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'delete is forbidden on %', TG_TABLE_NAME;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION forbid_audit_mutation()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RAISE EXCEPTION 'audit events are append-only';
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION forbid_immutable_update()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_column TEXT;
+  v_old JSONB := to_jsonb(OLD);
+  v_new JSONB := to_jsonb(NEW);
+BEGIN
+  FOREACH v_column IN ARRAY TG_ARGV LOOP
+    IF v_old->>v_column IS DISTINCT FROM v_new->>v_column THEN
+      RAISE EXCEPTION 'column % is immutable on %', v_column, TG_TABLE_NAME;
+    END IF;
+  END LOOP;
+  RETURN NEW;
+END;
+$$;
+
+-- ─── Portée polymorphe dans la même organisation ────────────────────────────
+
+CREATE OR REPLACE FUNCTION validate_scope_belongs_to_organization()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_ok BOOLEAN := FALSE;
+BEGIN
+  IF NEW.scope_type = 'organization' THEN
+    IF NEW.scope_id IS NOT NULL THEN
+      RAISE EXCEPTION 'organization scope must not carry a scope_id';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF NEW.scope_id IS NULL THEN
+    RAISE EXCEPTION 'scope_id is required for scope_type %', NEW.scope_type;
+  END IF;
+
+  CASE NEW.scope_type
+    WHEN 'program' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM v2_programs
+        WHERE id::text = NEW.scope_id
+          AND organization_id = NEW.organization_id
+      ) INTO v_ok;
+    WHEN 'cohort' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM v2_groups
+        WHERE id::text = NEW.scope_id
+          AND organization_id = NEW.organization_id
+      ) INTO v_ok;
+    WHEN 'venture' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM ventures
+        WHERE venture_id = NEW.scope_id
+          AND organization_id = NEW.organization_id
+      ) INTO v_ok;
+    WHEN 'course' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM lms_courses
+        WHERE id::text = NEW.scope_id
+          AND owner_organization_id = NEW.organization_id
+      ) INTO v_ok;
+    WHEN 'document' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM <document_table>
+        WHERE id::text = NEW.scope_id
+          AND organization_id = NEW.organization_id
+      ) INTO v_ok;
+    WHEN 'investment' THEN
+      SELECT EXISTS (
+        SELECT 1 FROM <investment_table>
+        WHERE id::text = NEW.scope_id
+          AND organization_id = NEW.organization_id
+      ) INTO v_ok;
+    ELSE
+      RAISE EXCEPTION 'unsupported scope_type %', NEW.scope_type;
+  END CASE;
+
+  IF NOT v_ok THEN
+    RAISE EXCEPTION 'scope % % does not belong to organization %',
+      NEW.scope_type, NEW.scope_id, NEW.organization_id;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- ─── Journal automatique des changements de cycle de vie ────────────────────
+
+CREATE OR REPLACE FUNCTION audit_lifecycle_change()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_org UUID;
+  v_id TEXT;
+  v_before JSONB;
+  v_after JSONB;
+  v_actor TEXT := NULLIF(current_setting('app.actor_cid', true), '');
+BEGIN
+  IF TG_OP = 'DELETE' THEN
+    v_org := OLD.organization_id;
+    v_id := OLD.id::text;
+    v_before := to_jsonb(OLD);
+    v_after := NULL;
+  ELSE
+    v_org := NEW.organization_id;
+    v_id := NEW.id::text;
+    v_before := CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(OLD) ELSE NULL END;
+    v_after := to_jsonb(NEW);
+  END IF;
+
+  INSERT INTO organization_audit_events
+    (organization_id, actor_person_id, action, entity_type, entity_id,
+     before, after, metadata)
+  VALUES
+    (v_org, v_actor, TG_OP, TG_TABLE_NAME, v_id,
+     v_before, v_after, jsonb_build_object('source', 'database_trigger'));
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$;
+
+-- ─── Pose des déclencheurs ──────────────────────────────────────────────────
+
+CREATE OR REPLACE TRIGGER v2_programs_set_org
+BEFORE INSERT ON v2_programs
+FOR EACH ROW EXECUTE FUNCTION set_organization_on_insert();
+
+CREATE OR REPLACE TRIGGER lms_courses_set_owner_org
+BEFORE INSERT ON lms_courses
+FOR EACH ROW EXECUTE FUNCTION set_course_owner_on_insert();
+
+CREATE OR REPLACE TRIGGER organization_audit_events_append_only
+BEFORE UPDATE OR DELETE ON organization_audit_events
+FOR EACH ROW EXECUTE FUNCTION forbid_audit_mutation();
+
+CREATE OR REPLACE TRIGGER organization_memberships_no_delete
+BEFORE DELETE ON organization_memberships
+FOR EACH ROW EXECUTE FUNCTION forbid_delete();
+
+CREATE OR REPLACE TRIGGER organization_memberships_immutable
+BEFORE UPDATE ON organization_memberships
+FOR EACH ROW EXECUTE FUNCTION forbid_immutable_update(
+  'organization_id', 'person_id', 'created_at'
+);
+
+CREATE OR REPLACE TRIGGER organization_role_assignments_scope_org
+BEFORE INSERT OR UPDATE OF scope_type, scope_id, organization_id
+ON organization_role_assignments
+FOR EACH ROW EXECUTE FUNCTION validate_scope_belongs_to_organization();
+
+CREATE OR REPLACE TRIGGER organization_grants_scope_org
+BEFORE INSERT OR UPDATE OF scope_type, scope_id, organization_id
+ON organization_grants
+FOR EACH ROW EXECUTE FUNCTION validate_scope_belongs_to_organization();
+
+CREATE OR REPLACE TRIGGER organization_invitations_scope_org
+BEFORE INSERT OR UPDATE OF scope_type, scope_id, organization_id
+ON organization_invitations
+FOR EACH ROW EXECUTE FUNCTION validate_scope_belongs_to_organization();
+
+CREATE OR REPLACE TRIGGER organization_role_assignments_audit
+AFTER INSERT OR UPDATE OR DELETE ON organization_role_assignments
+FOR EACH ROW EXECUTE FUNCTION audit_lifecycle_change();
+```
+
+Le même modèle de déclencheurs est appliqué aux autres tables de cycle de vie
+(`organization_roles`, `organization_grants`, `organization_invitations`,
+`organization_content_licenses`, `organization_supervision_grants`,
+`organization_contracts`, `organization_modules`).
+
+**Privilèges :**
+
+```sql
+REVOKE UPDATE, DELETE ON organization_audit_events FROM <application_role>;
+GRANT SELECT, INSERT ON organization_audit_events TO <application_role>;
+```
+
+Le rôle applicatif est fourni par l’environnement. Si l’application se connecte
+avec le propriétaire des tables, les privilèges ne suffisent pas : les
+déclencheurs restent la protection effective.
+
+**Suppression légale :** une fonction de maintenance dédiée, avec un privilège
+séparé, peut effectuer une anonymisation ou une suppression pour une obligation
+légale. Elle pose un drapeau de session, journalise l’opération et n’est jamais
+appelée par un chemin applicatif ordinaire.
+
 ---
 
 ## Annexe B — Colonnes sur les tables existantes
@@ -1454,18 +2028,27 @@ Chaque colonne ajoutée doit avoir un index. Les noms exacts des tables de
 fichiers, d’exports et de notifications sont confirmés en Phase 0, avant la
 migration.
 
+Le déclencheur `set_organization_on_insert` est posé sur **chaque** table du
+pilote qui reçoit `organization_id` ; `lms_courses` utilise la variante
+`set_course_owner_on_insert` sur `owner_organization_id`. Le déclencheur est
+installé avant le passage à `NOT NULL`, et chaque ancien chemin de création est
+testé après son installation.
+
 ---
 
 ## Annexe C — Ordre de mise en œuvre recommandé
 
-1. **Phase 0** — inventaire, décisions, liste des tables et des points d’entrée.
+1. **Phase 0** — inventaire, décisions, liste des tables, points d’entrée,
+   lectures/écritures internes et chemins de création.
 2. **Phase 1** — `organizations`, organisation plateforme, colonnes nullables,
-   backfill, session, cache, tests de schéma.
+   backfill, session, filtres internes, écritures compatibles, supervision,
+   garanties d’historique, tests de schéma.
 3. **Phase 2** — portail lecture : contexte, marque, membres, programmes, LMS,
-   ventures, tests d’isolation en lecture.
+   ventures, tests d’isolation bidirectionnelle en lecture.
 4. **Phase 3** — écritures : invitations, rôles, inscriptions, remises,
    livrables, fichiers privés, exports, tests d’isolation en écriture.
-5. **Phase 4** — supervision, suspension, conservation, charge, pilote fictif.
+5. **Phase 4** — suspension, conservation, revue de supervision, charge, pilote
+   fictif.
 6. **Phase 5** — test de production et promotion.
 
 ---
@@ -1494,3 +2077,7 @@ migration.
 | 2026-10-22 | Fichiers clients dans un bucket privé | À valider |
 | 2026-10-22 | Supervision obligatoire pour lire le contenu client | À valider |
 | 2026-10-22 | Éligibilité du portail séparée des lignes internes | À valider |
+| 2026-10-22 | Isolation interne par filtres de modèles, plateforme par défaut | À valider |
+| 2026-10-22 | Écritures existantes sécurisées par déclencheur compatible | À valider |
+| 2026-10-22 | Supervision livrée en Phase 1, activation cliente bloquée sans elle | À valider |
+| 2026-10-22 | Historique protégé par déclencheurs et privilèges de base | À valider |

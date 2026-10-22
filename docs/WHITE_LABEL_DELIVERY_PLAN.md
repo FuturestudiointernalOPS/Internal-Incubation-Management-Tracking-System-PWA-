@@ -126,6 +126,29 @@ tous.
    actif ; un interrupteur ne doit pas pouvoir être oublié.
 8. **Le rollback est préparé avant le déploiement.**
 
+### 4.1 Les quatre exigences structurantes issues de la revue
+
+La revue a identifié quatre angles morts. Ils ne sont plus des "durcissements
+plus tard" : ils deviennent des conditions de passage.
+
+| Exigence | Décision | Où elle est traitée | Gate |
+|---|---|---|---|
+| **Protection des écrans internes** | Une requête interne est limitée à l’organisation plateforme par défaut ; elle ne voit une organisation cliente qu’avec un mandat de supervision. Les modèles du pilote exigent l’organisation. | Phase 1 (filtres et garde), Phase 2 (tests bidirectionnels) | G1 et G2 |
+| **Compatibilité des écritures existantes** | Un déclencheur remplit l’organisation de session, sinon l’organisation plateforme. Chaque ancien chemin de création est testé avant le passage à `NOT NULL`. | Phase 1 | G1 |
+| **Moment de la supervision** | La supervision est livrée en Phase 1 et testée avant l’activation de la première organisation cliente. Aucun accès au contenu client ne dépend d’un contrôle absent. | Phase 1 (schéma et garde), Phase 2 (application) | G1 et G2 |
+| **Contraintes et historique** | Les suppressions, modifications interdites et portées inter-organisations sont refusées par des déclencheurs et des privilèges de base, pas seulement par le service. | Phase 1 | G1 et G4 |
+
+**Conséquence sur le calendrier :** la Phase 1 passe de 3 à 5 semaines et la
+Phase 4 de 3 à 2 semaines. Le total passe d’environ 20 à 25 semaines, hors marge.
+Cette augmentation est le prix de l’isolation interne, de la compatibilité des
+écritures et des garanties d’historique.
+
+**Décision de méthode :** le verrou principal est le **filtre d’organisation
+dans les modèles**, pas une politique de base. Le verrou de base (RLS) reste une
+seconde ceinture optionnelle, car l’exécution actuelle interroge la base par
+requêtes indépendantes sur un pool. Si le filtre applicatif n’est pas complet,
+aucune donnée cliente ne passe en production.
+
 ---
 
 ## 5. Structure de découpage (WBS)
@@ -152,8 +175,8 @@ Le programme est découpé en six phases et un jalon de revue post-pilote.
 ```
 M0         M1              M2              M3              M4              M5          M6
 │          │               │               │               │               │           │
-Cadrage → Fondation → Portail lecture → Écritures → Durcissement → Pilote → Bilan
- 2 sem.     3 sem.          4 sem.          5 sem.          3 sem.        3 sem.    4 sem.
+Cadrage → Fondation et isolation → Portail lecture → Écritures → Durcissement → Pilote → Bilan
+ 2 sem.          5 sem.                4 sem.          5 sem.         2 sem.       3 sem.    4 sem.
 ```
 
 ### Phase 0 — Cadrage et inventaire
@@ -166,9 +189,13 @@ routes, fichiers, exports et jobs à traiter.
 | A0 | Trancher les décisions de § 11 | Décisions signées |
 | B0 | Inventorier les tables clientes candidates | Registre `tenantTables` initial |
 | B0 | Inventorier les routes, jobs, exports, e-mails, liens publics | Cartographie des points d’entrée |
+| B0 | Inventorier les lectures et écritures internes sur les tables du pilote | Cartographie des requêtes internes |
+| B0 | Inventorier tous les chemins de création existants | Liste des chemins à tester |
 | C0 | Vérifier le parcours de connexion et les sessions | Note d’impact |
 | D0 | Vérifier les gardes et périmètres existants | Note de réutilisation |
-| H0 | Écrire le modèle de menace et la matrice d’isolation | Plan de tests |
+| D0 | Décider le mode d’isolation interne : filtres de modèles, verrou de base ou hybride | Décision signée |
+| D0 | Définir le mandat de supervision et le break-glass | Politique de supervision |
+| H0 | Écrire le modèle de menace et la matrice d’isolation bidirectionnelle | Plan de tests |
 | I0 | Vérifier staging, sauvegardes, monitoring | Plan d’environnement |
 | J0 | Valider les trois documents | Revue de cadrage |
 
@@ -176,7 +203,10 @@ routes, fichiers, exports et jobs à traiter.
 
 - Décisions produit tranchées ou arbitrées par le sponsor.
 - Inventaire des tables et points d’entrée complet.
-- Matrice d’isolation et modèle de menace validés.
+- Cartographie des lectures et écritures internes complète.
+- Liste des anciens chemins de création à tester.
+- Mode d’isolation interne et politique de supervision tranchés.
+- Matrice d’isolation bidirectionnelle et modèle de menace validés.
 - Plan de migration et de rollback validés.
 - **Décision go / no-go pour la Phase 1.**
 
@@ -185,7 +215,8 @@ routes, fichiers, exports et jobs à traiter.
 ### Phase 1 — Fondation invisible
 
 **Objectif :** créer les tables, l’organisation plateforme, les colonnes
-nullables, le backfill et la session. **Aucun comportement visible ne change.**
+nullables, le backfill, la session, l’isolation interne, la compatibilité des
+écritures et la supervision. **Aucune donnée cliente n’est encore accessible.**
 
 | Lot | Tâches | Livrables |
 |---|---|---|
@@ -194,26 +225,38 @@ nullables, le backfill et la session. **Aucun comportement visible ne change.**
 | B1 | Ajouter `organization_id` nullable aux tables du pilote | Migration |
 | B1 | Backfill vers l’organisation plateforme | Script idempotent + comptages |
 | B1 | Créer les index et les unicités par organisation | Migration |
+| B1 | Installer les déclencheurs d’écriture compatible | Migration |
+| B1 | Tester chaque ancien chemin de création | Rapport de compatibilité |
+| B1 | Installer les déclencheurs d’historique, d’immuabilité, de portée et de journal | Migration |
 | C1 | Ajouter `active_organization_id` à la session | Migration + modèle |
 | C1 | Exposer `activeOrganizationId` dans le contexte de session | Code |
 | C1 | Résoudre et changer l’organisation active | Service + route |
 | C1 | Invalider le cache de session et le cache d’organisation | Code |
 | D1 | Ajouter le module de capacités `organization_admin` | Catalogue |
 | D1 | Créer les modèles de rôles et les rôles de l’organisation plateforme | Seed |
-| H1 | Tests de schéma, d’unicité et de backfill | Suites |
+| D1 | Ajouter le filtre d’organisation aux modèles du pilote, plateforme par défaut | Code + tests |
+| D1 | Implémenter le schéma, le garde et les tests de supervision | Code + tests |
+| H1 | Tests de schéma, d’unicité, de backfill et de compatibilité des écritures | Suites |
+| H1 | Tests d’isolation interne et de garanties d’historique | Suites |
 | H1 | Vérifier que les suites existantes restent vertes | Rapport |
 
-**Milestone M1 — Fondation en place**
+**Milestone M1 — Fondation et isolation en place**
 
 - Les tables et contraintes existent.
 - L’organisation plateforme existe et toutes les données du pilote y sont
   rattachées.
 - La session porte l’organisation active.
 - Le changement d’organisation invalide les caches.
-- Aucun écran interne ne change de comportement.
+- Les requêtes internes sont limitées à l’organisation plateforme par défaut.
+- Les anciens chemins de création renseignent l’organisation plateforme.
+- La supervision est implémentée et testée.
+- Les suppressions et modifications interdites échouent en base.
+- Les écrans internes voient toujours les données de la plateforme comme avant
+  et aucune ligne cliente sans mandat.
 - **Décision go / no-go pour la Phase 2.**
 
-**Critère dur :** aucune régression dans les suites de permissions existantes.
+**Critère dur :** aucune régression dans les suites de permissions existantes,
+et isolation interne prouvée avant la première donnée cliente.
 
 ---
 
@@ -226,6 +269,7 @@ programmes, LMS et ventures. Aucune écriture client.
 |---|---|---|
 | D2 | Garde `requireOrganization` et décision d’accès | Garde + tests |
 | D2 | Vérification du module, de l’appartenance et du rôle | Service + tests |
+| D2 | Appliquer la supervision avant toute lecture d’une organisation cliente | Garde + tests |
 | E2 | `GET /api/org/context` et `GET /api/org/profile` | API |
 | E2 | `GET /api/org/members` | API paginée |
 | E2 | `GET /api/org/programs`, `GET /api/org/lms/*`, `GET /api/org/ventures` | API |
@@ -236,15 +280,18 @@ programmes, LMS et ventures. Aucune écriture client.
 | F2 | Tableau de bord, programmes, LMS, ventures, membres | Écrans lecture |
 | F2 | i18n `organization.*` EN/FR | Locales |
 | G2 | Vérifier qu’aucun fichier client n’est exposé en lecture | Test |
-| H2 | Matrice d’isolation en lecture | Suites |
+| H2 | Matrice d’isolation en lecture, dans les deux sens | Suites |
 | H2 | Tests de route : `401`, `403`, `404` | Suites |
+| H2 | Vérifier qu’aucune organisation cliente n’est activée avant la supervision | Test de gate |
 
 **Milestone M2 — Portail lecture**
 
 - Une organisation fictive peut se connecter, voir sa marque et ses données.
 - Les trois modules sont visibles en lecture.
 - Les membres et le journal sont lisibles selon les droits.
-- Aucun accès croisé en lecture.
+- Aucun accès croisé en lecture, ni interne → client ni client → interne.
+- La supervision est appliquée avant la lecture d’une organisation cliente.
+- Aucune organisation cliente n’est activée avant que la supervision soit en place.
 - **Décision go / no-go pour la Phase 3.**
 
 ---
@@ -284,15 +331,16 @@ rôles, inscriptions, remises, livrables, documents, partages et exports.
 
 ### Phase 4 — Durcissement et pilote fictif
 
-**Objectif :** prouver la sécurité, la supervision, la conservation et la
-tenue en charge avant tout client réel.
+**Objectif :** prouver la tenue en charge, la conservation, la revue de sécurité
+et le scénario complet avant tout client réel. La supervision est déjà en place
+depuis la Phase 1.
 
 | Lot | Tâches | Livrables |
 |---|---|---|
-| D4 | Supervision explicite, bornée, journalisée | Service + API |
-| D4 | Vérifier que la supervision est obligatoire pour lire le contenu client | Tests |
+| H4 | Revue de la supervision et du break-glass | Rapport |
+| H4 | Vérifier qu’aucun accès n’a eu lieu sans mandat | Rapport |
 | I4 | Scénario Horizon complet avec deux organisations fictives | Rapport de pilote |
-| H4 | Revue de sécurité et modèle de menace | Rapport |
+| H4 | Revue de sécurité et modèle de menace bidirectionnel | Rapport |
 | H4 | Test de charge et budgets de requêtes | Rapport |
 | H4 | Vérification des jobs de fond | Rapport |
 | G4 | Suspension, archivage, export et conservation | Runbook |
@@ -302,11 +350,11 @@ tenue en charge avant tout client réel.
 
 **Milestone M4 — Durcissement validé**
 
-- La supervision est explicite et journalisée.
+- La revue confirme qu’aucun accès n’a eu lieu sans mandat.
 - Le scénario Horizon passe de bout en bout.
 - Les tests de charge respectent les budgets.
 - Les runbooks de suspension et de conservation existent.
-- Aucun incident d’isolation.
+- Aucun incident d’isolation, dans les deux sens.
 - **Décision go / no-go pour le pilote réel.**
 
 ---
@@ -369,14 +417,14 @@ gantt
     axisFormat  %d/%m
     section Cadrage
     Phase 0 — décisions et inventaire :p0, 2026-11-02, 14d
-    section Fondation
-    Phase 1 — schéma, org plateforme, session :p1, after p0, 21d
+    section Fondation et isolation
+    Phase 1 — schéma, session, isolation, supervision :p1, after p0, 35d
     section Portail lecture
     Phase 2 — contexte, marque, membres, 3 modules :p2, after p1, 28d
     section Écritures
     Phase 3 — écritures, fichiers, exports :p3, after p2, 35d
     section Durcissement
-    Phase 4 — sécurité, supervision, charge :p4, after p3, 21d
+    Phase 4 — revue sécurité, charge, runbooks :p4, after p3, 14d
     section Pilote
     Phase 5 — pilote réel et production :p5, after p4, 21d
     section Bilan
@@ -386,34 +434,38 @@ gantt
 | Phase | Durée indicative | Fin indicative | Jalon |
 |---|---|---|---|
 | 0 — Cadrage | 2 semaines | 13/11/2026 | M0 |
-| 1 — Fondation | 3 semaines | 04/12/2026 | M1 |
-| 2 — Portail lecture | 4 semaines | 08/01/2027 | M2 |
-| 3 — Écritures | 5 semaines | 12/02/2027 | M3 |
-| 4 — Durcissement | 3 semaines | 05/03/2027 | M4 |
+| 1 — Fondation et isolation | 5 semaines | 18/12/2026 | M1 |
+| 2 — Portail lecture | 4 semaines | 15/01/2027 | M2 |
+| 3 — Écritures | 5 semaines | 19/02/2027 | M3 |
+| 4 — Durcissement | 2 semaines | 05/03/2027 | M4 |
 | 5 — Pilote | 3 semaines | 26/03/2027 | M5 |
 | 6 — Bilan | 4 semaines | 23/04/2027 | M6 |
 
-**Marge recommandée :** 15 à 20 %, soit environ 3 semaines, à placer avant M5.
+**Marge recommandée :** 15 à 20 %, soit environ 4 semaines, à placer avant M5.
 Les congés de fin d’année et les dépendances client peuvent allonger la Phase 2
-et la Phase 5.
+et la Phase 5. Le total passe d’environ 20 à 25 semaines : l’isolation interne,
+la compatibilité des écritures et les garanties d’historique ne sont pas des
+options de fin de programme.
 
 ### Charge indicative
 
 | Chantier | Charge (personnes-semaines) |
 |---|---|
-| A — Produit et décisions | 2–3 |
-| B — Données et migration | 5–7 |
-| C — Identité et session | 2–3 |
-| D — Autorisation | 4–6 |
-| E — API | 5–7 |
-| F — Interface | 6–8 |
-| G — Fichiers et communications | 4–6 |
-| H — Sécurité et qualité | 5–7 |
-| I — Déploiement et support | 2–3 |
-| **Total** | **35–50** |
+| A — Produit et décisions | 3–4 |
+| B — Données, migration et écritures compatibles | 10–14 |
+| C — Identité et session | 3–4 |
+| D — Autorisation, isolation interne et supervision | 9–12 |
+| E — API | 8–11 |
+| F — Interface | 9–12 |
+| G — Fichiers et communications | 6–8 |
+| H — Sécurité, tests d’isolation et garanties d’historique | 10–13 |
+| I — Déploiement et support | 3–5 |
+| **Total** | **61–83** |
 
 Ces chiffres sont des ordres de grandeur, pas un engagement. Ils supposent une
-équipe habituée au code et un périmètre stable après M0.
+équipe habituée au code et un périmètre stable après M0. L’augmentation par
+rapport à la première estimation vient des quatre exigences de revue : isolation
+interne, compatibilité des écritures, supervision avancée et garanties de base.
 
 ---
 
@@ -424,13 +476,15 @@ Ces chiffres sont des ordres de grandeur, pas un engagement. Ils supposent une
 ```
 Décisions M0
   → schéma + organisation plateforme
-    → session + contexte d'organisation
-      → garde d'autorisation
-        → portail en lecture
-          → écritures + fichiers + exports
-            → supervision + durcissement
-              → test de production
-                → pilote réel
+    → écritures compatibles + garanties d'historique
+      → filtres internes (plateforme par défaut)
+        → session + contexte d'organisation
+          → garde d'autorisation + supervision
+            → portail en lecture
+              → écritures + fichiers + exports
+                → revue de sécurité + charge
+                  → test de production
+                    → pilote réel
 ```
 
 ### 8.2 Dépendances structurantes
@@ -439,12 +493,13 @@ Décisions M0
 |---|---|---|
 | Décisions de rôle et de délégation | Phase 2 et 3 | Les écrans et les gardes en dépendent |
 | Schéma et backfill | Phase 2 | Le contexte d’organisation lit ces tables |
+| Filtres internes et compatibilité des écritures | Phase 2 | Aucune donnée cliente ne doit être accessible avant |
 | Session avec organisation active | Phase 2 | Toutes les routes du portail en dépendent |
-| Garde d’autorisation | Phase 2 | Aucune route ne doit être ouverte avant |
+| Garde d’autorisation et supervision | Phase 2 | Aucune route cliente ne doit être ouverte avant |
 | Rôle `organization_admin` | Phase 3 | Invitations et gestion des membres |
 | Bucket privé | Phase 3 | Les fichiers clients ne peuvent pas être publics |
-| Matrice d’isolation | M2 et M3 | Condition de passage |
-| Supervision | M4 | Condition d’accès au contenu client |
+| Matrice d’isolation bidirectionnelle | M2 et M3 | Condition de passage |
+| Garanties d’historique | M1 | Condition de conformité |
 | Test de production | M5 | Condition de promotion |
 
 ### 8.3 Dépendances externes
@@ -483,8 +538,8 @@ Décisions M0
 | Gate | Moment | Critère de passage |
 |---|---|---|
 | **G0** | Fin Phase 0 | Modèle, spécification et plan approuvés ; décisions tranchées |
-| **G1** | Fin Phase 1 | Schéma et backfill vérifiés ; aucune régression |
-| **G2** | Fin Phase 2 | Isolation en lecture verte ; portail lecture démontré |
+| **G1** | Fin Phase 1 | Schéma, backfill, filtres internes, écritures compatibles, supervision et garanties d’historique vérifiés ; aucune régression |
+| **G2** | Fin Phase 2 | Isolation bidirectionnelle verte ; supervision appliquée ; portail lecture démontré |
 | **G3** | Fin Phase 3 | Isolation en écriture, fichiers et exports verte |
 | **G4** | Fin Phase 4 | Revue de sécurité, charge, supervision et runbooks validés |
 | **G5** | Fin Phase 5 | Test de production vert ; pilote réel accepté |
@@ -497,7 +552,10 @@ Décisions M0
 | Unitaire | Modèles, rôles, autorisations, périmètres, licences |
 | Service | Contexte d’organisation, changement d’organisation, délégation |
 | Route | `401`, `403`, `404`, validation, CSRF, pagination |
-| Isolation | Matrice par table du pilote, lectures et écritures |
+| Isolation | Matrice par table du pilote, lectures et écritures, dans les deux sens |
+| Écritures existantes | Chaque ancien chemin de création renseigne l’organisation plateforme |
+| Supervision | Aucun accès à une organisation cliente sans mandat actif |
+| Base de données | Suppressions, modifications interdites et portées inter-organisations refusées |
 | Fichiers | Bucket privé, lien signé, téléchargement croisé |
 | Exports | Aucune ligne d’une autre organisation |
 | Jobs | `organization_id` obligatoire |
@@ -533,7 +591,10 @@ La promotion vers la production suit `docs/PRODUCTION_TEST.md`, item par item.
 | 7 | Domaine personnalisé | Hors pilote, champ préparé | Aucun blocage si hors pilote |
 | 8 | Éligibilité du portail | Plafond du modèle de rôle, distinct de l’interne | Bloque l’autorisation |
 | 9 | Supervision du propriétaire de plateforme | Mandat obligatoire, break-glass journalisé | Bloque l’accès support |
-| 10 | Verrou de base (RLS) en Phase 4 | Optionnel, après isolation applicative | Peut être reporté |
+| 10 | Isolation interne | Filtres de modèles en Phase 1 ; verrou de base optionnel en Phase 4/5 | Bloque toute donnée cliente |
+| 11 | Compatibilité des écritures | Déclencheur d’écriture compatible, plateforme par défaut | Bloque le passage à `NOT NULL` |
+| 12 | Moment de la supervision | Phase 1, activation cliente bloquée sans elle | Bloque le pilote |
+| 13 | Garanties d’historique | Déclencheurs et privilèges de base | Bloque la conformité |
 
 ---
 
@@ -576,12 +637,18 @@ de la V1 et doit être traitée comme un chantier séparé.
 | Risque | Probabilité | Impact | Mitigation | Propriétaire |
 |---|---|---|---|---|
 | La longue traîne des requêtes oublie un filtre | Moyenne | Critique | Registre `tenantTables`, tests d’isolation par table, pilote borné | TL |
-| Une route interne change de comportement | Faible | Critique | Liste « ne pas toucher », revue de diff, suites existantes | TL |
+| Une requête interne non filtrée lit les données clientes | Moyenne | Critique | Filtres de modèles, plateforme par défaut, tests bidirectionnels | TL |
+| Une ancienne écriture échoue ou écrit dans la mauvaise organisation | Moyenne | Critique | Déclencheur compatible, tests de chaque chemin avant `NOT NULL` | BE |
+| La supervision arrive trop tard | Faible | Critique | Supervision en Phase 1, activation cliente bloquée sans elle | PO |
+| Un service contourne l’historique | Moyenne | Élevé | Déclencheurs de non-suppression, d’immuabilité et de journal | QA |
+| Une route interne change de comportement | Faible | Critique | Les écrans internes voient la plateforme comme avant ; revue de diff et suites existantes | TL |
 | Le cache sert les droits d’une autre organisation | Moyenne | Critique | Clé avec organisation, invalidation au changement, tests | BE |
 | Un fichier client est public | Moyenne | Critique | Bucket privé, téléchargement contrôlé, revue de sécurité | OPS |
 | Un export contient une autre organisation | Moyenne | Critique | Filtre dans la requête et le job, test dédié | BE |
 | Un job de fond travaille sans organisation | Moyenne | Élevé | `organization_id` obligatoire, test de job | BE |
 | Un rôle client dépasse son plafond | Faible | Élevé | Modèle global, validation, test d’escalade | TL |
+| Un administrateur client voit la console interne | Faible | Critique | Portes séparées, rôle d’organisation, test de route | TL |
+| Un salarié Future Studio lit sans mandat | Faible | Critique | Supervision obligatoire dans le portail et la console interne, journal | PO |
 | Les types historiques bloquent les clés composites | Moyenne | Moyen | Vérification applicative d’abord, normalisation séparée | TL |
 | La migration est trop longue | Moyenne | Élevé | Additive, par lots, staging, sauvegarde | OPS |
 | Le client pilote n’est pas prêt | Moyenne | Moyen | Onboarding anticipé, référent dédié | PO |
@@ -597,10 +664,12 @@ de la V1 et doit être traitée comme un chantier séparé.
 1. Sauvegarde et point de restauration.
 2. Migration additive.
 3. Vérification des comptages avant/après backfill.
-4. Déploiement du code.
-5. Création des organisations fictives.
-6. Matrice d’isolation.
-7. Suites de non-régression.
+4. Tests des anciens chemins de création.
+5. Déploiement du code avec filtres internes et supervision.
+6. Vérification que les écrans internes ne voient pas les données clientes.
+7. Création des organisations fictives, uniquement si la supervision est verte.
+8. Matrice d’isolation bidirectionnelle.
+9. Suites de non-régression.
 
 ### 14.2 Production
 
@@ -608,15 +677,18 @@ de la V1 et doit être traitée comme un chantier séparé.
 2. Fenêtre de déploiement annoncée.
 3. Migration additive.
 4. Vérification des comptages.
-5. Activation du portail pour le client pilote uniquement.
-6. Surveillance renforcée pendant 72 heures.
+5. Vérification que la supervision et l’isolation sont vertes.
+6. Activation du portail pour le client pilote uniquement.
+7. Surveillance renforcée pendant 72 heures.
 
 ### 14.3 Rollback
 
-- Désactiver le portail client : les routes internes restent inchangées.
+- Désactiver le portail client : les écrans internes restent disponibles.
+- **Ne jamais rouvrir les filtres d’organisation** : les modèles filtrés et les
+  déclencheurs restent en place.
 - Ne pas supprimer les tables ou colonnes ajoutées.
+- Conserver les données, les journaux et les déclencheurs d’historique.
 - Restaurer le code précédent si nécessaire.
-- Conserver les données et les journaux.
 - Un rollback de code ne doit jamais exiger un rollback de schéma.
 
 ### 14.4 Incident
@@ -635,7 +707,9 @@ de la V1 et doit être traitée comme un chantier séparé.
 |---|---|
 | Accès croisés détectés en production | 0 |
 | Régressions de permissions | 0 |
-| Tests d’isolation verts | 100 % des tables du registre |
+| Tests d’isolation verts, dans les deux sens | 100 % des tables du registre |
+| Anciens chemins de création compatibles | 100 % |
+| Accès à une organisation cliente sans mandat | 0 |
 | Temps de réponse p95 du contexte d’organisation | < 300 ms |
 | Temps de réponse p95 des listes | < 500 ms |
 | Onboarding d’une nouvelle organisation | < 1 jour ouvré |
@@ -655,14 +729,19 @@ de la V1 et doit être traitée comme un chantier séparé.
 | Migration additive | M1 | BE |
 | Seed des rôles | M1 | BE |
 | Session avec organisation active | M1 | BE |
+| Filtres d’organisation dans les modèles | M1 | BE |
+| Écritures existantes compatibles | M1 | BE |
+| Supervision (schéma, garde, tests) | M1 | BE |
+| Garanties d’historique en base | M1 | BE + QA |
 | Garde d’autorisation | M2 | BE |
+| Supervision appliquée | M2 | BE |
 | Portail lecture | M2 | FE |
-| Matrice d’isolation lecture | M2 | QA |
+| Matrice d’isolation lecture, deux sens | M2 | QA |
 | Invitations et rôles | M3 | BE |
 | Écritures des trois modules | M3 | BE |
 | Stockage privé et exports | M3 | BE + OPS |
 | Matrice d’isolation écriture | M3 | QA |
-| Supervision et conservation | M4 | BE + OPS |
+| Conservation et suspension | M4 | BE + OPS |
 | Rapport de sécurité et de charge | M4 | QA |
 | Runbooks support et incident | M4 | OPS |
 | Pilote réel | M5 | PO + OPS |
@@ -677,7 +756,9 @@ de la V1 et doit être traitée comme un chantier séparé.
 
 - [ ] Décisions de § 11 tranchées.
 - [ ] Inventaire des tables et points d’entrée complet.
-- [ ] Modèle de menace et matrice d’isolation validés.
+- [ ] Cartographie des lectures et écritures internes complète.
+- [ ] Mode d’isolation interne et politique de supervision tranchés.
+- [ ] Modèle de menace et matrice d’isolation bidirectionnelle validés.
 - [ ] Plan de migration et de rollback validés.
 - [ ] Calendrier et budget confirmés.
 
@@ -688,8 +769,12 @@ de la V1 et doit être traitée comme un chantier séparé.
 - [ ] Backfill vérifié par comptage.
 - [ ] Session avec organisation active.
 - [ ] Caches invalidés au changement.
+- [ ] Requêtes internes limitées à l’organisation plateforme par défaut.
+- [ ] Anciens chemins de création compatibles.
+- [ ] Supervision implémentée et testée.
+- [ ] Suppressions et modifications interdites refusées en base.
 - [ ] Suites existantes vertes.
-- [ ] Aucun écran interne modifié.
+- [ ] Écrans internes inchangés pour les données de la plateforme.
 
 ### M2 — Portail lecture
 
@@ -697,7 +782,9 @@ de la V1 et doit être traitée comme un chantier séparé.
 - [ ] Marque affichée.
 - [ ] Trois modules en lecture.
 - [ ] Membres et journal en lecture.
-- [ ] Matrice d’isolation lecture verte.
+- [ ] Matrice d’isolation lecture verte, dans les deux sens.
+- [ ] Supervision appliquée avant toute lecture cliente.
+- [ ] Aucune organisation cliente activée avant la supervision.
 - [ ] Aucun fichier client exposé.
 
 ### M3 — Portail utilisable
@@ -711,7 +798,8 @@ de la V1 et doit être traitée comme un chantier séparé.
 
 ### M4 — Durcissement
 
-- [ ] Supervision explicite et journalisée.
+- [ ] Revue de supervision et de break-glass close.
+- [ ] Aucun accès sans mandat constaté.
 - [ ] Scénario Horizon validé.
 - [ ] Test de charge conforme.
 - [ ] Runbooks suspension, conservation et incident.
@@ -722,8 +810,8 @@ de la V1 et doit être traitée comme un chantier séparé.
 - [ ] Client réel onboardé.
 - [ ] Test de production vert.
 - [ ] Surveillance 72 heures.
-- [ ] Rollback prêt.
-- [ ] Aucun accès croisé.
+- [ ] Rollback prêt, sans réouverture des filtres.
+- [ ] Aucun accès croisé, dans les deux sens.
 
 ### M6 — Bilan
 
@@ -746,6 +834,10 @@ de la V1 et doit être traitée comme un chantier séparé.
 | 2026-10-22 | Migration additive et organisation plateforme par défaut | À valider à M0 |
 | 2026-10-22 | Fichiers clients dans un bucket privé | À valider à M0 |
 | 2026-10-22 | Supervision obligatoire pour lire le contenu client | À valider à M0 |
+| 2026-10-22 | Isolation interne par filtres de modèles, plateforme par défaut | À valider à M0 |
+| 2026-10-22 | Écritures existantes sécurisées par déclencheur compatible | À valider à M0 |
+| 2026-10-22 | Supervision livrée en Phase 1, activation cliente bloquée sans elle | À valider à M0 |
+| 2026-10-22 | Historique protégé par déclencheurs et privilèges de base | À valider à M0 |
 
 ---
 
@@ -763,9 +855,11 @@ de la V1 et doit être traitée comme un chantier séparé.
 | Autorisations | § 5.8 | § 8, annexe A | Phase 2–3 |
 | Invitations | § 5.9 | § 9.2 | Phase 3 |
 | Licences | § 5.10 | § 11, annexe A | Phase 3 |
-| Supervision | § 5.11 | § 11.7, annexe A | Phase 4 |
+| Supervision | § 5.11 | § 11.7, annexe A | Phase 1–2 |
 | Journal | § 5.12 | § 11.9, annexe A | Phase 1–4 |
 | Conservation | § 5.12 | § 11.3, annexe A | Phase 4 |
 | Personas | § 5.13 | § 5, § 8 | Phase 2 |
-| Isolation | § 9 | § 11, § 13.5 | Phase 2–4 |
+| Isolation bidirectionnelle | § 6.3, § 9 | § 11.10, § 13.5 | Phase 1–4 |
+| Écritures compatibles | § 9 | § 6.7, § 11.11 | Phase 1 |
+| Garanties d’historique | § 9 | § 6.6, § 11.12, annexe A.2 | Phase 1 |
 | Production | — | § 14 | Phase 5 |
