@@ -5,6 +5,20 @@ import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
 import { preparePermissionReads, readPermissionMatrix } from "@/services/authorization/permissionMatrix";
 import { applyPermissionChange } from "@/services/authorization/permissionWrites";
+import { isSelfAssignment } from "@/services/authorization/profileAssignment";
+
+/**
+ * §13 (séparation des devoirs) — actions that change a PERSON's own access and
+ * must never be applied to the caller themselves.
+ */
+const SELF_SENSITIVE_ACTIONS = new Set([
+  "grant",
+  "revoke",
+  "restrict",
+  "unrestrict",
+  "set_role",
+  "set_status",
+]);
 
 /**
  * GET /api/engineering/permissions
@@ -12,8 +26,10 @@ import { applyPermissionChange } from "@/services/authorization/permissionWrites
  * Returns the full permission matrix definition and user capability data.
  * Query params:
  *   ?user_cid=X  — get effective permissions for a specific user
- *   ?role=staff  — get role defaults for a specific role
  *   ?group=Development — get group defaults for a specific group
+ *
+ * Role-level defaults are no longer stored per capability: a role names a
+ * default PROFILE, and that profile carries the capabilities.
  */
 // Resilient reads: a missing table (migration not yet applied) must never 500
 // the whole permissions page — the model's list helpers degrade to an empty
@@ -33,7 +49,6 @@ export async function GET(req) {
     const { status, body } = await readPermissionMatrix({
       users: searchParams.get("users"),
       userCid: searchParams.get("user_cid"),
-      role: searchParams.get("role"),
       group: searchParams.get("group"),
     });
     return NextResponse.json(body, { status });
@@ -61,7 +76,7 @@ export async function PUT(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -83,6 +98,28 @@ export async function PUT(req) {
     // HTTP boundary.
     if (
       (action === "promote_super_admin" || action === "remove_super_admin") &&
+      session.role !== "super_admin"
+    ) {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
+
+    // §13 — separation of duties: nobody changes their OWN access through this
+    // admin route (self-escalation). The context targets a PERSON.
+    if (SELF_SENSITIVE_ACTIONS.has(action) && isSelfAssignment(session, user_cid)) {
+      return NextResponse.json(
+        { success: false, error: "errors.cannotChangeOwnAccess" },
+        { status: 403 },
+      );
+    }
+
+    // §13 — only a super admin may assign the super_admin role. Without this,
+    // `set_role` would bypass the promote_super_admin gate just above.
+    if (
+      action === "set_role" &&
+      String(body.role || "") === "super_admin" &&
       session.role !== "super_admin"
     ) {
       return NextResponse.json(

@@ -1,10 +1,11 @@
 /**
  * FACILITATOR CAPABILITY COVERAGE CONTRACT
  *
- * The facilitator vocabulary is declared in three places that must agree
- * exactly, and it is ENFORCED in a fourth place (the route layer). This test
- * locks all four together so the two failure modes this repo has already hit
- * cannot recur silently:
+ * The facilitator vocabulary is declared ONCE (the dedicated animation-rights
+ * definition) and exposed through three views that must agree exactly, and it
+ * is ENFORCED in a fourth place (the route layer). This test locks all of them
+ * together so the two failure modes this repo has already hit cannot recur
+ * silently:
  *
  *   - DRIFT: `reviews.submit` lived in PERMISSION_MODULES and the catalog but
  *     not in FACILITATOR_CAPABILITY_KEYS, so the PM UI could not render it and
@@ -25,28 +26,23 @@
  *     assignments.view    api/submissions/route.js         (GET)
  *     reviews.submit      api/facilitator-reviews/route.js  (POST)
  *
- *   ASSIGNMENT-ONLY (the per-program level is not consulted yet)
+ *   RETIRED (Phase 7, D7) — granted "on paper" but never consulted by a
+ *     decision, so they were removed from the vocabulary instead of wired:
  *     participants.manage, assignments.review, sessions.record, progress.view,
- *     groups.view, groups.manage
+ *     groups.view, groups.manage. A right no route enforces is a false right.
  *
- *   The remaining six are assignment-only because their routes are gated on a
- *   role allowlist that never admits a facilitator at all (participants POST,
- *   v2 groups) or because no dedicated route exists (sessions.record,
- *   progress.view). Wiring them means loosening or adding a route, which is a
- *   product decision, not an enforcement fix.
- *
- * Migrating the assignment-only remainder to level-based enforcement requires a
- * data backfill of the legacy v2_program_staff.permissions rows first —
- * `getFacilitatorPermissionLevel` answers 0 for a key a row does not carry, so
- * flipping a route before the backfill would deny existing facilitators. That
- * is a product/deploy step, documented in docs/AUTHZ_CURRENT_STATE.md.
+ * The assignment-only remainder is therefore EMPTY: every declared facilitator
+ * right is level-enforced by a real route. See
+ * docs/permissions/phase-7-d7-animation-rights.md.
  */
 const fs = require("node:fs");
 const path = require("node:path");
 
 const { FACILITATOR_CAPABILITY_KEYS } = require("@/lib/facilitator-permissions");
-const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
-const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
+const { FACILITATOR_MODULE } = require("@/models/authorization/constants/facilitator-capabilities");
+const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
+const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
+const { FEATURE_MODULE_CAPABILITY } = require("@/models/authorization/constants/feature-module-capability");
 
 const ROOT = path.join(__dirname, "..", "..");
 const API_ROOT = path.join(ROOT, "src", "app", "api");
@@ -62,15 +58,12 @@ const ENFORCED = {
   "reviews.submit": "src/app/api/facilitator-reviews/route.js",
 };
 
-/** Declared but not yet consulted at request level (assignment-only today). */
-const ASSIGNMENT_ONLY = [
-  "participants.manage",
-  "assignments.review",
-  "sessions.record",
-  "progress.view",
-  "groups.view",
-  "groups.manage",
-];
+/**
+ * Declared but not yet consulted at request level. EMPTY since Phase 7 (D7): the
+ * six assignment-only rights were RETIRED rather than wired, so every declared
+ * facilitator right is now level-enforced by a real route.
+ */
+const ASSIGNMENT_ONLY = [];
 
 /** Every `capability: "<key>"` argument found in the API routes. */
 function capabilityArgsInRoutes() {
@@ -90,7 +83,16 @@ function capabilityArgsInRoutes() {
 
 const sorted = (values) => [...values].sort();
 
-describe("facilitator vocabulary — one list, three declarations", () => {
+describe("facilitator vocabulary — one definition, three views", () => {
+  test("the registry imports the dedicated definition instead of copying it", () => {
+    expect(FEATURE_MODULE_CAPABILITY.programs.facilitator).toBe(FACILITATOR_MODULE);
+    expect(CAPABILITY_CATALOG.facilitator.capabilities).toBe(
+      FACILITATOR_MODULE.capabilities,
+    );
+    expect(PERMISSION_MODULES.facilitator.capabilities).toEqual(
+      Object.keys(FACILITATOR_MODULE.capabilities),
+    );
+  });
   test("FACILITATOR_CAPABILITY_KEYS matches PERMISSION_MODULES.facilitator", () => {
     expect(sorted(FACILITATOR_CAPABILITY_KEYS)).toEqual(
       sorted(PERMISSION_MODULES.facilitator.capabilities),

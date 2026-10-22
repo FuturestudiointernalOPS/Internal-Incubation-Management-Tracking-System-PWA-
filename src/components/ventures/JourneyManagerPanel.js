@@ -82,6 +82,11 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [saving, setSaving] = useState(false);
 
   const [applyOpen, setApplyOpen] = useState(false);
+  // Import-a-plan and change history are ACTIONS, not permanent boxes: each
+  // opens its own panel from the toolbar (beside "From template") and closes
+  // again, so the journey itself stays the thing on screen.
+  const [importOpen, setImportOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
@@ -336,20 +341,35 @@ export default function JourneyManagerPanel({ ventureId }) {
         activeStages={activeStages}
         addOpen={addOpen}
         applyOpen={applyOpen}
+        historyOpen={historyOpen}
+        importOpen={importOpen}
         saveOpen={saveOpen}
         stages={stages}
         setAddOpen={setAddOpen}
         setSaveOpen={setSaveOpen}
         toggleApply={toggleApply}
+        toggleHistory={() => setHistoryOpen((open) => !open)}
+        toggleImport={() => setImportOpen((open) => !open)}
       />
 
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
           proposes. Guarded by the same authority that may define the journey —
-          importing a plan IS defining one. */}
-      {access.create && <PlanImportPanel ventureId={ventureId} onImported={refreshJourney} />}
+          importing a plan IS defining one. Opened from the toolbar, above. */}
+      {access.create && importOpen && (
+        <PlanImportPanel
+          ventureId={ventureId}
+          onImported={refreshJourney}
+          onClose={() => setImportOpen(false)}
+        />
+      )}
 
-      {/* History answers a question, so it sits with the thing it describes. */}
-      <VentureChangeLogPanel ventureId={ventureId} />
+      {/* History answers a question, so it sits with the thing it describes and
+          opens from the same toolbar. */}
+      <VentureChangeLogPanel
+        ventureId={ventureId}
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+      />
 
       <JourneyTemplateSource templateSource={templateSource} />
 

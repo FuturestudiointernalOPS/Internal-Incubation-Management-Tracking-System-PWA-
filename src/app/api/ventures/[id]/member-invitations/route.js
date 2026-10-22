@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getSession } from "@/server/auth/session";
 import {
   listVentureMemberInvitations,
@@ -8,7 +9,6 @@ import {
 } from "@/models/ventureMemberInvitations";
 import {
   resolveVentureTableId,
-  checkVentureMemberViewAccess,
   checkVentureMemberMutateAccess,
 } from "@/models/ventureMemberAccess";
 
@@ -26,15 +26,11 @@ export async function GET(req, { params }) {
     if (authError) return authError;
 
     const { id } = await params;
-    const session = await getSession();
-    const userCid = session?.cid || "";
-    const userRole = session?.role || "";
+
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
 
     const ventureId = await resolveVentureTableId(db, id);
-    if (!(await checkVentureMemberViewAccess(db, ventureId, userRole, userCid))) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
-
     const invitations = await listVentureMemberInvitations(ventureId);
     return NextResponse.json({ success: true, invitations });
   } catch (error) {
@@ -62,10 +58,13 @@ export async function DELETE(req, { params }) {
     const userCid = session?.cid || "";
     const userRole = session?.role || "";
 
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+
     const ventureId = await resolveVentureTableId(db, id);
     if (!(await checkVentureMemberMutateAccess(db, ventureId, userRole, userCid))) {
       return NextResponse.json(
-        { success: false, error: "Only founders can manage venture members." },
+        { success: false, error: "errors.foundersOnly" },
         { status: 403 },
       );
     }

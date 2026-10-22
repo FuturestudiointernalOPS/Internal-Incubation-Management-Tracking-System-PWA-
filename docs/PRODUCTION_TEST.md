@@ -105,9 +105,28 @@ SELECT * FROM user_responsibilities;
 SELECT * FROM profiles;
 SELECT * FROM profile_capabilities;
 SELECT * FROM role_profile_defaults;
+-- Last snapshot of the retired per-role table: needed only to roll back this
+-- deploy. The new build no longer reads or creates it.
 SELECT * FROM role_capabilities;
 SELECT * FROM venture_staff_assignments;
 ```
+
+### 4.1b Pre-flight before dropping `role_capabilities`
+
+The build no longer reads the table, but the destructive migration must wait
+until every account still resolves a base PROFILE. Run, read-only:
+
+```sql
+SELECT c.role, COUNT(*) AS people
+FROM contacts c
+LEFT JOIN role_profile_defaults rpd ON rpd.role_name = c.role
+LEFT JOIN contacts o ON o.cid = c.cid AND o.profile_key IS NOT NULL
+WHERE o.cid IS NULL AND rpd.role_name IS NULL
+GROUP BY c.role;
+```
+
+Expect **zero rows**. Any row names an identity that would lose its base rights.
+Only then run `migrations/drop_role_capabilities.sql`.
 
 ### 4.2 Confirm the access vocabulary landed
 
@@ -205,10 +224,10 @@ unmet) or `not_started` (Journey active, nothing holds it back).
 
 ## 5. Database schema steps
 
-`ensureVentureSchema()` is runtime DDL and runs from **only four paths**
-(`/api/ventures/promote`, `/api/s/public-submit`, `…/journey/save-template`,
-`createVentureFromSubmission`). A production database that has never run one of
-them is **missing** the newer columns and tables.
+`ensureVentureSchema()` is runtime DDL and runs from a handful of Venture write
+paths (the promote and public-submit intake, journey save-template, plan-import,
+the people link, and **sending a reminder**). A production database that has
+never run one of them is **missing** the newer columns and tables.
 
 **Symptoms if skipped:**
 - archiving or deleting a **milestone/task** → 500 (writes `is_archived` unguarded)
@@ -264,6 +283,13 @@ ALTER TABLE venture_reports   ADD COLUMN IF NOT EXISTS report_kind TEXT;
 -- evidence read fails and deliverable evidence disappears from every screen.
 ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS attachment_url TEXT;
 ALTER TABLE venture_deliverables ADD COLUMN IF NOT EXISTS attachment_name TEXT;
+-- The manual reminder's own words and the one file that travelled with it.
+-- Without these four, sending a reminder fails with
+-- `column "subject" of relation "venture_reminder_log" does not exist`.
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS subject TEXT;
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS body TEXT;
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS attachment_path TEXT;
+ALTER TABLE venture_reminder_log ADD COLUMN IF NOT EXISTS attachment_name TEXT;
 ```
 
 **`journey_stage_id` / `report_kind` are nullable on purpose.** Existing

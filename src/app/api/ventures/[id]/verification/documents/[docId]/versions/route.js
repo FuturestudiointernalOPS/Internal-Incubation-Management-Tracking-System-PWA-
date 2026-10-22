@@ -39,7 +39,7 @@ export const GET = createHandler(async (req, { params }) => {
   const { id, docId } = await params;
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
   if (!(await canAccessVerification(id, session))) {
     return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
@@ -64,13 +64,13 @@ export const POST = createHandler(async (req, { params }) => {
   const { id, docId } = await params;
   const session = await getSession();
   if (!session) {
-    return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
 
   // The same gate as the initial upload: only a founder (or a Super Admin) may
   // add a file to the Venture's Data bank.
   if (!(await canSubmitVerification(id, session))) {
-    return NextResponse.json({ success: false, error: "Only founders can upload documents." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
   }
 
   const body = await req.json().catch(() => ({}));

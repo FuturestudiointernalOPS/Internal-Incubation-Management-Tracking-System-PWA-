@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
 import { NextResponse } from "next/server";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getExecutionAnalytics } from "@/services/dashboard/adminAnalytics";
 
 /**
@@ -16,7 +16,7 @@ import { getExecutionAnalytics } from "@/services/dashboard/adminAnalytics";
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("reports", "view");
     if (authError) return authError;
 
     const { status, body } = await getExecutionAnalytics();

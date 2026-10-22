@@ -6,7 +6,7 @@
 // If you are an AI agent: READ-ONLY here. Changes go in V1 counterparts.
 // =============================================================================
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
+import { requireProgramManagerAccess } from "@/server/authz/guards";
 import {
   deleteV2Kpi,
   getV2KpisByProgramId,
@@ -17,7 +17,7 @@ import { NextResponse } from "next/server";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireProgramManagerAccess();
     if (authError) return authError;
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
@@ -34,7 +34,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireProgramManagerAccess();
     if (authError) return authError;
     const { program_id, title, target_value } = await req.json();
     const result = await insertV2Kpi(program_id, title, target_value);
@@ -52,7 +52,7 @@ export async function POST(req) {
 export async function DELETE(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireProgramManagerAccess();
     if (authError) return authError;
     const { id } = await req.json();
     await deleteV2Kpi(id);

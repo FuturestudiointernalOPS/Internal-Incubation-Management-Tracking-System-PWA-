@@ -2,6 +2,11 @@ import { supabase } from './supabase'
 import { createClient } from '@supabase/supabase-js'
 import { isAllowedEvidenceDocument, EVIDENCE_DOCUMENT_ERROR, isAllowedEvidenceImage, EVIDENCE_IMAGE_ERROR } from './ventureEvidence'
 import { safeStorageName, safeStoragePath } from './storageNames'
+import {
+  DATA_ROOM_MAX_FILE_BYTES,
+  DATA_ROOM_MAX_FILE_MB,
+  DATA_ROOM_SIZE_ERROR,
+} from './dataRoom'
 
 /**
  * IMPACTOS OPERATIONAL STORAGE — SUPABASE INTEGRATION
@@ -241,6 +246,79 @@ export const uploadDeliverableEvidence = async (file, { ventureId, deliverableId
       return {
         success: false,
         error: `Storage bucket "deliverable-evidence" is not configured. Please contact your administrator.`
+      }
+    }
+
+    return { success: false, error: `Upload failed: ${error.message}` }
+  }
+}
+
+/**
+ * Data Room documents — the confidential fundraising / due-diligence set.
+ *
+ * Same PRIVATE bucket as deliverable evidence, under a `data-room/` prefix so
+ * the file is identifiable in storage. The database stores the PATH; a viewer
+ * who already passed a Venture (or grant) gate gets a short-lived signed URL
+ * (lib/ventureEvidence.js). Nothing here is ever public.
+ *
+ * The size cap is its own setting (`DATA_ROOM_MAX_FILE_MB`) because a pitch
+ * deck or financial model is routinely larger than a deliverable screenshot;
+ * the accepted types are the platform's evidence allow-list, unchanged.
+ */
+export const uploadDataRoomDocument = async (file, { ventureId, category } = {}) => {
+  try {
+    if (!file) {
+      return { success: false, error: 'No file provided.' }
+    }
+
+    if (file.size > DATA_ROOM_MAX_FILE_BYTES) {
+      return { success: false, error: DATA_ROOM_SIZE_ERROR }
+    }
+
+    if (!isAllowedEvidenceImage(file)) {
+      return { success: false, error: EVIDENCE_IMAGE_ERROR }
+    }
+
+    const bucket = 'deliverable-evidence'
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const client = url && serviceKey ? createClient(url, serviceKey) : supabase
+
+    const scope = String(ventureId || 'unknown').replace(/[^A-Za-z0-9_-]/g, '_')
+    const folder = String(category || 'document').replace(/[^A-Za-z0-9_-]/g, '_')
+    const path = safeStoragePath(
+      `data-room/${scope}/${folder}/${Date.now()}_${safeStorageName(file.name, 'document')}`,
+    )
+
+    let { error } = await client.storage
+      .from(bucket)
+      .upload(path, file, { cacheControl: '3600', upsert: false })
+
+    if (error && /bucket.*not found|does not exist/i.test(error.message)) {
+      await client.storage.createBucket(bucket, { public: false })
+      const retry = await client.storage
+        .from(bucket)
+        .upload(path, file, { cacheControl: '3600', upsert: false })
+      error = retry.error
+    }
+
+    if (error) throw error
+
+    return {
+      success: true,
+      path,
+      name: file.name,
+      size: file.size || null,
+      type: file.type || null,
+      max_file_mb: DATA_ROOM_MAX_FILE_MB,
+    }
+  } catch (error) {
+    console.error('Storage Error:', error.message)
+
+    if (/bucket/i.test(error.message)) {
+      return {
+        success: false,
+        error: 'Storage bucket "deliverable-evidence" is not configured. Please contact your administrator.',
       }
     }
 

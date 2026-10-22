@@ -1,14 +1,14 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { getSession } from "@/server/auth/session";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getFounderProgramHistory,
   getProgramById,
   getVentureForHistory,
   getVentureFounderHistory,
 } from "@/models/ventureJourney";
-import { isActiveVentureMember } from "@/models/ventureWorkspace";
+
 
 export async function GET(req, { params }) {
   try {
@@ -21,7 +21,6 @@ export async function GET(req, { params }) {
     const authError = await requireAuth();
     if (authError) return authError;
 
-    const session = await getSession();
     const { id } = await params;
 
     const ventureResult = await getVentureForHistory(id);
@@ -30,16 +29,13 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     }
 
-    const venture = ventureResult.rows[0];
+    // The canonical read gate: capability + the venture perimeter. It answers
+    // exactly what the inline check did (platform owner, active membership, or
+    // active staff assignment).
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
 
-    if (session && !["super_admin"].includes(session.role)) {
-      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      const assigned = await hasActiveVentureAssignment(id, session.cid);
-      const member = await isActiveVentureMember(id, session.cid);
-      if (!assigned && !member.rows?.length) {
-        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      }
-    }
+    const venture = ventureResult.rows[0];
 
     // Previous program info
     let program = null;

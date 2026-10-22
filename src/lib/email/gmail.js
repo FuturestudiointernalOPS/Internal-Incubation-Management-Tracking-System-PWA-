@@ -9,6 +9,7 @@
  */
 
 import { GMAIL_CLIENT_ID, GMAIL_CLIENT_SECRET, GMAIL_REDIRECT_URI, GMAIL_REFRESH_TOKEN, GMAIL_SENDER_EMAIL, GMAIL_SENDER_NAME, gmailCredentialsAvailable } from "./config";
+import { resolveReplyToAddress } from "./addresses";
 
 /** Map provider errors to safe, non-sensitive categories (never echo raw details). */
 function classifyGmailError(err) {
@@ -33,7 +34,7 @@ function encodeMailHeader(value) {
 
 /** Build a raw MIME message for the Gmail API. Supports optional file
  * attachments (multipart/mixed) — used for PDF result documents. */
-export function buildGmailRawMessage({ to, cc, subject, html, attachments, fromName }) {
+export function buildGmailRawMessage({ to, cc, subject, html, attachments, fromName, replyTo }) {
   const plainText = (html || "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]+>/g, " ")
@@ -44,7 +45,11 @@ export function buildGmailRawMessage({ to, cc, subject, html, attachments, fromN
   const altBoundary = `futurestudio_alt_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
   const outerHeaders = [
     `From: ${fromName || GMAIL_SENDER_NAME} <${GMAIL_SENDER_EMAIL}>`,
-    `Reply-To: ${GMAIL_SENDER_EMAIL}`,
+    // This line is a RAW MIME header: an unvalidated address carrying a newline
+    // would inject headers of its own. Re-validated here, at the place that
+    // writes it, so no caller can bypass the check — an unusable value simply
+    // falls back to the studio's own address.
+    `Reply-To: ${resolveReplyToAddress(replyTo) || GMAIL_SENDER_EMAIL}`,
     `To: ${to}`,
     ...(Array.isArray(cc) && cc.length > 0 ? [`Cc: ${cc.join(", ")}`] : []),
     `Subject: ${encodeMailHeader(subject)}`,
@@ -96,7 +101,7 @@ export function buildGmailRawMessage({ to, cc, subject, html, attachments, fromN
 }
 
 /** Send one email through the Google Workspace (Gmail API) transport. */
-export async function sendViaGmail({ to, cc, subject, html, attachments, fromName }) {
+export async function sendViaGmail({ to, cc, subject, html, attachments, fromName, replyTo }) {
   if (!gmailCredentialsAvailable()) {
     console.warn("[Gmail] Credentials not configured — skipping Gmail send to:", to);
     // `error` (not only `note`) so sendEmail / the reminder engine surface the
@@ -114,7 +119,7 @@ export async function sendViaGmail({ to, cc, subject, html, attachments, fromNam
     auth.setCredentials({ refresh_token: GMAIL_REFRESH_TOKEN });
 
     const gmail = google.gmail({ version: "v1", auth });
-    const raw = buildGmailRawMessage({ to, cc, subject, html, attachments, fromName });
+    const raw = buildGmailRawMessage({ to, cc, subject, html, attachments, fromName, replyTo });
     const sendRes = await gmail.users.messages.send({ userId: "me", requestBody: { raw } });
 
     return { success: true, provider: "gmail", data: { id: sendRes.data?.id || null } };

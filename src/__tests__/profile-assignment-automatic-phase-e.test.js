@@ -20,6 +20,9 @@
 
 const mockState = {
   founderCids: new Set(), // cids with an ACTIVE founder relationship
+  founderVentures: {}, // cid -> [venture ids] (multi-venture scenarios)
+  failOnClose: false, // force the CLOSE statement to throw (rollback test)
+  failOnProvenance: false, // force the provenance write to throw (grant pair)
   registry: { profile_key: "founder", profile_name: "Founder", is_active: 1 },
   profileCaps: [
     { module: "ventures", capability: "view", access_level: 1 },
@@ -56,10 +59,12 @@ function mockExecute(query) {
   }
 
   if (sqlText.includes("FROM venture_members")) {
+    const cid = String(args[0]);
+    if (mockState.founderVentures[cid]) {
+      return { rows: mockState.founderVentures[cid].map((venture_id) => ({ venture_id })) };
+    }
     return {
-      rows: mockState.founderCids.has(String(args[0]))
-        ? [{ venture_id: "VNT-1" }]
-        : [],
+      rows: mockState.founderCids.has(cid) ? [{ venture_id: "VNT-1" }] : [],
     };
   }
 
@@ -133,6 +138,7 @@ function mockExecute(query) {
   }
 
   if (/UPDATE profile_assignments[\s\S]*SET status/i.test(sqlText)) {
+    if (mockState.failOnClose) throw new Error("close failed");
     const [status, endedAt, id] = args;
     const row = mockState.assignments.find(
       (entry) => entry.id === Number(id) && entry.status === "active",
@@ -176,6 +182,7 @@ function mockExecute(query) {
     };
   }
   if (sqlText.includes("INSERT INTO context_applied_grants")) {
+    if (mockState.failOnProvenance) throw new Error("provenance write failed");
     const [user_cid, context, role_key, source_ref, module, capability, access_level] = args;
     mockState.applied = mockState.applied.filter(
       (row) =>
@@ -218,7 +225,28 @@ function mockExecute(query) {
   return { rows: [] };
 }
 
-const mockDb = { execute: jest.fn(async (query) => mockExecute(query)) };
+const mockDb = {
+  execute: jest.fn(async (query) => mockExecute(query)),
+  // Lot 6 — the fake has the same contract as `db.transaction`: snapshot the
+  // mutable registry, run the callback, restore on failure.
+  transaction: jest.fn(async (callback) => {
+    const snapshot = {
+      assignments: JSON.parse(JSON.stringify(mockState.assignments)),
+      applied: JSON.parse(JSON.stringify(mockState.applied)),
+      userCaps: JSON.parse(JSON.stringify(mockState.userCaps)),
+      nextId: mockState.nextId,
+    };
+    try {
+      return await callback((sql, args) => mockExecute({ sql, args }));
+    } catch (error) {
+      mockState.assignments = snapshot.assignments;
+      mockState.applied = snapshot.applied;
+      mockState.userCaps = snapshot.userCaps;
+      mockState.nextId = snapshot.nextId;
+      throw error;
+    }
+  }),
+};
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,
@@ -255,6 +283,9 @@ const activeCardsOf = (cid, profileKey) =>
 
 beforeEach(() => {
   mockState.founderCids = new Set();
+  mockState.founderVentures = {};
+  mockState.failOnClose = false;
+  mockState.failOnProvenance = false;
   mockState.registry = { profile_key: "founder", profile_name: "Founder", is_active: 1 };
   mockState.userCaps = [];
   mockState.applied = [];
@@ -364,6 +395,37 @@ describe("syncContextGrantsForUser — the automatic assignment card", () => {
     expect(second.profileAssignments.refreshed).toEqual([]);
     expect(second.profileAssignments.closed).toEqual([]);
     expect(mockState.assignments).toHaveLength(1);
+  });
+
+  test("a failed provenance write rolls the grant back (Lot 6)", async () => {
+    mockState.founderCids.add(CID);
+    mockState.failOnProvenance = true;
+
+    const result = await syncContextGrantsForUser(CID);
+
+    // The reconcile reports the failure and never throws.
+    expect(result.success).toBe(false);
+    // The capability row was written first, then rolled back with its
+    // provenance row: no access without a record of where it came from.
+    expect(mockState.userCaps.filter((row) => row.user_cid === CID)).toEqual([]);
+  });
+
+  test("a failed close rolls the whole card plan back (Lot 6)", async () => {
+    // The founder moves from VNT-1 to VNT-2: the plan OPENS VNT-2, then CLOSES
+    // VNT-1. The close fails.
+    mockState.founderVentures[CID] = ["VNT-1"];
+    await syncContextGrantsForUser(CID);
+    expect(activeCardsOf(CID, "founder").map((card) => card.context_id)).toEqual(["VNT-1"]);
+
+    mockState.founderVentures[CID] = ["VNT-2"];
+    mockState.failOnClose = true;
+    const result = await syncContextGrantsForUser(CID);
+
+    expect(result.profileAssignments.skipped).toBe("error");
+    // The VNT-2 card opened before the failure was rolled back: no half-written
+    // history, and VNT-1 is still the active card.
+    expect(mockState.assignments.some((row) => row.context_id === "VNT-2")).toBe(false);
+    expect(activeCardsOf(CID, "founder").map((card) => card.context_id)).toEqual(["VNT-1"]);
   });
 
   test("ending the relationship closes the card, never deletes it", async () => {

@@ -13,10 +13,10 @@ import { profileKeyForAccessProfileName } from "@/models/authorization/profileTa
 
 // Phase 2: Knowledge Base.
 // /api/knowledge (GET/POST/PATCH/DELETE) previously allowed staff + super_admin
-// via the role allowlist. Backfill the equivalent capability for staff into:
-//   1. the "Staff Default" access profile  (normal staff path), and
-//   2. the staff role_capabilities row     (fallback for profile-less staff).
-// Super Admin needs no backfill (SA bypass covers all modules).
+// via the role allowlist. Backfill the equivalent capability into the
+// "Staff Default" profile — the only base-capability source now that the
+// per-role fallback is retired. Super Admin needs no backfill (SA bypass covers
+// all modules).
 const KNOWLEDGE_CAPS = { view: 1, create: 2, edit: 3, delete: 4 };
 
 async function ensureKnowledgeBackfill() {
@@ -36,15 +36,6 @@ async function ensureKnowledgeBackfill() {
     }
   }
 
-  // 2. staff role_capabilities — V2 legacy fallback for profile-less staff.
-  for (const [capability, level] of Object.entries(KNOWLEDGE_CAPS)) {
-    await db.execute({
-      sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-            VALUES ('staff', 'knowledge', ?, ?)
-            ON CONFLICT (role, module, capability) DO NOTHING`,
-      args: [capability, level],
-    });
-  }
 }
 
 // ─── Phase 3: Reports / Analytics ───────────────────────────────────────────
@@ -69,9 +60,6 @@ const REPORTS_CAP_BACKFILL = {
     "Staff Default": [["reports", "export", 3]],
     Instructor: [["reports", "export", 3]],
   },
-  roles: {
-    staff: [["reports", "export", 3]],
-  },
 };
 
 async function ensureReportsBackfill() {
@@ -91,17 +79,6 @@ async function ensureReportsBackfill() {
     }
   }
 
-  // 3. role_capabilities (V2 legacy fallback for profile-less users).
-  for (const [role, rows] of Object.entries(REPORTS_CAP_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
-      });
-    }
-  }
 }
 
 // ─── Phase 4: CRM / Contacts (eligibility superseded by policy #3) ──────────
@@ -121,7 +98,7 @@ async function ensureReportsBackfill() {
 // Route allowlist (verified): super_admin, program_manager, staff.
 // Backfills reproduce that population:
 //   - create_announcements + moderate for staff / program_manager
-//     (Staff Default + Program Manager profiles and role_capabilities)
+//     (Staff Default + Program Manager profiles)
 // NOTE (policy #3): internal_comms eligibility no longer includes the
 // retired `admin` role; the one-time eligibility-policy-3 migration clears any
 // leftover admin row left by an older seed.
@@ -146,16 +123,6 @@ const ANNOUNCEMENTS_BACKFILL = {
       ["internal_comms", "moderate", 3],
     ],
   },
-  roles: {
-    staff: [
-      ["internal_comms", "create_announcements", 2],
-      ["internal_comms", "moderate", 3],
-    ],
-    program_manager: [
-      ["internal_comms", "create_announcements", 2],
-      ["internal_comms", "moderate", 3],
-    ],
-  },
 };
 
 async function ensureAnnouncementsBackfill() {
@@ -173,17 +140,6 @@ async function ensureAnnouncementsBackfill() {
       });
     }
   }
-
-  for (const [role, rows] of Object.entries(ANNOUNCEMENTS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
-      });
-    }
-  }
 }
 
 // ─── Communication: Forms module ─────────────────────────────────────────────
@@ -196,9 +152,6 @@ async function ensureAnnouncementsBackfill() {
 const FORMS_BACKFILL = {
   profiles: {
     "Staff Default": [["forms", "view", 1]],
-  },
-  roles: {
-    staff: [["forms", "view", 1]],
   },
 };
 
@@ -214,17 +167,6 @@ async function ensureFormsBackfill() {
               VALUES (?, ?, ?, ?)
               ON CONFLICT (profile_key, module, capability) DO NOTHING`,
         args: [key, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(FORMS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
       });
     }
   }

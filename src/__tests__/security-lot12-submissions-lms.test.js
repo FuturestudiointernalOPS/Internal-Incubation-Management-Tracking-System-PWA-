@@ -134,7 +134,7 @@ describe("a score write is program-scoped", () => {
     const res = await submissions.PUT(jsonReq("http://localhost/api/submissions", "PUT", { id: 9, score: 5 }));
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_STAFF", "P1", { email: "s@x.test" });
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_STAFF", "P1", { email: "s@x.test" });
     expect(formsModel.updateSubmissionScoreById).toHaveBeenCalled();
   });
 

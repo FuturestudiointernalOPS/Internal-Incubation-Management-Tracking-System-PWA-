@@ -14,6 +14,8 @@
  * Server-side guards remain authoritative.
  */
 
+import { carriesContextualValue } from "./identity";
+
 /**
  * Human label key under common.workspaces for a context item.
  *
@@ -30,7 +32,7 @@ export function contextRoleLabelKey({ kind, row = {} }) {
       String(row.member_type || "").toLowerCase() === "founder" ||
       row.is_owner ||
       row.isOwner ||
-      role === "founder";
+      carriesContextualValue(role, "founder");
     return isFounder ? "roleFounder" : "roleVentureMember";
   }
   if (kind === "lms") return "roleLearner";

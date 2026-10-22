@@ -42,7 +42,7 @@ export async function duplicateTask({ taskId, role, sessionCid }) {
   if (!canAccessTask({ task, role, cid: sessionCid })) {
     return {
       status: 403,
-      error: "You do not have permission to duplicate this task.",
+      error: "errors.taskDuplicateDenied",
     };
   }
 

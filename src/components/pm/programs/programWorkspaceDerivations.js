@@ -26,11 +26,18 @@ export function countPendingSubmissions(submissions) {
 }
 
 // Tabs: show all tabs to anyone with edit rights, otherwise filter by roles array
-export function selectWorkspaceTabs({ t, isAssignedPm, isTeamMember, user }) {
+export function selectWorkspaceTabs({
+  t,
+  isAssignedPm,
+  isTeamMember,
+  user,
+  profiles = [],
+}) {
   return selectVisibleTabs({
     allTabs: buildProgramTabs(t),
     isAssignedPm,
     isTeamMember,
     user,
+    profiles,
   });
 }

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { reviewTaskApproval } from "@/services/tasks/approval";
 
 /**
@@ -16,8 +16,10 @@ import { reviewTaskApproval } from "@/services/tasks/approval";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    // Approving or rejecting a project request changes a task: `tasks.edit`.
+    // No standard profile carries tasks.*, so the platform owner keeps it.
+    const capError = await requireAuthorization("tasks", "edit");
+    if (capError) return capError;
     const body = await req.json();
     const { task_id, reviewer_id, reviewer_name, action, reason } = body;
 

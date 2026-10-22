@@ -13,7 +13,7 @@
  */
 
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
 import { evaluateAssignmentAccess } from "@/services/authorization/resourceGuards";
 
@@ -124,7 +124,7 @@ export async function isParticipantInFacilitatorScope(
 
 /** Assignment and participant scope are decisions; callers serialize refusals. */
 export async function evaluateFollowupParticipantAccess({ session, programId, participantId, forUpdate = false }) {
-  if (session && hasProgramManagementAccess(session.role)) return { allowed: true };
+  if (session && (await isProgramManagerSession(session))) return { allowed: true };
   if (!programId) return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
   const assignment = await evaluateAssignmentAccess({ resource: "program", contextId: programId });
   if (!assignment.allowed) return assignment;

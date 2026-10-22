@@ -1,6 +1,7 @@
 "use client";
 
 import OperationsSection from "./OperationsSection";
+import { isInternalStaffRole, isPlatformOwnerRole } from "@/lib/identity";
 import StrategicKpisCard from "./StrategicKpisCard";
 import MyProgramsCard from "./MyProgramsCard";
 import FacilitatorProgramsCard from "./FacilitatorProgramsCard";
@@ -46,8 +47,8 @@ export default function WorkspaceGrid({
       {/* ===== LEFT COLUMN (2/3) ===== */}
       <div className="lg:col-span-2 space-y-6">
         {/* ═══════ OPERATIONS (staff / super_admin) ═══════ */}
-        {(effectiveRole === "staff" ||
-          effectiveRole === "super_admin") && (
+        {(isInternalStaffRole(effectiveRole) ||
+          isPlatformOwnerRole(effectiveRole)) && (
           <OperationsSection
             userId={userId}
             summary={summary}

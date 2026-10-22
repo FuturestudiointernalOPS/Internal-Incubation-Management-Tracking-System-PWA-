@@ -15,6 +15,9 @@
  */
 
 import { invalidateVentureAccess } from "@/services/ventures/accessFacts";
+import { syncContextGrantsForUser } from "@/services/authorization/contextGrantReconcile";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
+import { selectNotifyContact } from "@/models/ventureNotifyStore";
 import {
   updatePermissionMatrixCorrection,
   countPermissionMatrixRows,
@@ -29,6 +32,7 @@ import {
   selectAssignments,
   insertAssignment,
   removeAssignmentRow,
+  selectAssignmentRow,
   selectActiveAssignmentsForContact,
   selectMatrixCell,
   selectAnyActiveAssignment,
@@ -279,12 +283,111 @@ export async function createAssignment({ ventureId, staffContactId, responsibili
   // A delegated staff member granted access just now must be able to use it
   // without waiting for the remembered answers to expire.
   invalidateVentureAccess(ventureId);
-  return { success: true, id: insertResult.lastInsertRowid ?? null };
+  // Being made the Venture's Lead Manager is what justifies the `venture_manager`
+  // profile — and the profile is what carries `ventures.view`/`edit`. Without this,
+  // the assignment gave SCOPE but no CAPABILITY: the manager held a Venture she was
+  // not allowed to open (docs/VENTURE_IDENTITY_PHASE0.md §4.5, "Phase E").
+  if (responsibilityCode === MANAGER_RESPONSIBILITY) {
+    await syncManagerProfile(staffContactId);
+    // The Venture is told its lead changed. Read back the row id this insert
+    // produced (RETURNING id) so the notice is deduped PER ASSIGNMENT: removing
+    // and re-adding the same person is two real events, a retried call is one.
+    const ventureDbId = await resolveVentureInternalId(ventureId).catch(() => null);
+    await notifyFoundersOfLeadChange({
+      ventureDbId,
+      assignmentId: insertResult?.rows?.[0]?.id ?? null,
+      event: "assigned",
+      contactId: staffContactId,
+    });
+  }
+  return { success: true, id: insertResult.lastInsertRowid ?? insertResult?.rows?.[0]?.id ?? null };
 }
 
 export async function removeAssignment({ id }) {
+  // Read BEFORE the removal: afterwards the row no longer says who held it.
+  const row = (await selectAssignmentRow(id).catch(() => ({ rows: [] }))).rows?.[0] || null;
   await removeAssignmentRow(id);
+  if (row?.responsibility_code === MANAGER_RESPONSIBILITY) {
+    await syncManagerProfile(row.staff_contact_id);
+    await notifyFoundersOfLeadChange({
+      ventureDbId: row.venture_db_id || null,
+      assignmentId: row.id ?? id,
+      event: "removed",
+      contactId: row.staff_contact_id,
+    });
+  }
   return { success: true };
+}
+
+/** The responsibility whose assignment carries workspace access. */
+const MANAGER_RESPONSIBILITY = "lead_manager";
+
+/**
+ * Tell the Venture that its LEAD changed.
+ *
+ * BEST-EFFORT BY DESIGN. The assignment has already been written; a notice that
+ * fails (no provider, an unresolvable contact, a transient database error) must
+ * never undo it or fail the request that asked for it. Every failure is
+ * swallowed here and the assignment stands.
+ *
+ * The audience is the Venture's founders, through the SAME helper every other
+ * Venture-facing event uses (`notifyAndEmailVentureFounders`: in-app
+ * notification + email in one call) — no second notification system.
+ */
+async function notifyFoundersOfLeadChange({ ventureDbId, assignmentId, event, contactId }) {
+  try {
+    if (!ventureDbId || assignmentId === null || assignmentId === undefined) return;
+    const [contact, notify] = await Promise.all([
+      selectNotifyContact(contactId).catch(() => ({ rows: [] })),
+      import("@/services/ventures/notify"),
+    ]);
+    const name = contact?.rows?.[0]?.name || "A Venture Lead";
+    const assigned = event === "assigned";
+
+    await notify.notifyAndEmailVentureFounders({
+      dbId: ventureDbId,
+      title: assigned ? "Venture Lead assigned" : "Venture Lead updated",
+      message: assigned
+        ? `${name} now supports your Venture — you can reach them from your Venture dashboard.`
+        : `${name} is no longer assigned to your Venture.`,
+      emailSubject: assigned
+        ? "A Venture Lead has been assigned to your Venture"
+        : "Your Venture Lead has been updated",
+      emailLines: assigned
+        ? [
+            `${name} now supports your Venture.`,
+            "You can reach them from your Venture dashboard in ImpactOS.",
+          ]
+        : [
+            `${name} is no longer assigned to your Venture.`,
+            "Any new support will appear on your Venture dashboard in ImpactOS.",
+          ],
+      templateKey: assigned ? "venture.notif.leadAssigned" : "venture.notif.leadRemoved",
+      params: { name },
+      dedupeKey: `lead-${assigned ? "assigned" : "removed"}:${assignmentId}`,
+    });
+  } catch (_) {}
+}
+
+/**
+ * Keep one person's Venture Manager profile period in step with their live
+ * assignments. The reconcile reads the ROWS and decides: it opens the period when
+ * they lead a Venture, refreshes it while they still do, and closes it when they
+ * do not — so this one call serves assignment, re-assignment and removal alike.
+ *
+ * Never allowed to break the assignment itself: a profile hiccup must not roll back
+ * a manager appointment (the sweep can reconcile it later).
+ */
+async function syncManagerProfile(cid) {
+  if (!cid) return;
+  try {
+    await syncContextGrantsForUser(String(cid), { context: "venture", roleKey: "venture_manager" });
+  } catch (error) {
+    console.error(
+      `[venture-permissions] Venture Manager profile sync failed for ${cid}:`,
+      error?.message || error,
+    );
+  }
 }
 
 /**

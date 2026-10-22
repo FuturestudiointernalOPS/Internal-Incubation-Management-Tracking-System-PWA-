@@ -74,9 +74,7 @@ export function BulkProgramModal({
               <button
                 onClick={() => {
                   const participants = contacts.filter(
-                    (contact) =>
-                      contact.is_participant === true ||
-                      contact.role === "participant",
+                    (contact) => contact.is_participant === true,
                   );
                   setBulkSelected(
                     participants.map((contact) => contact.cid || contact.id).filter(Boolean),
@@ -101,7 +99,6 @@ export function BulkProgramModal({
               .filter(
                 (contact) =>
                   contact.is_participant === true ||
-                  contact.role === "participant" ||
                   contact.role === "unassigned",
               )
               .map((contact) => {
@@ -149,7 +146,6 @@ export function BulkProgramModal({
             {contacts.filter(
               (contact) =>
                 contact.is_participant === true ||
-                contact.role === "participant" ||
                 contact.role === "unassigned",
             ).length === 0 && (
               <p className="text-sm text-[var(--text-secondary)] col-span-2 py-8 text-center">

@@ -25,7 +25,7 @@
 import { logger } from "@/lib/logger";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext } from "./contextCache";
-import { authorize } from "./contextDecisions";
+import { authorize, explainAuthorization } from "./contextDecisions";
 
 /**
  * Convenience: resolve + check in one call (for server components / helpers).
@@ -59,10 +59,11 @@ export async function evaluateAuthorization(module, capability, minLevel = 1) {
         resourceType: module,
         action: capability,
       });
-      return { allowed: false, status: 401, errorKey: "errors.authRequired" };
+      return { allowed: false, status: 401, errorKey: "errors.authRequired", reason: "unauthenticated" };
     }
     const ctx = await getAuthorizationContext(session);
-    if (!authorize(ctx, module, capability, minLevel)) {
+    const decision = explainAuthorization(ctx, module, capability, minLevel);
+    if (!decision.allowed) {
       // A denial is the security signal worth counting. It records WHO was
       // refused, WHAT they tried and WHY as an enum — never the payload they
       // sent, which is where business data lives.
@@ -72,15 +73,16 @@ export async function evaluateAuthorization(module, capability, minLevel = 1) {
         resourceType: module,
         action: capability,
         minLevel,
-        reason: "missing_permission",
+        reason: decision.reason,
       });
       return {
         allowed: false,
         status: 403,
         errorKey: "errors.insufficientPermissions",
+        reason: decision.reason,
       };
     }
-    return { allowed: true, status: 200, errorKey: null };
+    return { allowed: true, status: 200, errorKey: null, reason: decision.reason };
   } catch (error) {
     logger.error("authorization_error", {
       resourceType: module,
@@ -91,6 +93,7 @@ export async function evaluateAuthorization(module, capability, minLevel = 1) {
       allowed: false,
       status: 500,
       errorKey: "errors.authzSystemFailure",
+      reason: "system_failure",
     };
   }
 }

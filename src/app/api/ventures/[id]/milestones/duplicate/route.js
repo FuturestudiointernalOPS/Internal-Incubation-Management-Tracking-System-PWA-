@@ -27,7 +27,7 @@ export async function POST(req, { params }) {
     const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
     if (!allowed) {
       return NextResponse.json(
-        { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },
+        { success: false, error: "errors.ventureManagerOnly" },
         { status: 403 },
       );
     }

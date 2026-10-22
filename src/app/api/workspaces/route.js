@@ -6,6 +6,10 @@ import { resolveLanding, landingNeedsRelationships } from "@/models/platform/rol
 import { getContactStoredRole } from "@/models/workspace";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import {
+  hasParticipantProgramMembership,
+  hasV2ParticipantRecord,
+} from "@/models/contacts/programMembership";
+import {
   readWorkspaceContext,
   writeWorkspaceContext,
 } from "@/lib/workspaceContextCache";
@@ -82,8 +86,16 @@ export async function GET(request) {
     // not cached, and whether the person was MADE an investor can move it. It is
     // answered locally (no statement) for a global identity, whose home never
     // depends on relationships.
+    //
+    // The program enrollment rides along too: the Participant page is a PROGRAM
+    // seat, so the hub's home button must ask the same question the login asked.
     const needsRelationshipReads = landingNeedsRelationships(session.role);
-    const [navigation, [storedRoleSettled, investorSettled]] = await Promise.all([
+    const [navigation, [
+      storedRoleSettled,
+      investorSettled,
+      participantProgramSettled,
+      v2ParticipantSettled,
+    ]] = await Promise.all([
       cachedNavigation
         ? cachedNavigation
         : buildWorkspaceNavigation(session, contextsOnly).then((builtNavigation) => {
@@ -95,10 +107,19 @@ export async function GET(request) {
         needsRelationshipReads
           ? getApprovedInvestorProfileIdByUserId(session.cid)
           : Promise.resolve({ rows: [] }),
+        needsRelationshipReads
+          ? hasParticipantProgramMembership(session.cid)
+          : Promise.resolve({ rows: [] }),
+        needsRelationshipReads
+          ? hasV2ParticipantRecord(session.cid)
+          : Promise.resolve({ rows: [] }),
       ]),
     ]);
 
     const isInvestor = rowsOf(investorSettled).length > 0;
+    const isProgramParticipant =
+      rowsOf(participantProgramSettled).length > 0 ||
+      rowsOf(v2ParticipantSettled).length > 0;
 
     const { baselineRole, derivedRole } = deriveBaselineRole(
       session,
@@ -122,6 +143,7 @@ export async function GET(request) {
         role: session.role,
         ventures: navigation.contexts?.venture_memberships || [],
         isInvestor,
+        isProgramParticipant,
       }),
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,

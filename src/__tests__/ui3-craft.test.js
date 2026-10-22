@@ -2,7 +2,7 @@
  * PHASE UI-3b — craft pass contracts (accessibility + i18n of the shell).
  *
  * These are source-level contracts on purpose: they are the things that
- * silently regress when new screens are added to the Permission Center.
+ * silently regress when new screens are added to the Permission Centre.
  */
 
 const fs = require("fs");
@@ -15,22 +15,25 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
-const SHELL = "src/components/permissions/PermissionShell.js";
-const PEOPLE = "src/components/permissions/PeopleView.js";
-const PEOPLE_MATRIX = "src/components/permissions/people-view/PeopleMatrix.js";
-const DRAWER = "src/components/permissions/ui/WhyDrawer.js";
-const LIVE = "src/components/permissions/LiveCheckPanel.js";
-const CONTEXT = "src/components/permissions/ContextRolesView.js";
-const OVERVIEW = "src/components/permissions/OverviewView.js";
+const SHELL = "src/components/permissions/PermissionCenter.js";
+const UI = "src/components/permissions/center/centerUi.js";
+const SECTIONS = "src/components/permissions/center/sections";
+
+const sectionFiles = fs
+  .readdirSync(path.join(process.cwd(), SECTIONS))
+  .filter((name) => name.endsWith(".js"))
+  .map((name) => `${SECTIONS}/${name}`);
 
 describe("UI-3b — shell accessibility", () => {
   test("the active route is announced and the tab set has roles", () => {
-    const src = read(SHELL);
-    expect(src).toContain('aria-current={isActive ? "page" : undefined}');
-    expect(src).toContain('role="tablist"');
-    expect(src).toContain('role="tab"');
-    expect(src).toContain("aria-selected={isActive}");
-    expect(src).toContain("shellNavAria");
+    const shell = read(SHELL);
+    expect(shell).toContain('aria-current={active ? "page" : undefined}');
+    expect(shell).toContain("shellNavAria");
+
+    const ui = read(UI);
+    expect(ui).toContain('role="tablist"');
+    expect(ui).toContain('role="tab"');
+    expect(ui).toContain("aria-selected={active}");
   });
 
   test("the shell's aria labels exist in English and French", () => {
@@ -46,27 +49,17 @@ describe("UI-3b — shell accessibility", () => {
 });
 
 describe("UI-3b — keyboard and screen-reader support", () => {
-  test("matrix rows are keyboard-operable and labelled", () => {
-    const src = read(PEOPLE_MATRIX);
-    expect(src).toContain("tabIndex={0}");
-    expect(src).toContain('event.key === "Enter"');
-    expect(src).toContain('role="region"');
-    expect(src).toContain("peopleRowAria");
-  });
-
-  test("the why drawer's close control is translated (no hardcoded English)", () => {
-    const src = read(DRAWER);
-    expect(src).toContain("whyClose");
-    expect(src).not.toContain('aria-label="close"');
-  });
-
-  test("every focusable control in the new screens has a visible focus ring", () => {
-    for (const relativePath of [SHELL, PEOPLE, LIVE, CONTEXT, OVERVIEW]) {
-      expect(read(relativePath)).toContain("focus-visible:ring-2");
+  test("every screen with a focusable control has a visible focus ring", () => {
+    for (const relativePath of [SHELL, UI, ...sectionFiles]) {
+      const src = read(relativePath);
+      // A read-only table has nothing to focus; the rule applies as soon as
+      // the screen renders a control.
+      if (!/<(button|input|select|textarea|a)\b/.test(src)) continue;
+      expect(src).toContain("focus-visible:ring-2");
     }
   });
 
-  test("people row/table labels exist in English and French", () => {
+  test("shared labels exist in English and French", () => {
     for (const key of [
       "engineering.permissions.peopleRowAria",
       "engineering.permissions.peopleTableAria",

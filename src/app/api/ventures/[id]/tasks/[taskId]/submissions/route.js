@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getUnmetTaskDependencies, releaseTasksBlockedBy } from "@/services/ventures/tasks";
 import {
   isGlobalRole,
@@ -73,8 +74,8 @@ async function listSubmissions(taskId) {
 
 export const GET = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
@@ -84,8 +85,9 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id, taskId } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
+  const { session } = access;
   const dbId = await resolveVentureDbId(id);
   const task = await resolveTask(parseInt(taskId), id, dbId);
   if (!task) return NextResponse.json({ success: false, error: "Task not found." }, { status: 404 });
@@ -138,7 +140,7 @@ export const POST = createHandler(async (req, { params }) => {
 
   if (body.action === "review") {
     if (!REVIEWER_ROLES.includes(session?.role)) {
-      return NextResponse.json({ success: false, error: "Only Future Studio staff can review submissions." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.submissionReviewInternalOnly" }, { status: 403 });
     }
     // Assignment-scope gate (Vinance 3): delegated reviewers are confined to
     // the tasks inside their ACTIVE assignment scopes on this Venture.
@@ -156,7 +158,7 @@ export const POST = createHandler(async (req, { params }) => {
         inScope = isTaskInScope(scopes, await resolveTaskContext(task));
       }
       if (!inScope) {
-        return NextResponse.json({ success: false, error: "This review is outside your assigned scope." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.outsideAssignedScope" }, { status: 403 });
       }
     }
     const submissionId = parseInt(body.submission_id);

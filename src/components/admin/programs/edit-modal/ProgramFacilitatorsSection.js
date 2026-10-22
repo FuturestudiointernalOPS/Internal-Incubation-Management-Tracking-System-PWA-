@@ -2,7 +2,17 @@
 
 import { Search, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { carriesContextualValue, normalizeRole } from "@/lib/identity";
 import { FACILITATOR_CAPS } from "./constants";
+
+// Contact records that can never be a facilitator: a participant, and the two
+// intake lifecycle values. The identity question goes through the identity
+// layer; these two are data labels, kept together so the filter reads as one
+// rule instead of a chain of string comparisons.
+const NOT_A_FACILITATOR_CANDIDATE = new Set(["applicant", "student"]);
+const isFacilitatorCandidate = (contact) =>
+  !carriesContextualValue(contact.role, "participant") &&
+  !NOT_A_FACILITATOR_CANDIDATE.has(normalizeRole(contact.role));
 
 /** Programme facilitators: scope, default permissions, assignments, invites and leads. */
 export default function ProgramFacilitatorsSection({
@@ -228,12 +238,7 @@ export default function ProgramFacilitatorsSection({
                   (f) => f.cid === c.cid,
                 ),
             )
-            .filter(
-              (c) =>
-                c.role !== "participant" &&
-                c.role !== "applicant" &&
-                c.role !== "student",
-            )
+            .filter(isFacilitatorCandidate)
             .filter(
               (c) =>
                 !facilitatorSearch ||

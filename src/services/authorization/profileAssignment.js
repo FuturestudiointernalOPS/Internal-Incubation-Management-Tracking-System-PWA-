@@ -12,10 +12,10 @@
  *   - Eligibility is the boundary: a template assigned to a person must never
  *     grant capabilities the person's identity (role + groups) is not eligible
  *     for (`ELIGIBLE ≠ GRANTED`).
- *   - Capability-loss guard: the resolver reads `access_profile_capabilities`
- *     INSTEAD OF `role_capabilities`, so an empty or narrower profile strips
- *     access without any visible error. The loss must be made explicit and
- *     accepted with `confirm: true` before proceeding.
+ *   - Capability-loss guard: the resolver's base layer is the PROFILE's own
+ *     capabilities, so an empty or narrower profile strips access without any
+ *     visible error. The loss must be made explicit and accepted with
+ *     `confirm: true` before proceeding.
  *   - A loss is computed against the LEVEL, not mere presence: dropping a
  *     capability from level 3 to level 1 is a loss.
  *

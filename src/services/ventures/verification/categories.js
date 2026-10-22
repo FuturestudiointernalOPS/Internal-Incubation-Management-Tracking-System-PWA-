@@ -10,7 +10,10 @@ import {
   canManageVentureDocumentTypes,
   listActiveVentureDocumentTypesOrDefaults,
 } from "@/services/ventures/ventureDocumentTypes";
-import { selectVerificationFounderIdByEmail } from "@/models/ventureVerificationStore";
+import {
+  selectActiveFounderMembership,
+  selectVerificationFounderIdByEmail,
+} from "@/models/ventureVerificationStore";
 
 /**
  * The document types the Data bank asks for now live in `venture_document_types`
@@ -62,11 +65,18 @@ export async function canManageVerification(ventureId, session) {
 
 /**
  * Check if user can submit verification (founder).
+ *
+ * An ACTIVE founder membership is the answer; the legacy `venture_founders`
+ * ledger is only a fallback for a database that still writes it. Reading that
+ * ledger alone refused every founder on a migrated database, where it is empty.
  */
 export async function canSubmitVerification(ventureId, session) {
   if (!session) return false;
   if (session.role === "super_admin") return true;
 
-  const founderRes = await selectVerificationFounderIdByEmail(ventureId, session.email || "");
-  return founderRes.rows.length > 0;
+  const [memberRes, legacyRes] = await Promise.all([
+    selectActiveFounderMembership(ventureId, session.cid),
+    selectVerificationFounderIdByEmail(ventureId, session.email || ""),
+  ]);
+  return memberRes.rows.length > 0 || legacyRes.rows.length > 0;
 }

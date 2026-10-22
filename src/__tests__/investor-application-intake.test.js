@@ -57,10 +57,10 @@ beforeEach(() => {
 });
 
 describe("static contract — the investor intake wiring", () => {
-  test("the seed is super-admin only and reuses form/run idempotently", () => {
+  test("the seed requires settings.edit and reuses form/run idempotently", () => {
     // The gate stays in the route; the orchestration moved to the service.
     const src = read(SEED_ROUTE);
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    expect(src).toMatch(/requireAuthorization\("settings", "edit"\)/);
     // The seed service is split across `seed/`; read the whole surface.
     const service = readSurface(SEED_SERVICE);
     expect(service).toMatch(/findInvestorApplicationFormByName/);
@@ -73,9 +73,10 @@ describe("static contract — the investor intake wiring", () => {
     expect(service).toMatch(/send_activation_email: true/);
   });
 
-  test("the run route resolves the flagged form's single active run, super-admin only", () => {
+  test("the run route resolves the flagged form's single active run, platform-owner only", () => {
     const src = read(RUN_ROUTE);
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    // The configuration read is `settings.view`; the platform owner is exempt.
+    expect(src).toMatch(/requireAuthorization\("settings", "view"\)/);
     // The resolution itself moved to the service (docs/LAYER_SPLIT.md).
     expect(read("src/services/platform/investorIntake.js")).toMatch(/resolveInvestorRun/);
   });
@@ -104,9 +105,10 @@ describe("static contract — the investor intake wiring", () => {
     expect(src).toMatch(/provisionInvestorFromApproval/);
   });
 
-  test("the admin link button is super-admin only and no longer points at the old wizard", () => {
+  test("the admin link button is platform-owner only and no longer points at the old wizard", () => {
     const src = read(ADMIN_PAGE);
-    expect(src).toMatch(/role === "super_admin"/);
+    // The rule is the named predicate, not the role label: same answer.
+    expect(src).toMatch(/isPlatformOwnerRole\(role\)/);
     expect(src).toMatch(/investorAdmin\.list\.addInvestor/);
     expect(src).toMatch(/platform\/seed\/investor-application/);
     // The fixed questionnaire link is gone.

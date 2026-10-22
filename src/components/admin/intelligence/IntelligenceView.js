@@ -43,12 +43,17 @@ export default function IntelligenceView({ data, loading, error, refresh, t, onN
       maximumFractionDigits: 0,
     }).format(n ?? 0);
 
-  const ventures = data?.ventures;
-  const investor = data?.investor;
-  const programs = data?.programs;
-  const operations = data?.operations;
+  // A section the server could not compute arrives absent. Normalising each one
+  // here keeps a single missing aggregate from blanking the whole page.
+  const ventures = data?.ventures ?? {};
+  const investor = data?.investor ?? {};
+  const programs = data?.programs ?? {};
+  const operations = data?.operations ?? {};
+  const fundraising = investor.fundraising ?? {};
+  const relationships = investor.relationships ?? {};
+  const programKpis = programs.kpis ?? [];
 
-  const pipelineData = (investor?.pipeline ?? []).map((row) => ({
+  const pipelineData = (investor.pipeline ?? []).map((row) => ({
     stage: formatLabel(row.stage || t("adminMisc.intelligence.total")),
     count: row.count,
   }));
@@ -98,7 +103,7 @@ export default function IntelligenceView({ data, loading, error, refresh, t, onN
           <div className="flex items-center justify-center py-24">
             <Loader2 className="w-6 h-6 text-[var(--brand-orange)] animate-spin" />
           </div>
-        ) : error ? (
+        ) : error || data?.success === false ? (
           <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 text-sm text-rose-400">
             {t("adminMisc.intelligence.errorFetch")}
           </div>
@@ -254,19 +259,19 @@ export default function IntelligenceView({ data, loading, error, refresh, t, onN
                   <div className="grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
-                        {fmtCurrency(investor.fundraising.total_sought)}
+                        {fmtCurrency(fundraising.total_sought)}
                       </p>
                       <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalSought")}</p>
                     </div>
                     <div>
                       <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
-                        {fmtCurrency(investor.fundraising.total_raised)}
+                        {fmtCurrency(fundraising.total_raised)}
                       </p>
                       <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalRaised")}</p>
                     </div>
                     <div>
                       <p className="text-lg font-black tracking-tighter text-[var(--text-primary)]">
-                        {fmtCurrency(investor.fundraising.total_committed)}
+                        {fmtCurrency(fundraising.total_committed)}
                       </p>
                       <p className="mt-1 text-xs text-[var(--text-secondary)]">{t("adminMisc.intelligence.totalCommitted")}</p>
                     </div>
@@ -277,14 +282,14 @@ export default function IntelligenceView({ data, loading, error, refresh, t, onN
                     <Handshake className="w-4 h-4 text-[var(--brand-orange)]" />
                     <span className="text-xs text-[var(--text-secondary)]">
                       {t("adminMisc.intelligence.activeRelationships")}:{" "}
-                      <strong className="text-[var(--text-primary)]">{fmtCount(investor.relationships.active_relationships)}</strong>
+                      <strong className="text-[var(--text-primary)]">{fmtCount(relationships.active_relationships)}</strong>
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                     <span className="text-xs text-[var(--text-secondary)]">
                       {t("adminMisc.intelligence.totalInvested")}:{" "}
-                      <strong className="text-[var(--text-primary)]">{fmtCount(investor.relationships.total_invested)}</strong>
+                      <strong className="text-[var(--text-primary)]">{fmtCount(relationships.total_invested)}</strong>
                     </span>
                   </div>
                 </div>
@@ -294,7 +299,7 @@ export default function IntelligenceView({ data, loading, error, refresh, t, onN
                 title={t("adminMisc.intelligence.programHealth")}
                 subtitle={t("adminMisc.intelligence.programs")}
               >
-                {programs.kpis.length > 0 ? (
+                {programKpis.length > 0 ? (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -307,7 +312,7 @@ export default function IntelligenceView({ data, loading, error, refresh, t, onN
                         </tr>
                       </thead>
                       <tbody>
-                        {programs.kpis.slice(0, 8).map((kp) => (
+                        {programKpis.slice(0, 8).map((kp) => (
                           <tr key={kp.id} className="border-b border-divider/50 last:border-0">
                             <td className="py-2.5 pr-3">
                               <p className="font-medium text-[var(--text-primary)]">{kp.name}</p>

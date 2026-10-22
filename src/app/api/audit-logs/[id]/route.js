@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getAuditLog } from "@/services/ventures/auditSecurity";
 
 export const GET = createHandler(
-  { roles: ["super_admin", "security_officer"] },
   async (req, { params }) => {
+    const capError = await requireAuthorization("users", "view");
+    if (capError) return capError;
+
     const { id } = await params;
     const log = await getAuditLog(parseInt(id));
     if (!log) {

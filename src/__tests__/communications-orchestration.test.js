@@ -63,7 +63,7 @@ test("notification creation and marking read refuse another participant's inbox 
 
 test.each(["mark_read", "archive", "delete"])("venture %s checks ownership before mutation", async (action) => {
   venture.getNotification.mockResolvedValue({ recipient_id: "OTHER" });
-  expect(await actOnVentureNotification({ session, body: { action, notification_id: "8" } })).toEqual({ denied: { error: "You cannot modify this notification.", status: 403 } });
+  expect(await actOnVentureNotification({ session, body: { action, notification_id: "8" } })).toEqual({ denied: { error: "errors.notificationModifyDenied", status: 403 } });
   expect(venture.markNotificationRead).not.toHaveBeenCalled();
   expect(venture.archiveNotification).not.toHaveBeenCalled();
   expect(venture.deleteNotification).not.toHaveBeenCalled();

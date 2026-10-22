@@ -12,12 +12,29 @@
  * Layer (see docs/LAYER_SPLIT.md): a pure decision — no SQL, no HTTP.
  */
 
+import {
+  INTERNAL_STAFF_ROLE,
+  PLATFORM_OWNER_ROLE,
+  PROGRAM_MANAGER_ROLE,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
+
 /** The roles that may see the whole portfolio, not just their own rows. */
-export const PORTFOLIO_ROLES = ["super_admin", "staff", "program_manager"];
+export const PORTFOLIO_ROLES = [
+  PLATFORM_OWNER_ROLE,
+  INTERNAL_STAFF_ROLE,
+  PROGRAM_MANAGER_ROLE,
+];
 
 /** May this role look at rows that are not its own? */
 export function seesWholePortfolio(role) {
-  return PORTFOLIO_ROLES.includes(role);
+  return (
+    isPlatformOwnerRole(role) ||
+    isInternalStaffRole(role) ||
+    isLegacyProgramManagerRole(role)
+  );
 }
 
 /**

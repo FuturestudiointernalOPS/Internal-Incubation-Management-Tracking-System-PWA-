@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { createVentureWithFounderInvite } from "@/services/dashboard/adminVentures";
 
 /**
@@ -18,7 +19,10 @@ import { createVentureWithFounderInvite } from "@/services/dashboard/adminVentur
  * `services/dashboard/adminVentures`; this controller keeps the super-admin gate
  * and the envelope.
  */
-export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
+export const POST = createHandler(async (req) => {
+  const authError = await requireAuthorization("ventures", "create");
+  if (authError) return authError;
+
   const body = await req.json().catch(() => ({}));
 
   const { status, body: responseBody } = await createVentureWithFounderInvite({

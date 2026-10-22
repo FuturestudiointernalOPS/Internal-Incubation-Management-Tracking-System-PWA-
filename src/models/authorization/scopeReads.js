@@ -59,6 +59,32 @@ export async function getProgramStaffedScopeIds(userCid, email) {
   return result.rows.map((row) => String(row.id));
 }
 
+/**
+ * Programs where the person holds an ACTIVE `program_manager` PROFILE assignment
+ * (the `program_managed` policy).
+ *
+ * This is the PROFILE-based basis: being assigned to a program gives the staff
+ * the `program_manager` profile automatically, and the same profile can be
+ * granted to anyone else — so the perimeter follows the GRANT, not a table of
+ * staff rows. The period is checked directly (semi-open window, start included),
+ * exactly like the capability reads.
+ */
+export async function getProgramManagedScopeIds(userCid) {
+  const result = await db.execute({
+    sql: `SELECT DISTINCT CAST(context_id AS TEXT) AS id
+                FROM profile_assignments
+                WHERE contact_cid = ?
+                  AND context_type = 'program'
+                  AND profile_key = 'program_manager'
+                  AND status = 'active'
+                  AND (started_at IS NULL OR started_at <= NOW())
+                  AND (ends_at IS NULL OR ends_at > NOW())
+                  AND context_id IS NOT NULL`,
+    args: [String(userCid)],
+  });
+  return result.rows.map((row) => String(row.id));
+}
+
 /** Courses the person is enrolled in and not suspended from (the `learning_own` policy). */
 export async function getLearningOwnScopeIds(userCid) {
   const result = await db.execute({
@@ -117,6 +143,22 @@ export async function getVentureIdByUuid(value) {
     args: [value],
   });
   return result.rows?.[0]?.venture_id ?? null;
+}
+
+/**
+ * Does this venture exist, by public VNT code OR internal id?
+ *
+ * Used to tell "there is no such venture" (404) apart from "it is not yours"
+ * (403). A boolean only: nothing about the record is read, so the answer cannot
+ * leak its content.
+ */
+export async function ventureExists(ventureRef) {
+  const value = String(ventureRef);
+  const result = await db.execute({
+    sql: "SELECT 1 FROM ventures WHERE venture_id = ? OR id::text = ? LIMIT 1",
+    args: [value, value],
+  });
+  return result.rows.length > 0;
 }
 
 /** True when the target is a participant of a program the staff member serves. */

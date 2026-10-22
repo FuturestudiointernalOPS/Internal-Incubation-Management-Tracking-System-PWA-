@@ -21,10 +21,8 @@ const mockDb = {
       // Scripted fixture: 5 tasks, 3 terminal-success
       return { rows: [{ total: 5, done: 3 }] };
     }
-    if (sql.includes("SELECT AVG(progress)") && sql.includes("FROM venture_milestones WHERE venture_id = ?")) {
-      return { rows: [{ avg_progress: 40 }] };
-    }
-    if (sql.includes("FROM venture_members WHERE venture_id = ?")) {
+
+    if (sql.includes("FROM venture_members")) {
       return { rows: [{ count: 2 }] };
     }
     if (sql.includes("SELECT COUNT(*) as count FROM venture_documents")) {
@@ -57,6 +55,13 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: { cid: "staff-1", role: "super_admin" } }),
 }));
 
+// The progress read moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "staff-1", role: "super_admin" },
+  }),
+}));
+
 const { GET } = require("@/app/api/ventures/[id]/progress/route");
 
 const readJson = async (res) => res.json();
@@ -76,11 +81,20 @@ describe("GET /api/ventures/[id]/progress — completion vocabulary", () => {
       task_completion: 60,
       total_tasks: 5,
       completed_tasks: 3,
-      avg_milestone_progress: 40,
+      milestones: { total: 0, completed: 0 },
       standups_count: 0,
       retros_count: 0,
-      profile_completion: expect.any(Number),
+      venture_setup: 100,
     });
+  });
+
+  test("the founder count compares the readable code and the internal id as text", async () => {
+    await GET(new Request("http://localhost/api/ventures/VNT-TEST/progress"), { params: { id: "VNT-TEST" } });
+    const founderQuery = executed.find((query) => query.sql.includes("FROM venture_members"));
+
+    expect(founderQuery).toBeDefined();
+    expect(founderQuery.sql).toContain("venture_id::text IN (?, ?)");
+    expect(founderQuery.args).toEqual([VENTURE_DB_ID, "VNT-TEST"]);
   });
 
   test("completion derives from the canonical status set, not 'done' alone", async () => {

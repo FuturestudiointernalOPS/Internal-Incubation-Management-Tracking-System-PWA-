@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { formatDate, getCalendarDays } from "@/components/admin/dashboard-page/constants";
 
 // `externalItems`: extra read-only calendar entries (events from the user's
@@ -25,7 +26,7 @@ export function useAdminWidgetData({ t, lang, externalItems = NO_EXTERNAL_ITEMS 
     try {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const userId = user.cid || user.id;
-      const isSA = user.role === "super_admin";
+      const isSA = isPlatformOwnerRole(user.role);
 
       const urls = [
         isSA

@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { isSupervisorOf } from "@/models/authorization/accessQueries";
+import { evaluateWeeklyReportAccess } from "@/services/tasks/weeklyReports";
 import {
   getStandupReportByWeek,
   getStandupWeekTasks,
@@ -42,7 +42,7 @@ export async function GET(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -62,16 +62,18 @@ export async function GET(req) {
       );
     }
 
-    // SECURITY (Phase 0): Non-SA users can only view their own standup.
-    // (Phase 3B): a supervisor may also view their supervisee's standup (read-only).
-    if (
-      session.role !== "super_admin" &&
-      String(user_id) !== String(session.cid) &&
-      !(await isSupervisorOf(session.cid, user_id))
-    ) {
+    // SECURITY (Phase 0): a person reads their own standup; a supervisor may
+    // also read a supervisee's (read-only); the platform owner may read any.
+    // The rule lives in @/services/tasks/weeklyReports.
+    const access = await evaluateWeeklyReportAccess({
+      session,
+      targetCid: user_id,
+      denialKey: "errors.ownStandupOnly",
+    });
+    if (!access.allowed) {
       return NextResponse.json(
-        { success: false, error: "You can only view your own standup." },
-        { status: 403 },
+        { success: false, error: access.errorKey },
+        { status: access.status },
       );
     }
 

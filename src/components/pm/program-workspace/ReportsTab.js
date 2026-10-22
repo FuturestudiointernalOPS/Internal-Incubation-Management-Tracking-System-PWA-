@@ -1,12 +1,19 @@
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/PermissionProvider";
+import { holdsProfile, PROGRAM_MANAGER_PROFILE } from "@/lib/identity";
 import { BarChart3, FileText } from "lucide-react";
 
-export default function ReportsTab({ onExportPmReport, reports, user }) {
+export default function ReportsTab({ onExportPmReport, reports }) {
   const { t } = useI18n();
+  // The notice mirrors a PROGRAM-MANAGER workflow. The function is a profile
+  // (D-1), so the screen asks the profile the server resolved; the role label
+  // `user` carries no longer says it.
+  const { profiles } = usePermissions();
+  const isProgramManager = holdsProfile(profiles, PROGRAM_MANAGER_PROFILE);
 
   return (
     <div className="space-y-6">
-      {user.role === "program_manager" && (
+      {isProgramManager && (
         <div className="flex items-start gap-3 p-4 rounded-xl border border-brand-orange/30 bg-brand-orange/5">
           <FileText className="w-5 h-5 text-[var(--brand-orange)] shrink-0 mt-0.5" />
           <div>

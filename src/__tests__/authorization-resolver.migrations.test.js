@@ -10,10 +10,10 @@
 const mockAuthz = require("./helpers/authorizationMocks");
 
 jest.mock("@/lib/db", () => mockAuthz.db);
-jest.mock("@/server/authz/capabilities", () => {
-  const auth = mockAuthz.auth;
-  return { PERMISSION_MODULES: auth.PERMISSION_MODULES, ACCESS_LEVELS: auth.ACCESS_LEVELS };
-});
+jest.mock("@/models/authorization/constants/feature-module-capability", () => ({
+  ...jest.requireActual("@/models/authorization/constants/feature-module-capability"),
+  PERMISSION_MODULES: mockAuthz.auth.PERMISSION_MODULES,
+}));
 jest.mock("@/server/auth/session", () => ({ getSession: mockAuthz.auth.getSession }));
 jest.mock("@/models/authorization/bootstrap", () => ({ ensurePermissionsSchema: mockAuthz.auth.ensurePermissionsSchema }));
 jest.mock("next/server", () => mockAuthz.nextServer);
@@ -54,13 +54,18 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
     const dbMock = require("@/lib/db").default;
     const { runAuthzMigration } = require("@/models/authorization/index");
     let markerPresent = false;
-    dbMock.execute.mockImplementation(async ({ sql } = {}) => {
+    let failureRecorded = null;
+    dbMock.execute.mockImplementation(async ({ sql, args } = {}) => {
       const statement = typeof sql === "string" ? sql : sql || "";
       if (statement.includes("authz_migrations") && statement.includes("SELECT")) {
         return { rows: markerPresent ? [{ name: "boom-mig" }] : [] };
       }
       if (statement.includes("INSERT INTO authz_migrations")) {
         markerPresent = true;
+        return { rows: [] };
+      }
+      if (statement.includes("INSERT INTO authz_migration_failures")) {
+        failureRecorded = { name: args?.[0], error: args?.[1] };
         return { rows: [] };
       }
       return { rows: [] };
@@ -73,6 +78,8 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
       "boom",
     );
     expect(markerPresent).toBe(false);
+    // The reason is durable, not only in the server log.
+    expect(failureRecorded).toEqual({ name: "boom-mig", error: "boom" });
 
     dbMock.execute.mockImplementation(async () => ({ rows: [] }));
   });

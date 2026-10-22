@@ -29,7 +29,7 @@ export const POST = createHandler(
   async (req) => {
     await initDb();
     const session = await getSession();
-    if (!session?.cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session?.cid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const body = await req.json();
     const planId = body.plan_id;
     if (!planId) return NextResponse.json({ success: false, error: "plan_id is required." }, { status: 400 });
@@ -43,7 +43,7 @@ export const POST = createHandler(
     const { resolvePlanAccess, allowsPlanAction } = await import("@/services/ventures/operatingPlans");
     const access = await resolvePlanAccess(plan.venture_id, session);
     if (!access.ok || !(await allowsPlanAction(access, "manage"))) {
-      return NextResponse.json({ success: false, error: "Only staff managing this Venture can save it as a template." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureTemplateSaveDenied" }, { status: 403 });
     }
 
     const result = await createTemplateFromPlan({

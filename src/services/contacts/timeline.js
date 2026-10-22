@@ -14,15 +14,18 @@
 import {
   getProgramIdsForPm,
 } from "@/models/contacts/programMembership";
+import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
 import {
   getContactTimelineEvents,
   getTimelineContactIdentity,
   createContactTimelineEvent,
 } from "@/models/contacts/timeline";
 
+import { isMemberSurfaceRole } from "@/lib/identity";
+
 /** Whether this caller may read this contact's timeline (own-record for members). */
 export function mayReadContactTimeline(session, cid) {
-  if (session.role === "participant" || session.role === "founder") {
+  if (isMemberSurfaceRole(session.role)) {
     return session.cid === cid;
   }
   return true;
@@ -32,7 +35,7 @@ export function mayReadContactTimeline(session, cid) {
 export async function listContactTimeline(session, cid, { moduleFilter, typeFilter, limit, offset }) {
   // Program managers: scope events to non-program modules + their programs.
   let pmProgramIds;
-  if (session.role === "program_manager") {
+  if (await isProgramManagerProfileSession(session)) {
     const programsResult = await getProgramIdsForPm(session.cid);
     pmProgramIds = programsResult.rows.map((row) => row.id);
   }

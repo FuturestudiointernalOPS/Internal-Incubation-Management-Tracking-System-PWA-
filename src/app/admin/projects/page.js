@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import {
   EMPTY_LIST,
@@ -45,7 +46,7 @@ export default function AdminProjects() {
   // Who is signed in, from the shell's session cache: no request of its own, and
   // no dependence on the browser's stored copy.
   const { role: userRole } = useSessionUser();
-  const canCreate = userRole === "super_admin";
+  const canCreate = isPlatformOwnerRole(userRole);
 
   // The sidebar's "Create Project" link arrives as a query parameter, so the
   // dialog is open because the ADDRESS says so rather than because an effect

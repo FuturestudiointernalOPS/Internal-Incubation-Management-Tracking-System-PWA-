@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import {
   getV2ProgramById,
@@ -11,7 +12,12 @@ import {
   upsertV2ParticipantActiveWithFallback,
 } from "@/services/contacts/participantSync";
 
-export const POST = createHandler({ roles: ["super_admin"] }, async (req) => {
+export const POST = createHandler(async (req) => {
+  // Bulk assignment of a cohort to a program is a platform assignment
+  // operation (same family as teams and facilitator assignments).
+  const capError = await requireAuthorization("permissions", "assign_groups");
+  if (capError) return capError;
+
   const { group_name, program_id, program_name } = await req.json();
 
   if (!group_name || !program_id) {

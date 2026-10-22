@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireProgramManagerAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getCalendarHealth, runCalendarAction } from "@/services/platform/integrations";
 
@@ -34,7 +34,7 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin", "program_manager"]);
+    const authError = await requireProgramManagerAccess();
     if (authError) return authError;
 
     const { action, runId } = await req.json();

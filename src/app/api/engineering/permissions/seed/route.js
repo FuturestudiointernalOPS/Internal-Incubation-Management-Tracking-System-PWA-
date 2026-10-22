@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
-import { seedDefaultRoleCapabilities } from "@/models/authorization/bootstrap";
-import { requireAuthorization } from "@/models/authorization/index";
+import {
+  seedDefaultEligibility,
+  invalidateAllAuthorizationContexts,
+  requireAuthorization,
+} from "@/models/authorization/index";
+import { ensureProfileCatalogueSeed } from "@/models/authorization/profileCatalogueSeed";
+import { seedDefaultResponsibilities } from "@/models/authorization/bootstrap";
 import { requireSameOrigin } from "@/lib/requestOrigin";
 
 /**
@@ -17,8 +22,7 @@ export async function GET(req) {
     const capError = await requireAuthorization("permissions", "view_matrix");
     if (capError) return capError;
 
-    const result = await seedDefaultRoleCapabilities();
-    return NextResponse.json(result);
+    return NextResponse.json(await seedDefaults());
   } catch (error) {
     console.error("[Permissions] Seed error:", error);
     return NextResponse.json(
@@ -31,16 +35,18 @@ export async function GET(req) {
 /**
  * POST /api/engineering/permissions/seed
  *
- * Seeds default role capabilities into the database.
- * Safe to run multiple times (upserts).
+ * Seeds the default PROFILES (with their capabilities and role defaults),
+ * the baseline eligibility ceilings and the responsibilities catalogue.
+ *
+ * Insert-only: an administrator's edit is never overwritten. The legacy
+ * per-role capability table is gone — a role now names a default profile.
  */
 export async function POST() {
   try {
     const capError = await requireAuthorization("permissions", "assign_capabilities");
     if (capError) return capError;
 
-    const result = await seedDefaultRoleCapabilities();
-    return NextResponse.json(result);
+    return NextResponse.json(await seedDefaults());
   } catch (error) {
     console.error("[Permissions] Seed error:", error);
     return NextResponse.json(
@@ -48,4 +54,12 @@ export async function POST() {
       { status: 500 },
     );
   }
+}
+
+async function seedDefaults() {
+  const profiles = await ensureProfileCatalogueSeed();
+  const eligibility = await seedDefaultEligibility();
+  const responsibilities = await seedDefaultResponsibilities();
+  invalidateAllAuthorizationContexts();
+  return { success: true, profiles, eligibility, responsibilities };
 }

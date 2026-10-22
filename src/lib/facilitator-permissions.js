@@ -1,33 +1,21 @@
 /**
- * Facilitator capability definitions shared by the PM facilitator UI and the
+ * Facilitator capability helpers shared by the PM facilitator UI and the
  * bulk-invitation API so the "full facilitator access" default can never drift
  * from the capabilities the UI can actually render.
  *
- * This list, PERMISSION_MODULES.facilitator.capabilities (src/lib/auth.js) and
- * CAPABILITY_CATALOG.facilitator.capabilities (src/models/authorization/
- * capability-catalog.js) are three declarations of ONE vocabulary. They are
- * kept in exact sync by src/__tests__/facilitator-capability-coverage.test.js,
- * which also records which keys are enforced at request level and which are
- * still assignment-only.
+ * The keys are NOT declared here: they come from the dedicated animation-rights
+ * definition (`@/models/authorization/constants/facilitator-capabilities`),
+ * which the general capability registry also imports. One definition, no copy.
+ *
+ * `reviews.submit` is retained because it is CONSULTED (facilitator reviews
+ * POST). Six keys were retired by product decision D7 because no decision ever
+ * read them: a right nothing enforces is a false right. See
+ * docs/permissions/phase-7-d7-animation-rights.md.
  */
 
-export const FACILITATOR_CAPABILITY_KEYS = [
-  "participants.view",
-  "participants.manage",
-  "attendance.view",
-  "attendance.record",
-  "assignments.view",
-  "assignments.review",
-  "assignments.grade",
-  "sessions.conduct",
-  "sessions.record",
-  "progress.view",
-  "groups.view",
-  "groups.manage",
-  // Was declared in PERMISSION_MODULES + the catalog but missing here, so the
-  // PM UI could never render it and "full facilitator access" never granted it.
-  "reviews.submit",
-];
+import { FACILITATOR_CAPABILITY_KEYS } from "@/models/authorization/constants/facilitator-capabilities";
+
+export { FACILITATOR_CAPABILITY_KEYS };
 
 /**
  * Full facilitator access means every facilitator capability is granted within
@@ -36,7 +24,7 @@ export const FACILITATOR_CAPABILITY_KEYS = [
 export function buildFullFacilitatorPermissions() {
   const permissions = {};
   for (const key of FACILITATOR_CAPABILITY_KEYS) {
-    permissions[key] = key.startsWith("view") ? 1 : 2;
+    permissions[key] = key.endsWith(".view") ? 1 : 2;
   }
   return permissions;
 }

@@ -82,7 +82,7 @@ export const GET = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    if (!session?.cid && !session?.role) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session?.cid && !session?.role) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const { id } = await params;
     const code = await resolveCode(id);
 
@@ -102,7 +102,7 @@ export const GET = createHandler(
       for (const assignment of assignments) {
         if (await responsibilityAllowsNoteView(assignment.responsibility_code)) { canView = true; break; }
       }
-      if (!canView) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+      if (!canView) return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -129,7 +129,7 @@ export const POST = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    if (!session?.cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session?.cid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const { id } = await params;
     const code = await resolveCode(id);
     const assignments = await resolveStaffAssignment(code, session.cid);
@@ -168,12 +168,12 @@ export const POST = createHandler(
           (assignment) => assignment.scope_type === "venture_wide" || (String(assignment.scope_ref_type || "") === String(scopeRefType) && String(assignment.scope_ref_id || "") === String(scopeRefId)),
         );
         if (!inScope) {
-          return NextResponse.json({ success: false, error: "This note is outside your assigned scope." }, { status: 403 });
+          return NextResponse.json({ success: false, error: "errors.outsideAssignedScope" }, { status: 403 });
         }
       }
       const allowed = await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "create", scopeRefType, scopeRefId });
       if (!allowed) {
-        return NextResponse.json({ success: false, error: "Your assignment does not allow creating internal notes." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.internalNotesCreateDenied" }, { status: 403 });
       }
     }
 
@@ -199,7 +199,7 @@ export const DELETE = createHandler(
   async (req, { params }) => {
     await initDb();
     const session = await getSession();
-    if (!session?.cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session?.cid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const { id } = await params;
     const code = await resolveCode(id);
     const assignments = await resolveStaffAssignment(code, session.cid);
@@ -219,7 +219,7 @@ export const DELETE = createHandler(
       const isAuthor = String(note.author_cid || "") === String(session.cid);
       const allowed = isAuthor || (await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "delete" }));
       if (!allowed) {
-        return NextResponse.json({ success: false, error: "Not allowed to delete this note." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.noteDeleteDenied" }, { status: 403 });
       }
     }
 

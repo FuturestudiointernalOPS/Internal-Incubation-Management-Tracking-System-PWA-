@@ -1,3 +1,5 @@
+import { isPlatformOwnerRole } from "@/lib/identity";
+
 /**
  * The request body the workspace's configuration save sends.
  *
@@ -18,8 +20,9 @@ export function buildProgramConfigPayload({
 }) {
   return {
     id,
-    name:
-      user.role === "super_admin" ? configNameRef.current?.value : program?.name,
+    name: isPlatformOwnerRole(user.role)
+      ? configNameRef.current?.value
+      : program?.name,
     description: configDescRef.current?.value,
     duration_weeks:
       parseInt(configWeeksRef.current?.value) || program?.duration_weeks,

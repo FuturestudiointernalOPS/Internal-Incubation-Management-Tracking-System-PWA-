@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
 import { NextResponse } from "next/server";
+import { requireAuthorization } from "@/models/authorization/index";
 import { listUserAnalytics } from "@/services/dashboard/adminAnalytics";
 
 /**
@@ -12,7 +12,7 @@ import { listUserAnalytics } from "@/services/dashboard/adminAnalytics";
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("users", "view");
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);

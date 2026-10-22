@@ -15,7 +15,6 @@ export const dynamic = "force-dynamic";
  * The task belongs to the existing task system. CRM just provides the link.
  */
 export const POST = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (req, { params }) => {
     const authError = await requireAuthorization("crm", "edit");
     if (authError) return authError;

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import {
   getGlobalMatrix,
@@ -8,9 +8,6 @@ import {
   VENTURE_PERMISSION_AREAS,
   VENTURE_PERMISSION_ACTIONS,
 } from "@/services/ventures/permissions";
-
-const READ_ROLES = ["super_admin"];
-const WRITE_ROLES = ["super_admin"];
 
 const validArea = (area) => VENTURE_PERMISSION_AREAS.includes(area);
 const validAction = (action) => VENTURE_PERMISSION_ACTIONS.includes(action);
@@ -26,7 +23,7 @@ const validAction = (action) => VENTURE_PERMISSION_ACTIONS.includes(action);
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(READ_ROLES);
+    const authError = await requireAuthorization("permissions", "view_matrix");
     if (authError) return authError;
     const responsibilityCode = new URL(req.url).searchParams.get("responsibility");
     if (!responsibilityCode) {
@@ -42,7 +39,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(WRITE_ROLES);
+    const authError = await requireAuthorization("permissions", "assign_responsibilities");
     if (authError) return authError;
     const session = await getSession();
     const { responsibility, area, action, allowed } = await req.json();

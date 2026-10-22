@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSystemSettings, updateSetting, getFeatureFlags, updateFeatureFlag, getSystemRoles, updateRole, createRole, getSystemInfo, getAdminActivityLogs } from "@/services/ventures/systemAdmin";
 
 export const GET = createHandler(
-  { roles: ["super_admin"] },
   async (req) => {
+    const authError = await requireAuthorization("settings", "view");
+    if (authError) return authError;
+
     const queryParams = new URL(req.url).searchParams;
     const type = queryParams.get("type") || "settings";
 
@@ -38,8 +41,10 @@ export const GET = createHandler(
 );
 
 export const PATCH = createHandler(
-  { roles: ["super_admin"] },
   async (req) => {
+    const authError = await requireAuthorization("settings", "edit");
+    if (authError) return authError;
+
     const body = await req.json();
     const { action } = body;
 

@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAssignmentAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
@@ -49,7 +49,7 @@ export async function GET(req) {
     // everyone else must hold a program assignment and provide a real program
     // context ("all" is no longer an implicit platform-wide read).
     const capError = await requireAuthorization("programs", "view");
-    const canReadTeams = !capError || hasProgramManagementAccess(session?.role);
+    const canReadTeams = !capError || (await isProgramManagerSession(session));
     if (session?.role !== "team" && !canReadTeams) {
       if (!programId || programId === "all") {
         return NextResponse.json(
@@ -77,7 +77,7 @@ export async function GET(req) {
     // Shared team credentials are management data: only management roles receive
     // them. Everyone else (assignment holders, and a team reading its own row)
     // gets the roster without the shared username/password.
-    const canSeeCredentials = hasProgramManagementAccess(session?.role);
+    const canSeeCredentials = await isProgramManagerSession(session);
     const teams = canSeeCredentials
       ? result.rows
       : result.rows.map(stripTeamCredentials);
@@ -112,7 +112,7 @@ export async function POST(req) {
 
     // Record scope: an org-team write belongs to a program the caller is staffed
     // on; the role list above only says which roles may write at all.
-    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     // Generate Team Username (TEAM_SLUG_ID) and Password. Both come from a
@@ -195,7 +195,7 @@ export async function PUT(req) {
     // The team id comes from the client: resolve its program and confirm the
     // caller is staffed there before any write.
     const teamForScope = await getOrgTeams(null, id);
-    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     // 1. Update team record
@@ -246,7 +246,7 @@ export async function DELETE(req) {
     // The team id comes from the client: resolve its program and confirm the
     // caller is staffed there before deleting anything.
     const teamForScope = await getOrgTeams(null, id);
-    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups" });
+    const scopeError = await requireProgramScope({ programId: teamForScope.rows?.[0]?.program_id, wave: "groups", module: "permissions", capability: "assign_groups" });
     if (scopeError) return scopeError;
 
     // Clear member links first

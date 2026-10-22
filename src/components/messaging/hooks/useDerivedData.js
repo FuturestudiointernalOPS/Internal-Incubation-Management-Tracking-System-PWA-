@@ -2,6 +2,12 @@
 
 import { useMemo } from "react";
 import { getPermissions } from "@/components/messaging/chat/getPermissions";
+import {
+  carriesContextualValue,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 
 export function useDerivedData({
   role,
@@ -14,14 +20,14 @@ export function useDerivedData({
 }) {
   const userProgramIds = useMemo(() => {
     if (!uid || !role) return [];
-    if (role === "super_admin") return [];
-    if (role === "staff") return [];
-    if (role === "program_manager") {
+    if (isPlatformOwnerRole(role)) return [];
+    if (isInternalStaffRole(role)) return [];
+    if (isLegacyProgramManagerRole(role)) {
       return allPrograms
         .filter((program) => String(program.assigned_pm_id) === String(uid))
         .map((program) => program.id);
     }
-    if (role === "participant") {
+    if (carriesContextualValue(role, "participant")) {
       if (effectiveUser?.program_id) return [effectiveUser.program_id];
       return [];
     }
@@ -36,7 +42,7 @@ export function useDerivedData({
   const contacts = useMemo(() => {
     return allContacts.filter((contact) => {
       if (String(contact.cid || contact.id) === String(uid)) return false;
-      if (role === "participant" || role === "founder") return true;
+      if (carriesContextualValue(role, "participant") || carriesContextualValue(role, "founder")) return true;
       return permissions.canMessage(contact, allContacts);
     });
   }, [allContacts, permissions, uid, role]);

@@ -11,7 +11,7 @@ export async function POST(req) {
     await initDb();
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     // Same separation as the single review: an admission decision is never a
     // side effect of holding runs.edit.
     const authError = await requireAuthorization("runs", "review");

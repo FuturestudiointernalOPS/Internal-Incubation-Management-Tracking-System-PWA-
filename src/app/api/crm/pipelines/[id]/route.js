@@ -9,7 +9,6 @@ import {
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (_req, { params }) => {
     const authError = await requireAuthorization("crm", "view");
     if (authError) return authError;
@@ -29,7 +28,6 @@ export const GET = createHandler(
 );
 
 export const PATCH = createHandler(
-  { roles: ["super_admin"] },
   async (req, { params }) => {
     const authError = await requireAuthorization("crm", "manage");
     if (authError) return authError;

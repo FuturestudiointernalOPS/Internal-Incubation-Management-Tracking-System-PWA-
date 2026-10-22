@@ -57,6 +57,8 @@ const EXPECTED_KEYS = [
   "facilitator",
   "program_manager",
   "venture_manager",
+  // Phase 7 (D6) — the dedicated course-management profile.
+  "course_manager",
 ];
 
 /** SQL of a mock call, whether it was passed as a string or as { sql, args }. */
@@ -80,10 +82,10 @@ afterEach(() => {
 
 // ── 1. Pure catalogue + service ──────────────────────────────────────────────
 
-describe("profile catalogue — the agreed seven", () => {
-  test("lists exactly the seven profiles of the product brief", () => {
+describe("profile catalogue — the seeded catalogue", () => {
+  test("lists exactly the seeded profiles of the product brief (plus the D6 course manager)", () => {
     expect(PROFILE_KEYS).toEqual(EXPECTED_KEYS);
-    expect(PROFILE_CATALOG).toHaveLength(7);
+    expect(PROFILE_CATALOG).toHaveLength(EXPECTED_KEYS.length);
   });
 
   test("every profile has a known context and a valid, non-empty role list", () => {

@@ -58,6 +58,7 @@ export {
   ELIGIBILITY_IDENTITY_GROUPS,
   validateEligibilityChanges,
   validateCapabilitiesWithinEligibility,
+  findOpenCeilingsWithoutRights,
   assertTemplateCapsEligible,
   findTemplatesGrantingFeature,
 } from "@/services/authorization/eligibilityAdmin";

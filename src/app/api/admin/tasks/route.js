@@ -1,8 +1,12 @@
 import { createHandler } from "@/lib/api/createHandler";
 import { NextResponse } from "next/server";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getAdminTaskBlockers, getAdminTaskRows } from "@/models/tasks";
 
-export const GET = createHandler({ roles: ["super_admin"] }, async (req) => {
+export const GET = createHandler(async (req) => {
+  const capError = await requireAuthorization("tasks", "view");
+  if (capError) return capError;
+
   const { searchParams } = new URL(req.url);
   const status = searchParams.get("status");
   const project_id = searchParams.get("project_id");

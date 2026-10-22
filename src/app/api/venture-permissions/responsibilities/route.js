@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import { listResponsibilities, getResponsibility } from "@/services/ventures/permissions";
 import {
@@ -9,9 +9,8 @@ import {
 } from "@/models/ventureWorkspace";
 
 // Permission configuration is Super Admin territory (delegated staff access
-// is defined here). Reads also serve the admin console.
-const READ_ROLES = ["super_admin"];
-const WRITE_ROLES = ["super_admin"];
+// is defined here). Reads also serve the admin console. The capability names
+// the rule; the platform owner is exempt.
 
 const slugify = (value) =>
   String(value || "")
@@ -24,7 +23,7 @@ const slugify = (value) =>
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(READ_ROLES);
+    const authError = await requireAuthorization("permissions", "view_matrix");
     if (authError) return authError;
     const includeInactive = new URL(req.url).searchParams.get("include_inactive") === "1";
     const responsibilities = await listResponsibilities({ includeInactive });
@@ -37,7 +36,7 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(WRITE_ROLES);
+    const authError = await requireAuthorization("permissions", "assign_responsibilities");
     if (authError) return authError;
     const session = await getSession();
     const { name, code, description } = await req.json();
@@ -67,7 +66,7 @@ export async function POST(req) {
 export async function PATCH(req) {
   try {
     await initDb();
-    const authError = await requireAuth(WRITE_ROLES);
+    const authError = await requireAuthorization("permissions", "assign_responsibilities");
     if (authError) return authError;
     const { code, name, description, is_active } = await req.json();
     const existing = await getResponsibility(code);

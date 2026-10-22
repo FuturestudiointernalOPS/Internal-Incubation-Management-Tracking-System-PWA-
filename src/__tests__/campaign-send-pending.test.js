@@ -14,6 +14,13 @@ jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
 }));
 
+// The route's gate is a capability (`runs.edit`). This suite tests the send
+// logic, so the decision is allowed here; the gate itself is covered by the
+// static guards.
+jest.mock("@/models/authorization/index", () => ({
+  requireAuthorization: jest.fn(async () => null),
+}));
+
 jest.mock("@/lib/email", () => ({
   ...jest.requireActual("@/lib/email"),
   sendStandaloneEmail: jest.fn(),

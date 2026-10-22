@@ -44,7 +44,7 @@ export async function deleteTaskRecord({ id, role, sessionCid, sessionName }) {
     ) {
       return {
         status: 403,
-        error: "You can only delete your own tasks, assigned tasks, or supervised tasks.",
+        error: "errors.taskDeleteDenied",
       };
     }
   }
@@ -52,7 +52,7 @@ export async function deleteTaskRecord({ id, role, sessionCid, sessionName }) {
   // Locking: a locked task cannot be deleted.
   const locked = await isTaskLocked(id);
   if (locked) {
-    const error = "Task is locked (older than 12 hours) and cannot be deleted.";
+    const error = "errors.taskLockedDelete";
     return { status: 403, error, body: { success: false, error, locked: true } };
   }
 
@@ -62,7 +62,7 @@ export async function deleteTaskRecord({ id, role, sessionCid, sessionName }) {
     taskCheckResult.rows[0].status === "carried_over"
   ) {
     const error =
-      "Carry-over tasks cannot be deleted. They must be completed or resolved.";
+      "errors.carryoverCannotDelete";
     return { status: 403, error, body: { success: false, error } };
   }
 

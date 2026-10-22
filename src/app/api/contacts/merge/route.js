@@ -19,7 +19,7 @@ export const dynamic = "force-dynamic";
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
     const capError = await requireAuthorization("contacts", "delete");
     if (capError) return capError;

@@ -2,10 +2,14 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { requireAssignmentAccess } from "@/server/authz/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { requireProgramScope } from "@/lib/programScopedAccess";
+import {
+  readIsHistoricalOnly,
+  historicalContextIdsForFeature,
+} from "@/services/authorization/historicalReadScope";
 import {
   createV2ProgramRecord,
   getV2ProgramDirectory,
@@ -46,10 +50,31 @@ export async function GET(req) {
     if (authError) return authError;
     const session = await getSession();
     const capError = await requireAuthorization("programs", "view");
-    const canReadDirectory = !capError || hasProgramManagementAccess(session?.role);
+    const isManager = await isProgramManagerSession(session);
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
+
+    // D1 — a former manager keeps a read-only consultation of the programs they
+    // RAN. It is neither the directory nor an assignment: bound it to their ended
+    // contexts, so the residual read can never open the whole directory.
+    if (!isManager && !capError && (await readIsHistoricalOnly(session?.cid, "programs"))) {
+      const historyIds = await historicalContextIdsForFeature(session?.cid, "programs");
+      if (id && !historyIds.includes(String(id))) {
+        return NextResponse.json(
+          { success: false, error: "errors.insufficientPermissions" },
+          { status: 403 },
+        );
+      }
+      const serviceRes = await getV2ProgramDirectory({
+        canReadDirectory: false,
+        id,
+        programIds: historyIds,
+      });
+      return NextResponse.json(serviceRes.body, { status: serviceRes.status });
+    }
+
+    const canReadDirectory = !capError || isManager;
 
     if (!canReadDirectory) {
       if (id) {
@@ -92,7 +117,7 @@ export async function PUT(req) {
 
     // Record scope: `staff` authorisation here only says WHICH roles may edit at
     // all — a delegated editor must still be staffed on the program being edited.
-    const scopeError = await requireProgramScope({ programId: data.id, wave: "content" });
+    const scopeError = await requireProgramScope({ programId: data.id, wave: "content", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const serviceRes = await updateV2ProgramRecord({ payload: data });

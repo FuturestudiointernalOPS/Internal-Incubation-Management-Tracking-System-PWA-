@@ -238,4 +238,28 @@ describe("POST /api/blockers/discuss", () => {
     expect(mockBlockers.notifyBlockerCreatorOfDiscussion).toHaveBeenCalled();
     expect(mockBlockers.notifySuperAdminOfDiscussion).toHaveBeenCalled();
   });
+
+  test("the sender is the session, never the body", async () => {
+    mockBlockers.getBlockerForDiscussion.mockResolvedValue({
+      rows: [{ id: 1, user_id: "owner", title: "B", task_id: 1 }],
+    });
+    await discussPOST(
+      jsonReq({ blocker_id: 1, sender_id: "somebody-else", body: "hi" }),
+    );
+    expect(mockBlockers.createBlockerDiscussion).toHaveBeenCalledWith(
+      expect.objectContaining({ sender_id: "user-1" }),
+    );
+  });
+
+  test("a caller outside the task scope is refused and nothing is written", async () => {
+    mockSession.cid = "intruder";
+    mockSession.role = "participant";
+    mockBlockers.getBlockerForDiscussion.mockResolvedValue({
+      rows: [{ id: 1, user_id: "owner", title: "B", task_id: 1 }],
+    });
+
+    const res = await discussPOST(jsonReq({ blocker_id: 1, body: "hi" }));
+    expect(res.status).toBe(403);
+    expect(mockBlockers.createBlockerDiscussion).not.toHaveBeenCalled();
+  });
 });

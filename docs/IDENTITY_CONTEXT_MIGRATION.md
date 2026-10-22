@@ -28,7 +28,7 @@ global value per person today**.
 |---|---|---|
 | **True baseline identity** | auth.js session; resolver SA bypass; admin layout (SA/dev); authorization.js promote/demote (super_admin/staff) | `contacts.role='super_admin'|'staff'` |
 | **Contextual role stored as global role** (anti-pattern to remove) | participant/founder/investor/facilitator mutations + allowlists | see C |
-| **Legacy authorization gates** | 276/386 route files `requireAuth([roles])`; role_capabilities fallback (roles: admin, developer, investor, program_manager, staff, teacher, team); eligibility-defaults legacy role lists | see D |
+| **Legacy authorization gates** | 276/386 route files `requireAuth([roles])`; role_capabilities fallback (roles: admin, developer, investor, program_manager, staff, teacher, team); the authorization constants' legacy role lists | see D |
 | **UI / navigation** | ROLE_ACCESS role masks (incl. developer/teacher/crm/finance contexts); PERSONAL_ROLES; context switcher | sidebar = `buildAccessNav(role, capabilities)` — role + effective capabilities, never the visited path; context-switcher hat = `activeContextFromPathname` |
 | **Business rules** | "Staff cannot be Participant" style checks; venture founder guards | see C |
 | **Context checks (healthy — the future spine)** | ventureAuth (venture_members / venture_staff_assignments), facilitation (v2_program_staff / v2_teams.handler), program scope lookups | membership-table driven |
@@ -57,7 +57,7 @@ promotion) belong to it; the rest must move to contexts.
 | `admin` | ghost role in 23+ allowlists + role_capabilities | **Remove** (map to SA or caps) |
 | `verification_officer` | stray reference | Remove/investigate |
 
-Note: eligibility-defaults, `ALL_FEATURE_ROLES`, `responsibilities.allowed_roles`,
+Note: the authorization constants (`authorization/constants`), `ALL_FEATURE_ROLES`, `responsibilities.allowed_roles`,
 nav masks and the 7-identity UI set all carry *some* of these values today — each
 must converge on the 3-baseline + contextual model.
 

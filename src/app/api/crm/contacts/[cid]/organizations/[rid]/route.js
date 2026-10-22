@@ -21,7 +21,6 @@ export const dynamic = "force-dynamic";
  */
 
 export const PATCH = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (req, { params }) => {
     const authError = await requireAuthorization("crm", "edit");
     if (authError) return authError;
@@ -55,7 +54,6 @@ export const PATCH = createHandler(
 );
 
 export const DELETE = createHandler(
-  { roles: ["super_admin", "staff"] },
   async (_req, { params }) => {
     const authError = await requireAuthorization("crm", "delete");
     if (authError) return authError;

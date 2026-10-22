@@ -12,7 +12,7 @@ export async function POST(req) {
     const providedSecret = req.headers.get("x-cron-secret");
     const cronAuthorized = !!process.env.CRON_SECRET && providedSecret === process.env.CRON_SECRET;
     if (!cronAuthorized) {
-      if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
       const authError = await requireAuthorization("runs", "edit");
       if (authError) return authError;
     }

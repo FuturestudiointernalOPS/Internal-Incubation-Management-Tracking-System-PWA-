@@ -16,7 +16,7 @@ export const POST = createHandler(
 
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -25,7 +25,7 @@ export const POST = createHandler(
     const canEdit = await canEditStartupProfile(id, session);
     if (!canEdit) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized to submit this startup profile." },
+        { success: false, error: "errors.startupProfileAccessDenied" },
         { status: 403 },
       );
     }

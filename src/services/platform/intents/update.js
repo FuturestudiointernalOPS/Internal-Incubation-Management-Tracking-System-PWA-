@@ -46,7 +46,7 @@ export async function updateIntentForSession({ session, input }) {
   ) {
     return {
       status: 403,
-      body: { success: false, error: "Only the responsible person can update this intent." },
+      body: { success: false, error: "errors.intentUpdateDenied" },
     };
   }
 

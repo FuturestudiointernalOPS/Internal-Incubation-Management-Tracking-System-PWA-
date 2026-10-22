@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { uploadDeliverableEvidence } from "@/lib/storage";
 
 export const dynamic = "force-dynamic";
@@ -22,8 +22,8 @@ export const dynamic = "force-dynamic";
 export async function POST(req, { params }) {
   try {
     const { id } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
 
     const formData = await req.formData();
     const file = formData.get("file");

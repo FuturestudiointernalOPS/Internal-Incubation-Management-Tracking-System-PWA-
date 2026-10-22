@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getSession } from "@/server/auth/session";
 import { hasAnyFacilitatorAssignment } from "@/models/authorization/accessQueries";
 import { roleHomeHref } from "@/models/platform/roles";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function FacilitatorLayout({ children }) {
   const session = await getSession();
   if (!session) redirect("/login");
 
-  if (session.role !== "super_admin") {
+  if (!isPlatformOwnerRole(session.role)) {
     const assigned = await hasAnyFacilitatorAssignment(
       session.cid,
       session.email,

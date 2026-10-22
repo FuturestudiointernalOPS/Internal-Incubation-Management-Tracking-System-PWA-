@@ -21,8 +21,8 @@ function textToHtml(text) {
 }
 
 /** Send + record one standalone email. Used by the in-module senders below. */
-export async function sendAndRecord({ to, subject, html, fromName, provider, contact_cid, email_type, note, attachments }) {
-  const result = await sendEmail({ to, subject, html, fromName, provider, attachments });
+export async function sendAndRecord({ to, cc, subject, html, fromName, provider, contact_cid, email_type, note, attachments, replyTo }) {
+  const result = await sendEmail({ to, cc, subject, html, fromName, provider, attachments, replyTo });
   await recordStandaloneSend({ result, to, contact_cid, email_type, note, provider });
   return result;
 }
@@ -53,9 +53,10 @@ export async function sendStandaloneEmail({
   note,
   provider,
   attachments,
+  replyTo,
 }) {
   const content = html != null ? html : isHtml ? (body || "") : textToHtml(body);
-  return sendAndRecord({ to, subject, html: content, fromName, provider, contact_cid, email_type, note, attachments });
+  return sendAndRecord({ to, subject, html: content, fromName, provider, contact_cid, email_type, note, attachments, replyTo });
 }
 
 /**

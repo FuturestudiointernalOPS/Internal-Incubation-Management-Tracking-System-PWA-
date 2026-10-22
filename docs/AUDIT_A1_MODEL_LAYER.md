@@ -44,7 +44,7 @@ Files **clean** (no function mixes a business rule with SQL): `curriculum.js`,
 
 | # | Function | The decision, and why it is not data access | Where it belongs |
 |---|---|---|---|
-| 1 | `authorization.js` → `getCurrentBaseCapabilities` | The **base-capability precedence**: an active profile override wins, else the role's default profile, else the legacy `role_capabilities` rows. The four SELECTs only feed that rule. | `services/authorization` (the resolver already owns the same precedence) |
+| 1 | `authorization.js` → `getCurrentBaseCapabilities` | The **base-capability precedence**: an active profile override wins, else the role's default profile. (The legacy `role_capabilities` third step was retired on 2026-10-19; see `docs/permissions/CLEANUP_2026-10-19.md`.) The SELECTs only feed that rule. | `services/authorization` (the resolver already owns the same precedence) |
 | 2 | `communications.js` → `listFollowups` | The **visibility rule**: a participant sees only their own follow-ups, other non-super-admin staff see the ones they assigned plus legacy rows. Mixed into the SELECT's WHERE assembly. | `services/communications` |
 | 3 | `investor.js` → `listInvestmentPipeline` | Picks one of **three query variants by caller role**, and encodes a **security scope** ("a non-management session may only read its OWN rows for the venture"). The comment records it as a fix for a leak, so the rule is load-bearing. | `services/investor/pipeline` |
 | 4 | `investorRelations.js` → `listRelationshipWorkspaces` | **Scope on the profile, not the role string** — a baseline member holding an investor profile must take the investor branch, not the unfiltered admin branch. A leak fix living with the SQL. | `services/investor/relationships` |

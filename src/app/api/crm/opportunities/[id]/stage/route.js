@@ -35,7 +35,6 @@ export const dynamic = "force-dynamic";
  * No frontend-only stage update path exists. All stage changes use this endpoint.
  */
 export const PATCH = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (req, { params }) => {
     const authError = await requireAuthorization("crm", "edit");
     if (authError) return authError;

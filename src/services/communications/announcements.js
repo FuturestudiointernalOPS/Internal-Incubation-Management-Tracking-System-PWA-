@@ -97,7 +97,7 @@ export async function updateAnnouncement({ session, payload }) {
   if (existing.rows[0].author_id !== session.cid && session.role !== "super_admin") {
     return {
       denied: {
-        error: "Only the author or super_admin can edit this announcement.",
+        error: "errors.announcementEditDenied",
         status: 403,
       },
     };
@@ -126,7 +126,7 @@ export async function archiveAnnouncement({ session, id }) {
   if (existing.rows[0].author_id !== session.cid && session.role !== "super_admin") {
     return {
       denied: {
-        error: "Only the author or super_admin can archive this announcement.",
+        error: "errors.announcementArchiveDenied",
         status: 403,
       },
     };

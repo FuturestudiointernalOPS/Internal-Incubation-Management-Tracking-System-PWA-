@@ -24,7 +24,7 @@ export async function upsertParticipantContact(cid, name, email, phone, password
               name = EXCLUDED.name,
               phone = EXCLUDED.phone,
               role = EXCLUDED.role`,
-    args: [cid, name, email, phone || null, "participant", password],
+    args: [cid, name, email, phone || null, "member", password],
   });
 }
 

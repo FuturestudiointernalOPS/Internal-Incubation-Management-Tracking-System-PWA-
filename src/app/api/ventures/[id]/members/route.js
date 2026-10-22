@@ -1,6 +1,7 @@
 import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getSession } from "@/server/auth/session";
 import { createVentureMemberInvitation } from "@/models/ventureMemberInvitations";
 import {
@@ -16,7 +17,6 @@ import {
 import {
   resolveVentureTableId,
   getVentureFounderCount,
-  checkVentureMemberViewAccess as checkAccess,
   checkVentureMemberMutateAccess as checkMutateAccess,
 } from "@/models/ventureMemberAccess";
 import {
@@ -38,13 +38,10 @@ export async function GET(req, { params }) {
 
     const { id } = await params;
     const session = await getSession();
-    const userCid = session?.cid || "";
     const userRole = session?.role || "";
 
-    const hasAccess = await checkAccess(db, id, userRole, userCid);
-    if (!hasAccess) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
 
     // Archived Ventures: privileged staff may read the roster (historical);
     // non-privileged members lose active access (Phase 3).
@@ -88,14 +85,12 @@ export async function POST(req, { params }) {
     const userCid = session?.cid || "";
     const userRole = session?.role || "";
 
-    const hasAccess = await checkAccess(db, id, userRole, userCid);
-    if (!hasAccess) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
     const canMutate = await checkMutateAccess(db, id, userRole, userCid);
     if (!canMutate) {
       return NextResponse.json(
-        { success: false, error: "Only founders can manage venture members." },
+        { success: false, error: "errors.foundersOnly" },
         { status: 403 },
       );
     }
@@ -196,14 +191,12 @@ export async function PATCH(req, { params }) {
     const userCid = session?.cid || "";
     const userRole = session?.role || "";
 
-    const hasAccess = await checkAccess(db, id, userRole, userCid);
-    if (!hasAccess) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
     const canMutate = await checkMutateAccess(db, id, userRole, userCid);
     if (!canMutate) {
       return NextResponse.json(
-        { success: false, error: "Only founders can manage venture members." },
+        { success: false, error: "errors.foundersOnly" },
         { status: 403 },
       );
     }

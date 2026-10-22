@@ -7,14 +7,12 @@ import {
   getEffectiveGroupsForUser,
 } from "@/services/authorization/membership";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import { verifyPassword } from "@/server/auth/password";
+import { verifyPassword, verifyPasswordOrUpgradeLegacy } from "@/server/auth/password";
+import { updateContactPasswordHashByCid } from "@/models/authFlows/passwordReset";
 import {
   getContactByEmailOrId,
   getTeamByUsernameForLogin,
   getFamilyBySharedEmailForLogin,
-  getParticipantProgramRecordForLogin,
-  getLmsEnrollmentRecordForLogin,
-  getVentureMembershipRecordForLogin,
   ensureContactsActivatedAtColumn,
   ensureContactsLastLoginColumnForLogin,
   ensureContactsLoginCountColumnForLogin,
@@ -143,14 +141,12 @@ export const POST = withRequestContext(async function POST(req) {
     // --- CRYPTOGRAPHIC VERIFICATION ---
     // If it was a Family login, password was already checked
     if (!isFamilyLogin) {
-      const isHashed = user.password && user.password.startsWith("$2");
-      let isMatch = false;
-
-      if (isHashed) {
-        isMatch = await verifyPassword(cleanPassword, user.password);
-      } else {
-        isMatch = cleanPassword === user.password;
-      }
+      // SECRET-1: a bcrypt hash is verified normally; a legacy clear-text row
+      // is accepted ONCE and upgraded to a hash so the clear value does not
+      // survive another login.
+      const isMatch = await verifyPasswordOrUpgradeLegacy(cleanPassword, user.password, {
+        upgrade: (hashed) => updateContactPasswordHashByCid(hashed, user.cid || user.id),
+      });
 
       if (!isMatch) {
         logger.warn("auth_login_failed", {
@@ -189,7 +185,7 @@ export const POST = withRequestContext(async function POST(req) {
         return NextResponse.json(
           {
             success: false,
-            error: "Access Denied: Your account is inactive.",
+            error: "errors.accountInactive",
           },
           { status: 403 },
         );
@@ -210,7 +206,7 @@ export const POST = withRequestContext(async function POST(req) {
           {
             success: false,
             error:
-              "Access Denied: Your account is currently pending verification.",
+              "errors.accountPendingVerification",
           },
           { status: 403 },
         );
@@ -230,7 +226,7 @@ export const POST = withRequestContext(async function POST(req) {
         return NextResponse.json(
           {
             success: false,
-            error: "Access Denied: Your account has been archived.",
+            error: "errors.accountArchived",
           },
           { status: 403 },
         );
@@ -254,7 +250,7 @@ export const POST = withRequestContext(async function POST(req) {
           {
             success: false,
             error:
-              "Access Denied: Your account is not active. Contact your administrator.",
+              "errors.accountNotActive",
           },
           { status: 403 },
         );
@@ -271,10 +267,16 @@ export const POST = withRequestContext(async function POST(req) {
     //   everything else keeps its role (participant default).
     // The membership layer decides which groups are currently effective —
     // expired/ended FUTURE STUDIO memberships no longer produce staff.
-    const activeGroups = await getEffectiveGroupsForUser(userCid || user.id);
+    let activeGroups = [];
+    try {
+      activeGroups = await getEffectiveGroupsForUser(userCid || user.id);
+    } catch (_) {}
     let finalRole = resolveEffectiveRole({
       role: user.role,
       groups: activeGroups,
+      // Same fallback as the session-login path: a legacy row whose effective
+      // group list is unavailable still carries its raw group_name.
+      group_name: user.group_name,
       isTeam: isTeamLogin,
       isFamily: isFamilyLogin,
       legacySa: user.id === "sa",
@@ -285,34 +287,9 @@ export const POST = withRequestContext(async function POST(req) {
       userLanguage = user.language;
     }
 
-    // A participant with no real relationship (program, LMS course or venture
-    // membership) is effectively an unassigned neutral member. Downgrade
-    // instead of rejecting so they reach the empty workspace hub rather than
-    // a broken participant dashboard. A plain group alone is NOT a
-    // relationship — it cannot keep the participant designation.
-    if (finalRole === "participant" && !isFamilyLogin) {
-      const hasDirectProgram =
-        user.program_id && String(user.program_id).trim();
-      let hasParticipantPrograms = false;
-      let hasLms = false;
-      let hasVenture = false;
-      if (!hasDirectProgram && user.cid) {
-        try {
-          const [participantProgramResult, lmsEnrollmentResult, ventureMembershipResult] =
-            await Promise.all([
-              getParticipantProgramRecordForLogin(user.cid),
-              getLmsEnrollmentRecordForLogin(user.cid),
-              getVentureMembershipRecordForLogin(user.cid),
-            ]);
-          hasParticipantPrograms = participantProgramResult.rows.length > 0;
-          hasLms = lmsEnrollmentResult.rows.length > 0;
-          hasVenture = ventureMembershipResult.rows.length > 0;
-        } catch (_) {}
-      }
-      if (!hasDirectProgram && !hasParticipantPrograms && !hasLms && !hasVenture) {
-        finalRole = "member";
-      }
-    }
+    // (The old "participant with no relationship → member" downgrade is gone:
+    // member IS the personal identity now, so there is nothing left to downgrade.
+    // The relationship still decides the landing, never the identity.)
 
     // For Family login, we need to map some fields to match participant structure
     const responseUser = isFamilyLogin
@@ -321,7 +298,7 @@ export const POST = withRequestContext(async function POST(req) {
           cid: user.registration_id, // Map reg ID to CID for dashboard lookup
           name: user.name,
           group_name: user.name,
-          role: "participant",
+          role: "member",
           is_entity: true,
           permission: permission,
         }

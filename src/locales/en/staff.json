@@ -206,6 +206,7 @@
       "kpiSignoff": "Awaiting sign-off",
       "kpiSessionsWeek": "Sessions this week",
       "kpiReports": "Journey reports due",
+      "overviewTitle": "Overview",
       "blockedHint": "Blocked: {names}",
       "queueTitle": "To handle",
       "queueEmpty": "Nothing urgent across your Ventures.",

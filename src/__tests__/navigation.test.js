@@ -310,7 +310,7 @@ describe("capability projection — buildAccessNav contract", () => {
     buildRoleNav,
     buildAccessNav,
   } = require("@/lib/masterNavigation");
-  const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
+  const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
 
   const collect = (items, out = []) => {
     (items || []).forEach((item) => {

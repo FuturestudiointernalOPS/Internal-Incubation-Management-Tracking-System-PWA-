@@ -6,15 +6,13 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, Shield, FolderKanban } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
-import OperatingPlanPanel from "@/components/ventures/OperatingPlanPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
-import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
-import DataBankPanel from "@/components/ventures/DataBankPanel";
+import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 
@@ -44,9 +42,9 @@ const TABS = [
   { id: "tasks", label: "venture.tasks", icon: ListTodo },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
-  { id: "dataBank", label: "venture.verification", icon: Shield },
-  { id: "plan", label: "venture.operatingPlan", icon: FileText },
-  { id: "documents", label: "venture.documentTypes.title", icon: FileText },
+  // The Data Room is the venture's confidential fundraising / due-diligence
+  // document set (including the material shared with granted investors).
+  { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
 ];
 
 export default function StaffVentureWorkspace() {
@@ -212,7 +210,7 @@ export default function StaffVentureWorkspace() {
   const displayName = venture.company_name || venture.name || t("venture.label");
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className={`p-6 space-y-6 mx-auto ${activeTab === "projects" ? "max-w-7xl" : "max-w-5xl"}`}>
       <VenturePageHeader
         displayName={displayName}
         brandColor={venture.branding?.color}
@@ -414,7 +412,9 @@ export default function StaffVentureWorkspace() {
       {/* Projects — the same read the Super Admin's venture "Project" page shows.
           The server gate is `ventures.view` + venture scope, which already admits
           the Venture's own Lead Manager; this is the surface that was missing. */}
-      {activeTab === "projects" && isLeadManager && <ProjectsWorkItemsView ventureId={id} />}
+      {activeTab === "projects" && isLeadManager && (
+        <ProjectsWorkItemsView ventureId={id} emailsHref={`/staff/ventures/${id}/emails`} />
+      )}
 
       {/* WHO the work stands on: the same linking the Super Admin's Project page
           offers, so a Lead Manager can name the people their Venture's work
@@ -427,23 +427,9 @@ export default function StaffVentureWorkspace() {
 
       {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}
 
-      {activeTab === "dataBank" && (
-        <DataBankPanel
-          ventureId={id}
-          // The Data bank sign-off belongs to the Lead Manager — the same rule
-          // the server applies on the write (canManageVerification). A scoped
-          // coach sees the file read-only.
-          canReview={myRoles.some((role) => role.responsibility_code === "lead_manager")}
-        />
-      )}
+      {activeTab === "dataRoom" && <VentureDataRoom ventureId={id} />}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
-
-      {activeTab === "plan" && <OperatingPlanPanel ventureId={id} />}
-
-      {activeTab === "documents" && (
-        <DocumentTypeManager ventureId={id} backHref={`/staff/ventures/${id}`} />
-      )}
     </div>
   );
 }

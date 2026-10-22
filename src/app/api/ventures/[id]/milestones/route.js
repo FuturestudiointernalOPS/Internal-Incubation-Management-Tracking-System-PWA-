@@ -19,6 +19,7 @@ import {
   ventureJourneyStageExists,
 } from "@/models/ventureWorkspace";
 import { recordMilestoneEdit, settleMilestoneCompletion } from "@/services/ventures/milestoneCompletion";
+import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -51,7 +52,7 @@ export const POST = createHandler(async (req, { params }) => {
   const allowed = await canManageMilestones({ id, cid: access.session?.cid, role: access.session?.role });
   if (!allowed) {
     return NextResponse.json(
-      { success: false, error: "Only the Venture's Lead Manager or a Super Admin can add milestones." },
+      { success: false, error: "errors.ventureManagerOnly" },
       { status: 403 },
     );
   }
@@ -150,7 +151,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const authorized = await isMilestoneLeadAuthority({ code, cid: session.cid, role: session.role });
     if (!authorized) {
-      return NextResponse.json({ success: false, error: "Only the assigned Lead Manager or a Super Admin can complete milestones." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.milestoneCompleteDenied" }, { status: 403 });
     }
   }
 
@@ -211,6 +212,9 @@ export const PATCH = createHandler(async (req, { params }) => {
   // Journey settles (releases, notices, history, automatic journey close):
   // services/ventures/milestoneCompletion.
   await recordMilestoneEdit({ dbId: ventureDbIdForScope, milestoneId, milestoneBefore, body, session });
+  // The wording just changed: warm the translation memory after the save (never
+  // inside it). Fire-and-forget — a translation failure must not fail the edit.
+  scheduleVentureTranslationWarmup(id);
   const journeyOutcome = completing
     ? await settleMilestoneCompletion({ ventureParam: id, milestoneId, session })
     : null;

@@ -10,7 +10,7 @@
  */
 
 import { logger } from "@/lib/logger";
-import { isPlaceholderEmail } from "./addresses";
+import { isPlaceholderEmail, resolveReplyToAddress } from "./addresses";
 import { EMAIL_PRIMARY_DEFAULT } from "./config";
 import { sendViaGmail } from "./gmail";
 import { sendViaResend } from "./resend";
@@ -39,7 +39,7 @@ function transportReason(result) {
  * and fall back to Resend on transport failure so the applicant still
  * receives the notification — it remains a single tracked attempt.
  */
-export async function sendEmail({ to, cc, subject, html, provider, attachments, fromName }) {
+export async function sendEmail({ to, cc, subject, html, provider, attachments, fromName, replyTo }) {
   // HARD GUARD: an internal placeholder address (import-…@placeholder…,
   // .local, example.com…) must NEVER leave the system, no matter which
   // code path built the recipient. This is the final safety net before any
@@ -51,10 +51,15 @@ export async function sendEmail({ to, cc, subject, html, provider, attachments, 
 
   const chosen = provider || EMAIL_PRIMARY_DEFAULT;
   const fallback = chosen === "gmail" ? "resend" : "gmail";
+  // A Reply-To is placed INSIDE a raw MIME header by the Gmail transport, so it is
+  // sanitized HERE — the single dispatch point every sender goes through — rather
+  // than trusting each caller. An unusable address is dropped, never forwarded:
+  // the message still goes out, just without an answer-to.
+  const safeReplyTo = resolveReplyToAddress(replyTo);
   const sendWith = (providerName) =>
     providerName === "gmail"
-      ? sendViaGmail({ to, cc, subject, html, attachments, fromName })
-      : sendViaResend({ to, cc, subject, html, fromName }); // Resend transport has no attachment support
+      ? sendViaGmail({ to, cc, subject, html, attachments, fromName, replyTo: safeReplyTo })
+      : sendViaResend({ to, cc, subject, html, fromName, replyTo: safeReplyTo }); // Resend transport has no attachment support
 
   // EXTERNAL BOUNDARY. The recipient address is deliberately NOT logged (it is
   // personal data and the caller already knows who they emailed); the event,

@@ -198,64 +198,91 @@ export function getContextAppliedGrantRows(cid, context, roleKey) {
   });
 }
 
+/**
+ * The statement runner. `db.execute` by default; inside
+ * `withContextGrantTransaction` the caller passes the transaction's
+ * `query(sql, args)` so the pair joins the SAME transaction.
+ */
+const runner = (run) => run || ((sql, args) => db.execute({ sql, args }));
+
+/**
+ * Lot 6 — the two grant writes of one capability (`user_capabilities` and its
+ * provenance row in `context_applied_grants`) are ONE unit: a crash between
+ * them would leave access nobody can attribute, or provenance for access that
+ * was never granted. Both succeed, or neither does.
+ *
+ * Lives in the MODEL layer so services never import `@/lib/db`.
+ */
+export function withContextGrantTransaction(callback) {
+  return db.transaction(async (query) => callback(query));
+}
+
 /** Apply one capability grant (additive upsert). */
-export function upsertUserCapability(cid, { module, capability, level, sentinel, expiresAt }) {
-  return db.execute({
-    sql: `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by, expires_at)
-              VALUES (?, ?, ?, ?, ?, ?)
-              ON CONFLICT (user_cid, module, capability) DO UPDATE SET
-                access_level = EXCLUDED.access_level,
-                granted_by = EXCLUDED.granted_by,
-                expires_at = EXCLUDED.expires_at`,
-    args: [String(cid), module, capability, level, sentinel, expiresAt],
-  });
+export function upsertUserCapability(
+  cid,
+  { module, capability, level, sentinel, expiresAt },
+  run = null,
+) {
+  return runner(run)(
+    `INSERT INTO user_capabilities (user_cid, module, capability, access_level, granted_by, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_cid, module, capability) DO UPDATE SET
+       access_level = EXCLUDED.access_level,
+       granted_by = EXCLUDED.granted_by,
+       expires_at = EXCLUDED.expires_at`,
+    [String(cid), module, capability, level, sentinel, expiresAt],
+  );
 }
 
 /** Record one applied grant in the provenance table. */
-export function upsertContextAppliedGrant(cid, { context, roleKey, sourceRef, module, capability, level, mode = "active" }) {
-  return db.execute({
-    sql: `INSERT INTO context_applied_grants (user_cid, context, role_key, source_ref, module, capability, access_level, mode)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT (user_cid, context, role_key, module, capability) DO UPDATE SET
-                access_level = EXCLUDED.access_level,
-                source_ref = EXCLUDED.source_ref,
-                mode = EXCLUDED.mode,
-                updated_at = NOW()`,
-    args: [String(cid), context, roleKey, sourceRef, module, capability, level, mode],
-  });
+export function upsertContextAppliedGrant(
+  cid,
+  { context, roleKey, sourceRef, module, capability, level, mode = "active" },
+  run = null,
+) {
+  return runner(run)(
+    `INSERT INTO context_applied_grants (user_cid, context, role_key, source_ref, module, capability, access_level, mode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+     ON CONFLICT (user_cid, context, role_key, module, capability) DO UPDATE SET
+       access_level = EXCLUDED.access_level,
+       source_ref = EXCLUDED.source_ref,
+       mode = EXCLUDED.mode,
+       updated_at = NOW()`,
+    [String(cid), context, roleKey, sourceRef, module, capability, level, mode],
+  );
 }
 
 /** Revoke one capability grant — sentinel-guarded, so only our rows go. */
-export function deleteUserCapability(cid, module, capability, sentinel) {
-  return db.execute({
-    sql: "DELETE FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND granted_by = ?",
-    args: [String(cid), module, capability, sentinel],
-  });
+export function deleteUserCapability(cid, module, capability, sentinel, run = null) {
+  return runner(run)(
+    "DELETE FROM user_capabilities WHERE user_cid = ? AND module = ? AND capability = ? AND granted_by = ?",
+    [String(cid), module, capability, sentinel],
+  );
 }
 
 /** Drop one provenance row. */
-export function deleteContextAppliedGrant(cid, context, roleKey, module, capability) {
-  return db.execute({
-    sql: "DELETE FROM context_applied_grants WHERE user_cid = ? AND context = ? AND role_key = ? AND module = ? AND capability = ?",
-    args: [String(cid), context, roleKey, module, capability],
-  });
+export function deleteContextAppliedGrant(cid, context, roleKey, module, capability, run = null) {
+  return runner(run)(
+    "DELETE FROM context_applied_grants WHERE user_cid = ? AND context = ? AND role_key = ? AND module = ? AND capability = ?",
+    [String(cid), context, roleKey, module, capability],
+  );
 }
 
 /** Keep the justifying-relationship list fresh when nothing else changed. */
-export function refreshContextAppliedGrantSource(cid, context, roleKey, sourceRef) {
-  return db.execute({
-    sql: "UPDATE context_applied_grants SET source_ref = ?, updated_at = NOW() WHERE user_cid = ? AND context = ? AND role_key = ?",
-    args: [sourceRef, String(cid), context, roleKey],
-  });
+export function refreshContextAppliedGrantSource(cid, context, roleKey, sourceRef, run = null) {
+  return runner(run)(
+    "UPDATE context_applied_grants SET source_ref = ?, updated_at = NOW() WHERE user_cid = ? AND context = ? AND role_key = ?",
+    [sourceRef, String(cid), context, roleKey],
+  );
 }
 
 /** Re-date the grants when a program's end date moved. */
-export function refreshUserCapabilityExpiry(cid, sentinel, expiresAt) {
-  return db.execute({
-    sql: `UPDATE user_capabilities SET expires_at = ?
-                WHERE user_cid = ? AND granted_by = ? AND expires_at IS DISTINCT FROM ?`,
-    args: [expiresAt, String(cid), sentinel, expiresAt],
-  });
+export function refreshUserCapabilityExpiry(cid, sentinel, expiresAt, run = null) {
+  return runner(run)(
+    `UPDATE user_capabilities SET expires_at = ?
+      WHERE user_cid = ? AND granted_by = ? AND expires_at IS DISTINCT FROM ?`,
+    [expiresAt, String(cid), sentinel, expiresAt],
+  );
 }
 
 /**

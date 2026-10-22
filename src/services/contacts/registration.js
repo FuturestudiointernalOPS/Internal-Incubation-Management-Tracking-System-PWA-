@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from "uuid";
 import { hashPassword } from "@/server/auth/password";
 import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import {
   createPasswordSetupToken,
   markContactInvited,
@@ -98,8 +99,9 @@ export async function registerContacts({ contacts, session, canAssignRole }) {
     // behaviour; everyone else may only request a self-service role, so a
     // public submission can never grant an elevated identity. `isInternal`
     // is reachable only after the FUTURE STUDIO org-membership gate above.
-    const requestedRole =
-      typeof contact.role === "string" ? contact.role.trim() : "";
+    const requestedRole = normalizeIdentityForStorage(
+      typeof contact.role === "string" ? contact.role.trim() : "",
+    );
     let finalRole;
     if (canAssignRole) {
       finalRole = requestedRole;
@@ -121,13 +123,13 @@ export async function registerContacts({ contacts, session, canAssignRole }) {
     if (canAssignRole) {
       initialStatus =
         contact.status ||
-        (isInternal || finalRole === "participant" ? "pending" : "approved");
+        (isInternal || finalRole === "member" ? "pending" : "approved");
     } else if (!session) {
       initialStatus = "pending";
     } else {
       initialStatus = SAFE_STATUSES.includes(contact.status)
         ? contact.status
-        : isInternal || finalRole === "participant"
+        : isInternal || finalRole === "member"
           ? "pending"
           : "approved";
     }

@@ -86,7 +86,7 @@ export async function POST(req) {
 
     // Record scope: `programs.edit` says WHAT may be written; a delegated holder
     // must be staffed on the program the report belongs to.
-    const scopeError = await requireProgramScope({ programId: program_id, wave: "content" });
+    const scopeError = await requireProgramScope({ programId: program_id, wave: "content", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const result = await saveWeeklyReport({ payload });

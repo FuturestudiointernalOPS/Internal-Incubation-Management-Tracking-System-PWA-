@@ -41,6 +41,8 @@ export const POST = createHandler({ roles: ["staff", "super_admin"] }, async (re
   const scopeError = await requireProgramScope({
     programId: program_id,
     wave: "enrollment",
+    module: "programs",
+    capability: "edit",
   });
   if (scopeError) return scopeError;
 

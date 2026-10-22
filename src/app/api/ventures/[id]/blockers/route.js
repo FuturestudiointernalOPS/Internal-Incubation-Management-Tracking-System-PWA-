@@ -67,7 +67,7 @@ export async function PATCH(req, { params }) {
       const blockerCreator = await getVentureBlockerCreator(blocker_id, dbId);
       if (!blockerCreator.rows?.[0]) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       if (blockerCreator.rows[0].user_id !== session.cid && !["staff","super_admin","program_manager"].includes(session.role)) {
-        return NextResponse.json({ success: false, error: "Only the creator can resolve" }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.blockerResolveCreatorOnly" }, { status: 403 });
       }
       await resolveVentureBlocker(blocker_id, session.cid);
     }

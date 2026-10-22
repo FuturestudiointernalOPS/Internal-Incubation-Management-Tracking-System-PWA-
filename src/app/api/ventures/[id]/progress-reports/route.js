@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
 
     const staff = roleIsPrivileged(session.role) || (session.cid ? await isStaffActorForVenture(id, session) : false);
     if (!staff) {
-      return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
     }
 
     const searchParams = new URL(req.url).searchParams;
@@ -75,7 +75,7 @@ export async function POST(req, { params }) {
     const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "manage"))) {
-      return NextResponse.json({ success: false, error: "Only the Venture Manager (or a global role) can create progress reports." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.progressReportCreateDenied" }, { status: 403 });
     }
 
     const code = await resolveVentureCode(id);
@@ -105,7 +105,7 @@ export async function PATCH(req, { params }) {
     const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "manage"))) {
-      return NextResponse.json({ success: false, error: "Your assignment does not allow updating progress reports." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.progressReportsUpdateDenied" }, { status: 403 });
     }
 
     const code = await resolveVentureCode(id);

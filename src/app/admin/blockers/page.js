@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import BlockersHeader from "@/components/admin/blockers/BlockersHeader";
 import BlockersStats from "@/components/admin/blockers/BlockersStats";
 import BlockersFilters from "@/components/admin/blockers/BlockersFilters";
@@ -42,7 +43,7 @@ export default function AdminBlockers() {
   // plain result of it. Phase 6: anyone but a super admin sees only their own
   // blockers and tasks, so those reads wait for the identity.
   const { cid, role } = useSessionUser();
-  const isSuperAdmin = role === "super_admin";
+  const isSuperAdmin = isPlatformOwnerRole(role);
   const ready = isSuperAdmin || !!cid;
   const { data: blockers, loading: blockersLoading } = useApi(
     isSuperAdmin ? "/api/blockers" : cid ? `/api/blockers?user_id=${cid}` : null,

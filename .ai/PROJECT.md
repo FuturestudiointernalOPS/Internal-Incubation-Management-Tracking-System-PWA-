@@ -37,7 +37,7 @@ Sidebar navigation is defined once in `src/lib/masterNavigation.js` (`MASTER_NAV
 
 - **Custom cookie-session auth** (not Supabase Auth). Sessions are server-side rows in `user_sessions`, referenced by an `impactos_session` cookie, 24h expiry (extendable via "remember me").
 - `src/lib/auth.js` — issue, verify, destroy sessions. `requireSession(allowedRoles)`, `requireAuth(allowedRoles)`, `requireProjectAccess(projectId)` guard functions.
-- **Permission system** layered on top of roles: `PERMISSION_MODULES` (projects, programs, users, reports, messaging, finance, engineering, contacts, permissions, internal_comms, settings), `ACCESS_LEVELS` (NONE → FULL). `hasCapability()` / `requireCapability()` enforce fine-grained access.
+- **Permission system** layered on top of roles: the capability vocabulary is declared once in `src/models/authorization/constants/feature-module-capability.js` and exposed as `PERMISSION_MODULES` (derived); `ACCESS_LEVELS` (NONE → FULL) lives in `src/server/authz/capabilities.js`. `hasCapability()` / `requireCapability()` enforce fine-grained access.
 - **Access profiles** (`getUserEffectiveCapabilities`, `requireCapability`): role-default profiles (Super Admin, Staff, PM, Participant, etc.) with per-user overrides.
 - **Responsibilities** system: named responsibilities (Finance Management, Program Management, etc.) assignable to users.
 

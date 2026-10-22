@@ -64,7 +64,7 @@ export async function POST(req) {
     }
 
     if (!user || !isMatch) {
-      return NextResponse.json({ success: false, error: 'Invalid credentials.' }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.invalidCredentials" }, { status: 401 });
     }
 
     await updateContactPasswordByEmail(hashedNewPassword, cleanEmail);

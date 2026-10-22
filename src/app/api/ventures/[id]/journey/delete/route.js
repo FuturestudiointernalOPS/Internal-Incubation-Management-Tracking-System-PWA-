@@ -29,7 +29,7 @@ export async function POST(req, { params }) {
     // archives (POST /journey/archive), and the UI hides the destroy controls.
     if (!(await allowsPlanAction(access, "delete"))) {
       return NextResponse.json(
-        { success: false, error: "Only a Super Admin can permanently delete a journey. Archive it instead." },
+        { success: false, error: "errors.journeyDeletePlatformOwnerOnly" },
         { status: 403 },
       );
     }

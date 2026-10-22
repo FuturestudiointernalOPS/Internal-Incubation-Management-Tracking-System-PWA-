@@ -1,6 +1,7 @@
 "use client";
 
 import { Users } from "lucide-react";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { useI18n } from "@/lib/i18n";
 import {
   fetchActiveGroupRegistrationRun,
@@ -33,7 +34,7 @@ export default function TargetGroupsSection({
           const isActive = assignedSegments.some(
             (sid) => String(sid) === String(family.id),
           );
-          const canEditRole = userRole === "super_admin";
+          const canEditRole = isPlatformOwnerRole(userRole);
           return (
             <div
               key={family.id}

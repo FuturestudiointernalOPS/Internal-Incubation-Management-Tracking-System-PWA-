@@ -47,7 +47,7 @@ export async function listCarryoverTasks({
     role,
     sessionCid,
     requestedCid,
-    denialMessage: "You can only view your own tasks.",
+    denialMessage: "errors.ownTasksViewOnly",
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -88,7 +88,7 @@ export async function carryOverTask({
   // or a portfolio role — may carry it over. Otherwise any authenticated user
   // could flip anyone's task by id.
   if (!seesWholePortfolio(role) && !ownsTask(originalTask, sessionCid)) {
-    return { status: 403, error: "You can only carry over your own tasks." };
+    return { status: 403, error: "errors.carryoverOwnTasksOnly" };
   }
 
   // 2. Follow the chain forward to find the LATEST clone (not the original).

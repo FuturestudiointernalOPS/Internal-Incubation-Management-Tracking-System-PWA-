@@ -129,7 +129,7 @@ export async function checkTaskStatusChange({ id, dbId, session, existingTask, t
   const proceeds = status !== undefined && TASK_PROCEED_STATUSES.includes(status);
   const assignedStaff = movesStatus || proceeds ? await isStaffActorForVenture(id, session) : false;
   if (movesStatus && !assignedStaff && !roleIsPrivileged(session?.role)) {
-    return { error: "Only Future Studio staff can change a task's status.", status: 403 };
+    return { error: "errors.taskStatusInternalOnly", status: 403 };
   }
 
   if (proceeds && !assignedStaff) {
@@ -147,7 +147,7 @@ export async function checkTaskStatusChange({ id, dbId, session, existingTask, t
   if (status && TASK_REVIEW_GATED_COMPLETION_STATUSES.includes(status) && existingTask.review_required) {
     const submissionResult = await hasApprovedTaskSubmission(parseInt(taskId)).catch(() => ({ rows: [] }));
     if (!(submissionResult.rows || []).length) {
-      return { error: "This task requires an approved submission before it can be completed.", status: 403 };
+      return { error: "errors.taskCompletionNeedsApproval", status: 403 };
     }
   }
   return null;

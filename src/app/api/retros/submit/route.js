@@ -32,7 +32,7 @@ export async function POST(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -72,7 +72,7 @@ export async function POST(req) {
     // SECURITY (Phase 0): Non-SA users can only submit their own retro.
     if (session.role !== "super_admin" && String(user_id) !== String(session.cid)) {
       return NextResponse.json(
-        { success: false, error: "You can only submit your own retro." },
+        { success: false, error: "errors.submitOwnRetroOnly" },
         { status: 403 },
       );
     }

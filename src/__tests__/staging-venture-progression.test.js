@@ -220,7 +220,7 @@ describe("CHECK 1 — task completion advances the milestone, and cannot bypass 
       milestoneCtx,
     );
     expect(res.status).toBe(403);
-    expect((await readJson(res)).error).toMatch(/Lead Manager or a Super Admin/);
+    expect((await readJson(res)).error).toBe("errors.milestoneCompleteDenied");
   });
 });
 

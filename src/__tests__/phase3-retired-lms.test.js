@@ -25,14 +25,14 @@ const SRC_DIRS = ["src/app", "src/models", "src/lib"];
 
 describe("Retired LMS capabilities stay removed", () => {
   test("catalog no longer exposes assign/enroll/publish", () => {
-    const { CAPABILITY_CATALOG } = require("@/models/authorization/capability-catalog");
+    const { CAPABILITY_CATALOG } = require("@/models/authorization/constants/feature-module-capability");
     for (const capability of RETIRED) {
       expect(CAPABILITY_CATALOG.lms.capabilities[capability]).toBeUndefined();
     }
   });
 
   test("PERMISSION_MODULES never lists a retired capability", () => {
-    const { PERMISSION_MODULES } = require("@/server/authz/capabilities");
+    const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
     for (const capability of RETIRED) {
       expect(PERMISSION_MODULES.lms.capabilities).not.toContain(capability);
     }

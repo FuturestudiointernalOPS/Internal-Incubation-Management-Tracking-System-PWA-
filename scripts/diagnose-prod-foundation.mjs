@@ -47,7 +47,7 @@ try {
 
   await runQuery(
     "counts",
-    "SELECT (SELECT count(*) FROM contacts) AS contacts, (SELECT count(*) FROM user_groups) AS user_groups, (SELECT count(*) FROM access_profiles) AS profiles, (SELECT count(*) FROM role_capabilities) AS role_caps"
+    "SELECT (SELECT count(*) FROM contacts) AS contacts, (SELECT count(*) FROM user_groups) AS user_groups, (SELECT count(*) FROM profiles) AS profiles, (SELECT count(*) FROM profile_capabilities) AS profile_caps"
   );
   await runQuery("foundation tables", "SELECT table_name FROM information_schema.tables WHERE table_name IN ('groups','group_memberships','group_membership_events','authz_migrations') ORDER BY table_name");
   await runQuery("authz_migrations", "SELECT name FROM authz_migrations ORDER BY name");

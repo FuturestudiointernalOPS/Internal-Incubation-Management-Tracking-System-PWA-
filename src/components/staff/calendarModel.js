@@ -241,10 +241,10 @@ export function layoutTimed(entries) {
   return sorted;
 }
 
-/** The hour range the grid must cover for the given timed items (never narrower than 8–17). */
+/** The hour range the grid must cover for the given timed items (never narrower than 6–19). */
 export function hourRange(timedItems) {
-  let first = 8;
-  let last = 17;
+  let first = 6;
+  let last = 19;
   for (const item of timedItems) {
     first = Math.min(first, Math.floor(minutesOf(item.start) / 60));
     last = Math.max(last, Math.ceil(minutesOf(item.end) / 60));

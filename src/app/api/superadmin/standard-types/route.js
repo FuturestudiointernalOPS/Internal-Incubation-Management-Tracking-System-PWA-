@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   createStandardType,
   deleteStandardType,
@@ -7,9 +8,10 @@ import {
   updateStandardType,
 } from "@/models/platformConfig";
 
-const ROLE = { roles: ['super_admin'] };
+export const GET = createHandler(async (req) => {
+  const capError = await requireAuthorization("settings", "view");
+  if (capError) return capError;
 
-export const GET = createHandler(ROLE, async (req) => {
   const { searchParams } = new URL(req.url);
   const category = searchParams.get("category");
 
@@ -17,7 +19,10 @@ export const GET = createHandler(ROLE, async (req) => {
   return NextResponse.json({ success: true, types: res.rows });
 });
 
-export const POST = createHandler(ROLE, async (req) => {
+export const POST = createHandler(async (req) => {
+  const capError = await requireAuthorization("settings", "edit");
+  if (capError) return capError;
+
   const { category, label, id } = await req.json();
   if (id) {
     await updateStandardType(label, id);
@@ -27,7 +32,10 @@ export const POST = createHandler(ROLE, async (req) => {
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = createHandler(ROLE, async (req) => {
+export const DELETE = createHandler(async (req) => {
+  const capError = await requireAuthorization("settings", "edit");
+  if (capError) return capError;
+
   const { id } = await req.json();
   await deleteStandardType(id);
   return NextResponse.json({ success: true });

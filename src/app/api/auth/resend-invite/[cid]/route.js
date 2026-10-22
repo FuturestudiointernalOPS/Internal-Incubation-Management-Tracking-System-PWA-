@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { v4 as uuidv4 } from "uuid";
 import { sendInviteEmail } from "@/lib/email";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
@@ -13,8 +14,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export const POST = createHandler(
-  { roles: ["super_admin"] },
   async (req, { params }) => {
+    const authError = await requireAuthorization("users", "edit");
+    if (authError) return authError;
+
     const { cid } = await params;
 
     // Self-heal the token_hash column on first use (cached once per process)

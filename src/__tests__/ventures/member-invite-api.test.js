@@ -35,6 +35,12 @@ jest.mock("@/lib/appUrl", () => ({
 
 jest.mock("@/lib/ventureAuth", () => ({
   requireOperationalVentureAccess: jest.fn().mockResolvedValue({ ok: true }),
+  roleIsPrivileged: jest.fn(() => false),
+}));
+
+// The roster read/write now starts at the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn(),
 }));
 
 jest.mock("@/models/ventureMemberInvitations", () => ({
@@ -65,6 +71,8 @@ const {
   checkVentureMemberMutateAccess,
 } = require("@/models/ventureMemberAccess");
 const { createLinkedNotification } = require("@/models/workspace");
+const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
+const { refusalResponse } = require("@/server/http/refusal");
 
 const { POST } = require("@/app/api/ventures/[id]/members/route");
 
@@ -84,6 +92,9 @@ function primeDatabase({ alreadyMember = [], ventureName = "ABC Ventures" } = {}
 beforeEach(() => {
   jest.clearAllMocks();
   getSession.mockResolvedValue({ cid: "USR_FOUNDER", role: "participant", name: "Ada Founder" });
+  requireVentureScopedAccess.mockResolvedValue({
+    session: { cid: "USR_FOUNDER", role: "participant", name: "Ada Founder" },
+  });
   checkVentureMemberViewAccess.mockResolvedValue(true);
   checkVentureMemberMutateAccess.mockResolvedValue(true);
   createVentureMemberInvitation.mockResolvedValue({
@@ -156,12 +167,18 @@ describe("POST /api/ventures/[id]/members", () => {
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
   });
 
-  it("hides the roster from a caller without view access", async () => {
-    checkVentureMemberViewAccess.mockResolvedValue(false);
+  it("refuses a caller without view access", async () => {
+    requireVentureScopedAccess.mockResolvedValueOnce({
+      error: refusalResponse({
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+      }),
+    });
 
     const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "errors.insufficientPermissions" });
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
   });
 

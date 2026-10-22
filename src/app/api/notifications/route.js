@@ -7,7 +7,10 @@ import { readNotificationInbox, publishInboxNotification, applyInboxNotification
 
 /**
  * NOTIFICATIONS API — SIGNAL AGGREGATION
- * Fetches real-time alerts for the Super Admin (Approvals, Alerts, etc.)
+ *
+ * The recipient rule lives in `@/services/communications/inboxNotifications`
+ * (the caller's own inbox, or another recipient for an internal account), so
+ * every method only needs a session. See actionDeclarations (delegated).
  */
 
 export async function POST(req) {

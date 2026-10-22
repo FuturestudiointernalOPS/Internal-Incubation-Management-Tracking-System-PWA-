@@ -34,6 +34,29 @@ export function isPlaceholderEmail(email) {
   return false;
 }
 
+/**
+ * A Reply-To address that is SAFE to place inside a mail header, or null.
+ *
+ * A Reply-To ends up interpolated into a raw MIME message (lib/email/gmail.js), so
+ * an address containing a newline would inject arbitrary headers, and one
+ * containing a comma would start a second recipient. This accepts only a plain
+ * address: no spaces, angle brackets, commas, semicolons, quotes, backslashes or
+ * control characters — the characters that can end a header line or split a
+ * recipient list — and it refuses the platform's placeholder addresses.
+ *
+ * null is the normal "no usable address" answer: callers send WITHOUT a Reply-To
+ * rather than refusing the message.
+ */
+const REPLY_TO_SHAPE = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~.-]+@[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?)+$/;
+
+export function resolveReplyToAddress(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text || text.length > 254) return null;
+  if (!REPLY_TO_SHAPE.test(text)) return null;
+  if (isPlaceholderEmail(text)) return null;
+  return text.toLowerCase();
+}
+
 /** Parse a comma-, semicolon-, or newline-separated email address list. */
 export function parseEmailAddressList(value) {
   const entries = (Array.isArray(value) ? value : [value])

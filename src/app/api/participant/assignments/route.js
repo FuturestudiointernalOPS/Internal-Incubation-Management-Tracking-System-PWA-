@@ -31,7 +31,7 @@ export async function GET(req) {
     const cid = await getSessionCid();
     if (!cid)
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
 
@@ -78,7 +78,7 @@ export async function POST(req) {
     const cid = await getSessionCid();
     if (!cid)
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
 

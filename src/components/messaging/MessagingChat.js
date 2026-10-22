@@ -7,10 +7,12 @@ import NewMessageButton from "@/components/messaging/chat/NewMessageButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/PermissionProvider";
 import { useEffect } from "react";
 import { Send, Users, Briefcase, User } from "lucide-react";
 
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { resolveMessagingRole } from "./chat/messagingMode";
 import { useMessagingState } from "./hooks/useMessagingState";
 import { useMessagingData } from "./hooks/useMessagingData";
 import { useDerivedData } from "./hooks/useDerivedData";
@@ -40,6 +42,16 @@ export default function MessagingChat({
 }) {
   const { t } = useI18n();
 
+  // D-8 — the manager mode follows the PROFILE the server resolved, so the same
+  // person gets the same scope whichever door opened the inbox. The section role
+  // (`role`) only decides when no profile applies.
+  const { profiles, isSuperAdmin } = usePermissions();
+  const messagingRole = resolveMessagingRole({
+    sectionRole: role,
+    profiles,
+    isSuperAdmin,
+  });
+
   const state = useMessagingState();
 
   // The signed-in identity comes from the shell's session cache. It used to be
@@ -50,10 +62,10 @@ export default function MessagingChat({
   const uid = user?.cid || user?.id;
   const groupName = user?.group_name;
 
-  const data = useMessagingData({ uid, role, user });
+  const data = useMessagingData({ uid, role: messagingRole, user });
 
   const derived = useDerivedData({
-    role,
+    role: messagingRole,
     groupName,
     allPrograms: data.allPrograms,
     allContacts: data.allContacts,

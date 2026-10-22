@@ -1,99 +1,90 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { FileCheck2, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 
-/* Investment Readiness Tab */
+/**
+ * INVESTMENT TAB — two indicators, two questions, never one number.
+ *
+ *   Roadmap progress   — how much of the planned work is done.
+ *   Investment readiness — how many of the Venture's REQUIRED Data Room
+ *                          categories are filed and verified.
+ *
+ * Both come from `/api/ventures/[id]/investment-readiness`, which computes them
+ * from two different engines. The old eight-document checklist that lived here
+ * is gone: it matched document categories by substring against a vocabulary the
+ * Data Room does not use, so a Venture that filed everything correctly could
+ * never clear it.
+ */
 export function InvestmentTab() {
   const { t } = useI18n();
   const { investmentReadiness, cardStyle } = useVenture();
+
+  if (!investmentReadiness) {
+    return (
+      <div className="text-center py-8">
+        <Loader2 className="animate-spin mx-auto" style={{ color: "var(--text-secondary)" }} size={24} />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
-      {/* Roadmap-derived readiness (Phase 2): what the Venture is evaluated on */}
       <RoadmapReadinessCard />
-      <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t('venture.investmentReadiness') || 'Investment Readiness'}</h2>
-      <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.investmentDesc') || 'Documents required before a venture can be introduced to investors.'}</p>
-      {investmentReadiness ? (
-        <>
-          <div className={`rounded-xl p-6 border ${investmentReadiness.is_investment_ready ? 'border-green-500/30 bg-green-500/10' : 'border-amber-500/30 bg-amber-500/10'}`} style={cardStyle}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold" style={{ color: investmentReadiness.is_investment_ready ? 'var(--chart-success)' : 'var(--chart-warning)' }}>
-                  {investmentReadiness.is_investment_ready ? (t('venture.investmentReady') || '✅ Investment Ready') : (t('venture.notReady') || '⏳ Not Yet Ready')}
-                </p>
-                <p className="text-sm mt-0.5" style={{ color: 'var(--text-secondary)' }}>
-                  {investmentReadiness.approved_count}/{investmentReadiness.total_required} {t('venture.documentsApproved') || 'documents approved'}
-                </p>
-              </div>
-              <div className="text-right">
-                <p className="text-3xl font-bold" style={{ color: investmentReadiness.is_investment_ready ? 'var(--chart-success)' : 'var(--brand-orange)' }}>
-                  {investmentReadiness.readiness_percent}%
-                </p>
-              </div>
-            </div>
-            <div className="mt-3 w-full bg-[var(--surface-3)] rounded-full h-2">
-              <div className="h-2 rounded-full transition-all" style={{
-                width: `${investmentReadiness.readiness_percent}%`,
-                backgroundColor: investmentReadiness.is_investment_ready ? 'var(--chart-success)' : 'var(--brand-orange)'
-              }} />
-            </div>
-          </div>
-          <div className="space-y-2">
-            {investmentReadiness.checklist.map(item => (
-              <div key={item.key} className={`rounded-xl p-4 border flex items-center gap-4 ${item.status === 'approved' ? 'border-green-500/20 bg-green-500/5' : item.status === 'submitted' ? 'border-amber-500/20 bg-amber-500/5' : 'opacity-60'}`} style={cardStyle}>
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 ${item.status === 'approved' ? 'bg-green-600/30' : item.status === 'submitted' ? 'bg-amber-600/30' : 'bg-[var(--surface-3)]'}`}>
-                  {item.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium">{item.label}</p>
-                  <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-                    {item.status === 'approved' ? '✅ Approved' : item.status === 'submitted' ? (item.documents?.length ? `📄 ${item.documents.length} document(s) awaiting approval` : '📝 Submitted') : '❌ Missing'}
-                  </p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${item.status === 'approved' ? 'bg-green-500/20 text-green-400' : item.status === 'submitted' ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'}`}>
-                  {item.status === 'approved' ? '✓' : item.status === 'submitted' ? '⏳' : '✗'}
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
-      ) : (
-        <div className="text-center py-8"><Loader2 className="animate-spin mx-auto" style={{ color: 'var(--text-secondary)' }} size={24} /></div>
-      )}
+      <DataRoomReadinessCard />
+      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+        {t("venture.dataRoomReadiness.hint")}
+      </p>
+      <div className="rounded-xl p-4 border" style={cardStyle}>
+        <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+          {t("venture.dataRoomReadiness.where")}
+        </p>
+      </div>
     </div>
   );
 }
 
-/* Roadmap readiness — what the Founder is being evaluated on (Phase 2). */
+/** Roadmap progress — what the Venture is evaluated on, week to week. */
 export function RoadmapReadinessCard() {
   const { t } = useI18n();
   const { investmentReadiness, cardStyle } = useVenture();
   const roadmapReadiness = investmentReadiness?.roadmap_readiness;
   if (!roadmapReadiness) return null;
+
   const rows = [
-    { key: 'journeys', label: t('venture.manager.irJourneys'), pct: roadmapReadiness.components.journeys },
-    { key: 'milestones', label: t('venture.manager.irMilestones'), pct: roadmapReadiness.components.milestones },
-    { key: 'tasks', label: t('venture.manager.irTasks'), pct: roadmapReadiness.components.tasks },
-    { key: 'deliverables', label: t('venture.manager.irDeliverables'), pct: roadmapReadiness.components.deliverables },
+    { key: "journeys", label: t("venture.manager.irJourneys"), pct: roadmapReadiness.components.journeys },
+    { key: "milestones", label: t("venture.manager.irMilestones"), pct: roadmapReadiness.components.milestones },
+    { key: "tasks", label: t("venture.manager.irTasks"), pct: roadmapReadiness.components.tasks },
+    { key: "deliverables", label: t("venture.manager.irDeliverables"), pct: roadmapReadiness.components.deliverables },
   ];
+
   return (
     <div className="rounded-xl p-5 border" style={cardStyle}>
       <div className="flex items-center justify-between mb-1">
-        <h3 className="font-semibold">{t('venture.manager.irTracked')}</h3>
-        <span className="text-2xl font-black" style={{ color: 'var(--brand-orange)' }}>{roadmapReadiness.overall_percent}%</span>
+        <h3 className="font-semibold">{t("venture.roadmapProgress.title")}</h3>
+        <span className="text-2xl font-black" style={{ color: "var(--brand-orange)" }}>
+          {roadmapReadiness.overall_percent}%
+        </span>
       </div>
-      <p className="text-xs mb-3" style={{ color: 'var(--text-secondary)' }}>{t('venture.manager.irTrackedDesc')}</p>
+      <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
+        {t("venture.roadmapProgress.desc")}
+      </p>
       <div className="space-y-2">
         {rows.map((row) => (
           <div key={row.key}>
             <div className="flex justify-between text-xs mb-0.5">
               <span>{row.label}</span>
-              <span style={{ color: 'var(--text-secondary)' }}>{row.pct === null ? '—' : `${row.pct}%`}</span>
+              <span style={{ color: "var(--text-secondary)" }}>
+                {row.pct === null ? "—" : `${row.pct}%`}
+              </span>
             </div>
             {row.pct !== null && (
-              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: 'var(--surface-3)' }}>
-                <div className="h-full rounded-full" style={{ width: `${Math.min(row.pct, 100)}%`, backgroundColor: 'var(--brand-orange)' }} />
+              <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: "var(--surface-3)" }}>
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${Math.min(row.pct, 100)}%`, backgroundColor: "var(--brand-orange)" }}
+                />
               </div>
             )}
           </div>
@@ -101,9 +92,77 @@ export function RoadmapReadinessCard() {
       </div>
       {roadmapReadiness.counts && (
         <div className="grid grid-cols-2 gap-2 mt-4 text-xs">
-          <div><span className="font-bold">{roadmapReadiness.counts.milestones.completed}/{roadmapReadiness.counts.milestones.total}</span> {t('venture.manager.irMilestonesDone')}</div>
-          <div><span className="font-bold">{roadmapReadiness.counts.tasks.completed}/{roadmapReadiness.counts.tasks.total}</span> {t('venture.manager.irTasksDone')}</div>
+          <div>
+            <span className="font-bold">
+              {roadmapReadiness.counts.milestones.completed}/{roadmapReadiness.counts.milestones.total}
+            </span>{" "}
+            {t("venture.manager.irMilestonesDone")}
+          </div>
+          <div>
+            <span className="font-bold">
+              {roadmapReadiness.counts.tasks.completed}/{roadmapReadiness.counts.tasks.total}
+            </span>{" "}
+            {t("venture.manager.irTasksDone")}
+          </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Investment readiness — the Data Room's own completeness figure.
+ *
+ * `null` means INDETERMINATE (the Venture has nothing marked `required`), and it
+ * is shown as « — »: not 0%, which would read as a Venture that failed, and not
+ * 100%, which would read as one that is ready.
+ */
+export function DataRoomReadinessCard() {
+  const { t } = useI18n();
+  const { investmentReadiness, cardStyle } = useVenture();
+  const readiness = investmentReadiness?.data_room_readiness;
+  if (!readiness) return null;
+
+  const percent = readiness.readiness_percent;
+  const indeterminate = percent === null || percent === undefined;
+
+  return (
+    <div className="rounded-xl p-5 border" style={cardStyle}>
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-semibold flex items-center gap-2">
+          <FileCheck2 size={16} style={{ color: "var(--brand-orange)" }} />
+          {t("venture.dataRoomReadiness.title")}
+        </h3>
+        <span
+          className="text-2xl font-black"
+          style={{ color: readiness.is_ready ? "var(--chart-success)" : "var(--brand-orange)" }}
+        >
+          {indeterminate ? "—" : `${percent}%`}
+        </span>
+      </div>
+      <p className="text-xs mb-3" style={{ color: "var(--text-secondary)" }}>
+        {indeterminate
+          ? t("venture.dataRoomReadiness.indeterminate")
+          : t("venture.dataRoomReadiness.desc")}
+      </p>
+      {!indeterminate && (
+        <>
+          <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: "var(--surface-3)" }}>
+            <div
+              className="h-full rounded-full"
+              style={{
+                width: `${Math.min(percent, 100)}%`,
+                backgroundColor: readiness.is_ready ? "var(--chart-success)" : "var(--brand-orange)",
+              }}
+            />
+          </div>
+          <p className="text-xs mt-2" style={{ color: "var(--text-secondary)" }}>
+            {t("venture.dataRoomReadiness.counts", {
+              verified: readiness.verified_count,
+              total: readiness.total_required,
+            })}
+          </p>
+        </>
       )}
     </div>
   );

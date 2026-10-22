@@ -202,7 +202,7 @@ describe("updateAnnouncement", () => {
       updateAnnouncement({ session: stranger, payload: { id: 5, title: "N" } }),
     ).resolves.toEqual({
       denied: {
-        error: "Only the author or super_admin can edit this announcement.",
+        error: "errors.announcementEditDenied",
         status: 403,
       },
     });
@@ -261,7 +261,7 @@ describe("archiveAnnouncement", () => {
   it("answers 403 to someone who is neither the author nor super_admin", async () => {
     await expect(archiveAnnouncement({ session: stranger, id: "5" })).resolves.toEqual({
       denied: {
-        error: "Only the author or super_admin can archive this announcement.",
+        error: "errors.announcementArchiveDenied",
         status: 403,
       },
     });

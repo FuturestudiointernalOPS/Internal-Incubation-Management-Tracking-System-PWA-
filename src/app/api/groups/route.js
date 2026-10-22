@@ -59,6 +59,8 @@ export async function POST(req) {
       const scopeError = await requireProgramScope({
         programId: program_id,
         wave: "groups",
+        module: "permissions",
+        capability: "assign_capabilities",
       });
       if (scopeError) return scopeError;
     }
@@ -106,6 +108,8 @@ export async function PUT(req) {
     const scopeError = await requireProgramScope({
       programId: groupProgram.rows?.[0]?.program_id,
       wave: "groups",
+      module: "permissions",
+      capability: "assign_capabilities",
     });
     if (scopeError) return scopeError;
 
@@ -154,6 +158,8 @@ export async function DELETE(req) {
     const scopeError = await requireProgramScope({
       programId: groupProgram.rows?.[0]?.program_id,
       wave: "groups",
+      module: "permissions",
+      capability: "assign_capabilities",
     });
     if (scopeError) return scopeError;
 

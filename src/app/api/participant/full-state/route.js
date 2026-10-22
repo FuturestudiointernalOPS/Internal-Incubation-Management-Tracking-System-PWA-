@@ -16,14 +16,14 @@ export async function GET(req) {
     const session = await getSession();
     if (!session)
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
 
     // The read-others decision lives in the participant service.
     if (!canReadFullState({ role: session.role, sessionEmail: session.email, email })) {
       return NextResponse.json(
-        { success: false, error: "You can only access your own data." },
+        { success: false, error: "errors.ownDataOnly" },
         { status: 403 },
       );
     }

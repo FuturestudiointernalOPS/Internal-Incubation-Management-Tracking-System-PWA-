@@ -139,8 +139,8 @@ describe("POST /api/ventures/[id]/verification/upload", () => {
 
     const res = await uploadVerificationDocument(multipartRequest({ file: "id.pdf" }), ctx);
 
-    expect(res.status).toBe(404);
-    expect((await res.json()).error).toBe("errors.notFound");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error).toBe("errors.insufficientPermissions");
     expect(uploadDeliverableEvidence).not.toHaveBeenCalled();
   });
 });

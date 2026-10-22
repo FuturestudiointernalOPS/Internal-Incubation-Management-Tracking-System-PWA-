@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { buildAdminOverview } from "@/services/investor";
 
 /**
@@ -11,7 +11,7 @@ import { buildAdminOverview } from "@/services/investor";
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("investor", "view");
     if (authError) return authError;
 
     const overview = await buildAdminOverview();

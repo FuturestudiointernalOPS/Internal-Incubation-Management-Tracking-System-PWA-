@@ -15,16 +15,14 @@ export const GET = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     // Phase 5 hardening: founders are only visible to the venture's members
     // and Future Studio staff — never to any authenticated user.
-    const { requireVentureAccess } = await import("@/lib/ventureAuth");
-    const access = await requireVentureAccess(id);
-    if (!access.session) {
-      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-    }
+    const { requireVentureScopedAccess } = await import("@/lib/ventureScopedAccess");
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
 
     const founders = await listFounders(id);
 
@@ -43,13 +41,13 @@ export const POST = createHandler(
     const session = await getSession();
 
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     // Check management permission
     const permission = await canManageFounders(id, session);
     if (!permission.allowed) {
-      return NextResponse.json({ success: false, error: "Unauthorized to manage founders." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureFoundersManageDenied" }, { status: 403 });
     }
 
     const body = await req.json();

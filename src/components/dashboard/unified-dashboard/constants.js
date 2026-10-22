@@ -179,17 +179,6 @@ export function cn(...classes) {
   return classes.filter(Boolean).join(" ");
 }
 
-export const ROLE_HIERARCHY = {
-  super_admin: 5,
-  program_manager: 3,
-  team_lead: 2,
-  staff: 1,
-};
-
-export function hasMinRole(userRole, minRole) {
-  return (ROLE_HIERARCHY[userRole] || 0) >= (ROLE_HIERARCHY[minRole] || 0);
-}
-
 // ─── MODULE-SCOPE READER ───────────────────────────────────────────────────
 // The reading hook keys its internal work on this, so it is built once here
 // rather than on every render.

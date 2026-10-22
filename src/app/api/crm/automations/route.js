@@ -7,7 +7,6 @@ import { getCrmAutomationRules, createCrmAutomationRule } from "@/models/crm/int
 export const dynamic = "force-dynamic";
 
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async () => {
     // Requires manage permission because automations are powerful
     const authError = await requireAuthorization("crm", "manage");
@@ -19,7 +18,6 @@ export const GET = createHandler(
 );
 
 export const POST = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (req) => {
     const authError = await requireAuthorization("crm", "manage");
     if (authError) return authError;

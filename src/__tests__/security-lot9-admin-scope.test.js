@@ -132,7 +132,7 @@ describe("programs PUT is program-scoped", () => {
     const body = await res.json();
 
     expect(res.status).toBe(403);
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "content" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "content" });
     expect(programsModel.updateProgramFields).not.toHaveBeenCalled();
   });
 
@@ -140,7 +140,7 @@ describe("programs PUT is program-scoped", () => {
     const res = await programs.PUT(put("http://localhost/api/programs", { id: "P1", name: "Renamed" }));
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_STAFF", "P1", { email: "s@x.test" });
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_STAFF", "P1", { email: "s@x.test" });
     expect(programsModel.updateProgramFields).toHaveBeenCalled();
   });
 
@@ -187,7 +187,7 @@ describe("bulk facilitator invites are program-scoped for every role", () => {
     }));
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_PM", "P1", { email: "pm@x.test" });
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_PM", "P1", { email: "pm@x.test" });
   });
 });
 

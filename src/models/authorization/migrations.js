@@ -23,6 +23,16 @@ function ensureMigrationsSchema() {
         name TEXT PRIMARY KEY,
         applied_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
       )`);
+      // DURABLE FAILURE RECORD. A failed migration is rolled back and its
+      // marker is never written, which is correct — but the reason lived only
+      // in the server log. On a serverless host that log is easy to lose, and
+      // "the migration did not run" is not a diagnosis. One row per failing
+      // migration, overwritten on each retry, readable from any SQL console.
+      await db.execute(`CREATE TABLE IF NOT EXISTS authz_migration_failures (
+        name TEXT PRIMARY KEY,
+        error TEXT,
+        failed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      )`);
       return true;
     })().catch((error) => {
       console.warn("[Authz] ensureMigrationsSchema failed:", error.message);
@@ -100,13 +110,36 @@ export async function runAuthzMigration(name, migrationFn) {
     return { applied: false };
   }
 
-  await migrationFn();
+  try {
+    await migrationFn();
+  } catch (error) {
+    // Record WHY, then let the caller keep its behaviour (catch and retry on the
+    // next boot). The write itself must never mask the real failure.
+    await recordFailure(name, error).catch(() => {});
+    throw error;
+  }
+
   await db.execute({
     sql: "INSERT INTO authz_migrations (name) VALUES (?) ON CONFLICT (name) DO NOTHING",
     args: [name],
   });
+  // A later success clears the failure of an earlier attempt.
+  await db
+    .execute({ sql: "DELETE FROM authz_migration_failures WHERE name = ?", args: [name] })
+    .catch(() => {});
   // Record it locally too: a later check in the same process must not run the
   // work again. The INSERT above is what other processes and the next boot see.
   if (applied !== null) applied.add(name);
   return { applied: true };
+}
+
+/** Persist the reason a migration failed, for the SQL console. */
+async function recordFailure(name, error) {
+  const message = String(error?.message || error || "unknown error").slice(0, 2000);
+  await db.execute({
+    sql: `INSERT INTO authz_migration_failures (name, error, failed_at)
+          VALUES (?, ?, NOW())
+          ON CONFLICT (name) DO UPDATE SET error = EXCLUDED.error, failed_at = NOW()`,
+    args: [name, message],
+  });
 }

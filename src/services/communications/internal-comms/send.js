@@ -27,12 +27,12 @@ export async function sendInternalMessage({ session, payload }) {
   const sessionCid = session.cid;
   const effectiveSenderId = sender_id || sessionCid;
   if (effectiveSenderId !== sessionCid && session.role !== "super_admin") {
-    return { denied: { error: "Cannot send messages as another user.", status: 403 } };
+    return { denied: { error: "errors.cannotActAsAnotherUser", status: 403 } };
   }
 
   // SECURITY: Broadcast to all users is reserved to super_admin
   if (target_type === "all" && session.role !== "super_admin") {
-    return { denied: { error: "Only super admins can broadcast to all users.", status: 403 } };
+    return { denied: { error: "errors.broadcastPlatformOwnerOnly", status: 403 } };
   }
 
   // PROGRAM-SCOPED MESSAGING: non-SA senders may only message targets within

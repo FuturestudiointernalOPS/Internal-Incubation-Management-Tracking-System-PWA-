@@ -12,7 +12,7 @@
  * Same facades as the controller used, so route-level test mocks still apply.
  * No SQL, no HTTP.
  */
-import { getOrCreateStartupProfile } from "@/services/ventures/profile";
+import { normalizeBusinessStage } from "@/lib/ventureStage";
 import { getOrCreateVerification } from "@/services/ventures/verification";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 import {
@@ -24,6 +24,8 @@ import {
   listVentureActivityLog,
   listVentureDocumentsForDashboard,
   listVentureDocumentsForDashboardLegacy,
+  countVentureDocumentsForDashboard,
+  countVentureDocumentsForDashboardLegacy,
   listVentureMeetings,
   listVentureKpiSummary,
   countVentureAdvisors,
@@ -32,9 +34,9 @@ import {
 } from "@/models/ventureWorkspace";
 
 /**
- * How many Data bank documents count as a full set of filing evidence for the
- * Investment Readiness widget. Beyond this the document signal stops growing —
- * readiness should reward having filed, not having flooded.
+ * How many documents count as a full set of filing evidence for the Stage &
+ * Evidence widget. Beyond this the document signal stops growing — evidence
+ * should reward having filed, not having flooded.
  */
 const READINESS_DOCUMENTS_TARGET = 3;
 
@@ -52,27 +54,6 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     const ventureLookup = await getVentureByCode(id);
     if (ventureLookup.rows[0]) dbId = ventureLookup.rows[0].id;
   } catch (_) {}
-
-  // ── Profile Completion ──
-  const profileCompletion = (async () => {
-    try {
-      const data = await getOrCreateStartupProfile(id);
-      const items = [
-        { step: 1, name: "Startup Identity", completed: !!data.profile?.step_1_data?.startup_name },
-        { step: 2, name: "Business Information", completed: !!data.profile?.step_2_data?.legal_structure },
-        { step: 3, name: "Founder Information", completed: Array.isArray(data.profile?.step_3_data?.founders) && data.profile.step_3_data.founders.length > 0 },
-        { step: 4, name: "Team Information", completed: !!data.profile?.step_4_data?.team_size },
-        { step: 5, name: "Supporting Documents", completed: data.documents?.length > 0 },
-        { step: 6, name: "Review & Submit", completed: data.profile?.is_submitted },
-      ];
-      return {
-        percentage: data.completion_percentage || 0,
-        is_submitted: data.profile?.is_submitted || false,
-        items,
-        missing: items.filter((item) => !item.completed).map((item) => item.name),
-      };
-    } catch { return null; }
-  })();
 
   // ── Venture Info ──
   const ventureInfo = (async () => {
@@ -201,21 +182,30 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     } catch { return null; }
   })();
 
-  // ── Documents (the real data room) ──
+  // ── Documents (the Data Room catalogue) ──
+  //
+  // `recent` is deliberately capped for the widget, but `total` is a COUNT: it
+  // used to be `rows.length`, so a Venture with 40 documents reported "5" on
+  // every screen that read the total. A capped list must never become a
+  // capped count.
   const documents = (async () => {
     try {
       let rows = [];
       try {
-        const documentsQuery = await listVentureDocumentsForDashboard(dbId);
+        const [documentsQuery, countQuery] = await Promise.all([
+          listVentureDocumentsForDashboard(dbId),
+          countVentureDocumentsForDashboard(dbId),
+        ]);
         rows = documentsQuery.rows || [];
+        return { total: Number(countQuery.rows?.[0]?.count || 0), recent: rows };
       } catch (_) {
-        const documentsQuery = await listVentureDocumentsForDashboardLegacy(dbId);
+        const [documentsQuery, countQuery] = await Promise.all([
+          listVentureDocumentsForDashboardLegacy(dbId),
+          countVentureDocumentsForDashboardLegacy(dbId),
+        ]);
         rows = documentsQuery.rows || [];
+        return { total: Number(countQuery.rows?.[0]?.count || 0), recent: rows };
       }
-      return {
-        total: rows.length,
-        recent: rows,
-      };
     } catch { return null; }
   })();
 
@@ -258,7 +248,13 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     } catch { return { coaches: [], advisors: [], coaching_sessions: 0, total: 0 }; }
   })();
 
-  // ── Investment Readiness (from the Venture's real verification evidence) ──
+  // ── Stage & Evidence Score (from the Venture's real verification evidence) ──
+  //
+  // This is NOT Investment Readiness. Investment Readiness is the Data Room's
+  // completeness figure, and it is shown on the investment screen from its own
+  // engine (`services/ventures/dataRoom/readiness`). This composite is a
+  // different question — business stage plus how much evidence has been filed —
+  // so it is labelled separately wherever it appears (WS4).
   //
   // This used to be weighted on `startup_profiles` completion, but no screen ever
   // writes that table — the wizard behind it has no caller, and
@@ -275,7 +271,8 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
       const [venture, verificationData] = await Promise.all([ventureInfo, verification]);
       const stage = venture?.business_stage || "idea";
       const stageScores = { idea: 10, validation: 25, early_traction: 45, growth: 65, scaling: 85 };
-      const stageScore = stageScores[stage] || 10;
+      // mvp scores as early_traction, scale as scaling (lib/ventureStage).
+      const stageScore = stageScores[normalizeBusinessStage(stage)] || 10;
 
       const totalCategories = verificationData?.total_count || 0;
       const verifiedCategories = verificationData?.verified_count || 0;
@@ -315,7 +312,6 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
 
   // ── Wait for all (with individual error handling) ──
   const [
-    profileResult,
     ventureResult,
     teamResult,
     notificationsResult,
@@ -327,12 +323,11 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     coachingResult,
     investmentResult,
   ] = await Promise.all([
-    profileCompletion, ventureInfo, teamData, notifications,
+    ventureInfo, teamData, notifications,
     recentActivity, verification, documents, meetings, kpiSummary, coaching, investmentReadiness,
   ]);
 
   return {
-    profile_completion: profileResult,
     venture: ventureResult,
     team: teamResult,
     notifications: notificationsResult,

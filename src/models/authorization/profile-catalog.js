@@ -18,7 +18,7 @@
  * `profiles` table (see `profilesStore.listProfiles`).
  *
  * No database import — safe to share with client components and tests, exactly
- * like `eligibility-defaults.js`. The seed inserts with ON CONFLICT DO NOTHING,
+ * like `constants/eligibility-defaults.js`. The seed inserts with ON CONFLICT DO NOTHING,
  * so an administrator's edit of `allowed_roles` / `is_active` / `notes` — or a
  * profile they created — always wins.
  *
@@ -107,6 +107,15 @@ export const PROFILE_CATALOG = [
     key: "venture_manager",
     labelKey: "engineering.permissions.profileVentureManager",
     context: "venture",
+    allowedRoles: ["staff"],
+  },
+  // Phase 7 (D6) — the dedicated course-management profile (staff-only). Nobody
+  // holds it by default; it is assigned manually to the staff member who manages
+  // courses. See docs/permissions/phase-7-d6-course-manager-profile.md.
+  {
+    key: "course_manager",
+    labelKey: "engineering.permissions.profileCourseManager",
+    context: "staff",
     allowedRoles: ["staff"],
   },
 ];

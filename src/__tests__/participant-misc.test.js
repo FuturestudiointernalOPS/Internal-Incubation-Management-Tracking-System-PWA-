@@ -185,10 +185,10 @@ describe("submission scope", () => {
     ).toEqual({ participantId: "c1", teamId: null });
     expect(
       resolveSubmissionReadScope({ role: "participant", sessionCid: "c1", participantId: "c2", teamId: null }),
-    ).toEqual({ error: "You can only access your own submissions.", status: 403 });
+    ).toEqual({ error: "errors.ownSubmissionsOnly", status: 403 });
     expect(
       resolveSubmissionReadScope({ role: "participant", sessionCid: "c1", participantId: null, teamId: "t1" }),
-    ).toEqual({ error: "You cannot access team submissions.", status: 403 });
+    ).toEqual({ error: "errors.teamSubmissionsDenied", status: 403 });
   });
 
   it("flags a non-privileged writer for the view-only gate", () => {

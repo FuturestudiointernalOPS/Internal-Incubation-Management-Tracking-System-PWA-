@@ -1,12 +1,19 @@
 "use client";
 
+import {
+  carriesContextualValue,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
+
 export function getPermissions(role, groupName, userProgramIds, allPrograms) {
-  const isSA = role === "super_admin";
+  const isSA = isPlatformOwnerRole(role);
   const isStaffFutureStudio =
-    role === "staff" &&
+    isInternalStaffRole(role) &&
     String(groupName || "").toUpperCase() === "FUTURE STUDIO";
-  const isPM = role === "program_manager";
-  const isParticipant = role === "participant";
+  const isPM = isLegacyProgramManagerRole(role);
+  const isParticipant = carriesContextualValue(role, "participant");
 
   // Send modes available
   const sendModes = ["individual"];
@@ -23,7 +30,7 @@ export function getPermissions(role, groupName, userProgramIds, allPrograms) {
     if (isSA) return true;
 
     // Staff: any active contact (FUTURE STUDIO members get the staff group too)
-    if (role === "staff") return true;
+    if (isInternalStaffRole(role)) return true;
 
     // Program Manager: only contacts in programs they manage
     if (isPM) {
@@ -49,13 +56,13 @@ export function getPermissions(role, groupName, userProgramIds, allPrograms) {
       // Other participants with same group_name (case-insensitive — group
       // names can be stored uppercased by some flows and original-case by others)
       if (
-        contact.role === "participant" &&
+        carriesContextualValue(contact.role, "participant") &&
         String(contact.group_name || "").toUpperCase() ===
           String(groupName || "").toUpperCase()
       )
         return true;
       // Staff/PM assigned to this participant's program
-      if (contact.role !== "participant" && userProgramIds.length > 0) {
+      if (!carriesContextualValue(contact.role, "participant") && userProgramIds.length > 0) {
         // Contact is the assigned PM for participant's program
         const isAssignedPm = userProgramIds.some((programId) => {
           const program = allPrograms.find((candidate) => candidate.id === programId);

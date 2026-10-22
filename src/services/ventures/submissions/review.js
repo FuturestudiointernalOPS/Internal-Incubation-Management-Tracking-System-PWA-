@@ -25,6 +25,10 @@ import {
   updateSubmissionReview,
 } from "@/models/forms";
 import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
+import {
+  isFacilitatorProfileSession,
+  isProgramManagerProfileSession,
+} from "@/services/authorization/programManagement";
 
 /**
  * Whether the session's facilitator assignment covers this submission. A
@@ -85,24 +89,33 @@ export async function applySubmissionReview({ session, payload }) {
   const reviewDetailsResult = await getSubmissionReviewDetails(id);
   const submission = reviewDetailsResult.rows[0];
 
+  // D-1 — record the FUNCTION, not the baseline label: a staff identity holding
+  // the program_manager profile keeps the management camp, and a staff/member
+  // identity holding the facilitator profile keeps the facilitator camp.
+  const actingRole = (await isProgramManagerProfileSession(session))
+    ? "program_manager"
+    : (await isFacilitatorProfileSession(session))
+      ? "facilitator"
+      : session?.role;
+
   // Role Lock: a facilitator and program management cannot override each
   // other's decisions. Once a final decision (approved/rejected) exists, only
   // the role that made it may change it. super_admin and staff are exempt.
-  const roleCamp = (role) => {
-    if (role === "facilitator") return "facilitator";
-    if (role === "program_manager") return "management";
-    return null; // super_admin / staff → not locked
+  // The map holds the two CAMP names, which are also what the review row stores
+  // as `reviewed_by_role`; every other value is "not locked".
+  const REVIEW_CAMPS = {
+    facilitator: "facilitator",
+    program_manager: "management",
   };
+  const roleCamp = (role) => REVIEW_CAMPS[role] || null;
   const FINAL_STATUSES = ["approved", "rejected"];
   if (submission && FINAL_STATUSES.includes(submission.status) && submission.reviewed_by_role) {
-    const requesterCamp = roleCamp(session?.role);
+    const requesterCamp = roleCamp(actingRole);
     const reviewerCamp = roleCamp(submission.reviewed_by_role);
     if (requesterCamp && reviewerCamp && requesterCamp !== reviewerCamp) {
-      const actorLabel =
-        reviewerCamp === "facilitator" ? "a facilitator" : "the program manager";
       return {
         denied: {
-          error: `This submission was already ${submission.status} by ${actorLabel}. Only that role can change the decision.`,
+          error: "errors.submissionDecisionLocked",
           status: 403,
         },
       };
@@ -127,7 +140,7 @@ export async function applySubmissionReview({ session, payload }) {
     hasNewScore,
     review_action,
     rejection_reason,
-    role: session?.role,
+    role: actingRole,
     teacherId: session?.cid || session?.email || null,
   });
 
@@ -191,7 +204,7 @@ export async function applySubmissionReview({ session, payload }) {
   // protects sibling decisions).
   if (submission?.team_id && (score != null || status === "approved")) {
     try {
-      const requesterCampForProp = roleCamp(session?.role);
+      const requesterCampForProp = roleCamp(actingRole);
       await propagateSubmissionToTeamMembers({
         status,
         score,
@@ -199,7 +212,7 @@ export async function applySubmissionReview({ session, payload }) {
         feedback,
         review_action,
         rejection_reason,
-        role: session?.role,
+        role: actingRole,
         teacherId: session?.cid || session?.email || null,
         teamId: submission.team_id,
         deliverableId: submission.deliverable_id,

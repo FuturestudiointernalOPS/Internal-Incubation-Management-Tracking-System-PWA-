@@ -19,11 +19,8 @@ const {
   PERMISSION_NAV,
   routeSegmentFor,
 } = require("@/components/permissions/permissionNav");
-const { summarizeContextRoles } = require("@/components/permissions/overviewHelpers");
-
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
-const { readPermissionCenterSurface } = require("./helpers/permissionCenterSource");
 
 const ROUTE_ROOT = path.join(process.cwd(), "src/app/admin/security/permissions");
 
@@ -79,21 +76,21 @@ describe("UI-5 — navigation model", () => {
     }
   });
 
-  test("every primary section has a route page that renders the approved prototype", () => {
-    const prototypeSection = { people: "people", templates: "profiles", rules: "rules", history: "journal" };
+  test("every primary section has a route page that renders the permission centre", () => {
+    const centerSection = { people: "people", templates: "profiles", rules: "rules", history: "journal" };
     for (const item of PERMISSION_NAV) {
       const file = routeFileFor(item);
       expect(fs.existsSync(file)).toBe(true);
       const src = fs.readFileSync(file, "utf8");
-      expect(src).toContain("PermissionPrototype");
-      expect(src).toContain(`initialSection="${prototypeSection[item.key]}"`);
+      expect(src).toContain("PermissionCenter");
+      expect(src).toContain(`initialSection="${centerSection[item.key]}"`);
     }
   });
 
-  test("the landed URL renders the approved permission-centre prototype", () => {
+  test("the landed URL renders the permission centre", () => {
     const src = read("src/app/admin/security/permissions/page.js");
     expect(src).toContain("PermissionCenterLanding");
-    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain("PermissionCenter");
   });
 
   test("the retired Advanced door still forwards to the new homes", () => {
@@ -111,19 +108,25 @@ describe("UI-5 — navigation model", () => {
     }
   });
 
-  test("the profiles route is served by the approved prototype", () => {
+  test("the profiles route is served by the permission centre", () => {
     const src = read("src/app/admin/security/permissions/profiles/page.js");
-    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain("PermissionCenter");
     expect(src).toContain('initialSection="profiles"');
   });
 
   test("there is exactly one navigation: no legacy tab bar survives", () => {
-    // The SURFACE, not the shim: this is an invariant about every screen in the
-    // permission center. Pointing it at the shim would leave it vacuously green
-    // the moment a tab bar moved into `permission-center/`.
-    const src = readPermissionCenterSurface();
-    expect(src).not.toContain("setActiveTab");
-    expect(src).not.toContain("setSetupSection");
+    const surface = [
+      "src/components/permissions/PermissionCenter.js",
+      "src/components/permissions/center/centerNav.js",
+      ...fs
+        .readdirSync(path.join(process.cwd(), "src/components/permissions/center/sections"))
+        .filter((name) => name.endsWith(".js"))
+        .map((name) => `src/components/permissions/center/sections/${name}`),
+    ]
+      .map((file) => read(file))
+      .join("\n");
+    expect(surface).not.toContain("setActiveTab");
+    expect(surface).not.toContain("setSetupSection");
   });
 });
 
@@ -143,23 +146,3 @@ describe("UI-1 — shell translations (en + fr parity)", () => {
   });
 });
 
-describe("UI-1 — overview governance math", () => {
-  test("counts mapped roles and keeps unmapped ones as visible gaps", () => {
-    const summary = summarizeContextRoles([
-      { context: "program", role_key: "participant", profile_key: 2 },
-      { context: "venture", role_key: "founder", profile_key: null },
-      { context: "lms", role_key: "learner" },
-    ]);
-    expect(summary.total).toBe(3);
-    expect(summary.mapped).toBe(1);
-    expect(summary.gaps).toEqual([
-      { context: "venture", role_key: "founder" },
-      { context: "lms", role_key: "learner" },
-    ]);
-  });
-
-  test("handles empty and malformed input without throwing", () => {
-    expect(summarizeContextRoles()).toEqual({ total: 0, mapped: 0, gaps: [] });
-    expect(summarizeContextRoles(null)).toEqual({ total: 0, mapped: 0, gaps: [] });
-  });
-});

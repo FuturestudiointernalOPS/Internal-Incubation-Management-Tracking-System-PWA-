@@ -32,7 +32,7 @@ export async function deleteIntentForSession({ session, id }) {
   ) {
     return {
       status: 403,
-      body: { success: false, error: "Only the responsible person can delete this intent." },
+      body: { success: false, error: "errors.intentDeleteDenied" },
     };
   }
 

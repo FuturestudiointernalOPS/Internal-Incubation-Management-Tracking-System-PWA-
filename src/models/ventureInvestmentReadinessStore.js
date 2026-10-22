@@ -5,9 +5,10 @@
  * per-category probes that score a Venture, the stored assessment / scores /
  * history reads and writes, and the recommendation reads and writes.
  *
- * SQL is byte-identical to what used to sit inline in `src/lib/ventures.js`
- * (including the `countVentureVerificationDocuments` call that carries a
- * placeholder but no bound args — preserved verbatim).
+ * SQL is byte-identical to what used to sit inline in `src/lib/ventures.js`,
+ * except `countVentureVerificationDocuments`, which used to carry a placeholder
+ * with no bound args: the statement always failed and the caller's catch read it
+ * as "no documents".
  *
  * Layer rules (see docs/LAYER_SPLIT.md): no HTTP, one function per statement, no
  * decisions.
@@ -36,7 +37,9 @@ export function selectReadinessRegistrationNumber(ventureId) {
 }
 
 /** Count the Venture's verified financial documents. */
-export function countVerifiedFinancialDocuments(ventureId) {
+export async function countVerifiedFinancialDocuments(ventureRef) {
+  // venture_verifications is uuid since Phase 0.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT COUNT(*) as c FROM venture_verification_items vi JOIN venture_verifications v ON vi.verification_id=v.id WHERE v.venture_id=? AND vi.category='financial_documents' AND vi.status='verified'`,
     args: [ventureId],
@@ -44,32 +47,40 @@ export function countVerifiedFinancialDocuments(ventureId) {
 }
 
 /** Count the Venture's approved report/document deliverables. */
-export function countApprovedFinancialDeliverables(ventureId) {
+export async function countApprovedFinancialDeliverables(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND status IN ('approved','completed') AND deliverable_type IN ('report','document')", args: [ventureId] });
 }
 
 /** Count the Venture's approved/completed deliverables. */
-export function countApprovedDeliverables(ventureId) {
+export async function countApprovedDeliverables(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND status IN ('approved','completed')", args: [ventureId] });
 }
 
 /** Count the Venture's approved/completed prototype deliverables. */
-export function countApprovedPrototypes(ventureId) {
+export async function countApprovedPrototypes(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_deliverables WHERE venture_id=? AND deliverable_type='prototype' AND status IN ('approved','completed')", args: [ventureId] });
 }
 
 /** Milestone totals (total / done) for readiness. */
-export function selectReadinessMilestoneTotals(ventureId) {
+export async function selectReadinessMilestoneTotals(ventureRef) {
+  // venture_milestones is uuid since Phase 0; a bound code RAISES and the caller's
+  // catch turns it into a product score of zero.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as d FROM venture_milestones WHERE venture_id=?", args: [ventureId] });
 }
 
 /** Task totals (total / done) for readiness. */
-export function selectReadinessTaskTotals(ventureId) {
+export async function selectReadinessTaskTotals(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] });
 }
 
 /** Count the Venture's done tasks. */
-export function countDoneTasks(ventureId) {
+export async function countDoneTasks(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_tasks WHERE venture_id=? AND status='done'", args: [ventureId] });
 }
 
@@ -96,12 +107,15 @@ export async function countReadinessPitchReviews(ventureRef) {
 }
 
 /** Count the Venture's accepted founders. */
-export function countReadinessAcceptedFounders(ventureId) {
+export async function countReadinessAcceptedFounders(ventureRef) {
+  // venture_founders is uuid since Phase 0.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_founders WHERE venture_id=? AND status='accepted'", args: [ventureId] });
 }
 
 /** Count the Venture's active coach assignments. */
-export function countReadinessCoachAssignments(ventureId) {
+export async function countReadinessCoachAssignments(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({ sql: "SELECT COUNT(*) as c FROM venture_coach_assignments WHERE venture_id=? AND status='active'", args: [ventureId] });
 }
 
@@ -109,8 +123,14 @@ export function countReadinessCoachAssignments(ventureId) {
  * Count the Venture's verification documents. The statement carries a `?` but no
  * bound args — kept verbatim (the caller's try/catch absorbs the driver error).
  */
-export function countVentureVerificationDocuments() {
-  return db.execute({ sql: `SELECT COUNT(*) as c FROM venture_verification_documents vvd JOIN venture_verifications vv ON vvd.verification_id=vv.id WHERE vv.venture_id=?` });
+/** Count the Venture's Data-bank documents (pitch-readiness probe). */
+export async function countVentureVerificationDocuments(ventureRef) {
+  // The placeholder was never bound — the statement always failed and the caller's
+  // catch read that as "no documents", zeroing the pitch-readiness category even
+  // when pitch sessions had earned points. Bound now, and resolved like its
+  // siblings (venture_verifications is uuid since Phase 0).
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({ sql: `SELECT COUNT(*) as c FROM venture_verification_documents vvd JOIN venture_verifications vv ON vvd.verification_id=vv.id WHERE vv.venture_id=?`, args: [ventureId] });
 }
 
 // ── Assessment reads / writes ────────────────────────────────────────────────

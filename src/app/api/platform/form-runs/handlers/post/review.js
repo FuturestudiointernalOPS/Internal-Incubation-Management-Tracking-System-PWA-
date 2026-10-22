@@ -10,7 +10,7 @@ export async function POST(req) {
     await initDb();
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     // Deciding an applicant (approve/reject + automation + emails) is its OWN
     // capability, so holding runs.edit — which is what lets someone send run
     // messages, assign people and retry emails — never implies the authority

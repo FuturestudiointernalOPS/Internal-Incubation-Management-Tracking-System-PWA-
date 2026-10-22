@@ -55,19 +55,9 @@ export function listUserCapabilityRestrictionsForUser(userCid) {
   );
 }
 
-/** GET (no filter) — every role capability default. */
-export function listRoleCapabilities() {
-  return runSafeQuery("SELECT * FROM role_capabilities ORDER BY role, module, capability");
-}
-
 /** GET (no filter) — every group capability default. */
 export function listGroupCapabilities() {
   return runSafeQuery("SELECT * FROM group_capabilities ORDER BY group_name, module, capability");
-}
-
-/** GET ?role= — one role's capability defaults. */
-export function listRoleCapabilitiesForRole(role) {
-  return runSafeQuery("SELECT * FROM role_capabilities WHERE role = ? ORDER BY module, capability", [role]);
 }
 
 /** GET ?group= — one group's capability defaults. */
@@ -192,14 +182,6 @@ export async function getUserCapabilityBlock(userCid, module, capability) {
   });
 }
 
-/** PUT set_role_default — current role default level, or no rows when absent. */
-export async function getRoleDefaultCapability(role, module, capability) {
-  return db.execute({
-    sql: "SELECT access_level FROM role_capabilities WHERE role = ? AND module = ? AND capability = ?",
-    args: [role, module, capability],
-  });
-}
-
 /** PUT restrict — upsert an individual capability restriction (with expiry). */
 export async function restrictUserCapability(
   userCid,
@@ -229,16 +211,6 @@ export async function unrestrictUserCapability(userCid, module, capability) {
   return db.execute({
     sql: "DELETE FROM user_capability_restrictions WHERE user_cid = ? AND module = ? AND capability = ?",
     args: [userCid, module, capability],
-  });
-}
-
-/** PUT set_role_default — upsert a role_capabilities row. */
-export async function setRoleDefaultCapability(role, module, capability, accessLevel) {
-  return db.execute({
-    sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT (role, module, capability) DO UPDATE SET access_level = ?`,
-    args: [role, module, capability, accessLevel, accessLevel],
   });
 }
 

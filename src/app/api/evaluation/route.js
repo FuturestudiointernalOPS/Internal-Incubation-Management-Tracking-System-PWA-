@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   getProgramConfig,
   getSubmissionEvaluationDetail,
@@ -22,8 +23,10 @@ import {
  */
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "view");
+    if (capError) return capError;
+
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
     const submissionId = searchParams.get("submission_id");
@@ -48,8 +51,13 @@ export const GET = createHandler(
 );
 
 export const PUT = createHandler(
-  { roles: ["staff", "super_admin", "program_manager"] },
   async (req) => {
+    // Writing a grade is a program-management right here. The facilitator's
+    // `assignments.grade` is honoured by /api/submissions, where the ANY-OF
+    // decision is program-scoped; this route has no perimeter check yet.
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
+
     const { program_id, submission_id, score, evaluation_data } = await req.json();
     const result = await saveSubmissionEvaluation({ program_id, submission_id, score, evaluation_data });
     if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode });
@@ -61,8 +69,10 @@ export const PUT = createHandler(
  * POST handler for configuring evaluation model on a program.
  */
 export const POST = createHandler(
-  { roles: ["staff", "super_admin"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
+
     const { program_id, grading_mode, evaluation_config } = await req.json();
     const result = await configureProgramEvaluation({ program_id, grading_mode, evaluation_config });
     if (!result.ok) return NextResponse.json({ success: false, error: result.error }, { status: result.statusCode });

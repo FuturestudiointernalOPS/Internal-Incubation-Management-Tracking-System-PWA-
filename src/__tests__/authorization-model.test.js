@@ -65,7 +65,7 @@ describe("Phase 9 — model consistency", () => {
     expect(
       resolveEffectiveRole({ role: "project_manager", groups: [INTERNAL_GROUP] }),
     ).toBe("staff");
-    expect(resolveEffectiveRole({ role: "admin" })).toBe("participant");
+    expect(resolveEffectiveRole({ role: "admin" })).toBe("member");
     expect(resolveEffectiveRole({ role: "admin", groups: [INTERNAL_GROUP] })).toBe("staff");
   });
 
@@ -81,13 +81,21 @@ describe("Phase 9 — model consistency", () => {
     const roles = [...gateRoles()].sort();
     expect(roles).toEqual(
       [
-        "facilitator",
-        "participant",
+        "member",
         "program_manager",
-        "security_officer",
         "staff",
         "super_admin",
         "team",
+        // 2026-10-20 — the three baseline identities + the entity account are
+        // the only values a session can carry. `participant` and `facilitator`
+        // left every gate in the vocabulary switch: a personal identity is
+        // `member`, and a facilitator's door is the assignment + capability.
+        // If a gate lists a retired label again, it is reintroducing the
+        // mismatch the migration removed — add it back here only deliberately.
+        // "security_officer" left the census on 2026-10-20: the security and
+        // audit routes now require `users.view` / `users.edit`, so no gate lists
+        // that contextual label any more. If a gate lists it again, add it back
+        // deliberately — the capability is the door, not the label.
         // "investor" was removed from every requireAuth list in phases
         // 6A/1.5 — investor access is now own-scoped (profile/pipeline) or
         // management-gated. If a new gate lists it again, add it back here
@@ -128,34 +136,53 @@ describe("Phase 9 — model consistency", () => {
 });
 
 describe("Responsibility Access — roles are bounded by feature eligibility", () => {
-  const { eligibleRolesForFeature, ALL_FEATURE_ROLES } = require("@/lib/featureAccess");
+  const {
+    eligibleRolesForFeature,
+    ALL_FEATURE_ROLES,
+    ALL_FEATURE_PROFILES,
+    ALL_FEATURE_IDENTITIES,
+  } = require("@/lib/featureAccess");
+  const { BASELINE_IDENTITIES } = require("@/lib/identity");
+  const { PROFILE_KEYS } = require("@/models/authorization/profile-catalog");
 
   const rows = [
     { identity_type: "role", identity_value: "super_admin", feature_key: "crm", eligible: 1 },
     { identity_type: "role", identity_value: "staff", feature_key: "crm", eligible: 1 },
-    { identity_type: "role", identity_value: "facilitator", feature_key: "crm", eligible: 1 },
-    { identity_type: "role", identity_value: "mentor", feature_key: "crm", eligible: 0 },
+    { identity_type: "role", identity_value: "member", feature_key: "crm", eligible: 0 },
+    { identity_type: "profile", identity_value: "facilitator", feature_key: "crm", eligible: 1 },
     { identity_type: "group", identity_value: "FUTURE STUDIO", feature_key: "crm", eligible: 1 },
   ];
+
+  test("the role and profile lists are derived from the identity vocabulary", () => {
+    expect(ALL_FEATURE_ROLES).toEqual(BASELINE_IDENTITIES);
+    expect(ALL_FEATURE_PROFILES).toEqual(PROFILE_KEYS);
+    expect(ALL_FEATURE_IDENTITIES).toEqual([
+      ...BASELINE_IDENTITIES,
+      ...PROFILE_KEYS,
+    ]);
+  });
 
   test("offers only the roles eligible for the feature, in canonical order", () => {
     expect(eligibleRolesForFeature(rows, "crm")).toEqual([
       "super_admin",
       "staff",
-      "facilitator",
     ]);
   });
 
   test("an explicit deny removes the role even though it exists in the catalog", () => {
-    expect(eligibleRolesForFeature(rows, "crm")).not.toContain("mentor");
-    expect(ALL_FEATURE_ROLES).toContain("mentor");
+    expect(eligibleRolesForFeature(rows, "crm")).not.toContain("member");
+    expect(ALL_FEATURE_ROLES).toContain("member");
+  });
+
+  test("profile identities never contribute role toggles", () => {
+    expect(eligibleRolesForFeature(rows, "crm")).not.toContain("facilitator");
   });
 
   test("group identities never contribute role toggles", () => {
     expect(eligibleRolesForFeature(rows, "crm")).not.toContain("FUTURE STUDIO");
   });
 
-  test("a feature with no eligibility rows falls back to the full list", () => {
+  test("a feature with no eligibility rows falls back to the full role list", () => {
     expect(eligibleRolesForFeature(rows, "custom_feature")).toEqual([
       ...ALL_FEATURE_ROLES,
     ]);

@@ -25,7 +25,7 @@ export async function POST(req, { params }) {
     const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "create"))) {
-      return NextResponse.json({ success: false, error: "Your assignment does not allow defining this Venture's journey." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.journeyDefineDenied" }, { status: 403 });
     }
 
     const body = await req.json();

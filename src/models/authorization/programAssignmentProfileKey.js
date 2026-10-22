@@ -70,5 +70,27 @@ export async function backfillProgramAssignmentProfileKeys() {
     });
     updated += res?.rowsAffected ?? 0;
   }
+
   return { success: true, updated };
+}
+
+/**
+ * Lot 3.4 / D-5 — every FACILITATOR assignment gets the facilitator PROFILE.
+ *
+ * Inert while the per-assignment checkboxes still have precedence: setting the
+ * key changes no answer, it only removes the data gap that would make the
+ * profile-based switch deny every facilitator.
+ *
+ * Runs under its own migration key because the backfill above is recorded once
+ * per database; NULL-only, so an administrator's choice is never overwritten.
+ */
+export async function backfillFacilitatorProfileKeys() {
+  await ensureProgramAssignmentProfileKeySchema();
+  const result = await db.execute({
+    sql: `UPDATE v2_program_staff SET profile_key = 'facilitator'
+          WHERE role = 'facilitator'
+            AND (profile_key IS NULL OR profile_key = '')`,
+    args: [],
+  });
+  return { success: true, updated: result?.rowsAffected ?? 0 };
 }

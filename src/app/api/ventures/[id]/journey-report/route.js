@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireVentureAccess, roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { roleIsPrivileged, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { TASK_COMPLETED_STATUSES, isMilestoneComplete, isJourneyStageComplete } from "@/lib/ventureStatuses";
 import {
@@ -37,14 +38,15 @@ export async function GET(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
+    const { session } = access;
 
     const staff =
       roleIsPrivileged(session.role) ||
       (session.cid ? await isStaffActorForVenture(id, session) : false);
     if (!staff) {
-      return NextResponse.json({ success: false, error: "Staff access required." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
     }
 
     const ventureResult = await getVentureDbIdByCodeOrId(id).catch(() => ({ rows: [] }));
@@ -130,9 +132,12 @@ export async function GET(req, { params }) {
       if (TASK_COMPLETED_STATUSES.includes(task.status)) completedTasks += 1;
     }
 
-    const overdue = taskRows
+    // The list is capped for display; the KPI counts the WHOLE set. A slice is
+    // a presentation choice and must never become the reported total.
+    const overdueAll = taskRows
       .filter((task) => task.due_date && OPEN_TASK_STATUSES.includes(task.status) && new Date(task.due_date) < new Date())
-      .sort((first, second) => new Date(first.due_date) - new Date(second.due_date))
+      .sort((first, second) => new Date(first.due_date) - new Date(second.due_date));
+    const overdue = overdueAll
       .slice(0, 50)
       .map((task) => ({ id: task.id, status: task.status, due_date: task.due_date }));
 
@@ -185,6 +190,7 @@ export async function GET(req, { params }) {
           progress_pct: taskRows.length > 0 ? Math.round((completedTasks / taskRows.length) * 100) : 0,
         },
         overdue,
+        overdue_total: overdueAll.length,
         submissions,
         deliverables_awaiting_review: deliverablesAwaitingReview,
         sessions,

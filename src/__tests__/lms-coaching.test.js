@@ -317,7 +317,12 @@ describe("lms coaching requests — routes", () => {
     expect(data.requests).toHaveLength(1);
     expect(requireAuthorization).toHaveBeenCalledWith("lms", "view");
     // The program queue is scoped to the caller's staffing, not just the role.
-    expect(requireProgramScope).toHaveBeenCalledWith({ programId: PROGRAM, wave: "lms" });
+    expect(requireProgramScope).toHaveBeenCalledWith({
+      programId: PROGRAM,
+      wave: "lms",
+      module: "lms",
+      capability: "view",
+    });
   });
 
   test("DELETE withdraws an owned request", async () => {

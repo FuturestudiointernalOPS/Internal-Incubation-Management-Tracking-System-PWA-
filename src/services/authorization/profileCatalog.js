@@ -283,3 +283,20 @@ export async function buildProfileRoleGap({ profileKey, cid = null, role } = {})
 export function profileRoleGateDecision(gap, mode = PROFILE_ROLE_ENFORCEMENT) {
   return { blocked: Boolean(gap) && mode === "block", gap: gap || null, mode };
 }
+
+/**
+ * The profile ↔ role gate for a MANUAL attribution — the registry
+ * (`profile_assignments`) and the per-person override both go through this, so
+ * the SAME rule the automatic reconcile and the responsibility path apply holds
+ * on every manual path too (spec §3.3).
+ *
+ * Read-only; the reads it owns are best-effort (`buildProfileRoleGap` never
+ * throws). Pass `role` when it is already known to avoid a read.
+ *
+ * @param {{profileKey?: string|null, cid?: string|null, role?: string|null}} args
+ * @returns {Promise<{blocked: boolean, gap: object|null, mode: string}>}
+ */
+export async function profileRoleAssignmentGate({ profileKey, cid = null, role } = {}) {
+  const gap = await buildProfileRoleGap({ profileKey, cid, role });
+  return profileRoleGateDecision(gap);
+}

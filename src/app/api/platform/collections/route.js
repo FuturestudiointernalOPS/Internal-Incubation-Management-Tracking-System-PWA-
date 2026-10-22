@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   archiveCollection,
   createCollection,
@@ -26,7 +26,7 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin", "staff"]);
+    const authError = await requireAuthorization("collections", "view");
     if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
@@ -54,13 +54,10 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
+    const authError = await requireAuthorization("collections", "manage");
+    if (authError) return authError;
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    }
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
 
     const body = await req.json();
     const { status, body: responseBody } = await createCollection({ body, session });
@@ -73,13 +70,10 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
+    const authError = await requireAuthorization("collections", "manage");
+    if (authError) return authError;
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    }
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
 
     const body = await req.json();
     const { status, body: responseBody } = await updateCollection({ body, session });
@@ -92,13 +86,10 @@ export async function PUT(req) {
 export async function DELETE(req) {
   try {
     await initDb();
+    const authError = await requireAuthorization("collections", "manage");
+    if (authError) return authError;
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
-    }
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");

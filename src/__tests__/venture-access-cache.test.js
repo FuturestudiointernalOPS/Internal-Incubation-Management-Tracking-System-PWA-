@@ -1,11 +1,14 @@
 /**
- * The Venture access answer is asked ONCE and shared by every screen.
+ * The Venture's access facts are asked ONCE and shared by every screen.
  *
- * A round trip to the database costs ~185 ms on the current link, and the
- * Venture workspace asks the same two questions from each of its surfaces: the
- * Venture's own facts (its code, its lifecycle) and the viewer's relationship to
- * it. These tests pin what the sharing has to guarantee:
+ * The legacy membership gate (`requireVentureAccess`) is gone — Lot 5 moved
+ * every route onto `requireVentureScopedAccess`. What remains, and what this
+ * suite now pins, is the shared FACT layer both gates read:
  *
+ *   • the Venture's own facts (its code, its lifecycle);
+ *   • the viewer's relationship to it (member? delegated staff?).
+ *
+ * The guarantees are unchanged:
  *   • a second screen asking the same thing within the window costs NOTHING;
  *   • screens loading in parallel share one query instead of racing their own;
  *   • a failure is never remembered, and never becomes a granted access;
@@ -24,7 +27,8 @@ const state = {
 };
 
 const mockDb = {
-  execute: jest.fn(async ({ sql }) => {
+  execute: jest.fn(async (query) => {
+    const sql = typeof query === "string" ? query : query.sql || "";
     queries.push(sql);
     if (sql.includes("FROM ventures")) {
       if (state.failVentureRead) throw new Error("read ETIMEDOUT");
@@ -48,12 +52,17 @@ jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "USR-founder", role: "participant" }),
 }));
 
-const { requireVentureAccess, resolveVentureLifecycle } = require("@/lib/ventureAuth");
-const { invalidateVentureAccess, resetVentureAccessCache } = require("@/services/ventures/accessFacts");
+const { resolveVentureLifecycle, hasActiveVentureAssignment } = require("@/lib/ventureAuth");
+const {
+  getVentureFacts,
+  getViewerRelationship,
+  invalidateVentureAccess,
+  resetVentureAccessCache,
+} = require("@/services/ventures/accessFacts");
 
 const CODE = "VNT-1";
 const INTERNAL = "internal-1";
-const ACCESS_SQL = (sql) => sql.includes("FROM ventures") || sql.includes("FROM venture_members");
+const VIEWER = "USR-founder";
 
 beforeEach(() => {
   resetVentureAccessCache();
@@ -68,29 +77,27 @@ beforeEach(() => {
 });
 
 describe("one answer, every screen", () => {
-  test("the first check costs two round trips, the screens after it cost none", async () => {
-    const first = await requireVentureAccess(CODE);
-    expect(first.session).toBeTruthy();
-    // The Venture's facts, then the viewer's relationship: the two questions a
-    // screen cannot answer locally.
+  test("the first pair costs two round trips, the screens after it cost none", async () => {
+    await getVentureFacts(CODE);
+    await getViewerRelationship(CODE, VIEWER);
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
-    expect(queries.every(ACCESS_SQL)).toBe(true);
 
-    await requireVentureAccess(CODE);
-    await requireVentureAccess(CODE);
-    await requireVentureAccess(CODE);
+    await getVentureFacts(CODE);
+    await getViewerRelationship(CODE, VIEWER);
+    await getVentureFacts(CODE);
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
   });
 
   test("screens that load in parallel share one query instead of racing their own", async () => {
-    const results = await Promise.all([
-      requireVentureAccess(CODE),
-      requireVentureAccess(CODE),
-      requireVentureAccess(CODE),
+    await Promise.all([
+      getVentureFacts(CODE),
+      getVentureFacts(CODE),
+      getVentureFacts(CODE),
+      getViewerRelationship(CODE, VIEWER),
+      getViewerRelationship(CODE, VIEWER),
     ]);
 
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
-    expect(results.every((result) => result.session)).toBe(true);
   });
 
   test("what one surface learned about the Venture serves the lifecycle gate too", async () => {
@@ -98,9 +105,9 @@ describe("one answer, every screen", () => {
     expect(lifecycle).toEqual({ status: "active", is_archived: false });
     expect(mockDb.execute).toHaveBeenCalledTimes(1);
 
-    // The lifecycle already resolved the code: the access check only has to ask
+    // The lifecycle already resolved the code: the relationship only has to ask
     // about the viewer.
-    await requireVentureAccess(CODE);
+    await getViewerRelationship(CODE, VIEWER);
     expect(mockDb.execute).toHaveBeenCalledTimes(2);
   });
 
@@ -108,73 +115,81 @@ describe("one answer, every screen", () => {
     const uuid = "2b7feb6c-763a-48e1-84a0-d768cd4abfbf";
     state.venture = { id: uuid, code: CODE, status: "active", is_archived: false };
 
-    const result = await requireVentureAccess(uuid);
-    expect(result.session).toBeTruthy();
+    const relationship = await getViewerRelationship(uuid, VIEWER);
+    expect(relationship.is_member).toBe(true);
     expect(queries[0]).toContain("WHERE id = ?");
 
     // The relationship is looked up under the INTERNAL id (Phase 0) — the id the
     // membership and assignment tables key on, read off the Venture's own row.
     expect(queries[1]).toContain("FROM venture_members");
-    expect(mockDb.execute.mock.calls[1][0].args.slice(0, 2)).toEqual([uuid, "USR-founder"]);
+    expect(mockDb.execute.mock.calls[1][0].args.slice(0, 2)).toEqual([uuid, VIEWER]);
   });
 });
 
 describe("who gets in", () => {
-  test("a member is admitted, a stranger is turned away", async () => {
-    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
+  test("a member is admitted, a stranger is not", async () => {
+    expect((await getViewerRelationship(CODE, VIEWER)).is_member).toBe(true);
 
-    resetVentureAccessCache();
     state.isMember = false;
     state.isAssigned = false;
-    expect((await requireVentureAccess(CODE)).session).toBeNull();
+    // A removal invalidates the cached answer, exactly like the roster write.
+    invalidateVentureAccess(CODE);
+    const relationship = await getViewerRelationship(CODE, VIEWER);
+    expect(relationship.is_member).toBe(false);
+    expect(relationship.is_assigned).toBe(false);
   });
 
-  test("a delegated staff assignment is enough", async () => {
+  test("a delegated staff assignment is enough for the staff-actor rule", async () => {
     state.isMember = false;
     state.isAssigned = true;
-    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
+    expect(await hasActiveVentureAssignment(CODE, VIEWER)).toBe(true);
   });
 
   test("an unknown Venture grants nothing", async () => {
     state.venture = null;
-    expect((await requireVentureAccess(CODE)).session).toBeNull();
+    expect(await getVentureFacts(CODE)).toBeNull();
+    const relationship = await getViewerRelationship(CODE, VIEWER);
+    expect(relationship.is_member).toBe(false);
+    expect(relationship.is_assigned).toBe(false);
   });
 });
 
 describe("a failure is never an answer", () => {
-  test("a dropped connection is not remembered, and never admits anyone", async () => {
+  test("a dropped connection is not remembered", async () => {
     state.failVentureRead = true;
-    await expect(requireVentureAccess(CODE)).rejects.toThrow();
+    await expect(getVentureFacts(CODE)).rejects.toThrow();
 
-    // Recovered: the very next check re-asks instead of replaying the failure.
+    // Recovered: the very next read re-asks instead of replaying the failure.
     state.failVentureRead = false;
-    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
+    expect(await getVentureFacts(CODE)).toBeTruthy();
   });
 
   test("a relationship the database cannot answer denies rather than admits", async () => {
     state.relationshipUnavailable = true;
-    expect((await requireVentureAccess(CODE)).session).toBeNull();
+    const relationship = await getViewerRelationship(CODE, VIEWER);
+    expect(relationship.is_member).toBe(false);
+    expect(relationship.is_assigned).toBe(false);
   });
 });
 
 describe("the window", () => {
   test("expires, so a stale answer cannot outlive it", async () => {
     process.env.VENTURE_ACCESS_CACHE_TTL_MS = "1";
-    await requireVentureAccess(CODE);
-    expect(mockDb.execute).toHaveBeenCalledTimes(2);
+    await getVentureFacts(CODE);
+    expect(mockDb.execute).toHaveBeenCalledTimes(1);
 
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await requireVentureAccess(CODE);
-    expect(mockDb.execute).toHaveBeenCalledTimes(4);
+    await getVentureFacts(CODE);
+    expect(mockDb.execute).toHaveBeenCalledTimes(2);
   });
 
   test("a removal drops the answer immediately, well inside the window", async () => {
-    expect((await requireVentureAccess(CODE)).session).toBeTruthy();
+    expect((await getViewerRelationship(CODE, VIEWER)).is_member).toBe(true);
 
     // The person is removed from the roster.
     state.isMember = false;
     invalidateVentureAccess(CODE);
 
-    expect((await requireVentureAccess(CODE)).session).toBeNull();
+    expect((await getViewerRelationship(CODE, VIEWER)).is_member).toBe(false);
   });
 });

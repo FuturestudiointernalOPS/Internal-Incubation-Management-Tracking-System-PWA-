@@ -1,7 +1,7 @@
 "use client";
 
-import PermissionPrototype from "@/components/permissions/PermissionPrototype";
+import PermissionCenter from "@/components/permissions/PermissionCenter";
 
 export default function PermissionPeoplePage() {
-  return <PermissionPrototype initialSection="people" />;
+  return <PermissionCenter initialSection="people" />;
 }

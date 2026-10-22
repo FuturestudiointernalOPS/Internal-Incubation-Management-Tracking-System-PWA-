@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { requireAssignmentAccess } from "@/server/authz/guards";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import {
   decideReview,
   ensureReviewStructure,
@@ -80,7 +80,7 @@ export async function POST(req) {
     // `reviews.submit` is passed so the per-program tick list is consulted: a
     // program manager who removes review submission from a facilitator's
     // assignment now actually stops it.
-    if (session && !hasProgramManagementAccess(session.role)) {
+    if (session && !(await isProgramManagerSession(session))) {
       const guardError = await requireAssignmentAccess({
         resource: "program",
         contextId: body.program_id,

@@ -17,6 +17,7 @@ jest.mock("@/models/ventureReminders", () => ({
   insertReminderLog: jest.fn(async () => ({ rows: [{ id: 1 }] })),
   markReminderSent: jest.fn(async () => ({ rows: [] })),
   markReminderFailed: jest.fn(async () => ({ rows: [] })),
+  selectLeadManagerRecipients: jest.fn(async () => ({ rows: [] })),
 }));
 
 jest.mock("@/models/ventureAssigneeLinks", () => ({
@@ -26,6 +27,7 @@ jest.mock("@/models/ventureAssigneeLinks", () => ({
 const mockSend = jest.fn(async () => ({ success: true }));
 jest.mock("@/lib/email", () => ({
   sendVentureReminderEmail: (...args) => mockSend(...args),
+  isPlaceholderEmail: () => false,
 }));
 
 const mockDownload = jest.fn(async () => null);
@@ -34,7 +36,7 @@ jest.mock("@/lib/ventureEvidence", () => ({
 }));
 
 const { selectAssigneeEmails, selectContactCidByEmail } = require("@/models/ventureAssigneeEmails");
-const { insertReminderLog, markReminderFailed, markReminderSent } = require("@/models/ventureReminders");
+const { insertReminderLog, markReminderFailed, markReminderSent, selectLeadManagerRecipients } = require("@/models/ventureReminders");
 const { hasPlatformAccount } = require("@/services/reminders/recipients");
 const {
   daysUntil,
@@ -71,6 +73,7 @@ beforeEach(() => {
   selectAssigneeEmails.mockResolvedValue({ rows: [] });
   selectContactCidByEmail.mockResolvedValue({ rows: [] });
   insertReminderLog.mockResolvedValue({ rows: [{ id: 1 }] });
+  selectLeadManagerRecipients.mockResolvedValue({ rows: [] });
   // The workspace mailbox is the primary transport, and the only one that can
   // carry a file attachment.
   mockSend.mockResolvedValue({ success: true, provider: "gmail" });
@@ -295,6 +298,52 @@ describe("sending claims the reminder before it sends", () => {
 
     const outcome = await sendManualReminder({ ventureCode: "VNT-1", ventureName: "KoraHome", item: ITEM });
     expect(outcome.sent).toBe(2);
+  });
+
+  test("an activity reminder is COPIED to the Venture's lead manager and its sender", async () => {
+    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "amina@example.com" }] });
+    selectLeadManagerRecipients.mockResolvedValue({
+      rows: [{ cid: "LM-1", name: "Lena", email: "lena@example.com" }],
+    });
+
+    await sendManualReminder({
+      ventureCode: "VNT-1",
+      ventureName: "KoraHome",
+      item: ITEM,
+      sentBy: "Gwyn",
+      sentByEmail: "gwyn@example.com",
+    });
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "amina@example.com", cc: ["lena@example.com", "gwyn@example.com"] }),
+    );
+  });
+
+  test("the recipient is never copied on their own reminder, and other kinds get no copy", async () => {
+    selectAssigneeEmails.mockResolvedValue({ rows: [{ display_name: "Amina", email: "lena@example.com" }] });
+    selectLeadManagerRecipients.mockResolvedValue({
+      rows: [{ cid: "LM-1", name: "Lena", email: "lena@example.com" }],
+    });
+
+    await sendManualReminder({
+      ventureCode: "VNT-1",
+      ventureName: "KoraHome",
+      item: ITEM,
+      sentByEmail: "gwyn@example.com",
+    });
+
+    expect(mockSend).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "lena@example.com", cc: ["gwyn@example.com"] }),
+    );
+
+    mockSend.mockClear();
+    await sendManualReminder({
+      ventureCode: "VNT-1",
+      ventureName: "KoraHome",
+      item: { ...ITEM, id: "milestone:9", kind: "milestone" },
+      sentByEmail: "gwyn@example.com",
+    });
+    expect(mockSend).toHaveBeenCalledWith(expect.objectContaining({ cc: [] }));
   });
 
   test("the manager's own words go out unchanged, and are recorded with the send", async () => {

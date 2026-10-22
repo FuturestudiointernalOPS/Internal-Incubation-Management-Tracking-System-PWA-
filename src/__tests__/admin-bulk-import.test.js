@@ -113,12 +113,12 @@ describe("importContacts — validation", () => {
 });
 
 describe("importContacts — the role boundary", () => {
-  test("without the capability, a privileged role is clamped to participant", async () => {
+  test("without the capability, a privileged role is clamped to member", async () => {
     await importContacts({
       rows: [{ name: "Ann", email: "a@x.test", role: "super_admin" }],
       canAssignRole: false,
     });
-    expect(models.insertContact.mock.calls[0][0].role).toBe("participant");
+    expect(models.insertContact.mock.calls[0][0].role).toBe("member");
   });
 
   test("with the capability, the requested role is kept", async () => {

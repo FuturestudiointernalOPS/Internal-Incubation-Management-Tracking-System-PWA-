@@ -25,7 +25,7 @@ export async function POST(req, { params }) {
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "manage"))) {
       return NextResponse.json(
-        { success: false, error: "Your assignment does not allow managing this Venture's journey." },
+        { success: false, error: "errors.journeyManageDenied" },
         { status: 403 },
       );
     }

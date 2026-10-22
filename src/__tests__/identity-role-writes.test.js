@@ -53,6 +53,9 @@ test("mutation-site inventory is frozen (every contacts.role write is known)", (
   const KNOWN_SITES = [
     "src/models/adminOps/userManagement.js", // approval → participant (contextual — I2 target)
     "src/models/authorization/engineeringAndAudit.js", // promote/demote super_admin/staff (TRUE identity op — keep)
+    // The one-time legacy-identity migration: cards first, then the identity
+    // becomes member. A TRUE identity op, run once per database.
+    "src/models/authorization/legacyIdentityStore.js",
     // Phase H — aligns a LEGACY role value onto a baseline identity (guarded by
     // the exact legacy value, deletes nothing). A TRUE identity op, not a
     // contextual mutation: it removes context from the column, never adds it.
@@ -112,12 +115,8 @@ describe("deriveLegacyRole (I2 transitional view)", () => {
     expect(isBaselineIdentity("investor")).toBe(false);
   });
 
-  test("member + program membership derives participant", () => {
-    expect(deriveLegacyRole({ storedRole: "member", hasActiveParticipantProgram: true })).toBe("participant");
-  });
-
-  test("member + venture ownership (no program) derives founder", () => {
-    expect(deriveLegacyRole({ storedRole: "member", isActiveVentureOwner: true })).toBe("founder");
+  test("member + relationships stays member (the relationship is a PROFILE now)", () => {
+    expect(deriveLegacyRole({ storedRole: "member" })).toBe("member");
   });
 
   test("bare member stays member", () => {
@@ -129,10 +128,10 @@ describe("deriveLegacyRole (I2 transitional view)", () => {
     expect(deriveLegacyRole({ storedRole: "super_admin", isActiveVentureOwner: true })).toBe("super_admin");
   });
 
-  test("legacy contextual values pass through unchanged (no double-derivation)", () => {
-    expect(deriveLegacyRole({ storedRole: "participant" })).toBe("participant");
-    expect(deriveLegacyRole({ storedRole: "founder" })).toBe("founder");
-    expect(deriveLegacyRole({ storedRole: "investor" })).toBe("investor");
+  test("retired contextual values normalize to member", () => {
+    expect(deriveLegacyRole({ storedRole: "participant" })).toBe("member");
+    expect(deriveLegacyRole({ storedRole: "founder" })).toBe("member");
+    expect(deriveLegacyRole({ storedRole: "investor" })).toBe("member");
   });
 });
 

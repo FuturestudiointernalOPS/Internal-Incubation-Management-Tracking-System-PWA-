@@ -57,7 +57,7 @@ export const PATCH = createHandler(
     const fieldAction = body.name !== undefined || body.objective !== undefined;
     if ((statusAction && !(await allowsPlanAction(access, "manage"))) ||
         (fieldAction && !(await allowsPlanAction(access, "edit")))) {
-      return NextResponse.json({ success: false, error: "Not allowed to update this plan." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.planEditDenied" }, { status: 403 });
     }
     const updateResult = await updateVentureOperatingPlan({
       planId: params.planId,
@@ -88,7 +88,7 @@ export const DELETE = createHandler(
     const access = await resolvePlanAccess(params.id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "manage"))) {
-      return NextResponse.json({ success: false, error: "Not allowed to archive this plan." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.planArchiveDenied" }, { status: 403 });
     }
     await archiveVentureOperatingPlan(params.planId, access.code);
     try {

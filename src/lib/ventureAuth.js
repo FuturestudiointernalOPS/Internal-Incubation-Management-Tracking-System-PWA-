@@ -1,9 +1,17 @@
-import { getSession } from "@/server/auth/session";
-import { getVentureFacts, getViewerRelationship, ventureAccessFacts } from "@/services/ventures/accessFacts";
+import { getVentureFacts, getViewerRelationship } from "@/services/ventures/accessFacts";
+import {
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 
 /** Roles that may always access Venture records (incl. archived, historical). */
 export function roleIsPrivileged(role) {
-  return ["staff", "super_admin", "program_manager"].includes(role);
+  return (
+    isPlatformOwnerRole(role) ||
+    isInternalStaffRole(role) ||
+    isLegacyProgramManagerRole(role)
+  );
 }
 
 /**
@@ -11,11 +19,12 @@ export function roleIsPrivileged(role) {
  * member with an ACTIVE assignment on this Venture. Mere Venture membership
  * (founders/team) is NOT staff. Used to gate staff-instrument operations
  * (investment engine, fundraising/investor pipelines, analytics/reports)
- * that were previously reachable by any member through requireVentureAccess.
+ * that were previously reachable by any member through the legacy membership
+ * gate.
  */
 export async function isStaffActorForVenture(ventureId, session) {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  if (isPlatformOwnerRole(session.role)) return true;
   if (!session.cid) return false;
   try {
     // `venture_staff_assignments` keys on the INTERNAL id (Phase 0), resolved
@@ -91,42 +100,4 @@ export async function hasActiveVentureAssignment(ventureRef, sessionCid) {
   }
 }
 
-/**
- * Shared venture access check — import this instead of re-implementing the
- * membership check in every route. Returns the session or null.
- *
- * Usage in a route:
- *   const { ventureId, session } = await requireVentureAccess(params.id);
- *   if (!session) return NextResponse.json({...}, {status: 404});
- *
- * Rules (Phase 2 — assignment-aware delegation):
- *   - GLOBAL roles (super_admin) bypass membership (org-wide authority).
- *   - Everyone else must hold EITHER an ACTIVE venture_members row, OR an
- *     ACTIVE staff assignment (venture_staff_assignments) — delegated staff
- *     access derived from the assignment, never from the role alone.
- *   - Plain `staff`/`program_manager` WITHOUT an assignment no longer bypass.
- *   - Non-member / non-assigned → 404 (don't leak existence).
- */
-export async function requireVentureAccess(ventureId) {
-  const session = await getSession();
-  if (!session) return { ventureId, session: null };
 
-  // Global Venture authority (Phase 2: narrowed from all staff/PM roles).
-  const globalRoles = ["super_admin"];
-  if (globalRoles.includes(session.role)) {
-    return { ventureId, session };
-  }
-
-  if (session.cid) {
-    // Two facts, one round trip each, asked once per viewer and Venture rather
-    // than once per screen (see services/ventures/accessFacts.js): the Venture's
-    // own row — which carries the internal id the membership and assignment
-    // tables key on since Phase 0 — and then the relationship itself.
-    const { facts, relationship } = await ventureAccessFacts(ventureId, session.cid);
-    if (facts && (relationship.is_member || relationship.is_assigned)) {
-      return { ventureId, session };
-    }
-  }
-
-  return { ventureId, session: null };
-}

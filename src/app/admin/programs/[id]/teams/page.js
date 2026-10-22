@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { Users, Plus, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
+import { isInternalStaffFamilyRole } from "@/lib/identity";
 import TeamFormModal from "@/components/admin/programs/teams/TeamFormModal";
 import TeamsTable from "@/components/admin/programs/teams/TeamsTable";
 import DeleteTeamModal from "@/components/admin/programs/teams/DeleteTeamModal";
@@ -25,10 +26,7 @@ const pickStaff = (payload) =>
     ? payload.contacts.filter(
         (contact) =>
           contact &&
-          (contact.role === "super_admin" ||
-            contact.role === "program_manager" ||
-            contact.role === "admin" ||
-            contact.role === "staff"),
+          isInternalStaffFamilyRole(contact.role),
       )
     : [];
 

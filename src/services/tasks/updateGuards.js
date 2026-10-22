@@ -50,7 +50,7 @@ export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
     return {
       failure: {
         status: 403,
-        error: "You do not have permission to update this task.",
+        error: "errors.taskUpdateDenied",
       },
     };
   }
@@ -69,7 +69,7 @@ export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
       return {
         failure: {
           status: 403,
-          error: "Only the task creator or assignee can change its status.",
+          error: "errors.taskStatusCreatorOrAssignee",
         },
       };
     }
@@ -79,7 +79,7 @@ export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
   if (locked) {
     if (title !== undefined && title !== task.title) {
       const error =
-        "Task is locked (older than 12 hours). Title cannot be modified.";
+        "errors.taskLockedTitle";
       return {
         failure: {
           status: 403,
@@ -90,7 +90,7 @@ export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
     }
     if (description !== undefined && description !== task.description) {
       const error =
-        "Task is locked (older than 12 hours). Description cannot be modified.";
+        "errors.taskLockedDescription";
       return {
         failure: {
           status: 403,
@@ -137,7 +137,7 @@ export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
     return {
       failure: {
         status: 409,
-        error: "Completed tasks cannot be marked as carried over.",
+        error: "errors.carryoverCompletedLocked",
       },
     };
   }

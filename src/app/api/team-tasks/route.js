@@ -31,7 +31,7 @@ import {
  * means the caller must additionally be staffed on the owning program; the
  * other two verdicts were already settled by the service.
  */
-async function enforceTeamBoardScope(verdict) {
+async function enforceTeamBoardScope(verdict, module, capability) {
   if (verdict.kind === "deny") {
     return NextResponse.json(
       { success: false, error: verdict.errorKey },
@@ -39,7 +39,12 @@ async function enforceTeamBoardScope(verdict) {
     );
   }
   if (verdict.kind === "allow") return null;
-  return requireProgramScope({ programId: verdict.programId, wave: "groups" });
+  return requireProgramScope({
+    programId: verdict.programId,
+    wave: "groups",
+    module,
+    capability,
+  });
 }
 
 export async function GET(req) {
@@ -57,7 +62,7 @@ export async function GET(req) {
       );
     }
 
-    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardScope(teamId));
+    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardScope(teamId), "tasks", "view");
     if (scopeError) return scopeError;
 
     const result = await listTeamBoardTasks(teamId);
@@ -81,7 +86,7 @@ export async function POST(req) {
       );
     }
 
-    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardScope(body.team_id));
+    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardScope(body.team_id), "tasks", "create");
     if (scopeError) return scopeError;
 
     const result = await createTeamBoardTask(body);
@@ -107,6 +112,8 @@ export async function PUT(req) {
 
     const scopeError = await enforceTeamBoardScope(
       await resolveTeamBoardTaskScope(body.id),
+      "tasks",
+      "edit",
     );
     if (scopeError) return scopeError;
 
@@ -137,7 +144,7 @@ export async function DELETE(req) {
       );
     }
 
-    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardTaskScope(id));
+    const scopeError = await enforceTeamBoardScope(await resolveTeamBoardTaskScope(id), "tasks", "delete");
     if (scopeError) return scopeError;
 
     const result = await deleteTeamBoardTask(id);

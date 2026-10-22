@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { isMemberSurfaceRole, isPlatformOwnerRole } from "@/lib/identity";
 
 /**
  * Communications — follow-up reads and writes (REPOSITORY layer).
@@ -50,13 +51,14 @@ export async function listFollowups({
     args.push(status);
   }
 
-  // Visibility: super_admin sees all; participants see their own; everyone
-  // else sees follow-ups they assigned. Legacy rows (created_by NULL) remain
-  // visible to non-participant staff so historical data is not lost.
-  if (session?.role === "participant") {
+  // Visibility: the platform owner sees all; a PERSONAL identity (member, or a
+  // legacy participant/founder value) sees its own; everyone else sees the
+  // follow-ups they assigned. Legacy rows (created_by NULL) remain visible to
+  // staff so historical data is not lost.
+  if (isMemberSurfaceRole(session?.role) && session?.cid) {
     sql += " AND f.participant_id = ?";
     args.push(session.cid);
-  } else if (session?.role !== "super_admin") {
+  } else if (!isPlatformOwnerRole(session?.role)) {
     sql += " AND (f.created_by IS NULL OR f.created_by = ?)";
     args.push(session.cid);
   }

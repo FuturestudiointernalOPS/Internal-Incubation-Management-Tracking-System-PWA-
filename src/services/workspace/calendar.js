@@ -10,6 +10,11 @@ import {
   getFacilitatorProgramScopePids,
   getParticipantProgramScopePids,
 } from "@/models/workspace";
+import {
+  isInternalStaffFamilyRole,
+  isMemberSurfaceRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 
 /**
  * Workspace service — the personal-calendar Venture session source.
@@ -62,15 +67,16 @@ const PROGRAM_UNSCOPED_ROLES = [
   "team",
 ];
 
-// Roles that see every Venture, unless personal mode is on.
-const PRIVILEGED_VENTURE_ROLES = ["staff", "super_admin", "program_manager"];
+// Roles that see every Venture, unless personal mode is on. The family is
+// answered by the identity layer (D-2), not by an inline array.
+const isPrivilegedVentureRole = (role) => isInternalStaffFamilyRole(role);
 
 /**
  * Which programs the caller may see on the unified calendar (GET /api/calendar).
  *
  * Program scope is derived from RELATIONSHIPS, not from the platform role label.
  * The identity correction stopped mutating `contacts.role` when someone takes a
- * facilitator assignment, so keying this on `role === 'facilitator'` left every
+ * facilitator assignment, so keying this on the facilitator LABEL left every
  * other contextual identity (a `member` acting as a facilitator, for instance)
  * falling through to `null` — which means NO restriction and every program's
  * sessions, deliverables and follow-ups. That was a fail-open read.
@@ -118,13 +124,13 @@ export async function resolveCalendarProgramScope(sessionCid, role) {
  * (legacy NULL rows remain visible). Returns the WHERE fragment + arguments.
  */
 export function resolveCalendarFollowupVisibility(sessionCid, role) {
-  if (role === "participant" && sessionCid) {
+  if (isMemberSurfaceRole(role) && sessionCid) {
     return {
       followupVisibilitySql: " AND f.participant_id = ?",
       followupVisibilityArgs: [sessionCid],
     };
   }
-  if (role !== "super_admin" && sessionCid) {
+  if (!isPlatformOwnerRole(role) && sessionCid) {
     return {
       followupVisibilitySql: " AND (f.created_by IS NULL OR f.created_by = ?)",
       followupVisibilityArgs: [sessionCid],
@@ -154,7 +160,7 @@ export async function resolveCalendarVentureScope(
   personalMode,
 ) {
   const seesAllVentures =
-    PRIVILEGED_VENTURE_ROLES.includes(role) && !personalMode;
+    isPrivilegedVentureRole(role) && !personalMode;
 
   // null = no restriction; the caller skips the whole Venture block when the
   // scope stays empty (see the route).

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 
 const DB_PATH = path.join(process.cwd(), "data.json");
 
@@ -15,8 +15,8 @@ function saveDb(database) {
 
 export async function GET() {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("settings", "view");
+    if (capError) return capError;
     const db = getDb();
     return Response.json(db);
   } catch {
@@ -26,8 +26,8 @@ export async function GET() {
 
 export async function POST(request) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
     const body = await request.json();
     const { table, data: recordData } = body;
     const db = getDb();

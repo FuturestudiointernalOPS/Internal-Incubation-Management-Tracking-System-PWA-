@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   ensureDocumentRequirementsResourceUrlColumn,
   ensureDocumentRequirementsResourceLabelColumn,
@@ -17,8 +18,10 @@ async function ensureDeliverableResourceSchema() {
 }
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "view");
+    if (capError) return capError;
+
     const { searchParams } = new URL(req.url);
     const programId = searchParams.get("program_id");
     const result = await getDocumentRequirementsByProgram(programId);
@@ -27,8 +30,10 @@ export const GET = createHandler(
 );
 
 export const POST = createHandler(
-  { roles: ["staff", "super_admin"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
+
     await ensureDeliverableResourceSchema();
     const { program_id, title, description, resource_url, resource_label } = await req.json();
     const result = await createDocumentRequirement(

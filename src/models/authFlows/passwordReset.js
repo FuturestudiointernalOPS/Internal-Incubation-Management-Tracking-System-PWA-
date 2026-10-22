@@ -114,3 +114,11 @@ export async function updateContactPasswordByEmail(hashedPassword, email) {
     args: [hashedPassword, email],
   });
 }
+
+/** Persist a contact's password hash by cid (SECRET-1 rehash-on-login). */
+export async function updateContactPasswordHashByCid(hashedPassword, cid) {
+  return db.execute({
+    sql: 'UPDATE contacts SET password = ? WHERE cid = ?',
+    args: [hashedPassword, cid],
+  });
+}

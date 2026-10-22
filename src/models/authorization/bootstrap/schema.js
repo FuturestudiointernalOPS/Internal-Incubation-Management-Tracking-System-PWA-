@@ -94,22 +94,14 @@ let permissionsSchemaPromise = null;
 
 /**
  * Idempotent runtime self-healing for the full authorization tables
- * (role/group/user capabilities, restrictions, groups, access profiles).
- * Creates them on first use so the permission UI never 500s on a DB that
+ * (group/user capabilities, restrictions, groups, access profiles). Base
+ * capabilities come from a PROFILE only; the legacy per-role table was retired.
+ * Creates the tables on first use so the permission UI never 500s on a DB that
  * has not run the authorization migrations yet.
  */
 export function ensurePermissionsSchema() {
   if (!permissionsSchemaPromise) {
     permissionsSchemaPromise = (async () => {
-      await db.execute(`CREATE TABLE IF NOT EXISTS role_capabilities (
-        id SERIAL PRIMARY KEY,
-        role TEXT NOT NULL,
-        module TEXT NOT NULL,
-        capability TEXT NOT NULL,
-        access_level INTEGER NOT NULL DEFAULT 1,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(role, module, capability)
-      )`);
       await db.execute(`CREATE TABLE IF NOT EXISTS group_capabilities (
         id SERIAL PRIMARY KEY,
         group_name TEXT NOT NULL,

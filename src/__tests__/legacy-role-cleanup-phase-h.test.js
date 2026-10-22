@@ -299,7 +299,7 @@ describe("eligibility vocabulary — profiles live in their catalogue", () => {
     expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.lms).toContain("program_manager");
     expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.investors).toContain("investor");
     expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.ventures).toContain("founder");
-    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("facilitator");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("participant");
     expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.operations).toContain("participant");
   });
 });

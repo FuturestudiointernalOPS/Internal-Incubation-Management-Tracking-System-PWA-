@@ -5,7 +5,8 @@
  * against, so they live here once instead of being copied into every suite. A
  * test file registers them per home, e.g.
  * `jest.mock("@/server/auth/session", () => ({ getSession: mockAuthz.auth.getSession }))`
- * (also `@/server/authz/capabilities`, `@/models/authorization/bootstrap`) — the
+ * (also `@/models/authorization/constants/feature-module-capability`,
+ * `@/models/authorization/bootstrap`) — the
  * `mock` prefix is what lets babel-plugin-jest-hoist accept the out-of-scope
  * reference. Jest's module registry is per test file, so these factories are
  * rebuilt for every suite that requires this helper.
@@ -43,17 +44,11 @@ const PERMISSION_MODULES = {
     facilitator: {
       capabilities: [
         "participants.view",
-        "participants.manage",
         "attendance.view",
         "attendance.record",
         "assignments.view",
-        "assignments.review",
         "assignments.grade",
         "sessions.conduct",
-        "sessions.record",
-        "progress.view",
-        "groups.view",
-        "groups.manage",
         "reviews.submit",
       ],
     },

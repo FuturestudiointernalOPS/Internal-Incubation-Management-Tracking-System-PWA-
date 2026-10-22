@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { initDb } from "@/lib/db";
+import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import {
   getDraftRunIdByPublicSlug,
   getRunIdByPublicSlug,
@@ -82,6 +83,17 @@ export async function POST(req) {
     }
 
     // CREATE — mint the token, store it WITH the draft, hand it to the caller.
+    // PROTECT-DRAFT-1 — creating a draft was unauthenticated and unbounded: an
+    // update already needs the token minted here, but anyone could mint drafts
+    // indefinitely. A per-IP limit on CREATION only bounds that growth without
+    // throttling a legit autosave (which is an UPDATE).
+    const createLimited = enforceRateLimit(
+      req,
+      `public-draft:create:${getClientIp(req)}`,
+      { limit: 30, windowMs: 60 * 60 * 1000 },
+    );
+    if (createLimited) return createLimited;
+
     const minted = mintDraftToken();
     const payload = { ...data, _draft_token: minted };
     const result = await insertDraftSubmission(run_id, submitterId, payload);

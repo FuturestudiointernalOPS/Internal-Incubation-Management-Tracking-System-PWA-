@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   MONTHS,
   pickBlockers,
@@ -83,7 +84,7 @@ export default function AdminOpReports() {
   // browser's stored copy, so the request addresses below can be a plain result
   // of it - and no read has to wait on an effect to learn the identity.
   const { user: sessionUser, cid, role } = useSessionUser();
-  const isSA = role === "super_admin";
+  const isSA = isPlatformOwnerRole(role);
   const userId = cid || sessionUser?.id || null;
 
   // ─── Reads ────────────────────────────────────────────────────────────────

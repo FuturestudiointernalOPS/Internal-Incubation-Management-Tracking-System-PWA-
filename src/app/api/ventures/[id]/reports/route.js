@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { getSession } from "@/server/auth/session";
+import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
 import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProductivity, getExportData } from "@/services/ventures/analytics";
 
@@ -9,10 +12,27 @@ import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProduc
  */
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-  if (!(await isStaffActorForVenture(id, session))) {
-    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+  // The canonical read gate, plus D1 — an ex-manager keeps a READ-ONLY
+  // consultation of the Venture they ran (documents and reports). It never
+  // authorises a write: only GET reaches here. The fallback only applies to a
+  // real refusal (403), never to a 401 or a system failure.
+  let session = null;
+  let historyOnly = false;
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) {
+    if (access.error.status !== 403) return access.error;
+    const viewer = await getSession();
+    if (viewer && (await hasHistoricalVentureAccess(viewer.cid, id))) {
+      session = viewer;
+      historyOnly = true;
+    } else {
+      return access.error;
+    }
+  } else {
+    session = access.session;
+  }
+  if (!historyOnly && !(await isStaffActorForVenture(id, session))) {
+    return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }
   const searchParams = new URL(req.url).searchParams;
   const type = searchParams.get("type") || "analytics";

@@ -47,6 +47,7 @@ jest.mock("@/models/authorization/index", () => ({
 jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async (id) => id),
   isWithinScope: jest.fn().mockResolvedValue(true),
+  ventureExists: jest.fn().mockResolvedValue(true),
 }));
 
 // Phase 3/10 (post-dating these tests): the /api/ventures/[id] routes also

@@ -6,6 +6,14 @@
  * screen keeps the hooks that call them and the results are unchanged.
  */
 
+import {
+  carriesContextualValue,
+  holdsProfile,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+  PROGRAM_MANAGER_PROFILE,
+} from "@/lib/identity";
+
 // Compute program team members from Super Admin's approved list
 // (assigned_assistant_id).
 export function selectProgramTeamMembers(
@@ -34,7 +42,8 @@ export function selectProgramTeamMembers(
     );
     return unique.filter(
       (member) =>
-        approvedIds.includes(member.cid) && member.role !== "investor",
+        approvedIds.includes(member.cid) &&
+        !carriesContextualValue(member.role, "investor"),
     );
   } catch {
     return [];
@@ -46,7 +55,9 @@ export function selectProgramTeamMembers(
 export function selectOversightCandidates(assignedStaff, facilitators) {
   // A participant or a program manager is never offered as a facilitator.
   const merged = [...assignedStaff, ...facilitators].filter(
-    (member) => !["participant", "program_manager"].includes(member.role),
+    (member) =>
+      !carriesContextualValue(member.role, "participant") &&
+      !isLegacyProgramManagerRole(member.role),
   );
   return Array.from(
     new Map(
@@ -65,9 +76,9 @@ export function selectOversightCandidates(assignedStaff, facilitators) {
  * a staff member who is the program's assigned PM, OR a team member
  * (assistant/associate), can manage the program the same as a program_manager.
  */
-export function selectProgramAccess({ program, programTeamMembers, user }) {
+export function selectProgramAccess({ program, programTeamMembers, user, serverAccess = null }) {
   const isAssignedPm =
-    user.role === "super_admin" ||
+    isPlatformOwnerRole(user.role) ||
     (!!program?.assigned_pm_id &&
       (user.cid === program.assigned_pm_id ||
         user.id === program.assigned_pm_id));
@@ -76,11 +87,11 @@ export function selectProgramAccess({ program, programTeamMembers, user }) {
     (member) => member.cid === (user.cid || user.id),
   );
 
-  const canEdit =
-    user.role === "super_admin" ||
-    user.role === "program_manager" ||
-    isAssignedPm ||
-    isTeamMember;
+  // ONLY the server answers this. `projectProgramAccess` ran the SAME decision
+  // the write routes enforce, so there is nothing left to infer locally — and no
+  // local rule can drift from it. Until the answer arrives (null), the workspace
+  // is read-only: the doubt is resolved by refusing a write nobody approved.
+  const canEdit = Boolean(serverAccess?.edit);
 
   const canContribute = canEdit;
 
@@ -88,11 +99,22 @@ export function selectProgramAccess({ program, programTeamMembers, user }) {
 }
 
 // Tabs: show all tabs to anyone with edit rights, otherwise filter by roles array
-export function selectVisibleTabs({ allTabs, isAssignedPm, isTeamMember, user }) {
+export function selectVisibleTabs({
+  allTabs,
+  isAssignedPm,
+  isTeamMember,
+  user,
+  profiles = [],
+}) {
+  // The tab lists still name the staff-family identities; a program manager is
+  // `staff` carrying the PROFILE (D-1), so the function is answered by the
+  // profile rather than by a role label the session no longer produces.
+  const isProgramManager = holdsProfile(profiles, PROGRAM_MANAGER_PROFILE);
   return allTabs.filter(
     (tab) =>
       !tab.roles ||
       tab.roles.includes(user.role) ||
+      isProgramManager ||
       isAssignedPm ||
       isTeamMember,
   );

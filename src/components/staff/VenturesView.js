@@ -7,6 +7,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
   Flag,
@@ -40,6 +41,10 @@ export default function VenturesView() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [phaseFilter, setPhaseFilter] = useState("all");
+  // The figures and the urgency queue sit above the list of Ventures. They are
+  // folded away by default so the page opens on the Ventures themselves; the
+  // toggle keeps them one click away.
+  const [overviewOpen, setOverviewOpen] = useState(false);
 
   const homeRead = useApi("/api/ventures/lead-manager/home", {
     defaultValue: null,
@@ -108,88 +113,129 @@ export default function VenturesView() {
           </div>
         </div>
 
-        <div className="stf-grid">
-          <KpiCard
-            label={t("staff.leadHome.kpiVentures")}
-            value={kpis?.ventures_total ?? 0}
-            icon={Rocket}
-            onClick={() => setPhaseFilter("all")}
-          />
-          <KpiCard
-            label={t("staff.leadHome.kpiActiveJourneys")}
-            value={kpis?.active_journeys ?? 0}
-            icon={Flag}
-          />
-          <KpiCard
-            label={t("staff.leadHome.kpiBlocked")}
-            value={kpis?.blocked_milestones ?? 0}
-            icon={AlertTriangle}
-          />
-          <KpiCard
-            label={t("staff.leadHome.kpiToReview")}
-            value={kpis?.deliverables_to_review ?? 0}
-            icon={Inbox}
-          />
-          <KpiCard
-            label={t("staff.leadHome.kpiSignoff")}
-            value={kpis?.milestones_awaiting_signoff ?? 0}
-            icon={CheckCircle2}
-          />
-          <KpiCard
-            label={t("staff.leadHome.kpiSessionsWeek")}
-            value={kpis?.sessions_this_week ?? 0}
-            icon={Calendar}
-          />
-          <KpiCard
-            label={t("staff.leadHome.kpiReports")}
-            value={kpis?.journey_reports_due ?? 0}
-            icon={ClipboardList}
-          />
-        </div>
+        <section className="stf-card" style={{ marginTop: 16, padding: 0 }}>
+          <button
+            type="button"
+            onClick={() => setOverviewOpen((open) => !open)}
+            aria-expanded={overviewOpen}
+            className="stf-sech"
+            style={{
+              width: "100%",
+              margin: 0,
+              padding: "14px 16px",
+              background: "none",
+              border: 0,
+              cursor: "pointer",
+              textAlign: "left",
+            }}
+          >
+            <h2
+              className="stf-title"
+              style={{ fontSize: 15, display: "flex", alignItems: "center", gap: 8 }}
+            >
+              {t("staff.leadHome.overviewTitle")}
+              {queue.length > 0 && <span className="stf-tag o">{queue.length}</span>}
+            </h2>
+            <span
+              className="stf-small"
+              style={{ display: "inline-flex", alignItems: "center", gap: 4, marginTop: 0 }}
+            >
+              {overviewOpen ? t("common.collapse") : t("common.expand")}
+              <ChevronDown
+                size={15}
+                style={{
+                  transition: "transform 0.15s",
+                  transform: overviewOpen ? "rotate(180deg)" : "none",
+                }}
+              />
+            </span>
+          </button>
 
-        {kpis?.blocked_milestone_titles?.length > 0 && (
-          <p className="stf-small" style={{ marginTop: -8 }}>
-            {t("staff.leadHome.blockedHint", {
-              names: kpis.blocked_milestone_titles
-                .slice(0, 3)
-                .map((row) => row.title)
-                .join(", "),
-            })}
-          </p>
-        )}
+          {overviewOpen && (
+            <div style={{ padding: "0 16px 16px" }}>
+              <div className="stf-grid">
+                <KpiCard
+                  label={t("staff.leadHome.kpiVentures")}
+                  value={kpis?.ventures_total ?? 0}
+                  icon={Rocket}
+                  onClick={() => setPhaseFilter("all")}
+                />
+                <KpiCard
+                  label={t("staff.leadHome.kpiActiveJourneys")}
+                  value={kpis?.active_journeys ?? 0}
+                  icon={Flag}
+                />
+                <KpiCard
+                  label={t("staff.leadHome.kpiBlocked")}
+                  value={kpis?.blocked_milestones ?? 0}
+                  icon={AlertTriangle}
+                />
+                <KpiCard
+                  label={t("staff.leadHome.kpiToReview")}
+                  value={kpis?.deliverables_to_review ?? 0}
+                  icon={Inbox}
+                />
+                <KpiCard
+                  label={t("staff.leadHome.kpiSignoff")}
+                  value={kpis?.milestones_awaiting_signoff ?? 0}
+                  icon={CheckCircle2}
+                />
+                <KpiCard
+                  label={t("staff.leadHome.kpiSessionsWeek")}
+                  value={kpis?.sessions_this_week ?? 0}
+                  icon={Calendar}
+                />
+                <KpiCard
+                  label={t("staff.leadHome.kpiReports")}
+                  value={kpis?.journey_reports_due ?? 0}
+                  icon={ClipboardList}
+                />
+              </div>
 
-        <section className="stf-card" style={{ marginTop: 16 }}>
-          <h2 className="stf-title" style={{ fontSize: 16, marginBottom: 8 }}>
-            {t("staff.leadHome.queueTitle")}
-          </h2>
-          {queue.length === 0 ? (
-            <p className="stf-small">{t("staff.leadHome.queueEmpty")}</p>
-          ) : (
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-              {queue.slice(0, 25).map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    className="stf-pc"
-                    style={{ width: "100%", textAlign: "left" }}
-                    onClick={() => router.push(item.href || `/staff/ventures/${item.venture_id}`)}
-                  >
-                    <h4>
-                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {item.title}
-                      </span>
-                      <ChevronRight size={15} />
-                    </h4>
-                    <p className="stf-small">
-                      <span className="stf-tag o">{t(`staff.leadHome.kind.${item.kind}`)}</span>
-                      {" · "}
-                      {item.venture_name || item.venture_id}
-                      {item.detail ? ` · ${typeof item.detail === "string" ? (item.detail.length > 40 ? formatShortDate(item.detail) : item.detail) : ""}` : ""}
-                    </p>
-                  </button>
-                </li>
-              ))}
-            </ul>
+              {kpis?.blocked_milestone_titles?.length > 0 && (
+                <p className="stf-small" style={{ marginTop: -8 }}>
+                  {t("staff.leadHome.blockedHint", {
+                    names: kpis.blocked_milestone_titles
+                      .slice(0, 3)
+                      .map((row) => row.title)
+                      .join(", "),
+                  })}
+                </p>
+              )}
+
+              <div style={{ marginTop: 20 }}>
+                <h3 className="stf-card-title">{t("staff.leadHome.queueTitle")}</h3>
+                {queue.length === 0 ? (
+                  <p className="stf-small">{t("staff.leadHome.queueEmpty")}</p>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                    {queue.slice(0, 25).map((item) => (
+                      <li key={item.id}>
+                        <button
+                          type="button"
+                          className="stf-pc"
+                          style={{ width: "100%", textAlign: "left" }}
+                          onClick={() => router.push(item.href || `/staff/ventures/${item.venture_id}`)}
+                        >
+                          <h4>
+                            <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {item.title}
+                            </span>
+                            <ChevronRight size={15} />
+                          </h4>
+                          <p className="stf-small">
+                            <span className="stf-tag o">{t(`staff.leadHome.kind.${item.kind}`)}</span>
+                            {" · "}
+                            {item.venture_name || item.venture_id}
+                            {item.detail ? ` · ${typeof item.detail === "string" ? (item.detail.length > 40 ? formatShortDate(item.detail) : item.detail) : ""}` : ""}
+                          </p>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           )}
         </section>
 

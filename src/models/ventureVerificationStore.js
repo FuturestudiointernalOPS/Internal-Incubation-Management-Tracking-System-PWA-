@@ -102,10 +102,40 @@ export function selectVerificationComments(verificationId) {
 }
 
 /** Whether an email is a registered founder of the Venture. */
-export function selectVerificationFounderIdByEmail(ventureId, email) {
+/**
+ * A legacy `venture_founders` row for this Venture and email, if any.
+ *
+ * The table keys on the INTERNAL id since Phase 0, so the reference is
+ * resolved first: a route carries the VNT code and passing it straight in made
+ * PostgreSQL raise "invalid input syntax for type uuid".
+ */
+export async function selectVerificationFounderIdByEmail(ventureRef, email) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_founders WHERE venture_id = ? AND LOWER(email) = LOWER(?)",
     args: [ventureId, email],
+  });
+}
+
+/**
+ * Whether the contact holds an ACTIVE founder-shaped membership of a Venture.
+ *
+ * `venture_members` is the source of truth for who founded a Venture: the
+ * legacy `venture_founders` ledger is empty on migrated databases, so asking it
+ * alone refused the very founder the Data bank belongs to. "Founder-shaped" is
+ * the classification the authorization layer already uses — an owning
+ * membership, or one typed/roled as founder.
+ */
+export async function selectActiveFounderMembership(ventureRef, cid) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({
+    sql: `SELECT 1 FROM venture_members
+           WHERE venture_id = ?
+             AND (contact_id = ? OR user_cid = ?)
+             AND removed_at IS NULL
+             AND (member_type = 'founder' OR role IN ('founder', 'co-founder') OR is_owner = TRUE)
+           LIMIT 1`,
+    args: [ventureId, cid || "", cid || ""],
   });
 }
 

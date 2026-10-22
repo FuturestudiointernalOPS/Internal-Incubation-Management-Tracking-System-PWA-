@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { sendStandaloneEmail } from "@/lib/email";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   getPendingCampaignContacts,
   completeCampaignContact,
@@ -10,7 +10,7 @@ import {
 export async function GET() {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("runs", "edit");
     if (authError) return authError;
 
     // Find pending contacts for first step only

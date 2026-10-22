@@ -66,6 +66,25 @@ export function listVentureDocumentsForDashboardLegacy(ventureId) {
   });
 }
 
+/**
+ * The TRUE number of live documents, independent of the widget's LIMIT 5.
+ * A list cap is a display decision; it must never become the reported total.
+ */
+export function countVentureDocumentsForDashboard(ventureId) {
+  return db.execute({
+    sql: "SELECT COUNT(*) AS count FROM venture_documents WHERE venture_id = ? AND is_deleted = false",
+    args: [ventureId],
+  });
+}
+
+/** Legacy fallback: count without the is_deleted guard. */
+export function countVentureDocumentsForDashboardLegacy(ventureId) {
+  return db.execute({
+    sql: "SELECT COUNT(*) AS count FROM venture_documents WHERE venture_id = ?",
+    args: [ventureId],
+  });
+}
+
 /** Upcoming calendar events of a Venture (5). */
 export function listVentureMeetings(ventureId) {
   return db.execute({

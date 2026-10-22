@@ -8,6 +8,7 @@
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import { FOUNDER_ROLES, TEAM_ROLES, getFounderMembers, getTeamMembers } from "../ventureMeta";
+import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
 
 /* Add Member Modal — a founder invites by EMAIL; the person joins the Venture
    only after accepting the emailed link. The chosen type decides founder vs
@@ -131,7 +132,7 @@ function MemberRow({ member, roleOptions, handleRoleChange, onRemove }) {
    founder status in the membership model (member_type). */
 export function TeamTab() {
   const { t } = useI18n();
-  const { members, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation } = useVenture();
+  const { members, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation, params } = useVenture();
   const founders = getFounderMembers(members);
   const team = getTeamMembers(members);
   const pending = Array.isArray(invitations) ? invitations : [];
@@ -229,6 +230,13 @@ export function TeamTab() {
           </div>
         )}
       </div>
+      {/* WHO supports this Venture beyond its own people: the assigned staff, with
+          the address to reach them. Same read as the dashboard card. */}
+      {params?.id && (
+        <div className="mt-4">
+          <VentureSupportCard ventureId={params.id} />
+        </div>
+      )}
       {/* <AddMemberModal /> — commented out with the invite button above. */}
       <RemoveConfirmModal />
     </>

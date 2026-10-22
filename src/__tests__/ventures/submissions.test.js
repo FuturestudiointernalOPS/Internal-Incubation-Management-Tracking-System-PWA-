@@ -21,6 +21,12 @@ jest.mock("@/lib/ventureAuth", () => ({
   isStaffActorForVenture: jest.fn().mockResolvedValue(false),
 }));
 
+// The submission READ moved to the canonical venture gate (Lot 5); the write
+// still uses the legacy gate until D-7 is settled.
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn(),
+}));
+
 jest.mock("@/lib/api/createHandler", () => ({
   __esModule: true,
   default: (handler) => handler,
@@ -29,6 +35,7 @@ jest.mock("@/lib/api/createHandler", () => ({
 
 const db = require("@/lib/db").default;
 const { requireVentureAccess } = require("@/lib/ventureAuth");
+const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
 const { GET, POST } = require("@/app/api/ventures/[id]/tasks/[taskId]/submissions/route");
 
 const VENTURE_PARAM = "VNT-P2TEST";
@@ -57,6 +64,7 @@ function fakeExecute() {
 
 function setSession(role, cid) {
   requireVentureAccess.mockResolvedValue({ session: { role, cid, name: role } });
+  requireVentureScopedAccess.mockResolvedValue({ session: { role, cid, name: role } });
 }
 
 beforeEach(() => {

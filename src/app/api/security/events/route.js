@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { querySecurityEvents, resolveSecurityEvent, getSecurityStats } from "@/services/ventures/auditSecurity";
 import { logAuditEvent } from "@/services/ventures/auditSecurity";
 
 export const GET = createHandler(
-  { roles: ["super_admin", "security_officer"] },
   async (req) => {
+    const capError = await requireAuthorization("users", "view");
+    if (capError) return capError;
+
     const searchParams = new URL(req.url).searchParams;
     const type = searchParams.get("type") || "list";
 
@@ -32,8 +35,10 @@ export const GET = createHandler(
 );
 
 export const PATCH = createHandler(
-  { roles: ["super_admin", "security_officer"] },
   async (req) => {
+    const capError = await requireAuthorization("users", "edit");
+    if (capError) return capError;
+
     const body = await req.json();
     const { action, event_id, resolution_notes } = body;
 

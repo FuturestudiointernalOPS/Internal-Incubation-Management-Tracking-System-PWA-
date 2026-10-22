@@ -13,6 +13,7 @@
  * gone (CH-4) and importers read this module directly. See docs/LAYER_SPLIT.md.
  */
 
+import { normalizeBusinessStage } from "@/lib/ventureStage";
 import {
   selectReadinessStartupProfile,
   selectReadinessVerificationStatus,
@@ -149,7 +150,8 @@ export async function calculateInvestmentReadiness(ventureId) {
     const vent = await selectReadinessBusinessStage(ventureId);
     const stage = vent.rows[0]?.business_stage || "idea";
     const stageMap = { idea: 10, validation: 30, early_traction: 50, growth: 70, scaling: 90 };
-    businessModelScore = stageMap[stage] || 10;
+    // mvp scores as early_traction, scale as scaling (lib/ventureStage).
+    businessModelScore = stageMap[normalizeBusinessStage(stage)] || 10;
   } catch { businessModelScore = 0; }
   scores.business_model = businessModelScore;
 
@@ -179,7 +181,7 @@ export async function calculateInvestmentReadiness(ventureId) {
   try {
     const pitchSessionResult = await countReadinessPitchReviews(ventureId);
     if (parseInt(pitchSessionResult.rows[0]?.c||0) > 0) pitchScore = 50;
-    const docs = await countVentureVerificationDocuments();
+    const docs = await countVentureVerificationDocuments(ventureId);
     if (parseInt(docs.rows[0]?.c||0) > 2) pitchScore = Math.min(100, pitchScore + 30);
   } catch { pitchScore = 0; }
   scores.pitch_readiness = pitchScore;

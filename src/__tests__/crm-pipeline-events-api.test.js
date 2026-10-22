@@ -6,7 +6,9 @@
  */
 
 jest.mock("@/lib/api/createHandler", () => ({
-  createHandler: (_options, handler) => handler,
+  // Mirrors the real wrapper: it accepts either (handler) or (options, handler).
+  createHandler: (handlerOrOptions, maybeHandler) =>
+    typeof handlerOrOptions === "function" ? handlerOrOptions : maybeHandler,
 }));
 jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(async () => ({ user: { cid: "admin-1", name: "Super Admin" } })),

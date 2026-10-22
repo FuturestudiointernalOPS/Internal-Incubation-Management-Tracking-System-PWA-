@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { logVentureActivity, addVentureHistory } from "@/services/ventures/activity";
 import {
   getLifecycleVentureByUuid,
@@ -34,7 +36,7 @@ export async function POST(req, { params }) {
     if (authError) return authError;
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const { id } = await params;
@@ -46,16 +48,16 @@ export async function POST(req, { params }) {
       if (ventureByUuid.rows?.[0]) ventureId = ventureByUuid.rows[0].venture_id;
     }
 
-    if (!["super_admin"].includes(session.role)) {
-      // Delegated staff (Phase 2): lifecycle changes require an explicit
-      // Venture assignment — never the staff role alone.
-      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      if (!(await hasActiveVentureAssignment(ventureId, session.cid))) {
-        return NextResponse.json(
-          { success: false, error: "Unauthorized. Only assigned Venture staff can change a Venture's lifecycle." },
-          { status: 403 },
-        );
-      }
+    // Lifecycle transitions are a STAFF instrument: the canonical write gate
+    // first (capability + venture perimeter), then the staff-actor rule, so a
+    // founder can never pause or archive their own Venture.
+    const access = await requireVentureScopedAccess({ ventureId, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    if (!(await isStaffActorForVenture(ventureId, access.session))) {
+      return NextResponse.json(
+        { success: false, error: "errors.ventureLifecycleDenied" },
+        { status: 403 },
+      );
     }
 
     const body = await req.json();

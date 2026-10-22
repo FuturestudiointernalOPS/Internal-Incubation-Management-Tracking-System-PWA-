@@ -52,7 +52,7 @@ export default function VentureProjectsPage() {
         }
       />
 
-      {id && <ProjectsWorkItemsView ventureId={id} />}
+      {id && <ProjectsWorkItemsView ventureId={id} emailsHref={`/admin/ventures/${id}/projects/emails`} />}
 
       {id && (
         <div className="pt-2">

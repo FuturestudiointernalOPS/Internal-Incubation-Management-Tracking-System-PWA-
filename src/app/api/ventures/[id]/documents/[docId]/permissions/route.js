@@ -1,14 +1,14 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import {
   getVentureIdByCodeForDocumentPermissions,
   getDocumentForPermissions, listDocumentPermissions, getDocumentForPermissionsUpdate,
   isFounderForDocumentPermissions, deleteDocumentPermission, upsertDocumentPermission,
 } from "@/models/ventureAssets";
 
-const ROLES = ["participant", "founder", "staff", "program_manager", "super_admin"];
+const ROLES = ["member", "staff", "program_manager", "super_admin"];
 const PRIVILEGED = ["staff", "program_manager", "super_admin"];
 
 async function resolveVentureDbId(ventureId) {
@@ -22,8 +22,8 @@ export async function GET(req, { params }) {
     const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) return access.error;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -43,8 +43,9 @@ export async function PATCH(req, { params }) {
     const authError = await requireAuth(ROLES);
     if (authError) return authError;
     const { id, docId } = await params;
-    const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
@@ -55,7 +56,7 @@ export async function PATCH(req, { params }) {
     if (!PRIVILEGED.includes(session.role)) {
       // `dbId` is the internal id, which the membership table keys on (Phase 0).
       const founder = await isFounderForDocumentPermissions(dbId, session.cid);
-      if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can manage document permissions." }, { status: 403 });
+      if (!founder.rows?.length) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
     }
 
     const { role_scope, access_level } = await req.json();

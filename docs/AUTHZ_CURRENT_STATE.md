@@ -5,6 +5,13 @@
 > `role_access_profile_defaults`, and the `access_profile_id` columns) has since
 > been retired and dropped. Scripts this document cites
 > (`sync_permission_config_from_staging.sql`, …) no longer exist.
+>
+> **2026-10-19 cleanup.** One Permission Centre remains (`PermissionCenter`, once
+> named “prototype”); the retired editor, its rollup and the separate preview
+> centre were deleted. The legacy per-role capability table (`role_capabilities`)
+> and its resolver fallback were removed: a role now names a default PROFILE.
+> The animation-rights list is derived from the capability catalogue instead of
+> being copied. See `docs/permissions/CLEANUP_2026-10-19.md`.
 
 > Status: audit (Phase 1–3) + correctness pass (Phase 4) committed.
 > This document is the **current-state map** for the permission system. It records
@@ -29,8 +36,8 @@ ELIGIBILITY         feature_eligibility — a CEILING, never a grant.
     │               Fail closed: no row / eligible = 0 → deny.
     │               Super Admin bypasses.
     │
-BASE CAPS           access_profile_capabilities for the resolved profile
-    │               (user override → role default → role_capabilities legacy)
+BASE CAPS           profile_capabilities for the resolved profile
+    │               (person override → role's default profile → NO base caps)
     │
 GROUP CAPS          group_capabilities for the effective groups
     │
@@ -48,7 +55,7 @@ SCOPE               scope.js predicates read authoritative assignment rows
 EFFECTIVE PERMISSION
 ```
 
-Canonical resolution path: `src/models/authorization/resolver.js`
+Canonical resolution path: `src/services/authorization/contextResolver.js`
 (`resolveAuthorizationContext` → `authorize` → `requireAuthorization` / `can`).
 Pure merge semantics: `mergeEffectiveCapabilities` (max-merge then block-remove).
 Explanation surface: `buildPermissionExplanation`.
@@ -70,15 +77,15 @@ capability rather than lowering it. Locked by
 | Eligibility by profile (roadmap D) | IMPLEMENTED | A third ceiling identity kind (`identity_type = 'profile'`). The resolver reads `listActiveProfileKeys(cid)` and folds the profile rows into the single eligibility query (OR with role/group; an explicit deny still wins). The context cache key is `cid\|role\|active-profiles`, and every assignment write invalidates the person's context. UI: the identity editor and the matrix gain a Profile kind |
 | Automatic attribution (roadmap E) | IMPLEMENTED | `services/authorization/contextGrantAssignments.js` writes the `profile_assignments` card beside the grants (open / re-date / close, `source = 'automatic'`, never manual); `SUPPORTED_CONTEXT_ROLES` carries the seven activated pairs (founder, facilitator, program_manager, investor, learner, venture_manager, and the product-requested participant) |
 | Residual read / consultation (roadmap F) | IMPLEMENTED | `services/authorization/contextGrantHistory.js` derives a `<module>.view` ceiling (level 1, context-bounded) from ENDED automatic cards, in its own namespace (`history:<role>`, stamp `hist:<context>:<role>`, provenance `mode = 'historical'`, no expiry). Scope policies `venture_managed_history` / `program_managed_history` added |
-| Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `eligibility-defaults.js`, admin at `.../permissions/eligibility` |
+| Eligibility / ceiling | IMPLEMENTED | `models/authorization/eligibility.js`, `models/authorization/constants/`, admin at `.../permissions/eligibility` |
 | Reusable permission sets | IMPLEMENTED (as **Access Profiles / templates**) | `access_profiles` + `access_profile_capabilities`; UI: Permission Center → Profiles |
 | Role → profile defaults | IMPLEMENTED | `role_access_profile_defaults` |
 | Group grants | IMPLEMENTED | `group_capabilities` + `membership.js` |
 | Personal grants | IMPLEMENTED | `user_capabilities` |
 | Explicit blocks | IMPLEMENTED | `user_capability_restrictions` |
-| CRUD capabilities | IMPLEMENTED | `capability-catalog.js` |
+| CRUD capabilities | IMPLEMENTED | `models/authorization/constants/feature-module-capability.js` |
 | Business capabilities | PARTIAL | `programs.publish`, `projects.archive`, `runs.review` exist; some are declared-but-unrouted (documented in `route-catalog-contract.test.js`) |
-| Central capability registry | IMPLEMENTED | `PERMISSION_MODULES` (auth.js) + `CAPABILITY_CATALOG`; consistency locked by `route-catalog-contract.test.js` |
+| Central capability registry | IMPLEMENTED | one source: `models/authorization/constants/feature-module-capability.js` → derived `PERMISSION_MODULES` + `CAPABILITY_CATALOG`; consistency locked by `route-catalog-contract.test.js` and `capability-source-consistency.test.js` |
 | Deterministic precedence | IMPLEMENTED | `mergeEffectiveCapabilities` |
 | Permission-source explanation | IMPLEMENTED | `buildPermissionExplanation` + Permission Center explanation panel |
 | Privileged capability identification | IMPLEMENTED | per-capability `risk` + `capabilityRisk()`; passive badge in the UI |
@@ -228,7 +235,7 @@ what the earlier phases did.
 | 3 | Hardcoded role arrays (`requireAuth([...])`, `createHandler({roles})`, module-level `ROLE` constants) | `requireAuthorization(module, capability)` | Mixed — 276 handlers are category D | Migrate when the route's decision is genuinely authorization — §6 |
 | 4 | `session.role === "..."` branching | relationship-driven resolution | Mixed — 39 occurrences; 26 files | Classify per site; not every branch is authorization |
 | 5 | Facilitator per-program permission levels (`v2_program_staff.permissions`, `facilitator_default_permissions`) | capability + scope model | Legacy-level gate, assignment-derived | §7 |
-| 6 | Legacy role-based `role_capabilities` fallback | access profiles | New, with the legacy fallback preserved for profile-less users | Keep (zero-loser), documented in the resolver |
+| 6 | Legacy role-based `role_capabilities` fallback | profile capabilities via `role_profile_defaults` | **Retired 2026-10-19** — the table is no longer created or read; a profile-less identity has no base capabilities (fail closed) | Deploy `migrations/drop_role_capabilities.sql` after the pre-flight query returns zero rows |
 
 ### Venture consolidation strategy (the migration problem)
 

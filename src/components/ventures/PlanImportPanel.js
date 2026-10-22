@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { ChevronUp, FileSpreadsheet, Loader2, Trash2, Upload } from "lucide-react";
+import { ChevronUp, FileSpreadsheet, Loader2, Trash2, Upload, X } from "lucide-react";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useApi } from "@/lib/hooks/useApi";
 import PlanUpload from "./plan-import/PlanUpload";
@@ -24,14 +24,15 @@ import PlanReview from "./plan-import/PlanReview";
  * and `PlanReview` (correct and apply the proposal). This module only loads the
  * stored draft and switches between them.
  *
- * The upload form is an ACTION, not furniture: the panel opens collapsed and
- * the form appears only when someone clicks to upload. A stored draft, on the
- * other hand, is active work and stays open.
+ * The upload form is an ACTION, not furniture: the panel opens from the Journey
+ * toolbar (beside "From template") with the form already showing, and closes
+ * again from its own header. A stored draft, on the other hand, is active work
+ * and stays open.
  */
-export default function PlanImportPanel({ ventureId, onImported }) {
+export default function PlanImportPanel({ ventureId, onImported, onClose }) {
   const { t } = useI18n();
   const { confirm } = useDialogs();
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(true);
 
   const { data: draft, loading, refresh: refreshDraft } = useApi(
     ventureId ? `/api/ventures/${ventureId}/plan-import` : null,
@@ -48,7 +49,7 @@ export default function PlanImportPanel({ ventureId, onImported }) {
         body: JSON.stringify({ id: draft.id, action: "discard" }),
       });
     } finally {
-      setUploadOpen(false);
+      setUploadOpen(true);
       refreshDraft();
     }
   };
@@ -66,24 +67,50 @@ export default function PlanImportPanel({ ventureId, onImported }) {
           )}
         </h3>
         {draft ? (
-          <button
-            type="button"
-            onClick={discard}
-            className="stf-btn sm rj"
-          >
-            <Trash2 className="w-3 h-3" />
-            {t("venture.planImport.discard")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={discard}
+              className="stf-btn sm rj"
+            >
+              <Trash2 className="w-3 h-3" />
+              {t("venture.planImport.discard")}
+            </button>
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t("common.close")}
+                title={t("common.close")}
+                className="stf-btn sm"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            ) : null}
+          </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setUploadOpen((open) => !open)}
-            aria-expanded={uploadOpen}
-            className="stf-btn sm pr"
-          >
-            {uploadOpen ? <ChevronUp className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
-            {t(uploadOpen ? "venture.planImport.hideUpload" : "venture.planImport.showUpload")}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setUploadOpen((open) => !open)}
+              aria-expanded={uploadOpen}
+              className="stf-btn sm pr"
+            >
+              {uploadOpen ? <ChevronUp className="w-3 h-3" /> : <Upload className="w-3 h-3" />}
+              {t(uploadOpen ? "venture.planImport.hideUpload" : "venture.planImport.showUpload")}
+            </button>
+            {onClose ? (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t("common.close")}
+                title={t("common.close")}
+                className="stf-btn sm"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            ) : null}
+          </div>
         )}
       </div>
 

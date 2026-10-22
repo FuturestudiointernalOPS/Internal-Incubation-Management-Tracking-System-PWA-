@@ -251,6 +251,7 @@ describe("bootstrap — eligibility is seeded once per process", () => {
       "eligibility-programs-assignment-v1",
       "eligibility-profile-defaults-v1",
       "eligibility-baseline-roles-only-v1",
+      "legacy-identities-normalization-v1",
     ]);
   });
 

@@ -48,6 +48,8 @@ jest.mock("@/models/authorization/index", () => ({
 jest.mock("@/services/authorization/scope", () => ({
   resolveVentureScopeId: jest.fn(async () => "VNT-1"),
   isWithinScope: jest.fn(async () => mockWithin),
+  // D-6 — the record exists, so a refusal is out-of-scope (403), as before.
+  ventureExists: jest.fn(async () => true),
 }));
 
 const mockDb = {

@@ -76,6 +76,13 @@ jest.mock("@/lib/ventureAuth", () => ({
   roleIsPrivileged: jest.requireActual("@/lib/ventureAuth").roleIsPrivileged,
 }));
 
+// The Journey read moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "member-1", name: "Founder", role: "founder" },
+  }),
+}));
+
 jest.mock("@/services/ventures/operatingPlans", () => ({
   resolvePlanAccess: jest.fn((...a) => mockPlans.resolvePlanAccess(...a)),
   allowsPlanAction: jest.fn((...a) => mockPlans.allowsPlanAction(...a)),

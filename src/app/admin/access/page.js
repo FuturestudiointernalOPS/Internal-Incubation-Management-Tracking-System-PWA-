@@ -106,7 +106,7 @@ export default function UserAccessSummary() {
         profile: {
           assigned: profileData.assignedProfile || null,
           roleDefault: profileData.roleDefault || null,
-          effectiveSource: profileData.effectiveSource || "legacy",
+          effectiveSource: profileData.effectiveSource || "none",
         },
         effectivePermissions: permsData.effectivePermissions || {},
         individualGrants: permsData.individualGrants || [],

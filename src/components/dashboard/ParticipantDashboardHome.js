@@ -6,6 +6,7 @@ import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
 import { useApi } from "@/lib/hooks/useApi";
+import { carriesContextualValue } from "@/lib/identity";
 import { AlertCircle, Check, Clock, FileText, GraduationCap, Plus, RefreshCw, TrendingUp } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
@@ -31,8 +32,8 @@ function Metric({ label, value, icon }) {
 export default function ParticipantDashboardHome() {
   const { t, lang } = useI18n();
   const { user, role } = useSessionUser();
-  const { data: relationships } = useApi(user && role !== "investor" ? "/api/me/relationships" : null, { defaultValue: null });
-  const showParticipantBlocks = Boolean(user && role !== "investor" && relationships?.success && !relationships.isInvestor);
+  const { data: relationships } = useApi(user && !carriesContextualValue(role, "investor") ? "/api/me/relationships" : null, { defaultValue: null });
+  const showParticipantBlocks = Boolean(user && !carriesContextualValue(role, "investor") && relationships?.success && !relationships.isInvestor);
   const { data: home, loading, error, refresh } = useApi("/api/participant/home", { defaultValue: EMPTY_HOME, transform: pickHome });
   const data = home.payload;
   const { data: assignments, loading: assignmentsLoading } = useApi(showParticipantBlocks && data?.primaryProgram?.id ? `/api/participant/assignments?program_id=${encodeURIComponent(data.primaryProgram.id)}` : null, { defaultValue: null, transform: pickAssignments });

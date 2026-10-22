@@ -20,6 +20,7 @@ const mockState = {
   profiles: [],
   updateAffected: 1,
   audit: [],
+  contactRole: "member",
 };
 
 function mockExecute(query) {
@@ -27,6 +28,12 @@ function mockExecute(query) {
   const args = typeof query === "string" ? [] : query.args || [];
 
   if (/^\s*(CREATE TABLE|CREATE INDEX)/i.test(sql)) return { rows: [] };
+
+  // getContactBaseState — the person's BASELINE role, read by the profile ↔
+  // role gate (§3.3).
+  if (sql.includes("FROM contacts")) {
+    return { rows: mockState.contactRole ? [{ role: mockState.contactRole }] : [] };
+  }
 
   // getProfileAssignmentById — checked BEFORE the generic list read.
   if (sql.includes("FROM profile_assignments") && sql.includes("WHERE id = ?")) {
@@ -120,6 +127,7 @@ beforeEach(() => {
   mockState.profiles = [];
   mockState.updateAffected = 1;
   mockState.audit = [];
+  mockState.contactRole = "member";
   jest.spyOn(console, "warn").mockImplementation(() => {});
   jest.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -351,7 +359,9 @@ describe("GET/POST/PATCH /api/engineering/permissions/profile-assignments", () =
     const route = loadRoute();
     const { requireAuthorization } = require("@/models/authorization/index");
     mockState.activeFound = []; // nothing active → allowed
-    mockState.profiles = [{ key: "founder", context: "venture", is_active: 1 }];
+    mockState.profiles = [
+      { key: "founder", context: "venture", is_active: 1, allowed_roles: ["member"] },
+    ];
 
     const res = await route.POST(
       jsonReq("POST", { cid: "C1", profile_key: "founder", reason: "pilot" }),
@@ -367,10 +377,28 @@ describe("GET/POST/PATCH /api/engineering/permissions/profile-assignments", () =
     });
   });
 
+  test("POST refuses a profile the person's role is not allowed to hold (409, §3.3)", async () => {
+    const route = loadRoute();
+    mockState.contactRole = "staff";
+    mockState.activeFound = [];
+    mockState.profiles = [
+      { key: "founder", context: "venture", is_active: 1, allowed_roles: ["member"] },
+    ];
+
+    const res = await route.POST(jsonReq("POST", { cid: "C1", profile_key: "founder" }));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.profile_role_gap).toMatchObject({ profile: "founder", role: "staff" });
+    expect(callsMatching(/INSERT INTO profile_assignments/i)).toHaveLength(0);
+  });
+
   test("POST refuses a duplicate ACTIVE period with 409 and writes nothing", async () => {
     const route = loadRoute();
     mockState.activeFound = [{ id: 7 }];
-    mockState.profiles = [{ key: "founder", context: "venture", is_active: 1 }];
+    mockState.profiles = [
+      { key: "founder", context: "venture", is_active: 1, allowed_roles: ["member"] },
+    ];
 
     const res = await route.POST(jsonReq("POST", { cid: "C1", profile_key: "founder" }));
 

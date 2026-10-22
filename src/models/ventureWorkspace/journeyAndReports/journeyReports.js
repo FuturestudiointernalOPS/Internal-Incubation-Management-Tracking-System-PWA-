@@ -29,26 +29,38 @@ export function listVentureMilestonesForReport(owners) {
   // (which failed the whole read and dropped the milestones from the report).
   return db.execute({
     sql: `SELECT id, journey_stage_id, title, status, target_date FROM venture_milestones
-              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL`,
+              WHERE venture_id::text IN (${owners.map(() => "?").join(", ")}) AND journey_stage_id IS NOT NULL
+                AND COALESCE(is_archived, FALSE) = FALSE`,
     args: owners,
   });
 }
 
-/** Task statuses + due dates of a Venture (owner ids). */
+/** Task statuses + due dates of a Venture (owner ids; archived tasks excluded). */
 export function listVentureTaskDeadlinesForReport(owners) {
   return db.execute({
-    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")})`,
+    sql: `SELECT status, due_date FROM venture_tasks WHERE venture_id IN (${owners.map(() => "?").join(", ")}) AND COALESCE(is_archived, FALSE) = FALSE`,
     args: owners,
   });
 }
 
-/** Reviewed submissions of a Venture (owner ids). */
+/**
+ * Reviewed submissions of a Venture (owner ids), ONE row per task — the latest
+ * version, exactly as the roadmap readiness engine counts them. A task reviewed
+ * twice used to contribute both versions, so the report disagreed with Roadmap
+ * Progress about how much reviewed work existed.
+ */
 export function listVentureReviewedSubmissionsForReport(owners) {
   return db.execute({
     sql: `SELECT s.review_decision, s.reviewed_at
               FROM venture_task_submissions s
               JOIN venture_tasks t ON t.id = s.task_id
-              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")}) AND s.review_decision IS NOT NULL`,
+              WHERE t.venture_id IN (${owners.map(() => "?").join(", ")})
+                AND COALESCE(t.is_archived, FALSE) = FALSE
+                AND s.review_decision IS NOT NULL
+                AND s.version = (
+                  SELECT MAX(s2.version) FROM venture_task_submissions s2
+                   WHERE s2.task_id = s.task_id
+                )`,
     args: owners,
   });
 }

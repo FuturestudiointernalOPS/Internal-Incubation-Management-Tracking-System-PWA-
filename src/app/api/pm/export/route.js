@@ -23,7 +23,7 @@ export async function GET(req) {
 
     // Record scope: `reports.export` says WHAT may be read; the exported rows are
     // participant data, so a delegated holder must be staffed on that program.
-    const scopeError = await requireProgramScope({ programId, wave: "content" });
+    const scopeError = await requireProgramScope({ programId, wave: "content", module: "reports", capability: "export" });
     if (scopeError) return scopeError;
 
     const out = await buildProgramExport({ type, programId, format });

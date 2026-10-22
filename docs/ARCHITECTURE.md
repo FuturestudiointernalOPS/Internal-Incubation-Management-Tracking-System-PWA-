@@ -25,9 +25,9 @@ Every request also passes a central gate: `src/proxy.js` (Next.js middleware) va
 
 ## Permissions
 
-Beyond role (`super_admin`/`program_manager`/`staff`/`participant`, plus `facilitator`, `investor`, `finance`, `crm`, `team`, and the contextual `founder`/`member`), a finer-grained capability system decides what a person may actually do. Its canonical engine is **`src/server/authz/`**, driven by the reads in **`src/models/authorization/`**; `src/lib/auth.js` re-exports the same checks as a facade. In short:
+Beyond role (`super_admin`/`program_manager`/`staff`/`participant`, plus `facilitator`, `investor`, `finance`, `crm`, `team`, and the contextual `founder`/`member`), a finer-grained capability system decides what a person may actually do. Its canonical engine is **`src/server/authz/`**, driven by the reads in **`src/models/authorization/`**. The capability vocabulary itself is declared ONCE in **`src/models/authorization/constants/feature-module-capability.js`** (feature → module → capability); the server layer re-exports `PERMISSION_MODULES` from there. In short:
 
-- `PERMISSION_MODULES` — named permission domains (e.g. finance, reports).
+- `PERMISSION_MODULES` — named permission domains (e.g. finance, reports), derived from the one capability source.
 - `ACCESS_LEVELS` — graded access (none → full) per module.
 - `getUserEffectiveCapabilities(userCid, userRole, module)` / `getUserFullPermissionMatrix(userCid, userRole)` — resolve a user's actual capabilities, combining role defaults with per-user group overrides (`getUserGroups`).
 - `hasCapability(...)` / `requireCapability(module, capability, minLevel)` — checks used inside route handlers for module-level authorization beyond basic role checks.

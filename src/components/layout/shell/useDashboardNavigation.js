@@ -25,6 +25,12 @@ import {
 } from "lucide-react";
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
+import {
+  carriesContextualValue,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 import { useApi } from "@/lib/hooks/useApi";
 
 // Resolve icon names from the master navigation module into components.
@@ -77,7 +83,7 @@ function shellRole(userRole, role) {
 // an actual course enrollment, never from the role string. `investor` joins them
 // now that its role mask is gone (Phase H) — the branch already renders the
 // investor space from the relationship.
-const PERSONAL_ROLES = ["member", "founder", "participant", "team", "investor"];
+const PERSONAL_ROLES = ["member", "team"];
 
 /** Whether the connected person actually holds at least one course enrollment. */
 const pickLmsEnrollment = (payload) => (payload && payload.success ? !!payload.enrolled : false);
@@ -139,7 +145,8 @@ export function useDashboardNavigation({
       // Investors use Investor Space as their home. Other personal accounts
       // keep the common participant dashboard, and team accounts keep /team.
       const dashboardHref = activeRole === "team" ? "/team" : "/participant";
-      const investorAccount = activeRole === "investor" || rel.isInvestor;
+      const investorAccount =
+        carriesContextualValue(activeRole, "investor") || rel.isInvestor;
       const items = investorAccount ? [] : [
         { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
       ];
@@ -188,7 +195,12 @@ export function useDashboardNavigation({
     // member actually holds venture assignments. Navigation belongs in the
     // sidebar, not on the dashboard: clicking it opens ALL ventures.
     const withVentureConsole = (list) => {
-      if (!["staff", "program_manager"].includes(activeRole)) return list;
+      if (
+        !isInternalStaffRole(activeRole) &&
+        !isLegacyProgramManagerRole(activeRole)
+      ) {
+        return list;
+      }
       if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
         return list;
       }
@@ -210,14 +222,14 @@ export function useDashboardNavigation({
     // the user's effective capabilities grant, deduped and href-safe.
     const items = attachIcons(buildAccessNav(activeRole, effectiveCaps));
 
-    if (
-      (activeRole === "program_manager" || activeRole === "super_admin") &&
-      pmPrograms.length > 0
-    ) {
+    // A non-empty manager list is what opens the manager sub-menu: the shell
+    // only reads it for someone carrying the program-manager profile, and it
+    // is empty for a manager who manages none.
+    if (pmPrograms.length > 0) {
       const progIndex = items.findIndex((navItem) => navItem.id === "programs");
       if (progIndex !== -1) {
         const baseSubItems =
-          activeRole === "super_admin"
+          isPlatformOwnerRole(activeRole)
             ? [
                 {
                   id: "all_programs",

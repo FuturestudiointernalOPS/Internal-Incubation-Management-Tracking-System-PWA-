@@ -7,6 +7,7 @@ export default function AppTable({
   loading = false,
   emptyMessage = "No data found.",
   className = "",
+  roomy = false,
 }) {
   if (loading) {
     return (
@@ -101,7 +102,7 @@ export default function AppTable({
               {columns.map((column, columnIndex) => (
                 <td
                   key={column.key || columnIndex}
-                  className="p-4 text-sm align-middle"
+                  className={`${roomy ? "p-5" : "p-4"} text-sm align-middle`}
                   style={{
                     color: "var(--text-primary)",
                     textAlign: column.align || "left",

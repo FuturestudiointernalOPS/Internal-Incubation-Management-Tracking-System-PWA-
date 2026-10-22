@@ -38,7 +38,7 @@ export async function PUT(req, { params }) {
     // owning program first — a linked course may only be edited by a holder
     // staffed on THAT program.
     const programId = await getRequirementProgramId(id);
-    const scopeError = await requireProgramScope({ programId, wave: "lms" });
+    const scopeError = await requireProgramScope({ programId, wave: "lms", module: "lms", capability: "edit" });
     if (scopeError) return scopeError;
 
     const body = await req.json();
@@ -68,7 +68,7 @@ export async function DELETE(req, { params }) {
     // Program scope: detach is a program action, so resolve the owning program
     // from the requirement and require the caller to be staffed there.
     const programId = await getRequirementProgramId(id);
-    const scopeError = await requireProgramScope({ programId, wave: "lms" });
+    const scopeError = await requireProgramScope({ programId, wave: "lms", module: "lms", capability: "edit" });
     if (scopeError) return scopeError;
 
     const result = await detachCourseFromProgram(id);

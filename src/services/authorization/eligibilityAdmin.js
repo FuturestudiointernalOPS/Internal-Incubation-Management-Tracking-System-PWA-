@@ -23,7 +23,7 @@
  */
 
 import { MODULE_TO_FEATURE, FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/eligibility";
-import { FEATURE_ORDER } from "@/models/authorization/eligibility-defaults";
+import { FEATURE_ORDER } from "@/models/authorization/constants";
 import { isValidProfileKeyShape } from "@/models/authorization/profile-catalog";
 import { evaluateEligibility } from "./eligibility";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
@@ -136,6 +136,92 @@ export function validateCapabilitiesWithinEligibility(caps, eligibility) {
     }
   }
   return { valid: violations.length === 0, violations };
+}
+
+/**
+ * §12.3 — detect an OPEN CEILING WITH NO RIGHT: a feature is eligible for an
+ * identity, yet NO capability of that feature is granted to it. The inverse of
+ * `validateCapabilitiesWithinEligibility` (which catches a right on a closed
+ * ceiling): this one catches a ceiling that opens onto nothing.
+ *
+ * Pure: the caller supplies the eligibility map and the capability matrix.
+ *
+ * @param {Object} eligibility  {feature: boolean}
+ * @param {Object} capabilities {module: {capability: level}}
+ * @returns {Array<{feature: string, modules: string[]}>}
+ */
+export function findOpenCeilingsWithoutRights({ eligibility, capabilities } = {}) {
+  const findings = [];
+  for (const [feature, eligible] of Object.entries(eligibility || {})) {
+    if (eligible !== true) continue;
+    const modules = Object.entries(MODULE_TO_FEATURE)
+      .filter(([, mappedFeature]) => mappedFeature === feature)
+      .map(([module]) => module);
+    const hasAnyRight = modules.some((module) => {
+      const caps = capabilities?.[module] || {};
+      return Object.values(caps).some((level) => Number(level) > 0);
+    });
+    if (!hasAnyRight) findings.push({ feature, modules });
+  }
+  return findings;
+}
+
+/**
+ * §12.3 — detect a RIGHT ON A CLOSED CEILING (the "droit sans plafond" the
+ * governance brief names, in its UNAMBIGUOUS form): a feature carries an
+ * EXPLICIT deny row (`eligible = 0`) for an identity, yet that identity holds a
+ * right of the feature. A MISSING row is NOT a finding (it may be inherited) —
+ * only an explicit deny is a real contradiction.
+ *
+ * Pure: the caller supplies the explicitly-CLOSED features and the capabilities.
+ *
+ * @param {Object} closedEligibility {feature: true} for features with eligible=0
+ * @param {Object} capabilities {module: {capability: level}}
+ * @returns {Array<{feature: string, module: string, capabilities: string[]}>}
+ */
+export function findRightsOnClosedCeiling({ closedEligibility, capabilities } = {}) {
+  const findings = [];
+  for (const [module, caps] of Object.entries(capabilities || {})) {
+    const feature = MODULE_TO_FEATURE[module];
+    if (!feature) continue; // infra modules have no ceiling to violate
+    if (closedEligibility?.[feature] !== true) continue;
+    const held = Object.entries(caps || {})
+      .filter(([, level]) => Number(level) > 0)
+      .map(([capability]) => capability);
+    if (held.length > 0) findings.push({ feature, module, capabilities: held });
+  }
+  return findings;
+}
+
+/**
+ * §12.3 — detect a PROFILE WITH NO COMPATIBLE ROLE ("profil sans rôle
+ * compatible"): the profile's `allowed_roles` is EMPTY, so no baseline role may
+ * ever hold it — it is unassignable by construction. `[]` is a real state
+ * ("explicitly nobody"), distinct from "not configured".
+ *
+ * Pure: the caller supplies the profile rows read from the DB.
+ *
+ * @param {Array<{key?: string, allowed_roles?: unknown}>} profileRows
+ * @returns {Array<{key: string}>}
+ */
+export function findUnassignableProfiles(profileRows = []) {
+  const findings = [];
+  for (const row of profileRows || []) {
+    if (!row || row.key === undefined || row.key === null) continue;
+    const raw = row.allowed_roles;
+    let roles = [];
+    if (Array.isArray(raw)) roles = raw;
+    else if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) roles = parsed;
+      } catch {
+        roles = [];
+      }
+    }
+    if (roles.filter(Boolean).length === 0) findings.push({ key: String(row.key) });
+  }
+  return findings;
 }
 
 /**

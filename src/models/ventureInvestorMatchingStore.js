@@ -64,7 +64,13 @@ export async function selectMatchingTaskTotals(ventureRef) {
   // venture_tasks holds the INTERNAL id (Phase 0), so a code has to be resolved
   // before it is bound — otherwise the probe counts a Venture that is not there.
   const ventureId = await resolveVentureInternalId(ventureRef);
-  return db.execute({ sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as d FROM venture_tasks WHERE venture_id=?", args: [ventureId] });
+  return db.execute({
+    sql: `SELECT COUNT(*) as t,
+                 SUM(CASE WHEN status IN ('done','accepted','completed') THEN 1 ELSE 0 END) as d
+            FROM venture_tasks
+           WHERE venture_id=? AND COALESCE(is_archived, FALSE) = FALSE`,
+    args: [ventureId],
+  });
 }
 
 /** Count a Venture's accepted founders (match scoring). */

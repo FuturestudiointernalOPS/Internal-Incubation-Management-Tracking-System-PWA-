@@ -169,7 +169,7 @@ describe("pm/reports and pm/export are program-scoped", () => {
     const body = await res.json();
 
     expect(res.status).toBe(403);
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "content" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "content" });
     expect(curriculumModel.upsertWeeklyReport).not.toHaveBeenCalled();
   });
 
@@ -185,7 +185,7 @@ describe("pm/reports and pm/export are program-scoped", () => {
     const res = await exp.GET(new Request("http://localhost/api/pm/export?program_id=P1&type=participants"));
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_ACTOR", "P1", { email: "s@x.test" });
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_ACTOR", "P1", { email: "s@x.test" });
     expect(programWorkspace.getProgramExportRows).toHaveBeenCalledWith("participants", "P1");
   });
 });
@@ -213,7 +213,7 @@ describe("pm/curriculum resolves the program from the RECORD, not the body", () 
 
     expect(res.status).toBe(403);
     expect(curriculumModel.updateSessionStatus).not.toHaveBeenCalled();
-    expect(isWithinScope).toHaveBeenCalledWith("program_staffed", "USR_ACTOR", "P-OTHER", { email: "s@x.test" });
+    expect(isWithinScope).toHaveBeenCalledWith("program_managed", "USR_ACTOR", "P-OTHER", { email: "s@x.test" });
   });
 
   test("deleting a requirement resolves its program and refuses when out of scope", async () => {

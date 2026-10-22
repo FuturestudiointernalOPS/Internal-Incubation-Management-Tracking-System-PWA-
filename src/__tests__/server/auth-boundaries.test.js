@@ -64,7 +64,6 @@ const AUTHORIZATION_EXPORTS = [
   "isSupervisorOf",
   "getAssignmentStatus",
   "requireAssignmentAccess",
-  "seedDefaultRoleCapabilities",
   "getUserEffectiveProfile",
   "getAccessProfileCapabilities",
   "ensureResponsibilitiesSchema",

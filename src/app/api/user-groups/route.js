@@ -23,12 +23,12 @@ export async function GET(req) {
     if (authError) return authError;
 
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const { searchParams } = new URL(req.url);
     let userCid = searchParams.get("user_cid");
     if (session.role !== "super_admin") {
       if (userCid && String(userCid) !== String(session.cid)) {
-        return NextResponse.json({ success: false, error: "You can only view your own groups." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.ownGroupsOnly" }, { status: 403 });
       }
       userCid = userCid || session.cid;
     }

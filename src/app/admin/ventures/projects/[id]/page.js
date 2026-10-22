@@ -55,7 +55,7 @@ export default function ProjectWorkItemsPage() {
         <p className="text-xs text-[var(--text-secondary)] mt-1">{t("venture.projects.subtitle")}</p>
       </div>
 
-      {ventureId && <ProjectsWorkItemsView ventureId={ventureId} />}
+      {ventureId && <ProjectsWorkItemsView ventureId={ventureId} emailsHref={`/admin/ventures/projects/${ventureId}/emails`} />}
 
       {/* WHO the work stands on comes before chasing it: identifying a name is
           what makes a reminder reach the right address. */}

@@ -110,6 +110,8 @@ export async function PUT(req) {
     const scopeError = await requireProgramScope({
       programId: id,
       wave: "content",
+      module: "programs",
+      capability: "edit",
     });
     if (scopeError) return scopeError;
 
@@ -143,6 +145,8 @@ export async function DELETE(req) {
     const scopeError = await requireProgramScope({
       programId: id,
       wave: "content",
+      module: "programs",
+      capability: "delete",
     });
     if (scopeError) return scopeError;
 

@@ -95,7 +95,7 @@ export async function listProjectAssignments({ role, sessionCid, requestedCid })
     role,
     sessionCid,
     requestedCid,
-    denialMessage: "You can only view your own assignments.",
+    denialMessage: "errors.ownAssignmentsViewOnly",
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -232,7 +232,7 @@ export async function listProjectInvitations({
     role,
     sessionCid,
     requestedCid: inviteeId,
-    denialMessage: "You can only view your own invitations.",
+    denialMessage: "errors.ownInvitationsViewOnly",
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -283,7 +283,7 @@ export async function respondToProjectInvitation({
     const isInviter =
       Boolean(inviterCid) && String(sessionCid) === String(inviterCid);
     if (!isInviter && role !== "super_admin") {
-      return { status: 403, error: "Only the inviter can cancel" };
+      return { status: 403, error: "errors.notInviter" };
     }
     await cancelProjectInvitation(invitationId);
     return { status: 200, action: "cancelled" };
@@ -291,7 +291,7 @@ export async function respondToProjectInvitation({
 
   // Accept or decline: only the invitee.
   if (invitation.invitee_id !== sessionCid) {
-    return { status: 403, error: "Only the invited user can respond" };
+    return { status: 403, error: "errors.notInvitee" };
   }
 
   if (action === "decline") {

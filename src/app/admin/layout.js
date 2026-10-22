@@ -6,9 +6,7 @@ import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDashboardSessionUser, subscribeDashboardSession } from "@/lib/dashboardSession";
-
-/** The roles this section admits. */
-const ADMIN_ROLES = ["super_admin"];
+import { isPlatformOwnerRole } from "@/lib/identity";
 
 // The role the BROWSER can already vouch for: the session the shell has published,
 // or the stored copy on a cold load. Read as a store snapshot, which is why the
@@ -16,7 +14,7 @@ const ADMIN_ROLES = ["super_admin"];
 // paints on the first frame. The check below remains the authority.
 const getRestoredAdminRole = () => {
   const role = getDashboardSessionUser()?.role;
-  return ADMIN_ROLES.includes(role) ? role : null;
+  return isPlatformOwnerRole(role) ? role : null;
 };
 
 const getRestoredRoleOnServer = () => null;
@@ -66,7 +64,7 @@ export default function AdminLayout({ children }) {
             }
           } catch (_) {}
           const role = data.user.role;
-          if (ADMIN_ROLES.includes(role)) {
+          if (isPlatformOwnerRole(role)) {
             setServerRole(role);
             return;
           }

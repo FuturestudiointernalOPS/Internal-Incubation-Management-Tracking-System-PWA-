@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { serverError } from "@/lib/apiError";
 import {
   createProgramTypeOption,
@@ -13,8 +13,9 @@ import {
  * POST /api/program-types — Adds a new custom program type
  */
 export async function GET() {
-  const authError = await requireAuth();
-  if (authError) return authError;
+  // The list feeds the program form: reading it is reading program vocabulary.
+  const capError = await requireAuthorization("programs", "view");
+  if (capError) return capError;
   try {
     await initDb();
     // Read-only: creating the table is a WRITE and belongs to POST (and to
@@ -28,8 +29,9 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
-    if (authError) return authError;
+    // Extending the program vocabulary is a platform-setting operation.
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
     await initDb();
     await createProgramTypeOptionsTable();
     const { type_key } = await req.json();

@@ -20,8 +20,13 @@ import { seedProfiles } from "./profilesStore";
 import {
   backfillFacilitatorTickLists,
 } from "./programAssignmentBackfill";
-import { ensureProfileCatalogueSeed } from "./profileCatalogueSeed";
-import { backfillProgramAssignmentProfileKeys } from "./programAssignmentProfileKey";
+import {
+  ensureProfileCatalogueSeed,
+  ensureFacilitatorProfileSeed,
+  ensureVentureMemberEditBackfill,
+  ensureDelegatedCapabilityDefaults,
+} from "./profileCatalogueSeed";
+import { backfillProgramAssignmentProfileKeys, backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
@@ -150,12 +155,35 @@ export function ensureCapabilityBackfills() {
           // DIRECT profile seed: so a FRESH database gets the catalogue even
           // with no `access_profiles` at all — the retired layer is gone.
           runAuthzMigration("profile-catalogue-seed-v1", ensureProfileCatalogueSeed),
+          // Lot 3.4 / D-5 — the facilitator PROFILE. The catalogue seed above is
+          // recorded once per database, so an existing one never receives a
+          // profile added later; this key seeds it (insert-only).
+          runAuthzMigration("facilitator-profile-seed-v1", ensureFacilitatorProfileSeed),
+          // Lot 5 / D-7 — the Venture Member profile gains `ventures.edit`, so
+          // the canonical write gate preserves the access the legacy
+          // membership gate gave every active member.
+          runAuthzMigration("venture-member-edit-v1", ensureVentureMemberEditBackfill),
+          // Lot 4.8 — the capabilities that replace a role list are granted to
+          // the profiles that already held the access (staff, program manager).
+          // Insert-only; without this an existing database would deny them at
+          // the route switch.
+          runAuthzMigration(
+            "profile-capability-defaults-v1",
+            ensureDelegatedCapabilityDefaults,
+          ),
           // The per-assignment profile override moves from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
           // column and fills it NULL-only from the legacy id.
           runAuthzMigration(
             "program-assignment-profile-key-v1",
             backfillProgramAssignmentProfileKeys,
+          ),
+          // Lot 3.4 / D-5 — give every facilitator assignment the facilitator
+          // PROFILE. Inert until the checkboxes lose precedence; it removes the
+          // data gap that would otherwise deny every facilitator at the switch.
+          runAuthzMigration(
+            "facilitator-profile-key-v1",
+            backfillFacilitatorProfileKeys,
           ),
         ]);
         reportFailedMigrations(alignment);

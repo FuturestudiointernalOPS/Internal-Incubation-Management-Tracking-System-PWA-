@@ -56,7 +56,7 @@ export async function listTasks({
   // SECURITY: a non-super-admin explicitly requesting another user's tasks is
   // refused.
   if (role !== "super_admin" && userId && userId !== sessionCid) {
-    return { status: 403, error: "You can only access your own tasks." };
+    return { status: 403, error: "errors.ownTasksOnly" };
   }
 
   // Non-staff-side roles (participants, …) may only view their own tasks: force
@@ -64,7 +64,7 @@ export async function listTasks({
   const notStaffSide = !seesWholePortfolio(role);
   const effectiveUserId = userId || (notStaffSide ? sessionCid : null);
   if (notStaffSide && assignedTo && String(assignedTo) !== String(sessionCid)) {
-    return { status: 403, error: "You can only view your own tasks." };
+    return { status: 403, error: "errors.ownTasksViewOnly" };
   }
 
   // Single-task lookup by id — the id path must still be authorized.
@@ -81,7 +81,7 @@ export async function listTasks({
       String(task.assigned_to || "") !== String(sessionCid) &&
       String(task.supervisor_id || "") !== String(sessionCid)
     ) {
-      return { status: 403, error: "You do not have access to this task." };
+      return { status: 403, error: "errors.taskAccessDenied" };
     }
 
     const blockersResult = await getBlockersForTask(parseInt(id));
@@ -117,7 +117,7 @@ export async function listTasks({
       if (assignedTo !== sessionCid) {
         return {
           status: 403,
-          error: "You can only view tasks assigned to yourself.",
+          error: "errors.ownAssignedTasksOnly",
         };
       }
       scope = "assigned";

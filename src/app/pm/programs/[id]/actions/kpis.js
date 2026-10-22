@@ -3,6 +3,8 @@
  * and removing program staff, and the KPI recalculation the config tab offers.
  */
 
+import { isPlatformOwnerRole } from "@/lib/identity";
+
 export function kpiActions({
   t,
   notify,
@@ -20,7 +22,7 @@ export function kpiActions({
   fetchProgramData,
 }) {
   const addKPI = async () => {
-    if (user.role !== "super_admin") {
+    if (!isPlatformOwnerRole(user.role)) {
       notify(t("pmMisc.workspace.superAdminKpiDefineOnly"), "error");
       return;
     }
@@ -53,7 +55,7 @@ export function kpiActions({
   };
 
   const _removeKPI = (kpiId) => {
-    if (user.role !== "super_admin") {
+    if (!isPlatformOwnerRole(user.role)) {
       notify(t("pmMisc.workspace.superAdminKpiRemoveOnly"), "error");
       return;
     }

@@ -9,22 +9,17 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWorkspaceScreen";
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
-  pickProgress, pickCalendar, pickJourney, EMPTY_ROADMAP, pickBm,
-  pickInterviews, pickValidations, pickAssessments, pickMilestones,
-  pickDocuments, pickInvestmentReadiness, pickOptionLists,
+  pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP,
+  pickInvestmentReadiness, pickOptionLists,
 } from "@/components/participant/ventures/ventureScreenModel";
 import {
-  ventureToPayload, mergePermissionRoles, buildDocumentQuery,
-  inputStyle, cardStyle, notifyMsg,
+  ventureToPayload, inputStyle, cardStyle, notifyMsg,
 } from "@/components/participant/ventures/ventureScreenHelpers";
 import { createVentureLoaders } from "@/components/participant/ventures/ventureScreenLoaders";
 
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState("dashboard");
-  // Journey view: the milestone timeline by default, or one of the Venture
-  // work tools (JOURNEY_TOOLS) that live inside Journey.
-  const [journeySub, setJourneySub] = useState("timeline");
 
   // The screen's reads are declared further down, together with the addresses
   // that say which of them the open screen is asking for.
@@ -58,18 +53,6 @@ export default function VentureDetail() {
   const [blockerForm, setBlockerForm] = useState({});
 
   // Track 4 state
-  const [showAddDocument, setShowAddDocument] = useState(false);
-  const [documentForm, setDocumentForm] = useState({});
-  const [showVersions, setShowVersions] = useState(false);
-  const [versionsDoc, setVersionsDoc] = useState(null);
-  const [versions, setVersions] = useState([]);
-  const [showReview, setShowReview] = useState(false);
-  const [reviewDoc, setReviewDoc] = useState(null);
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviews, setReviews] = useState([]);
-  const [showPermissions, setShowPermissions] = useState(false);
-  const [permissionsDoc, setPermissionsDoc] = useState(null);
-  const [permissions, setPermissions] = useState([]);
   const [playbookEntries, setPlaybookEntries] = useState([]);
   const [currentWeekStandup, setCurrentWeekStandup] = useState(true);
   const [currentWeekRetro, setCurrentWeekRetro] = useState(true);
@@ -85,8 +68,6 @@ export default function VentureDetail() {
   const [editingCoaching, setEditingCoaching] = useState(null);
   const [advisorForm, setAdvisorForm] = useState({});
   const [coachingForm, setCoachingForm] = useState({});
-  const [documentSearch, setDocumentSearch] = useState('');
-  const [documentCategory, setDocumentCategory] = useState('');
 
   // Add member modal — a founder invites by EMAIL; the person only joins once
   // they open the emailed link and accept.
@@ -108,7 +89,7 @@ export default function VentureDetail() {
 
   // The venture record is read through the shared hook, which owns the cache,
   // the cache-first paint and the discarding of a stale answer.
-  const { data: venture, loading } = useApi(
+  const { data: venture, loading, refresh: refreshVenture } = useApi(
     params.id ? `/api/ventures/${params.id}` : null,
     { defaultValue: null, transform: pickVenture },
   );
@@ -130,9 +111,8 @@ export default function VentureDetail() {
   // Navigate top-level sections. Re-entering Journey resets to the milestone
   // timeline so the primary tab always behaves predictably.
   function openSection(section) {
-    if (section === activeTab && section !== "journey") return;
+    if (section === activeTab) return;
     setActiveTab(section);
-    if (section === "journey") setJourneySub("timeline");
   }
 
   // ── The screen's reads ───────────────────────────────────────────────────
@@ -142,12 +122,12 @@ export default function VentureDetail() {
   // - the Venture record has to be known before its sub-resources are asked for.
   const ready = !!params.id && !!venture;
   const onDashboard = ready && activeTab === "dashboard";
-  const onJourney = ready && activeTab === "journey";
 
+  // The roster is the TEAM tab's read. The dashboard no longer needs it: its
+  // people figures now come from the dashboard aggregate (`team`), so one read
+  // has stopped being fetched to be unused.
   const { data: members, refresh: loadMembers } = useApi(
-    ready && (activeTab === "team" || activeTab === "dashboard")
-      ? `/api/ventures/${params.id}/members`
-      : null,
+    ready && activeTab === "team" ? `/api/ventures/${params.id}/members` : null,
     { defaultValue: [], transform: pickMembers },
   );
 
@@ -160,17 +140,47 @@ export default function VentureDetail() {
     { defaultValue: [], transform: pickInvitations },
   );
 
-  const { data: dashboardData } = useApi(
+  const { data: dashboardData, loading: dashboardLoading } = useApi(
     onDashboard ? `/api/ventures/${params.id}/dashboard` : null,
     { defaultValue: null, transform: pickDashboard },
   );
 
-  const { data: progressData, refresh: fetchProgress } = useApi(
+  const {
+    data: progressData,
+    loading: progressLoading,
+    error: progressError,
+    status: progressStatus,
+    refresh: fetchProgress,
+  } = useApi(
     onDashboard ? `/api/ventures/${params.id}/progress` : null,
     { defaultValue: null, transform: pickProgress },
   );
+  // Same three failure shapes as the work queue: a refused or broken read must
+  // never be drawn as 0%.
+  const progressFailed =
+    Boolean(progressError) || (progressStatus !== null && progressStatus >= 400);
 
-  const { data: calendarEvents, refresh: fetchCalendar } = useApi(
+  // The caller's own work queue (WS1). Addressed on the dashboard only, so the
+  // Journey tab never pays for it.
+  const {
+    data: myWork,
+    loading: myWorkLoading,
+    error: myWorkError,
+    status: myWorkStatus,
+    refresh: fetchMyWork,
+  } = useApi(
+    onDashboard ? `/api/ventures/${params.id}/my-work` : null,
+    { defaultValue: null, transform: pickMyWork },
+  );
+
+  // THREE ways this read can fail, and none of them is an empty queue: a network
+  // throw (`error`), an HTTP refusal (`status` ≥ 400), or a 200 body carrying
+  // `success: false` (which the shaper turns into null). The screen must say so
+  // rather than showing zero counts.
+  const myWorkFailed =
+    Boolean(myWorkError) || (myWorkStatus !== null && myWorkStatus >= 400);
+
+  const { data: calendarEvents, loading: calendarLoading, refresh: fetchCalendar } = useApi(
     onDashboard ? `/api/ventures/${params.id}/calendar` : null,
     { defaultValue: [], transform: pickCalendar },
   );
@@ -183,34 +193,7 @@ export default function VentureDetail() {
   );
   const journeyStages = roadmap.stages;
 
-  const { data: bmData, setData: setBmData, refresh: fetchBm } = useApi(
-    onJourney && journeySub === "businessModel"
-      ? `/api/ventures/${params.id}/business-model`
-      : null,
-    { defaultValue: null, transform: pickBm },
-  );
-  const { data: interviews, refresh: fetchInterviews } = useApi(
-    onJourney && journeySub === "discovery"
-      ? `/api/ventures/${params.id}/interviews`
-      : null,
-    { defaultValue: [], transform: pickInterviews },
-  );
-  const { data: validations, refresh: fetchValidations } = useApi(
-    onJourney && journeySub === "validation"
-      ? `/api/ventures/${params.id}/validations`
-      : null,
-    { defaultValue: [], transform: pickValidations },
-  );
-  const { data: assessments, refresh: fetchPmf } = useApi(
-    onJourney && journeySub === "pmf" ? `/api/ventures/${params.id}/pmf` : null,
-    { defaultValue: [], transform: pickAssessments },
-  );
-  const { data: milestones, refresh: fetchMilestones } = useApi(
-    onJourney && journeySub === "milestones"
-      ? `/api/ventures/${params.id}/milestones`
-      : null,
-    { defaultValue: [], transform: pickMilestones },
-  );
+
   const {
     fetchActionPlans, fetchTasks, fetchStandups, fetchRetros,
     fetchBlockers, fetchAdvisors, fetchCoaching, fetchPlaybook,
@@ -229,16 +212,6 @@ export default function VentureDetail() {
       if (data.success) { fetchTasks(true); fetchProgress(true); }
     } catch {}
   }
-  // The document list is ADDRESSED on the two filters, so writing in the search
-  // box or choosing a category re-asks by itself: the tab no longer has to call
-  // this to reload, which is why its debounce and its key-up reload are gone.
-  const documentQuery = buildDocumentQuery(documentSearch, documentCategory);
-  const { data: documents, refresh: fetchDocuments } = useApi(
-    onJourney && journeySub === "documents"
-      ? `/api/ventures/${params.id}/documents${documentQuery ? `?${documentQuery}` : ""}`
-      : null,
-    { defaultValue: [], transform: pickDocuments },
-  );
   async function handleResolveBlocker(blockerId) {
     await fetch(`/api/ventures/${params.id}/blockers`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ blocker_id: blockerId, action: "resolve" }) });
     fetchBlockers(true);
@@ -251,45 +224,6 @@ export default function VentureDetail() {
     if (!(await confirm({ message: t('venture.confirmRemoveAdvisor'), tone: "danger" }))) return;
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, action: "remove" }) });
     fetchAdvisors(true);
-  }
-  async function handleDocumentTransition(docId, approval_status) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "transition", document_id: docId, approval_status }) });
-    await fetchDocuments(null, null, true);
-  }
-  async function handleDocumentUpdate(docId, file_url) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "update", document_id: docId, updates: { file_url } }) });
-    fetchDocuments(null, null, true);
-  }
-  async function handleDocumentDelete(docId) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "delete", document_id: docId }) });
-    fetchDocuments(null, null, true);
-  }
-  async function handleVersionRestore(file_url) {
-    await fetch(`/api/ventures/${params.id}/documents`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ action: "update", document_id: versionsDoc.id, updates: { file_url } }) });
-    setShowVersions(false); fetchDocuments(null, null, true);
-  }
-  async function handleReview(docId) {
-    const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`);
-    const data = await response.json(); if (data.success) setReviews(data.reviews);
-    setReviewDoc({id: docId}); setShowReview(true);
-  }
-  async function handleSubmitReview(docId, decision) {
-    await fetch(`/api/ventures/${params.id}/documents/${docId}/reviews`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ comment: reviewComment, decision }) });
-    setShowReview(false); setReviews([]); fetchDocuments(null, null, true);
-  }
-  async function handlePermissions(docId) {
-    try {
-      const response = await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`);
-      const data = await response.json();
-      if (data.success) {
-        setPermissions(mergePermissionRoles(data.permissions || []));
-      }
-    } catch{}
-    setPermissionsDoc({id: docId}); setShowPermissions(true);
-  }
-  async function handleSavePermission(docId, role_scope, access_level) {
-    await fetch(`/api/ventures/${params.id}/documents/${docId}/permissions`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ role_scope, access_level }) });
-    handlePermissions(docId);
   }
   const { data: investmentReadiness, refresh: fetchInvestmentReadiness } = useApi(
     ready && activeTab === "investment"
@@ -317,6 +251,12 @@ export default function VentureDetail() {
       });
       const data = await response.json();
       notifyMsg(data.success ? t("venture.updateSuccess") : (data.error || t("venture.updateError")));
+      if (data.success) {
+        // The profile changed, so the setup score must not be served from the
+        // 30-second read cache. Refresh the record and the progress read now.
+        await refreshVenture();
+        fetchProgress(true);
+      }
     } catch {
       notifyMsg(t("venture.updateError"));
     } finally { setSaving(false); }
@@ -410,9 +350,11 @@ export default function VentureDetail() {
   const ws = {
     params, user, inputStyle, cardStyle, notifyMsg, optionLists,
     form, setForm, saving, members, dashboardData, historyData,
-    bmData, setBmData, interviews, validations, assessments, milestones,
+    dashboardLoading, calendarLoading,
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
-    progressData, documents, advisors, coachingSessions,
+    progressData, advisors, coachingSessions,
+    progressLoading, progressFailed,
+    myWork, myWorkLoading, myWorkFailed,
     journeyStages, playbookEntries, investmentReadiness,
     journeyDeliverablesUnavailable: roadmap.deliverablesUnavailable,
     currentWeekStandup, currentWeekRetro, currentWeekNum, currentWeekYear,
@@ -425,28 +367,22 @@ export default function VentureDetail() {
     showAddStandup, setShowAddStandup,
     showAddRetro, setShowAddRetro,
     showAddBlocker, setShowAddBlocker,
-    showAddDocument, setShowAddDocument,
     showAddAdvisor, setShowAddAdvisor,
     showAddCoaching, setShowAddCoaching,
     showAddMember, setShowAddMember,
-    showVersions, setShowVersions, versionsDoc, setVersionsDoc, versions, setVersions,
-    showReview, setShowReview, reviewDoc, setReviewDoc, reviewComment, setReviewComment, reviews, setReviews,
-    showPermissions, setShowPermissions, permissionsDoc, setPermissionsDoc, permissions, setPermissions,
     showEditCoaching, setShowEditCoaching, editingCoaching, setEditingCoaching,
     addMemberType, setAddMemberType, inviteEmail, setInviteEmail, inviting, removeConfirm, setRemoveConfirm,
     invitations, handleInviteMember, handleRevokeInvitation,
     interviewForm, setInterviewForm, validationForm, setValidationForm, pmfForm, setPmfForm,
     milestoneForm, setMilestoneForm, actionForm, setActionForm, taskForm, setTaskForm,
     standupForm, setStandupForm, retroForm, setRetroForm, blockerForm, setBlockerForm,
-    documentForm, setDocumentForm, advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
-    documentSearch, setDocumentSearch, documentCategory, setDocumentCategory,
+    advisorForm, setAdvisorForm, coachingForm, setCoachingForm,
     loadMembers, handleSave, handleUpdateMemberRole, handleRemoveMember,
     handleTaskStatusChange, handleResolveBlocker, handleMakePrimaryAdvisor, handleRemoveAdvisor,
-    handleDocumentTransition, handleDocumentUpdate, handleDocumentDelete, handleVersionRestore,
-    handleReview, handleSubmitReview, handlePermissions, handleSavePermission,
-    fetchBm, fetchInterviews, fetchValidations, fetchPmf, fetchMilestones, fetchActionPlans,
-    fetchTasks, fetchStandups, fetchRetros, fetchBlockers, fetchCalendar, fetchProgress,
-    fetchDocuments, fetchAdvisors, fetchCoaching,
+    fetchActionPlans, fetchTasks, fetchStandups, fetchRetros, fetchBlockers,
+    fetchCalendar, fetchProgress,
+    fetchMyWork,
+    fetchAdvisors, fetchCoaching,
     fetchJourney, fetchPlaybook, fetchInvestmentReadiness,
   };
 
@@ -456,9 +392,7 @@ export default function VentureDetail() {
       venture={venture}
       brandColor={form.brandColor}
       activeTab={activeTab}
-      journeySub={journeySub}
       onSection={openSection}
-      onJourneySub={setJourneySub}
       onBack={() => router.push("/participant/ventures")}
       workspace={ws}
       t={t}

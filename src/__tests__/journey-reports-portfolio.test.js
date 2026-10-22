@@ -62,8 +62,27 @@ jest.mock("@/lib/db", () => ({
 jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({ cid: "sa-1", name: "Super", role: "super_admin" }),
 }));
-jest.mock("@/server/auth/guards", () => ({
-  requireAuth: jest.fn().mockResolvedValue(null),
+// The route's door is `reports.portfolio`. This mock keeps the suite's intent —
+// only the platform owner passes — without loading the resolver and its schema.
+jest.mock("@/models/authorization/index", () => ({
+  requireAuthorization: jest.fn(async () => {
+    const { NextResponse } = require("next/server");
+    const { getSession } = require("@/server/auth/session");
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: "errors.authRequired" },
+        { status: 401 },
+      );
+    }
+    if (session.role !== "super_admin") {
+      return NextResponse.json(
+        { success: false, error: "errors.insufficientPermissions" },
+        { status: 403 },
+      );
+    }
+    return null;
+  }),
 }));
 
 const { GET } = require("@/app/api/journey-reports/route");
@@ -133,7 +152,7 @@ describe("it crosses Venture boundaries, so a Venture assignment is not enough",
 
   test("an unauthenticated request reads nothing", async () => {
     require("@/server/auth/session").getSession.mockResolvedValueOnce(null);
-    expect((await GET(req())).status).toBe(404);
+    expect((await GET(req())).status).toBe(401);
     expect(executed).toHaveLength(0);
   });
 

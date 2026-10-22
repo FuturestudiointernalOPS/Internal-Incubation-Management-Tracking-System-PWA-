@@ -11,6 +11,7 @@
  */
 
 import { sendStandaloneEmail } from "@/lib/email";
+import { carriesContextualValue } from "@/lib/identity";
 import {
   generateTeamPassword,
   generateTeamUsername,
@@ -213,11 +214,12 @@ export async function applyTeamPatch({ payload }) {
   if (action === "update_handler" && team_id) {
     if (handler_id) {
       const eligibility = await getContactFacilitatorEligibility(handler_id, "");
-      const role = String(eligibility.rows[0]?.role || "").toLowerCase();
-      if (role === "participant") {
+      const eligibilityRow = eligibility.rows[0] || {};
+      const role = String(eligibilityRow.role || "").toLowerCase();
+      if (carriesContextualValue(role, "participant")) {
         return { status: 409, body: { success: false, error: "errors.roleConflictParticipantFacilitator" } };
       }
-      if (role === "program_manager") {
+      if (role === "program_manager" || eligibilityRow.is_program_pm) {
         return { status: 409, body: { success: false, error: "errors.roleConflictPmFacilitator" } };
       }
     }

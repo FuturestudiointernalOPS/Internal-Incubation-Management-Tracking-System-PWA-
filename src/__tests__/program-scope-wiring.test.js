@@ -77,7 +77,7 @@ describe("the wiring is live — the rule runs on every write", () => {
 
     expect(res.status).toBe(200);
     expect(isWithinScope).toHaveBeenCalledWith(
-      "program_staffed",
+      "program_managed",
       "USR_STAFF",
       "P1",
       { email: "s@x.test" },
@@ -97,7 +97,7 @@ describe("the wiring is live — the rule runs on every write", () => {
 
 describe("a write outside your programs is refused", () => {
 
-  test("creating a KPI in a programme you are not staffed on is refused, and nothing is written", async () => {
+  test("creating a KPI in a programme you do not manage is refused, and nothing is written", async () => {
     isWithinScope.mockResolvedValueOnce(false);
     const res = await kpis.POST(post({ program_id: "P-OTHER", title: "Reach", target_value: 10 }));
     const body = await res.json();
@@ -106,7 +106,7 @@ describe("a write outside your programs is refused", () => {
     expect(res.headers.get("X-Authz-Decision")).toBe("out-of-scope");
     // The denial names the rule AND the domain that refused, so a 403 is
     // diagnosable without reading the code.
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "groups" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "groups" });
     expect(insertKpi).not.toHaveBeenCalled();
   });
 
@@ -116,7 +116,7 @@ describe("a write outside your programs is refused", () => {
 
     expect(res.status).toBe(200);
     expect(isWithinScope).toHaveBeenCalledWith(
-      "program_staffed",
+      "program_managed",
       "USR_STAFF",
       "P1",
       { email: "s@x.test" },
@@ -133,7 +133,7 @@ describe("a write outside your programs is refused", () => {
     expect(getV2KpiProgramId).toHaveBeenCalledWith(7);
     // ...and the write is refused rather than guessed at.
     expect(isWithinScope).toHaveBeenCalledWith(
-      "program_staffed",
+      "program_managed",
       "USR_STAFF",
       "P1",
       { email: "s@x.test" },

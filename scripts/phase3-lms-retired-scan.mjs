@@ -45,9 +45,9 @@ const offenders = [];
 for (const root of SRC_DIRS) {
   for (const file of walk(join(ROOT, root))) {
     const src = readFileSync(file, "utf8");
-    if (!/INSERT INTO (access_profile_capabilities|user_capabilities|role_capabilities)/.test(src)) continue;
+    if (!/INSERT INTO (user_capabilities|profile_capabilities|group_capabilities)/.test(src)) continue;
     for (const match of src.matchAll(
-      /INSERT INTO (access_profile_capabilities|user_capabilities|role_capabilities)[^;]*?/gs,
+      /INSERT INTO (user_capabilities|profile_capabilities|group_capabilities)[^;]*?/gs,
     )) {
       const block = match[0];
       for (const capability of RETIRED) {

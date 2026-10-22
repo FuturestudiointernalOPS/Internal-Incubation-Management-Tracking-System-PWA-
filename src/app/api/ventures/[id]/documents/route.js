@@ -1,7 +1,14 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireVentureAccess } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { getSession } from "@/server/auth/session";
+import {
+  carriesContextualValue,
+  isInternalStaffFamilyRole,
+} from "@/lib/identity";
+import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
+import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { notifyVentureFounders } from "@/services/ventures/activity";
 import { listDocuments, getDocument, uploadDocument, updateDocument, deleteDocument, createShareLink, revokeShare, getAccessLogs, getDocumentShares } from "@/services/ventures/documents";
 import {
@@ -10,9 +17,8 @@ import {
 } from "@/models/ventureAssets";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 
-const ROLES = ["participant","founder","staff","program_manager","super_admin"];
-const ALLOWED = ["participant","founder","staff","program_manager","super_admin"];
-const PRIVILEGED = ["staff","program_manager","super_admin"];
+const ROLES = ["member","staff","program_manager","super_admin"];
+const ALLOWED = ["member","staff","program_manager","super_admin"];
 
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getVentureIdByCode(ventureId);
@@ -20,30 +26,56 @@ async function resolveVentureDbId(ventureId) {
 }
 
 // Returns which approval_statuses a user is allowed to see
-async function getVisibilityStatuses(dbId, session) {
+async function getVisibilityStatuses(dbId, session, historyOnly = false) {
+  // D1 — an ex-manager's historical read is bounded: NON-private documents only.
+  if (historyOnly) return ["pending_review", "approved", "shared_with_investor"];
   // Super admins, staff, program managers see everything
-  if (PRIVILEGED.includes(session.role)) return null;
+  if (isInternalStaffFamilyRole(session.role)) return null;
   // Founders see everything. `dbId` is the internal id, which is what the
   // membership table keys on since Phase 0 — the code is not resolved back.
   if (session.cid) {
     const founder = await isFounderForDocumentVisibility(dbId, session.cid);
     if (founder.rows?.length) return null;
   }
-  // Investors only see shared documents
-  if (session.role === "investor") return ["shared_with_investor"];
+  // An INVESTOR — an approved investor context, or a legacy investor value —
+  // only sees the documents shared with investors. The function is a
+  // relationship now, not a role label (D-1).
+  const isInvestor = carriesContextualValue(session.role, "investor");
+  if (isInvestor) return ["shared_with_investor"];
+  if (session.cid) {
+    const approved = await getApprovedInvestorProfileIdByUserId(session.cid);
+    if ((approved.rows || []).length > 0) return ["shared_with_investor"];
+  }
   // Advisors and team members see non-private documents
   return ["pending_review", "approved", "shared_with_investor"];
 }
 
 export async function GET(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ROLES); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params;
+    // The canonical read gate, plus D1 — an ex-manager keeps a READ-ONLY
+    // consultation of the Venture they ran. The historical fallback only
+    // applies to a real refusal (403), never to a 401 or a system failure.
+    let session = null;
+    let historyOnly = false;
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+    if (access.error) {
+      if (access.error.status !== 403) return access.error;
+      const viewer = await getSession();
+      if (viewer && (await hasHistoricalVentureAccess(viewer.cid, id))) {
+        session = viewer;
+        historyOnly = true;
+      } else {
+        return access.error;
+      }
+    } else {
+      session = access.session;
+    }
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const searchParams = new URL(req.url).searchParams;
     const type = searchParams.get("type") || "list";
-    const visibility = await getVisibilityStatuses(dbId, session);
+    const visibility = await getVisibilityStatuses(dbId, session, historyOnly);
     if (type === "list") {
       const documentList = await listDocuments(dbId, {
         category: searchParams.get("category"), isPitchDeck: searchParams.get("pitch_deck") === "true" ? true : searchParams.get("pitch_deck") === "false" ? false : undefined,
@@ -58,7 +90,7 @@ export async function GET(req, { params }) {
       if (!document || !ventureOwned(document, dbId, id)) return ventureNotFound();
       // Block access to private docs for non-privileged users
       if (visibility !== null && !visibility.includes(document.approval_status)) {
-        return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
       }
       return NextResponse.json({ success: true, document });
     }
@@ -80,8 +112,10 @@ export async function GET(req, { params }) {
 
 export async function POST(req, { params }) {
   try { await initDb(); const authError = await requireAuth(ALLOWED); if (authError) return authError;
-    const { id } = await params; const { session } = await requireVentureAccess(id);
-    if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+    const { id } = await params;
+    const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+    if (access.error) return access.error;
+    const { session } = access;
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
     const body = await req.json();
@@ -104,9 +138,9 @@ export async function POST(req, { params }) {
     }
     if (body.action === "transition") {
       // Check: only founders/privileged can transition
-      if (!PRIVILEGED.includes(session.role)) {
+      if (!isInternalStaffFamilyRole(session.role)) {
         const founder = await isFounderForDocumentStatusTransition(dbId, session.cid);
-        if (!founder.rows?.length) return NextResponse.json({ success: false, error: "Only founders can transition document status." }, { status: 403 });
+        if (!founder.rows?.length) return NextResponse.json({ success: false, error: "errors.foundersOnly" }, { status: 403 });
       }
       const STATUSES = ["private", "pending_review", "approved", "shared_with_investor"];
       if (!STATUSES.includes(body.approval_status)) {

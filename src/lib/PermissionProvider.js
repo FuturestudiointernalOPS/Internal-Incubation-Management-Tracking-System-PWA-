@@ -41,13 +41,15 @@ const PermissionContext = createContext(null); // null = no provider above
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
 
-const EMPTY_PERMISSIONS_READ = { permissions: null, isSuperAdmin: false };
+const EMPTY_PERMISSIONS_READ = { permissions: null, isSuperAdmin: false, profiles: [] };
 
 const pickPermissions = (response) =>
   response?.success
     ? {
         permissions: response.effective || null,
         isSuperAdmin: Boolean(response.isSuperAdmin),
+        // The contextual profiles the matrix was resolved through (Lot 7).
+        profiles: Array.isArray(response.profiles) ? response.profiles : [],
       }
     : EMPTY_PERMISSIONS_READ;
 
@@ -87,6 +89,13 @@ function usePermissionSource(enabled = true) {
       ? data.permissions
       : cached;
   const isSuperAdmin = answered && !error ? data.isSuperAdmin : false;
+  // The profiles array is part of the context value, so it must keep its
+  // identity between renders: an inline `[]` would rebuild every consumer's
+  // memo on every render.
+  const profiles = useMemo(
+    () => (answered && !error ? data.profiles || [] : []),
+    [answered, error, data.profiles],
+  );
   const loading = !enabled || !answered;
 
   // A refresh whose identity does not change from render to render. The read's
@@ -124,8 +133,8 @@ function usePermissionSource(enabled = true) {
   );
 
   return useMemo(
-    () => ({ permissions, isSuperAdmin, loading, error, can, refresh }),
-    [permissions, isSuperAdmin, loading, error, can, refresh],
+    () => ({ permissions, isSuperAdmin, profiles, loading, error, can, refresh }),
+    [permissions, isSuperAdmin, profiles, loading, error, can, refresh],
   );
 }
 

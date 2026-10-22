@@ -86,3 +86,16 @@ test("an attachment is handed to the transport with the message", async () => {
 
   expect(sent().attachments).toBe(files);
 });
+
+test("the copy addresses are handed to the transport, never dropped", async () => {
+  await sendVentureReminderEmail({
+    to: "amina@example.com",
+    cc: ["lena@example.com"],
+    item: ITEM,
+    ventureName: "KoraHome",
+    trigger: "manual",
+  });
+
+  expect(sent().to).toBe("amina@example.com");
+  expect(sent().cc).toEqual(["lena@example.com"]);
+});

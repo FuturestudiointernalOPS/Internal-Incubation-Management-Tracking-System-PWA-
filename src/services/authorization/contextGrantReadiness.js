@@ -49,7 +49,10 @@ import {
   getContactNameAndRole,
   getSentinelGrantedCapabilities,
 } from "@/models/authorization/contextGrantReadinessReads";
-import { listProfileAssignments } from "@/models/authorization/profileAssignmentsStore";
+import {
+  listProfileAssignments,
+  listProfileAssignmentConsistency,
+} from "@/models/authorization/profileAssignmentsStore";
 
 /** Modules the PROGRAM feature owns — the only ones an impact list may contain. */
 const PROGRAM_MODULES = new Set(
@@ -213,16 +216,40 @@ export async function buildContextGrantReadiness({ limit = DEFAULT_LIMIT } = {})
   );
   const withImpact = rows.filter((row) => row.wouldLose.length > 0);
 
+  // Lot 6 — the registry's own consistency, reported and never repaired: an
+  // active card whose profile is missing/inactive, or whose profile carries no
+  // capability at all. A failure to read it is reported as unknown, never as
+  // "clean".
+  let profileConsistency = { known: false, broken: null, profiles: [] };
+  try {
+    const registry = await listProfileAssignmentConsistency();
+    const profiles = (registry.rows || []).map((row) => ({
+      profileKey: row.profile_key,
+      activeCards: Number(row.active_cards) || 0,
+      profileWithoutRights: Number(row.profile_without_rights) || 0,
+      profileWithoutCapabilities: Number(row.profile_without_capabilities) || 0,
+    }));
+    profileConsistency = {
+      known: true,
+      broken: profiles.filter(
+        (row) => row.profileWithoutRights > 0 || row.profileWithoutCapabilities > 0,
+      ).length,
+      profiles,
+    };
+  } catch (_) {}
+
   return {
     success: true,
     rows,
     truncated,
+    profile_consistency: profileConsistency,
     summary: {
       people: new Set(rows.map((row) => row.cid)).size,
       assignments: rows.length,
       drift: withDrift.length,
       impact: withImpact.length,
       wouldLose: [...new Set(withImpact.flatMap((row) => row.wouldLose))].sort(),
+      profileConsistency: profileConsistency.broken,
     },
   };
 }

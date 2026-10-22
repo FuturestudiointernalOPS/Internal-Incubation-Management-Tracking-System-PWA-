@@ -1,6 +1,8 @@
 import db from "@/lib/db";
 import { getWeekNumber } from "@/lib/constants";
-import { listVentureDocumentReadiness } from "@/models/ventureReadiness";
+// A deliberate model→service edge (the same pattern as models/authorization):
+// readiness is a DECISION, and this module only aggregates numbers.
+import { listDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
 import {
   getTaskStatusStats,
   getBlockerStatusStats,
@@ -25,11 +27,14 @@ import { getSpreadsheetData } from "@/models/spreadsheet";
 /**
  * Venture READINESS aggregates.
  *
- * Readiness is COMPUTED LIVE from the Data bank (the Venture's required
- * document types vs. per-document item status, engine in
- * `src/models/ventureReadiness.js`), NOT from the legacy 10-category engine
- * (calculateInvestmentReadiness) it replaced. A Venture with no required
- * document renders « — » and is counted neither ready nor not-ready.
+ * Readiness is COMPUTED LIVE from the DATA ROOM (required categories vs. the
+ * live review status of each document, engine in
+ * `src/services/ventures/dataRoom`), never from a second formula. A Venture
+ * with no required category renders « — » and is counted neither ready nor
+ * not-ready.
+ *
+ * `overdue_milestones` uses the same date rule as the journey report and the
+ * analytics store: `COALESCE(target_date, due_date)`, archived excluded.
  */
 export async function getVentureMetrics() {
   const [totalRes, overdueRes, venturesRes] = await Promise.all([
@@ -37,8 +42,9 @@ export async function getVentureMetrics() {
     db.execute({
       sql: `SELECT COUNT(*)::int AS overdue
             FROM venture_milestones
-            WHERE due_date IS NOT NULL AND due_date < NOW()
-              AND status NOT IN ('completed', 'cancelled')`,
+            WHERE COALESCE(target_date, due_date) < NOW()
+              AND status NOT IN ('completed', 'cancelled')
+              AND COALESCE(is_archived, FALSE) = FALSE`,
     }),
     db.execute({ sql: "SELECT venture_id FROM ventures ORDER BY venture_id" }),
   ]);
@@ -46,7 +52,7 @@ export async function getVentureMetrics() {
   const totalVentures = totalRes.rows[0]?.total ?? 0;
   const ventureIds = (venturesRes.rows || []).map((row) => row.venture_id);
 
-  const readinessList = await listVentureDocumentReadiness(ventureIds);
+  const readinessList = await listDataRoomReadiness(ventureIds);
   const readyCount = readinessList.filter((row) => row.is_ready).length;
 
   return {
@@ -67,26 +73,60 @@ export async function getVentureMetrics() {
 
 /** Investor OS: pipeline distribution + fundraising totals + external spreadsheet. */
 export async function getInvestorMetrics() {
-  const [pipelineRes, fundraisingRes, relationshipsRes, spreadsheet] = await Promise.all([
-    db.execute({
-      sql: `SELECT stage, COUNT(*)::int AS count
-            FROM investment_pipeline
-            GROUP BY stage
-            ORDER BY count DESC`,
-    }),
-    db.execute({
-      sql: `SELECT COALESCE(SUM(target_raise), 0)::float AS total_sought,
-                   COALESCE(SUM(current_raised), 0)::float AS total_raised,
-                   (SELECT COALESCE(SUM(investment_amount), 0)::float
-                    FROM investment_decisions WHERE decision_type = 'invest') AS total_committed
-            FROM fundraising_campaigns`,
-    }),
-    db.execute({
-      sql: `SELECT (SELECT COUNT(*)::int FROM relationship_workspaces WHERE status = 'active') AS active_relationships,
-                   (SELECT COUNT(*)::int FROM investment_pipeline WHERE stage = 'invested') AS total_invested`,
-    }),
-    getSpreadsheetData(),
-  ]);
+  // The Investor OS tables are created by migrations/investor_os_foundation.sql
+  // and migrations/investor_os_relationships.sql. A database that never ran
+  // them must not fail the whole Intelligence page — the section reports empty
+  // figures instead of taking the other four sections down with it.
+  const presence = await db.execute({
+    sql: `SELECT to_regclass('public.investment_pipeline') IS NOT NULL AS pipeline,
+                 to_regclass('public.investment_decisions') IS NOT NULL AS decisions,
+                 to_regclass('public.relationship_workspaces') IS NOT NULL AS relationships`,
+  });
+  const has = presence.rows[0] || {};
+
+  const pipelineQuery = has.pipeline
+    ? db.execute({
+        sql: `SELECT stage, COUNT(*)::int AS count
+              FROM investment_pipeline
+              GROUP BY stage
+              ORDER BY count DESC`,
+      })
+    : Promise.resolve({ rows: [] });
+
+  // `total_committed` is read from investment_decisions, which may be absent
+  // even where the pipeline table exists.
+  const fundraisingQuery = has.decisions
+    ? db.execute({
+        sql: `SELECT COALESCE(SUM(target_raise), 0)::float AS total_sought,
+                     COALESCE(SUM(current_raised), 0)::float AS total_raised,
+                     (SELECT COALESCE(SUM(investment_amount), 0)::float
+                      FROM investment_decisions WHERE decision_type = 'invest') AS total_committed
+              FROM fundraising_campaigns`,
+      })
+    : db.execute({
+        sql: `SELECT COALESCE(SUM(target_raise), 0)::float AS total_sought,
+                     COALESCE(SUM(current_raised), 0)::float AS total_raised,
+                     0::float AS total_committed
+              FROM fundraising_campaigns`,
+      });
+
+  const relationshipsQuery =
+    has.relationships && has.pipeline
+      ? db.execute({
+          sql: `SELECT (SELECT COUNT(*)::int FROM relationship_workspaces WHERE status = 'active') AS active_relationships,
+                       (SELECT COUNT(*)::int FROM investment_pipeline WHERE stage = 'invested') AS total_invested`,
+        })
+      : Promise.resolve({
+          rows: [{ active_relationships: 0, total_invested: 0 }],
+        });
+
+  const [pipelineRes, fundraisingRes, relationshipsRes, spreadsheet] =
+    await Promise.all([
+      pipelineQuery,
+      fundraisingQuery,
+      relationshipsQuery,
+      getSpreadsheetData(),
+    ]);
 
   return {
     pipeline: pipelineRes.rows,

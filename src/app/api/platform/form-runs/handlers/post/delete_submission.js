@@ -8,7 +8,7 @@ export async function POST(req) {
     await initDb();
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
-    if (!session) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const authError = await requireAuthorization("runs", "delete");
     if (authError) return authError;
 

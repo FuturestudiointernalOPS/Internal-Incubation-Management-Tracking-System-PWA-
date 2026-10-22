@@ -24,6 +24,7 @@ import {
   evaluateCapabilityLoss,
   resolveRemovalFallback,
 } from "@/services/authorization/profileAssignment";
+import { profileRoleAssignmentGate } from "@/services/authorization/profileCatalog";
 
 export const dynamic = "force-dynamic";
 
@@ -63,7 +64,7 @@ export async function PUT(req) {
     // Admin. Self-granting capabilities is the escalation this refuses.
     if (isSelfAssignment(session, user_cid)) {
       return NextResponse.json(
-        { success: false, error: "You cannot change your own profile." },
+        { success: false, error: "errors.cannotChangeOwnProfile" },
         { status: 403 },
       );
     }
@@ -82,6 +83,24 @@ export async function PUT(req) {
         return NextResponse.json(
           { success: false, error: "Profile not found or inactive" },
           { status: 404 },
+        );
+      }
+
+      // §3.3 — the profile must be open to the person's BASELINE role, the same
+      // rule the automatic and responsibility paths already apply. The role is
+      // already read here (`user.rows[0].role`), so no extra read is needed.
+      const roleGate = await profileRoleAssignmentGate({
+        profileKey: profile_key,
+        role: user.rows[0].role,
+      });
+      if (roleGate.blocked) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Profile "${roleGate.gap.profile}" is not open to role "${roleGate.gap.role}".`,
+            profile_role_gap: roleGate.gap,
+          },
+          { status: 409 },
         );
       }
 
@@ -160,7 +179,7 @@ export async function PUT(req) {
       targetCid: user_cid,
       targetName: user.rows[0].name,
       action: "profile_removed",
-      details: `Removed profile override, reverting to ${roleDefaultName || "legacy"} default`,
+      details: `Removed profile override, reverting to ${roleDefaultName || "no base profile"} default`,
     });
     invalidateAuthorizationContext(user_cid);
 
@@ -226,7 +245,7 @@ export async function GET(req) {
       user: { cid: userRow.cid, name: userRow.name, role: userRow.role },
       assignedProfile,
       roleDefault,
-      effectiveSource: assignedProfile ? "user" : roleDefault ? "role" : "legacy",
+      effectiveSource: assignedProfile ? "user" : roleDefault ? "role" : "none",
     });
   } catch (error) {
     console.error("[Profile override GET] error:", error);
