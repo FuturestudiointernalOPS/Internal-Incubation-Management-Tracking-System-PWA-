@@ -1,12 +1,15 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
-import { TrendingUp, Shield, Target } from "lucide-react";
+import { TrendingUp, Target } from "lucide-react";
 import WidgetCard from "./WidgetCard";
+import EvidenceBreakdown from "./EvidenceBreakdown";
 
 /**
- * Column 1 of the metrics row: Stage & Evidence and verification.
+ * Column 1 of the metrics row: Stage & Evidence. The Data bank (verification)
+ * widget was removed from this dashboard; its screen is still reached from the
+ * Data bank tab of the Venture.
  *
  * The Profile Completion widget is GONE (WS4). It read `startup_profiles`, a
  * table no screen writes, and its only action opened a wizard route that does
@@ -14,9 +17,9 @@ import WidgetCard from "./WidgetCard";
  * the founder dashboard reports from the Venture's own records), so it is not
  * shown here at all rather than as a permanent 0%.
  */
-export default function MetricsColumn({ id, data, widgetState, refreshWidget, verificationStatusLabel }) {
-  const router = useRouter();
+export default function MetricsColumn({ data, widgetState, refreshWidget }) {
   const { t } = useI18n();
+  const [showEvidence, setShowEvidence] = useState(false);
   return (
     <div className="space-y-6">
       {/* 1. Stage & Evidence Score — NOT the Data Room's Investment Readiness. */}
@@ -27,7 +30,16 @@ export default function MetricsColumn({ id, data, widgetState, refreshWidget, ve
       >
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <span className="text-3xl font-black text-purple-400">{data.investment_readiness?.score || 0}%</span>
+            {/* The percentage opens its working: required documents, approved or awaiting. */}
+            <button
+              type="button"
+              onClick={() => setShowEvidence(true)}
+              title={t("vadmin.dashboard.evidence.title")}
+              aria-label={t("vadmin.dashboard.evidence.title")}
+              className="text-3xl font-black text-purple-400 underline decoration-dotted underline-offset-4 hover:brightness-125"
+            >
+              {data.investment_readiness?.score || 0}%
+            </button>
             <span className="text-[10px] font-bold text-[var(--text-secondary)] capitalize">{data.investment_readiness?.stage?.replace(/_/g, " ") || t("vadmin.dashboard.unknown")}</span>
           </div>
           <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
@@ -46,41 +58,7 @@ export default function MetricsColumn({ id, data, widgetState, refreshWidget, ve
           )}
         </div>
       </WidgetCard>
-
-      {/* 2. Verification Status */}
-      <WidgetCard title={t("vadmin.dashboard.verification")} icon={Shield} iconColor="bg-emerald-500/10"
-        loading={widgetState("verification").loading} error={widgetState("verification").error}
-        empty={widgetState("verification").empty} emptyMessage={t("vadmin.dashboard.noVerificationData")}
-        onRefresh={() => refreshWidget("verification")}
-      >
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-1 rounded ${
-              data.verification?.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
-              data.verification?.status === "pending_review" ? "bg-amber-500/10 text-amber-400" :
-              data.verification?.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
-              "bg-slate-500/10 text-slate-400"
-            }`}>{verificationStatusLabel(data.verification?.status)}</span>
-            <span className="text-[10px] font-bold text-[var(--text-secondary)]">{t("vadmin.dashboard.verifiedCount", { verified: data.verification?.verified_count || 0, total: data.verification?.total_count || 6 })}</span>
-          </div>
-          <div className="space-y-1.5">
-            {(data.verification?.categories || []).map((category, index) => (
-              <div key={index} className="flex items-center justify-between p-2 bg-tertiary rounded-lg">
-                <span className="text-[10px] font-bold text-[var(--text-secondary)]">{category.label}</span>
-                <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                  category.status === "verified" ? "bg-emerald-500/10 text-emerald-400" :
-                  category.status === "rejected" ? "bg-rose-500/10 text-rose-400" :
-                  category.status === "under_review" ? "bg-amber-500/10 text-amber-400" :
-                  "bg-slate-500/10 text-slate-500"
-                }`}>{verificationStatusLabel(category.status)}</span>
-              </div>
-            ))}
-          </div>
-          <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="w-full py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
-            {t("vadmin.dashboard.openVerification")}
-          </button>
-        </div>
-      </WidgetCard>
+      <EvidenceBreakdown readiness={data.investment_readiness} isOpen={showEvidence} onClose={() => setShowEvidence(false)} />
     </div>
   );
 }

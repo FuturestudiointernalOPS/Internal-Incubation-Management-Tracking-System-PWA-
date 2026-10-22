@@ -145,6 +145,7 @@ export function selectDataRoomDocumentStatusesForVentures(ventureIds = []) {
   const placeholders = ids.map(() => "?").join(", ");
   return db.execute({
     sql: `SELECT d.venture_id::text AS venture_id, d.category,
+                 d.id::text AS id, COALESCE(d.title, d.name) AS title,
                  CASE
                    WHEN d.expires_at IS NOT NULL AND d.expires_at < NOW()
                     AND COALESCE(NULLIF(d.review_status, ''), 'uploaded') <> 'rejected'
@@ -296,6 +297,8 @@ export async function insertDataRoomDocument({
   expiresAt,
   isPitchDeck = false,
 }, database = db) {
+  // The caller holds the venture CODE (the URL's VNT-…); the column is the UUID.
+  const internalId = await resolveVentureInternalId(ventureId, database);
   return database.execute({
     sql: `INSERT INTO venture_documents
             (venture_id, title, name, description, document_type, category,
@@ -303,8 +306,8 @@ export async function insertDataRoomDocument({
              is_pitch_deck, current_version, review_status, uploaded_by, expires_at)
           VALUES (?, ?, ?, ?, 'data_room', ?, ?, ?, ?, ?, ?, ?, 1, 'uploaded', ?, ?)
           RETURNING id`,
-    args: [ventureId, title, title, description, category, fileName, fileSize,
-      fileType, storagePath, storagePath, isPitchDeck ? 1 : 0, uploadedBy, expiresAt],
+    args: [internalId, title, title, description, category, fileName, fileSize,
+      fileType, storagePath, storagePath, Boolean(isPitchDeck), uploadedBy, expiresAt],
   });
 }
 

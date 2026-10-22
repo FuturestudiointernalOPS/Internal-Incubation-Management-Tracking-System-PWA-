@@ -9,9 +9,11 @@ const nextConfig = {
     const cspReportOnly = [
       "default-src 'self'",
       "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
+      // Inter and JetBrains Mono come from Google Fonts (globals.css @import): the
+      // stylesheet from fonts.googleapis.com, the files from fonts.gstatic.com.
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "img-src 'self' data: blob: https:",
-      "font-src 'self' data:",
+      "font-src 'self' data: https://fonts.gstatic.com",
       "connect-src 'self' https:",
       "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
       "frame-ancestors 'self'",

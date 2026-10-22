@@ -5,12 +5,25 @@
  * the card and the modals cannot disagree about a badge or a byte count.
  */
 
+// Not yet validated → awaiting · approved → green · rejected → red, drawn with
+// the kit's own tags so the colours are the charter's, not Tailwind's. A document
+// that is merely uploaded has not been validated either, so it reads as awaiting,
+// exactly like one under review.
 export const STATUS_CLASS = {
-  uploaded: "bg-blue-500/10 text-blue-400 border-blue-500/25",
-  under_review: "bg-amber-500/10 text-amber-400 border-amber-500/25",
-  verified: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
-  rejected: "bg-rose-500/10 text-rose-400 border-rose-500/25",
-  expired: "bg-slate-500/10 text-slate-400 border-slate-500/25",
+  uploaded: "stf-tag w",
+  under_review: "stf-tag w",
+  verified: "stf-tag g",
+  rejected: "stf-tag r",
+  expired: "stf-tag",
+};
+
+/** The left edge of a document card carries the same verdict colour. */
+export const STATUS_ACCENT = {
+  uploaded: "border-l-[var(--stf-warn)]",
+  under_review: "border-l-[var(--stf-warn)]",
+  verified: "border-l-[var(--stf-done)]",
+  rejected: "border-l-[var(--stf-crit)]",
+  expired: "border-l-[var(--text-tertiary)]",
 };
 
 export const STATUS_ORDER = ["uploaded", "under_review", "verified", "rejected", "expired"];

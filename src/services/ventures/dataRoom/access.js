@@ -38,6 +38,7 @@ import {
   hasAnyVentureAssignment,
   hasVentureCapability,
 } from "@/services/ventures/permissions";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 import { resolveInvestorScope } from "@/models/authorization/investorScope";
 import { getAuthorizationContext } from "@/models/authorization/index";
 import { selectLeadManagerAssignment } from "@/models/ventureDocumentTypesStore";
@@ -57,8 +58,17 @@ import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./share
  *   investor with a live grant      → view + download, their granted subset only
  *   anyone else                     → refused (404 at the HTTP boundary)
  */
+const INTERNAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function resolveDataRoomViewer({ ventureId, session, database } = {}) {
   if (!session) return { allowed: false, reason: "unauthenticated" };
+
+  // A reference that names no Venture comes back from the resolver unchanged. It
+  // must never reach the queries below: against the uuid columns it raises
+  // "invalid input syntax" and the caller answers 500. Unknown is the same
+  // refusal as not-yours (404), so the route cannot be used to probe for ventures.
+  const internalId = await resolveVentureInternalId(ventureId, database).catch(() => null);
+  if (!INTERNAL_ID.test(String(internalId || ""))) return { allowed: false, reason: "not-found" };
 
   const authContext = await getAuthorizationContext(session);
   const superAdmin = Boolean(authContext?.isSuperAdmin);

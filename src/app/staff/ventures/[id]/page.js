@@ -6,13 +6,14 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen, Building2 } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
+import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 
@@ -45,6 +46,9 @@ const TABS = [
   // The Data Room is the venture's confidential fundraising / due-diligence
   // document set (including the material shared with granted investors).
   { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
+  // The profile the founders fill in, read-only: the Lead Manager follows the
+  // Venture without owning its record.
+  { id: "profile", label: "vadmin.detail.profile", icon: Building2, leadManagerOnly: true },
 ];
 
 export default function StaffVentureWorkspace() {
@@ -430,6 +434,8 @@ export default function StaffVentureWorkspace() {
       {activeTab === "dataRoom" && <VentureDataRoom ventureId={id} />}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
+
+      {activeTab === "profile" && <VentureProfileReadOnly venture={venture} />}
     </div>
   );
 }

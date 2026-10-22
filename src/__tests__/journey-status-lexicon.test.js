@@ -45,7 +45,7 @@ const MANAGER = [
   "src/components/ventures/journey/actions/labels.js",
   "src/components/ventures/journey/actions/deliverables.js",
 ];
-const ADMIN_TIMELINE = "src/app/admin/ventures/[id]/timeline/page.js";
+const ADMIN_TIMELINE = "src/components/ventures/timeline/VentureTimelineView.js";
 const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
 const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
 

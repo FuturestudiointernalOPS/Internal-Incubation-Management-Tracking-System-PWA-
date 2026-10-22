@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import SectionRoleGuard from "@/components/layout/SectionRoleGuard";
 
 /**
  * STAFF LAYOUT — persistent dashboard shell.
@@ -8,5 +9,5 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  * navigation between staff pages.
  */
 export default function StaffLayout({ children }) {
-  return <DashboardLayout role="staff">{children}</DashboardLayout>;
+  return <DashboardLayout role="staff"><SectionRoleGuard>{children}</SectionRoleGuard></DashboardLayout>;
 }

@@ -177,7 +177,7 @@ export default function JourneyMilestoneRow({
               {milestone.title}
             </span>
             {deliverableList.length > 0 && (
-              <span className="jy-cnt" title={t("venture.manager.deliverables")}>
+              <span className="jy-cnt" title={t("venture.manager.tasksHeading")}>
                 <Flag size={13} /> {deliverableList.length}
               </span>
             )}

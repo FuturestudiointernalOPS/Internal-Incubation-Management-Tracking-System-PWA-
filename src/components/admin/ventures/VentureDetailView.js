@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
   ArrowLeft,
-  BarChart3,
   Briefcase,
   Building2,
   Calendar,
@@ -23,6 +22,7 @@ import {
   Target,
   TrendingUp,
   User,
+  UserPlus,
   Users,
 } from "lucide-react";
 import { activityLabel, activityDetails } from "@/lib/ventureActivity";
@@ -31,6 +31,7 @@ import VentureWizardTab from "./VentureWizardTab";
 import VentureTeamTab from "./VentureTeamTab";
 import VentureActivityTab from "./VentureActivityTab";
 import AddLeadManagerModal from "./AddLeadManagerModal";
+import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 
 const WIZARD_STEPS = [
   { step: 1, name: "vadmin.detail.startupIdentity", icon: Building2 },
@@ -63,6 +64,23 @@ export default function VentureDetailView({ ctx }) {
   // The header's "Staff" button opens this: bind a Lead Manager from here,
   // without leaving the Venture.
   const [showLeadManager, setShowLeadManager] = useState(false);
+  // The Staff button opens a small menu: add a Lead Manager, or invite a founder.
+  const [staffMenu, setStaffMenu] = useState(false);
+  const staffMenuRef = useRef(null);
+  useEffect(() => {
+    if (!staffMenu) return undefined;
+    const close = (event) => {
+      if (event.type === "keydown" ? event.key === "Escape" : !staffMenuRef.current?.contains(event.target)) {
+        setStaffMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [staffMenu]);
 
   if (loading) {
     return (
@@ -100,7 +118,6 @@ export default function VentureDetailView({ ctx }) {
     { id: "dashboard", label: "vadmin.detail.dashboard", icon: Rocket },
     { id: "journey", label: "vadmin.detail.journeyTab", icon: Route },
     { id: "investment", label: "vadmin.detail.investmentReadiness", icon: TrendingUp },
-    { id: "timeline", label: "vadmin.detail.timeline", icon: BarChart3 },
     { id: "reports", label: "vadmin.detail.reports", icon: FileText },
     // The Data Room is the venture's confidential fundraising / due-diligence
     // document set. It replaces the former Data bank tab in this hub.
@@ -114,7 +131,6 @@ export default function VentureDetailView({ ctx }) {
   const HUB_NAV_ROUTES = {
     journey: `/admin/ventures/${id}/journey`,
     investment: `/admin/ventures/${id}/investment`,
-    timeline: `/admin/ventures/${id}/timeline`,
     reports: `/admin/ventures/${id}/reports`,
     dataRoom: `/admin/ventures/${id}/documents`,
   };
@@ -158,13 +174,44 @@ export default function VentureDetailView({ ctx }) {
             <div className="flex gap-3">
               {/* Staff assignment: who manages/coaches this Venture and at what
                   scope — where a staff member is bound as Lead Manager. */}
-              <button
-                onClick={() => setShowLeadManager(true)}
-                className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
-                title={t("vadmin.detail.staffTitle")}
-              >
-                <Users className="w-3 h-3" /> {t("vadmin.detail.staff")}
-              </button>
+              <div className="relative" ref={staffMenuRef}>
+                <button
+                  onClick={() => setStaffMenu((open) => !open)}
+                  aria-haspopup="menu"
+                  aria-expanded={staffMenu}
+                  className="px-4 py-2 rounded-xl border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest hover:bg-tertiary transition-all flex items-center gap-2"
+                  title={t("vadmin.detail.staffTitle")}
+                >
+                  <Users className="w-3 h-3" /> {t("vadmin.detail.staff")}
+                </button>
+                {staffMenu && (
+                  <div
+                    role="menu"
+                    className="absolute right-0 z-[60] mt-1 min-w-[220px] rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)] shadow-2xl py-1"
+                  >
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setStaffMenu(false);
+                        setShowLeadManager(true);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-bold hover:bg-[var(--surface-2)] transition-colors"
+                    >
+                      <Users className="w-3.5 h-3.5" /> {t("vadmin.detail.addLeadManager")}
+                    </button>
+                    <button
+                      role="menuitem"
+                      onClick={() => {
+                        setStaffMenu(false);
+                        router.push(`/admin/ventures/${id}/founders`);
+                      }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-bold hover:bg-[var(--surface-2)] transition-colors"
+                    >
+                      <UserPlus className="w-3.5 h-3.5" /> {t("vadmin.dashboard.inviteFounder")}
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -216,49 +263,8 @@ export default function VentureDetailView({ ctx }) {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Company Details */}
-              <div className="card">
-                <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <Building2 className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-                  {t("vadmin.detail.companyDetails")}
-                </h3>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-tertiary rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.industry")}</p>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">{venture.industry}</p>
-                  </div>
-                  <div className="p-3 bg-tertiary rounded-xl">
-                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.businessStage")}</p>
-                    <p className={`text-sm font-bold ${stage.color}`}>{t(stage.label)}</p>
-                  </div>
-                  {venture.registration_number && (
-                    <div className="p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.registrationNumber")}</p>
-                      <p className="text-sm font-bold text-[var(--text-primary)]">{venture.registration_number}</p>
-                    </div>
-                  )}
-                  {venture.website && (
-                    <div className="p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.website")}</p>
-                      <a
-                        href={venture.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm font-bold text-[var(--brand-orange)] hover:underline flex items-center gap-1"
-                      >
-                        {new URL(venture.website).hostname}
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    </div>
-                  )}
-                  {venture.description && (
-                    <div className="col-span-2 p-3 bg-tertiary rounded-xl">
-                      <p className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-1">{t("vadmin.detail.description")}</p>
-                      <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
-                    </div>
-                  )}
-                </div>
-              </div>
+              {/* The profile as the founders fill it in — read-only here. */}
+              <VentureProfileReadOnly venture={venture} />
 
               {/* Wizard Progress */}
               <div className="card">

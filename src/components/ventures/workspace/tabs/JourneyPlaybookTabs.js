@@ -21,6 +21,7 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import { sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 import FounderMilestoneSessions from "@/components/ventures/journey/FounderMilestoneSessions";
 import FounderMilestoneTasks from "@/components/ventures/journey/FounderMilestoneTasks";
+import { dateOnly } from "@/lib/ventureMilestoneDates";
 import FounderMilestoneDeliverables from "./JourneyPlaybookTabs/FounderMilestoneDeliverables";
 
 /* Journey Tab — the Venture journey as its operating workspace.
@@ -359,7 +360,7 @@ export function JourneyTab() {
                       </div>
                     )}
                     <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
-                      {stage.target_date && <span style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${stage.target_date}T00:00:00`).toLocaleDateString()}</span>}
+                      {stage.target_date && <span style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${dateOnly(stage.target_date)}T00:00:00`).toLocaleDateString()}</span>}
                       {stage.completed_at && <span style={{ color: 'var(--chart-success)' }}>✓ {t('venture.completed') || 'Completed'}: {new Date(stage.completed_at).toLocaleDateString()}</span>}
                     </div>
 
@@ -397,7 +398,7 @@ export function JourneyTab() {
                                   )}
                                 </div>
                               </div>
-                              {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${milestone.target_date}T00:00:00`).toLocaleDateString()}</p>}
+                              {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${dateOnly(milestone.target_date)}T00:00:00`).toLocaleDateString()}</p>}
 
                               <FounderMilestoneDeliverables
                                 milestone={milestone}

@@ -161,10 +161,16 @@ export function DashboardTab({ onSection }) {
           value={progressFailed ? "—" : progressData?.milestones?.completed ?? 0}
           hint={
             progressData
-              ? t("venture.progressOverview.milestonesOf", {
-                  done: progressData.milestones?.completed ?? 0,
-                  total: progressData.milestones?.total ?? 0,
-                })
+              ? t(
+                  progressData.milestones?.progress_percent != null
+                    ? "venture.progressOverview.milestonesProgress"
+                    : "venture.progressOverview.milestonesOf",
+                  {
+                    done: progressData.milestones?.completed ?? 0,
+                    total: progressData.milestones?.total ?? 0,
+                    percent: progressData.milestones?.progress_percent ?? 0,
+                  },
+                )
               : null
           }
           icon={Flag}

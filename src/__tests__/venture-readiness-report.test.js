@@ -196,7 +196,9 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
     const data = await readJson(res);
     const journeyReport = data.journey_report;
 
-    expect(journeyReport.journey_progression).toEqual({ total: 2, completed: 1, progress_pct: 50 });
+    // Percentages come from the roadmap engine (the same figure the dashboard and
+    // Investment Readiness show); the counts stay the report's own strict ones.
+    expect(journeyReport.journey_progression).toEqual({ total: 2, completed: 1, progress_pct: 33 }); // 1 of the roadmap's 3 stages
 
     // Stage grouping: s1 has 2/2 milestones complete, s2 has 0/1.
     const firstStage = journeyReport.stages.find((stage) => stage.id === "s1");
@@ -206,7 +208,7 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
 
     expect(journeyReport.milestones_by_status).toEqual({ completed: 2, in_progress: 1 });
     expect(journeyReport.tasks_by_status).toEqual({ in_progress: 1, cancelled: 1, done: 1, review: 1, backlog: 1 });
-    expect(journeyReport.task_completion).toEqual({ total: 5, completed: 1, progress_pct: 20 });
+    expect(journeyReport.task_completion).toEqual({ total: 4, completed: 2, progress_pct: 50 }); // the roadmap's 2 of 4 tasks
 
     // Overdue = open statuses only (cancelled/done excluded, null due excluded).
     expect(journeyReport.overdue.length).toBe(2);

@@ -2,7 +2,7 @@
 
 import { Download, Eye, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
 import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
-import { formatBytes, formatDate, STATUS_CLASS, documentTitle } from "./dataRoomUi";
+import { formatBytes, formatDate, STATUS_ACCENT, STATUS_CLASS, documentTitle } from "./dataRoomUi";
 
 /**
  * ONE document in the Data Room.
@@ -32,7 +32,7 @@ export default function DataRoomDocumentCard({
   const title = documentTitle(documentEntry);
 
   return (
-    <div className="rounded-xl border border-[var(--border-primary)] bg-surface-2 p-3 space-y-2">
+    <div className={`rounded-xl border border-[var(--border-primary)] border-l-4 ${STATUS_ACCENT[status] || STATUS_ACCENT.uploaded} bg-surface-2 p-3 space-y-2`}>
       <div className="flex items-start gap-2.5">
         <div className="w-8 h-8 rounded-lg bg-[var(--brand-orange)]/10 flex items-center justify-center shrink-0">
           <FileText size={14} className="text-[var(--brand-orange)]" />
@@ -50,7 +50,7 @@ export default function DataRoomDocumentCard({
                   {t("dataRoom.legacy.badge")}
                 </span>
               )}
-              <span className={`text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded border ${STATUS_CLASS[status] || STATUS_CLASS.uploaded}`}>
+              <span className={`uppercase tracking-wide !text-[10.5px] ${STATUS_CLASS[status] || STATUS_CLASS.uploaded}`}>
                 {t(`dataRoom.status.${status}`)}
               </span>
             </span>

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -10,7 +10,7 @@ import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWor
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
   pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP,
-  pickInvestmentReadiness, pickOptionLists,
+  pickInvestmentReadiness, pickOptionLists, TABS,
 } from "@/components/participant/ventures/ventureScreenModel";
 import {
   ventureToPayload, inputStyle, cardStyle, notifyMsg,
@@ -19,7 +19,6 @@ import { createVentureLoaders } from "@/components/participant/ventures/ventureS
 
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
 
   // The screen's reads are declared further down, together with the addresses
   // that say which of them the open screen is asking for.
@@ -81,6 +80,13 @@ export default function VentureDetail() {
   const { confirm } = useDialogs();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
+
+  // The open tab lives in the address (`?tab=`), so a reload, a shared link or a
+  // bookmark lands on the same tab instead of falling back to the dashboard.
+  // Derived, never copied into state: the address is the single source.
+  const requestedTab = searchParams?.get("tab");
+  const activeTab = TABS.includes(requestedTab) ? requestedTab : "dashboard";
 
   // The signed-in identity comes from the shell's session cache rather than the
   // browser's stored copy, so it needs no effect and no read of its own.
@@ -89,7 +95,7 @@ export default function VentureDetail() {
 
   // The venture record is read through the shared hook, which owns the cache,
   // the cache-first paint and the discarding of a stale answer.
-  const { data: venture, loading, refresh: refreshVenture } = useApi(
+  const { data: venture, loading, status: ventureStatus, refresh: refreshVenture } = useApi(
     params.id ? `/api/ventures/${params.id}` : null,
     { defaultValue: null, transform: pickVenture },
   );
@@ -112,7 +118,12 @@ export default function VentureDetail() {
   // timeline so the primary tab always behaves predictably.
   function openSection(section) {
     if (section === activeTab) return;
-    setActiveTab(section);
+    router.replace(
+      section === "dashboard"
+        ? `/participant/ventures/${params.id}`
+        : `/participant/ventures/${params.id}?tab=${section}`,
+      { scroll: false },
+    );
   }
 
   // ── The screen's reads ───────────────────────────────────────────────────
@@ -126,7 +137,7 @@ export default function VentureDetail() {
   // The roster is the TEAM tab's read. The dashboard no longer needs it: its
   // people figures now come from the dashboard aggregate (`team`), so one read
   // has stopped being fetched to be unused.
-  const { data: members, refresh: loadMembers } = useApi(
+  const { data: members, loading: membersLoading, refresh: loadMembers } = useApi(
     ready && activeTab === "team" ? `/api/ventures/${params.id}/members` : null,
     { defaultValue: [], transform: pickMembers },
   );
@@ -349,7 +360,7 @@ export default function VentureDetail() {
   // (Phase 2). Provided under the same identifiers the tabs destructure.
   const ws = {
     params, user, inputStyle, cardStyle, notifyMsg, optionLists,
-    form, setForm, saving, members, dashboardData, historyData,
+    form, setForm, saving, members, membersLoading, dashboardData, historyData,
     dashboardLoading, calendarLoading,
     actionPlans, tasks, standups, retros, blockers, calendarEvents,
     progressData, advisors, coachingSessions,
@@ -389,6 +400,7 @@ export default function VentureDetail() {
   return (
     <VentureWorkspaceScreen
       loading={loading}
+      notFound={ventureStatus === 404 || ventureStatus === 403}
       venture={venture}
       brandColor={form.brandColor}
       activeTab={activeTab}
