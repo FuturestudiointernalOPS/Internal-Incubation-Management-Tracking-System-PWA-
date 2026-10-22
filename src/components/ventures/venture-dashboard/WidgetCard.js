@@ -8,7 +8,7 @@ import { useI18n } from "@/lib/i18n";
  * refresh, and the loading / error / empty / content states.
  * Extracted verbatim from VentureDashboard.
  */
-export default function WidgetCard({ title, icon: Icon, iconColor, children, loading, error, onRefresh, empty, emptyMessage }) {
+export default function WidgetCard({ title, icon: Icon, iconColor, children, loading, error, onRefresh, empty, emptyMessage, onOpen }) {
   const { t } = useI18n();
   return (
     <div className="card">
@@ -17,7 +17,17 @@ export default function WidgetCard({ title, icon: Icon, iconColor, children, loa
           <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${iconColor || "bg-brand-orange/10"}`}>
             <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
           </div>
-          <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{title}</h3>
+          {onOpen ? (
+            <button
+              type="button"
+              onClick={onOpen}
+              className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide underline decoration-dotted underline-offset-4 hover:text-[var(--brand-orange)]"
+            >
+              {title}
+            </button>
+          ) : (
+            <h3 className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide">{title}</h3>
+          )}
         </div>
         {onRefresh && (
           <button onClick={onRefresh} className="p-1.5 hover:bg-[var(--surface-2)] rounded-lg transition-all">
