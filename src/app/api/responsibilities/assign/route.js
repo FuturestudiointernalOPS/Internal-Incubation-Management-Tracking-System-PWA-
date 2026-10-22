@@ -48,7 +48,7 @@ export async function PUT(req) {
     // is the escalation this refuses.
     if (isSelfResponsibilityChange(session, user_cid)) {
       return NextResponse.json(
-        { success: false, error: "You cannot change your own responsibilities." },
+        { success: false, error: "errors.cannotChangeOwnResponsibilities" },
         { status: 403 },
       );
     }

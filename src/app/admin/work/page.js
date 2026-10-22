@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   LayoutGrid,
   ListTodo,
@@ -197,7 +198,7 @@ export default function ProjectKanbanBoard() {
     }
   }, [t, setData]);
 
-  const isSuperAdmin = role === "super_admin";
+  const isSuperAdmin = isPlatformOwnerRole(role);
 
   // ── Build hierarchical column data ──
   const columns = useMemo(() => {

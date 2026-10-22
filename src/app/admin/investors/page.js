@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   Building2, CheckCircle2, XCircle,
   Search, Loader2, Clock, Ban, Check, Copy, RefreshCw, X, UserPlus,
@@ -60,7 +61,7 @@ export default function AdminInvestorsPage() {
   const { t } = useI18n();
   const { role } = useSessionUser();
   const { confirm } = useDialogs();
-  const isSuperAdmin = role === "super_admin";
+  const isSuperAdmin = isPlatformOwnerRole(role);
 
   // The "add an investor" link: its own small state, so opening it never touches
   // the list. `runId` is kept to rotate the link (regenerate).

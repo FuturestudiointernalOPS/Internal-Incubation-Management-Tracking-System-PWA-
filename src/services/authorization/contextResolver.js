@@ -28,9 +28,10 @@
  */
 
 import { initDb } from "@/lib/db";
-import { PERMISSION_MODULES, ACCESS_LEVELS } from "@/server/authz/capabilities";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
-import { evaluateEligibility } from "./eligibility";
+import { explainEligibility } from "./eligibility";
 import { ensureCapabilityBackfills } from "@/models/authorization/backfill";
 import { getEffectiveGroupsForUser } from "./membership";
 import {
@@ -127,11 +128,17 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
       cid,
       role,
       isSuperAdmin: true,
+      // Super Admin bypasses the account gate as well (spec §11 is enforced by
+      // the sign-in route for this identity; see BACKLOG for the open point).
+      accountStatus: null,
       groups: [],
       profiles: [],
       profile: null,
       eligibility: null,
       eligibilityRows: [],
+      // D4 — sections a PROFILE opens despite the role's explicit deny. Super
+      // Admin bypasses eligibility, so it can never have a section warning.
+      eligibilityWarnings: {},
       baseCaps: saMatrix,
       groupCaps: {},
       effective: mergeEffectiveCapabilities(saMatrix, {}, grants, restrictions),
@@ -167,7 +174,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   let profileId = null;
   let profileKey = null;
   let profileName = null;
-  let profileSource = "legacy";
+  let profileSource = "none";
   const [overrideRes, roleDefaultRes] = await Promise.all([
     contact.profile_key
       ? resolveContactBaseProfile({ profileKey: contact.profile_key ?? null })
@@ -186,20 +193,30 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
     profileSource = "role";
   }
 
-  // 3+5+6. Base capabilities (the profile's caps, or `role_capabilities` for a
-  //    profile-less identity), group capabilities and eligibility rows are
+  // 3+5+6. Base capabilities (the resolved profile's caps — a profile-less
+  //    identity has none), group capabilities and eligibility rows are
   //    independent reads — run in parallel instead of three sequential rounds.
   const [capsRes, groupCapsRes, eligRes] = await Promise.all([
-    getBaseCapabilityRows({ profileKey, role }),
+    getBaseCapabilityRows({ profileKey }),
     getGroupCapabilityRows(groups),
     getFeatureEligibilityRows(role, groups, effectiveProfiles),
   ]);
   const baseCaps = rowsToCaps(capsRes.rows);
   const groupCaps = rowsToCaps(groupCapsRes.rows);
 
+  // D4 — the eligibility verdict is the UNION of the person's identities. The
+  // very same pass records the one divergence the arbitrage flags: a section a
+  // PROFILE opens while the ROLE explicitly denies it (a SECTION warning, never
+  // a refusal). The verdict and its justification come from one pure function,
+  // so they can never drift apart.
   const eligibility = {};
+  const eligibilityWarnings = {};
   for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
-    eligibility[featureKey] = evaluateEligibility(eligRes.rows, featureKey);
+    const verdict = explainEligibility(eligRes.rows, featureKey);
+    eligibility[featureKey] = verdict.eligible;
+    if (verdict.openedByProfile) {
+      eligibilityWarnings[featureKey] = "opened_by_profile";
+    }
   }
 
   // 7. Effective capabilities (V2 merge semantics).
@@ -209,10 +226,14 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
     cid,
     role,
     isSuperAdmin: false,
+    // Spec §11 — the account gate: `contacts.status`, read in the same wave as
+    // the profile override. `null` when no contact row exists (behaviour kept).
+    accountStatus: contact.status ?? null,
     groups,
     profiles: effectiveProfiles,
     profile: { profileId, profileName, profileSource, profileKey },
     eligibility,
+    eligibilityWarnings,
     eligibilityRows: eligRes.rows,
     baseCaps,
     groupCaps,

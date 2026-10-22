@@ -2,34 +2,30 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeRoadmapReadiness } from "@/services/ventures/readiness";
-import {
-  getInvestmentReadinessVentureId,
-  getVentureInvestmentDocuments,
-} from "@/models/ventureJourney";
+import { getDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
+import { getInvestmentReadinessVentureId } from "@/models/ventureJourney";
 
-
-const REQUIRED_DOCUMENTS = [
-  { key: "pitch_deck", label: "Pitch Deck", icon: "📊" },
-  { key: "business_model_canvas", label: "Business Model Canvas", icon: "📋" },
-  { key: "financial_projection", label: "Financial Projection", icon: "💰" },
-  { key: "customer_validation", label: "Customer Validation Report", icon: "🔍" },
-  { key: "goto_market", label: "Go-to-Market Strategy", icon: "🚀" },
-  { key: "branding", label: "Branding Assets", icon: "🎨" },
-  { key: "team_info", label: "Team Information", icon: "👥" },
-  { key: "company_docs", label: "Company Documents", icon: "📁" },
-];
-
-const DOC_CATEGORY_MAP = {
-  pitch_deck: ["pitch_deck", "investment"],
-  business_model_canvas: ["business"],
-  financial_projection: ["financial", "investment"],
-  customer_validation: ["investment", "general"],
-  goto_market: ["investment", "business"],
-  branding: ["brand", "marketing"],
-  team_info: ["general", "legal"],
-  company_docs: ["legal", "general"],
-};
-
+/**
+ * GET /api/ventures/[id]/investment-readiness
+ *
+ * TWO INDICATORS, DELIBERATELY SEPARATE — never one number pretending to be
+ * both (docs: WS4 audit).
+ *
+ *   roadmap_readiness     — how much of the planned journey / milestone / task /
+ *                           deliverable work is complete (30/30/25/15, renormalised
+ *                           over the components the Venture actually defines).
+ *   data_room_readiness   — INVESTMENT READINESS: the Venture's `required` Data
+ *                           Room categories that are filed and verified. Computed
+ *                           by the Data Room's own engine
+ *                           (`computeDataRoomCompleteness`), so this endpoint and
+ *                           the Data Room screen can never disagree.
+ *
+ * The former hard-coded eight-document checklist is GONE. It matched document
+ * categories by substring against a vocabulary the Data Room does not use, so a
+ * Venture filing its documents properly could never satisfy it. The Data Room's
+ * configured requirements replace it, and they are editable per Venture and per
+ * business stage.
+ */
 async function resolveVentureDbId(ventureId) {
   const ventureResult = await getInvestmentReadinessVentureId(ventureId);
   return ventureResult.rows?.[0]?.id || null;
@@ -44,58 +40,17 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-
-    // Fetch all approved/shared documents for this venture
-    const documentsResult = await getVentureInvestmentDocuments(dbId);
-
-    const allDocuments = documentsResult.rows || [];
-
-    // Build the checklist with real document data
-    const checklist = REQUIRED_DOCUMENTS.map(req => {
-      const mappedCategories = DOC_CATEGORY_MAP[req.key] || ["general"];
-      // Find documents matching this category (case-insensitive partial match on name too)
-      const matching = allDocuments.filter(documentRow =>
-        mappedCategories.some(category => (documentRow.category || "").toLowerCase().includes(category.toLowerCase())) ||
-        (documentRow.name || "").toLowerCase().includes(req.key.replace(/_/g, " ")) ||
-        (documentRow.name || "").toLowerCase().includes(req.label.toLowerCase())
-      );
-      const approved = matching.filter(documentRow => documentRow.approval_status === "approved" || documentRow.approval_status === "shared_with_investor");
-      const hasAny = matching.length > 0;
-      const hasApproved = approved.length > 0;
-
-      return {
-        key: req.key,
-        label: req.label,
-        icon: req.icon,
-        status: hasApproved ? "approved" : hasAny ? "submitted" : "missing",
-        documents: matching.map(documentRow => ({ name: documentRow.name, status: documentRow.approval_status })),
-      };
-    });
-
-    const approvedCount = checklist.filter(item => item.status === "approved").length;
-    const totalRequired = checklist.length;
-    const readinessPercent = Math.round((approvedCount / totalRequired) * 100);
-    const isInvestmentReady = readinessPercent === 100;
-    const missing = checklist.filter(item => item.status === "missing");
-    const submitted = checklist.filter(item => item.status === "submitted");
-
-    // Roadmap-derived readiness (Vinance 3 — Phase 3): computed live over the
-    // whole defined Venture progression. Additive cutover — legacy keys above
-    // stay untouched so current consumers keep working unchanged.
-    const roadmap = await computeRoadmapReadiness({ dbId, code: id });
+    const [roadmap, dataRoom] = await Promise.all([
+      computeRoadmapReadiness({ dbId, code: id }),
+      // A failed Data Room read answers null (unknown), never 0% — the screen
+      // shows « — » instead of accusing the Venture of filing nothing.
+      getDataRoomReadiness(id).catch(() => null),
+    ]);
 
     return NextResponse.json({
       success: true,
-      investment_readiness: {
-        checklist,
-        approved_count: approvedCount,
-        total_required: totalRequired,
-        readiness_percent: readinessPercent,
-        is_investment_ready: isInvestmentReady,
-        missing_documents: missing,
-        submitted_documents: submitted,
-      },
       roadmap_readiness: roadmap,
+      data_room_readiness: dataRoom,
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

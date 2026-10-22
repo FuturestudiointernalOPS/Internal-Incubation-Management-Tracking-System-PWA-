@@ -42,7 +42,7 @@ export const POST = createHandler(
     // { title,... } → create section; { section_id, ref_type, ... } → add link
     if (body.section_id && body.ref_type) {
       if (!(await allowsPlanAction(accessGate.access, "edit"))) {
-        return NextResponse.json({ success: false, error: "Not allowed to edit this plan." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.planEditDenied" }, { status: 403 });
       }
       const sectionResult = await venturePlanSectionExists(body.section_id, params.planId);
       if (!sectionResult.rows?.[0]) return NextResponse.json({ success: false, error: "Section not found." }, { status: 404 });
@@ -58,7 +58,7 @@ export const POST = createHandler(
 
     // Create section
     if (!(await allowsPlanAction(accessGate.access, "edit"))) {
-      return NextResponse.json({ success: false, error: "Not allowed to edit this plan." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.planEditDenied" }, { status: 403 });
     }
     const title = String(body.title || "").trim();
     if (!title) return NextResponse.json({ success: false, error: "title is required." }, { status: 400 });
@@ -86,7 +86,7 @@ export const PATCH = createHandler(
     const statusChange = body.status !== undefined;
     const requiredCapability = statusChange ? "manage" : "edit";
     if (!(await allowsPlanAction(accessGate.access, requiredCapability))) {
-      return NextResponse.json({ success: false, error: "Not allowed to update this section." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.planSectionUpdateDenied" }, { status: 403 });
     }
     const updateResult = await updateVenturePlanSection({
       sectionId: section_id,
@@ -115,7 +115,7 @@ export const DELETE = createHandler(
 
     if (body.link_id) {
       if (!(await allowsPlanAction(accessGate.access, "edit"))) {
-        return NextResponse.json({ success: false, error: "Not allowed to edit this plan." }, { status: 403 });
+        return NextResponse.json({ success: false, error: "errors.planEditDenied" }, { status: 403 });
       }
       const linkResult = await getVenturePlanLink(body.link_id, params.planId);
       if (!linkResult.rows?.[0]) return NextResponse.json({ success: false, error: "Link not found." }, { status: 404 });
@@ -125,7 +125,7 @@ export const DELETE = createHandler(
 
     if (!body.section_id) return NextResponse.json({ success: false, error: "section_id or link_id is required." }, { status: 400 });
     if (!(await allowsPlanAction(accessGate.access, "manage"))) {
-      return NextResponse.json({ success: false, error: "Not allowed to delete sections." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.planSectionDeleteDenied" }, { status: 403 });
     }
     await deleteVenturePlanSection(body.section_id, params.planId);
     return NextResponse.json({ success: true });

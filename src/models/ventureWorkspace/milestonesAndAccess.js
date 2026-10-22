@@ -209,7 +209,12 @@ export async function listActiveVentureAssignmentsForAccess(ventureRef, cid) {
 // ── GET /api/ventures/[id]/history ───────────────────────────────────────────
 
 /** Whether a contact is an active member of a Venture (by code or either cid column). */
-export async function isActiveVentureMember(ventureId, cid) {
+export async function isActiveVentureMember(ventureRef, cid) {
+  // `venture_members.venture_id` is a uuid: the VNT code every route and URL
+  // carries must be resolved first, or PostgreSQL rejects the comparison
+  // ("invalid input syntax for type uuid") and the caller's fail-open guard
+  // turns a founder's own Venture into a refusal.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT 1 FROM venture_members WHERE venture_id = ? AND (contact_id = ? OR user_cid = ?) AND removed_at IS NULL LIMIT 1",
     args: [ventureId, cid || "", cid || ""],
@@ -303,12 +308,16 @@ export async function getLiveContactByCid(cid) {
 
 /** An existing active assignment of the same person / responsibility / scope. */
 export async function findDuplicateVentureAssignment({
-  ventureId,
+  ventureId: ventureRef,
   staffContactId,
   responsibilityCode,
   scopeType,
   scopeRefId,
 }) {
+  // venture_staff_assignments is uuid since Phase 0; the route carries the VNT code,
+  // so binding it raw raised "invalid input syntax for type uuid" on the duplicate
+  // check — before the assignment was even attempted.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT 1 FROM venture_staff_assignments
             WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = ?
@@ -320,8 +329,10 @@ export async function findDuplicateVentureAssignment({
 /** Task totals (all + completed) for a venture, the completed statuses injected. */
 export async function countVentureTasksWithCompletedStatuses(dbId, completedStatuses) {
   const completedSet = completedStatuses.map(() => "?").join(", ");
+  // Archived work is not progress: it is hidden from every work list, so it
+  // must not keep dragging the completion figure down here either.
   return db.execute({
-    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ?`,
+    sql: `SELECT COUNT(*) as total, SUM(CASE WHEN status IN (${completedSet}) THEN 1 ELSE 0 END) as done FROM venture_tasks WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE`,
     args: [...completedStatuses, dbId],
   });
 }

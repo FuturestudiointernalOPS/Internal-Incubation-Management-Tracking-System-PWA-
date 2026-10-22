@@ -206,6 +206,7 @@
       "kpiSignoff": "En attente de signature",
       "kpiSessionsWeek": "Séances cette semaine",
       "kpiReports": "Rapports de Parcours dus",
+      "overviewTitle": "Vue d'ensemble",
       "blockedHint": "Bloqués : {names}",
       "queueTitle": "À traiter",
       "queueEmpty": "Rien d'urgent sur vos Ventures.",

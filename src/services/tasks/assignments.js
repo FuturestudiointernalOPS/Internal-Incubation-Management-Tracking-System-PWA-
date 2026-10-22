@@ -59,7 +59,7 @@ export async function listTaskAssignments({
     role,
     sessionCid,
     requestedCid,
-    denialMessage: "You can only view your own assignments.",
+    denialMessage: "errors.ownAssignmentsViewOnly",
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -99,11 +99,11 @@ export async function respondToTaskAssignment({
       return { status: 400, error: "new_assignee_id required for reassign" };
     }
     if (role !== "super_admin" && assignment.assigner_id !== userCid) {
-      return { status: 403, error: "Only the assigner can reassign" };
+      return { status: 403, error: "errors.notAssigner" };
     }
   } else if (assignment.assignee_id !== userCid) {
     // Accept/decline: only the assignee can respond.
-    return { status: 403, error: "Only the assignee can respond" };
+    return { status: 403, error: "errors.notAssignee" };
   }
 
   const taskResult = await getTaskAssignmentMeta(assignment.task_id);
@@ -167,7 +167,7 @@ export async function respondToTaskAssignment({
       if (!groupCheck.allowed) {
         return {
           status: 403,
-          error: `Cannot reassign outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+          error: "errors.assignmentOutsideGroup",
         };
       }
     }
@@ -231,7 +231,7 @@ export async function respondToPendingAssignment({
   if (String(assignment.assignee_id) !== String(sessionCid)) {
     return {
       status: 403,
-      error: "You can only respond to your own assignments.",
+      error: "errors.ownAssignmentsOnly",
     };
   }
 

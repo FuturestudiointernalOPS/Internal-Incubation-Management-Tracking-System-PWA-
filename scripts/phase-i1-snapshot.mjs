@@ -22,7 +22,6 @@ const TABLES = {
   v2_teams: "id, program_id, name, handler_id, leader_id, venture_id, team_type, is_venture_ready",
   lms_enrollments: "*",
   user_responsibilities: "*",
-  role_capabilities: "*",
   responsibilities: "id, key, name, allowed_roles",
 };
 try {

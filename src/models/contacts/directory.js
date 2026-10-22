@@ -36,10 +36,11 @@ export async function getContactsForSuperAdmin(roleFilter, statusFilter, groupFi
   return db.execute({ sql, args });
 }
 
-/** Directory for staff (active only; PMs also see pending). */
-export async function getContactsForStaff(role, groupFilter) {
-  const statusClause =
-    role === "program_manager" ? "status IN ('active', 'pending')" : "status = 'active'";
+/** Directory for staff (active only; program managers also see pending). */
+export async function getContactsForStaff(includePending, groupFilter) {
+  const statusClause = includePending
+    ? "status IN ('active', 'pending')"
+    : "status = 'active'";
   let sql =
     `SELECT * FROM contacts WHERE archived_at IS NULL AND deleted_at IS NULL AND ${statusClause}`;
   const args = [];

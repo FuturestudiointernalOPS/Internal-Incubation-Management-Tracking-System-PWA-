@@ -14,7 +14,7 @@ import { resolve } from "node:path";
 import pg from "pg";
 
 const { FEATURE_ELIGIBILITY_DEFAULTS } = await import(
-  "../src/models/authorization/eligibility-defaults.js"
+  "../src/models/authorization/constants/eligibility-defaults.js"
 );
 
 const CANONICAL = Object.keys(FEATURE_ELIGIBILITY_DEFAULTS);

@@ -228,7 +228,7 @@ describe("user-context — the projection is the resolver's, unchanged", () => {
     const body = await (await userContextRoute.GET(ctxReq("?cid=C1"))).json();
     expect(body.scope).toEqual({
       engine: "implemented",
-      note: "venture_own · program_assigned · learning_own (team_own pending)",
+      note: "venture_own · program_assigned · learning_own",
     });
   });
 
@@ -369,11 +369,19 @@ describe("context-grants-sweep — the shared-secret guard", () => {
     restore();
   });
 
-  test("the authorized sweep returns the reconcile report verbatim", async () => {
+  test("the authorized sweep returns the reconcile report plus the read-only coherence check", async () => {
     const { route, restore } = await loadSweepRoute("s3cret");
     const res = await route.POST(postReq({ header: "s3cret" }));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual(mockState.sweepReport);
+    expect(await res.json()).toEqual({
+      ...mockState.sweepReport,
+      coherence: {
+        coherent: true,
+        brokenCards: 0,
+        profiles: [],
+        orphanCapabilities: [],
+      },
+    });
     restore();
   });
 

@@ -32,7 +32,7 @@ beforeEach(() => resetState());
 
 describe("planContextGrantChanges — expiry is part of the comparison", () => {
   const desired = {
-    "facilitator.groups.view": { module: "facilitator", capability: "groups.view", level: 1 },
+    "facilitator.attendance.view": { module: "facilitator", capability: "attendance.view", level: 1 },
   };
 
   test("a row whose level AND expiry already match is left alone", () => {
@@ -41,7 +41,7 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
       existing: [
         {
           module: "facilitator",
-          capability: "groups.view",
+          capability: "attendance.view",
           access_level: 1,
           granted_by: FACILITATOR_SENTINEL,
           expires_at: "2026-06-30",
@@ -59,7 +59,7 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
       existing: [
         {
           module: "facilitator",
-          capability: "groups.view",
+          capability: "attendance.view",
           access_level: 1,
           granted_by: FACILITATOR_SENTINEL,
           expires_at: "2026-06-30",
@@ -78,7 +78,7 @@ describe("planContextGrantChanges — expiry is part of the comparison", () => {
       existing: [
         {
           module: "facilitator",
-          capability: "groups.view",
+          capability: "attendance.view",
           access_level: 1,
           granted_by: "USER_SA",
           expires_at: null,
@@ -95,16 +95,16 @@ describe("eligibility ceiling — the assignment grant must not be dead on arriv
   const {
     FEATURE_ELIGIBILITY_DEFAULTS,
     FEATURE_ELIGIBILITY_PROFILE_DEFAULTS,
-  } = require("@/models/authorization/eligibility-defaults");
+  } = require("@/models/authorization/constants");
   const { RESPONSIBILITY_FEATURE_ROLES } = require("@/lib/featureAccess");
 
   test("the programs feature is eligible for the contextual identities", () => {
     // A facilitator is a baseline Member with the facilitator PROFILE (Phase H),
-    // so the role list carries `member` and the profile list carries
-    // `facilitator`; without the ceiling row the resolver refuses BEFORE reading
-    // the grant.
+    // so the role list carries `member`; the profile list carries the contextual
+    // program identities (program_manager, participant). Without the ceiling row
+    // the resolver refuses BEFORE reading the grant.
     expect(FEATURE_ELIGIBILITY_DEFAULTS.programs).toContain("member");
-    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("facilitator");
+    expect(FEATURE_ELIGIBILITY_PROFILE_DEFAULTS.programs).toContain("program_manager");
   });
 
   test("the responsibility defaults stay in exact sync (they share one source)", () => {

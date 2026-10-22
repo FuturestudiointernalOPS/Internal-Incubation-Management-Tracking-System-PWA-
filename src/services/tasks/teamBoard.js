@@ -27,7 +27,7 @@
  */
 
 import { getSession } from "@/server/auth/session";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { getTeamById } from "@/models/teams";
 import {
   getTeamTasks,
@@ -89,7 +89,7 @@ export async function resolveTeamBoardScope(teamId) {
     return String(teamId) === String(session.cid) ? ALLOW : deny(404, "errors.notFound");
   }
 
-  if (hasProgramManagementAccess(session.role)) return ALLOW;
+  if (await isProgramManagerSession(session)) return ALLOW;
 
   const teamRow = (await getTeamById(teamId))?.rows?.[0];
   if (!teamRow) return deny(404, "errors.notFound");

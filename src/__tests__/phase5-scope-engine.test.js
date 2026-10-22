@@ -68,10 +68,12 @@ describe("Phase 5 — catalogue & decision contract", () => {
     }
   });
 
-  test("team_own is declared but explicitly unimplemented (visible gap, fail-closed)", () => {
+  test("a retired/unknown policy is unsupported (D9 retired team_own)", () => {
+    // Phase 7 (D9) retired `team_own` from the vocabulary: it is now simply an
+    // unknown key, exactly like any other, and resolves to DENY (fail-closed).
+    expect(SCOPE_POLICIES.team_own).toBeUndefined();
     expect(isScopePolicyImplemented("team_own")).toBe(false);
-    expect(typeof SCOPE_POLICIES.team_own.source).toBe("string");
-    expect(SCOPE_POLICIES.team_own.source.length).toBeGreaterThan(10);
+    expect(isScopePolicyImplemented("no_such_policy")).toBe(false);
   });
 
   test("implemented policies cover venture / program / learning", () => {
@@ -94,7 +96,7 @@ describe("Phase 5 — catalogue & decision contract", () => {
     expect(
       evaluateScopeDecision({
         capabilityHeld: true,
-        policyKey: "team_own",
+        policyKey: "no_such_policy",
         withinScope: true,
       }),
     ).toEqual({ allowed: false, reason: SCOPE_DECISION_REASONS.POLICY_UNSUPPORTED });
@@ -136,18 +138,22 @@ describe("Phase 5 — data-layer predicates", () => {
     expect(query.args).toEqual(["C1", "C1", "C1"]);
   });
 
-  test("resolveVentureScopeId normalizes UUID → VNT code (fail-soft, never false-allow)", async () => {
-    // A canonical code passes through without a lookup.
+  test("resolveVentureScopeId normalises to the INTERNAL id (fail-soft, never false-allow)", async () => {
+    // The canonical scope key is the internal id: since Phase 0 the membership and
+    // assignment tables store it, and getVentureOwnScopeIds() returns it. This used
+    // to normalise to the VNT code, which after the migration matched nothing — a
+    // founder or a delegated manager was "out of scope" on every route.
     mockExecuted.length = 0;
-    expect(await resolveVentureScopeId("VNT-123")).toBe("VNT-123");
-    expect(mockExecuted).toHaveLength(0);
+    mockRows = [{ id: "34314a8b-044a-41ce-99ab-88d22413bd4c" }];
+    expect(await resolveVentureScopeId("VNT-123")).toBe("34314a8b-044a-41ce-99ab-88d22413bd4c");
+    expect(mockExecuted[0].sql).toContain("FROM ventures WHERE venture_id = ? OR id::text = ?");
 
-    // A UUID is resolved to the code.
-    mockRows = [{ venture_id: "VNT-123" }];
-    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("VNT-123");
-    expect(mockExecuted[0].sql).toContain("FROM ventures WHERE id::text = ?");
+    // An internal id resolves to itself through the same statement.
+    mockExecuted.length = 0;
+    mockRows = [{ id: "9f1c-uuid" }];
+    expect(await resolveVentureScopeId("9f1c-uuid")).toBe("9f1c-uuid");
 
-    // Unresolvable / error / empty → raw value or null (predicate then denies).
+    // Unresolvable / error / empty → raw value or null (the predicate then denies).
     mockRows = [];
     expect(await resolveVentureScopeId("9f1c-uuid")).toBe("9f1c-uuid");
     mockThrow = true;
@@ -246,12 +252,12 @@ describe("GET /api/engineering/permissions/scope-check", () => {
     expect(secondPayload.within_scope).toBe(false);
   });
 
-  test("unimplemented policy reports the honest state (no silent allow)", async () => {
+  test("the retired `team_own` policy is refused as unknown (D9 — no silent allow)", async () => {
+    // Phase 7 (D9) retired `team_own`: the bench no longer lists it, so it is
+    // rejected like any unknown policy rather than reported as a declared gap.
     const res = await route.GET(getReq("policy=team_own&cid=C1&resource_id=T1"));
+    expect(res.status).toBe(400);
     const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.implemented).toBe(false);
-    expect(data.within_scope).toBe(false);
-    expect(data.resolved_count).toBe(0);
+    expect(data.success).toBe(false);
   });
 });

@@ -129,7 +129,8 @@ export async function insertAssignment({ ventureId: ventureRef, staffContactId, 
   return db.execute({
     sql: `INSERT INTO venture_staff_assignments
           (venture_id, staff_contact_id, responsibility_code, scope_type, scope_ref_type, scope_ref_id, assigned_by, notes)
-          VALUES (?,?,?,?,?,?,?,?)`,
+          VALUES (?,?,?,?,?,?,?,?)
+          RETURNING id`,
     args: [ventureId, staffContactId, responsibilityCode, scopeType, scopeRefType, scopeRefId, assignedBy, notes],
   });
 }
@@ -138,6 +139,18 @@ export async function insertAssignment({ ventureId: ventureRef, staffContactId, 
 export function removeAssignmentRow(id) {
   return db.execute({
     sql: "UPDATE venture_staff_assignments SET status = 'removed', removed_at = NOW() WHERE id = ? AND status = 'active'",
+    args: [id],
+  });
+}
+
+/**
+ * One assignment row by id — read BEFORE a removal, so the caller still knows who
+ * held it and which responsibility is going away (the profile grant depends on it).
+ */
+export function selectAssignmentRow(id) {
+  return db.execute({
+    sql: `SELECT id, venture_id::text AS venture_db_id, staff_contact_id, responsibility_code, status
+            FROM venture_staff_assignments WHERE id = ?`,
     args: [id],
   });
 }

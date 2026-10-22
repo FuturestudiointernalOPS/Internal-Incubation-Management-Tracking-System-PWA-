@@ -157,13 +157,15 @@ export const pickAssignments = (payload) => {
   });
 };
 
+import { isPlatformOwnerRole } from "@/lib/identity";
+
 /** The Future Studio staff the collaborator picker offers. */
 export const pickStudioStaff = (payload) =>
   (payload?.success ? payload.contacts || [] : [])
     .filter(
       (contact) =>
         contact.status === "active" &&
-        contact.role !== "super_admin" &&
+        !isPlatformOwnerRole(contact.role) &&
         contact.group_name?.toUpperCase() === "FUTURE STUDIO",
     )
     .map((contact) => ({

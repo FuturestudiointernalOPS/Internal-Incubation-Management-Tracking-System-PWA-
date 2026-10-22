@@ -73,7 +73,7 @@ test("a contact override resolves through its PROFILE KEY", async () => {
   expect(mockReads.resolveContactBaseProfile).toHaveBeenCalledWith({
     profileKey: "founder",
   });
-  expect(mockState.baseArgs).toEqual({ profileKey: "founder", role: "member" });
+  expect(mockState.baseArgs).toEqual({ profileKey: "founder" });
   expect(ctx.profile).toMatchObject({
     profileKey: "founder",
     profileName: "Founder",
@@ -87,10 +87,7 @@ test("a role default resolves through its PROFILE KEY", async () => {
 
   const ctx = await resolveAuthorizationContext({ cid: "C2", role: "staff" });
 
-  expect(mockState.baseArgs).toEqual({
-    profileKey: "staff_default",
-    role: "staff",
-  });
+  expect(mockState.baseArgs).toEqual({ profileKey: "staff_default" });
   expect(ctx.profile).toMatchObject({
     profileKey: "staff_default",
     profileName: "Staff Default",
@@ -100,24 +97,24 @@ test("a role default resolves through its PROFILE KEY", async () => {
 
 test("a legacy-only override no longer resolves (the fallback is gone)", async () => {
   // The person keeps an old access-profile id but no profile key. The legacy
-  // path is retired, so no override profile is read and the identity falls
-  // through to its role capabilities.
+  // path is retired, so no override profile is read and the identity has no
+  // base capabilities at all.
   mockState.contact = { cid: "C3", access_profile_id: 9 };
 
   const ctx = await resolveAuthorizationContext({ cid: "C3", role: "member" });
 
   expect(mockReads.resolveContactBaseProfile).not.toHaveBeenCalled();
-  expect(mockState.baseArgs).toEqual({ profileKey: null, role: "member" });
-  expect(ctx.profile.profileSource).toBe("legacy");
+  expect(mockState.baseArgs).toEqual({ profileKey: null });
+  expect(ctx.profile.profileSource).toBe("none");
   expect(ctx.profile.profileKey).toBeNull();
   expect(ctx.profile.profileName).toBeNull();
 });
 
-test("a profile-less identity falls through to the role capabilities", async () => {
+test("a profile-less identity has no base capabilities", async () => {
   mockState.contact = { cid: "C4" };
 
   const ctx = await resolveAuthorizationContext({ cid: "C4", role: "member" });
 
-  expect(mockState.baseArgs).toEqual({ profileKey: null, role: "member" });
-  expect(ctx.profile.profileSource).toBe("legacy");
+  expect(mockState.baseArgs).toEqual({ profileKey: null });
+  expect(ctx.profile.profileSource).toBe("none");
 });

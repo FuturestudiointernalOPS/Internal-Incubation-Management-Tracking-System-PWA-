@@ -1,17 +1,19 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { requireVentureAccess, isStaffActorForVenture } from "@/lib/ventureAuth";
+import { isStaffActorForVenture } from "@/lib/ventureAuth";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { submitFeedback, getFeedback, listFeedback, deleteFeedback, getMentorAnalytics, getSessionAnalytics, getFeedbackAnalytics } from "@/services/ventures/feedback";
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
+  if (access.error) return access.error;
+  const { session } = access;
   // Mentor analytics (list + analytics_*) are staff instruments. Founder rating
   // submission stays open via POST (founder_cid-scoped), but reading the full
   // feedback/analytics feed requires staff access on the Venture.
   if (!(await isStaffActorForVenture(id, session))) {
-    return NextResponse.json({ success: false, error: "This operation requires staff access to the Venture." }, { status: 403 });
+    return NextResponse.json({ success: false, error: "errors.ventureStaffOnly" }, { status: 403 });
   }
   const searchParams = new URL(req.url).searchParams;
   const type = searchParams.get("type") || "list";
@@ -52,8 +54,8 @@ export const GET = createHandler(async (req, { params }) => {
 
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
-  const { session } = await requireVentureAccess(id);
-  if (!session) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
   const body = await req.json();
 
   if (body.action === "submit") {

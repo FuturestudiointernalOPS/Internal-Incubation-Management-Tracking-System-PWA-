@@ -11,6 +11,8 @@ const {
   PASSWORD_HASH_ROUNDS,
   hashPassword,
   verifyPassword,
+  isLegacyClearPassword,
+  verifyPasswordOrUpgradeLegacy,
 } = require("@/server/auth/password");
 
 describe("password hashing", () => {
@@ -51,5 +53,51 @@ describe("password hashing", () => {
     await verifyPassword("plain", "not-a-hash").catch(() => {});
     expect(compare).toHaveBeenCalledWith("plain", "not-a-hash");
     compare.mockRestore();
+  });
+});
+
+describe("SECRET-1 — legacy clear-text upgrade on login", () => {
+  it("flags non-bcrypt stored values as legacy", () => {
+    expect(isLegacyClearPassword("hunter2")).toBe(true);
+    expect(isLegacyClearPassword("$2b$10$abcdef")).toBe(false);
+    expect(isLegacyClearPassword("")).toBe(false);
+    expect(isLegacyClearPassword(null)).toBe(false);
+    expect(isLegacyClearPassword(undefined)).toBe(false);
+  });
+
+  it("verifies a bcrypt hash without ever upgrading", async () => {
+    const upgrade = jest.fn();
+    const hash = await hashPassword("s3cret", { rounds: 4 });
+    await expect(verifyPasswordOrUpgradeLegacy("s3cret", hash, { upgrade })).resolves.toBe(true);
+    await expect(verifyPasswordOrUpgradeLegacy("nope", hash, { upgrade })).resolves.toBe(false);
+    expect(upgrade).not.toHaveBeenCalled();
+  });
+
+  it("accepts a legacy clear-text value ONCE and upgrades it to a hash", async () => {
+    const upgrade = jest.fn(async () => {});
+    await expect(
+      verifyPasswordOrUpgradeLegacy("hunter2", "hunter2", { upgrade }),
+    ).resolves.toBe(true);
+    expect(upgrade).toHaveBeenCalledTimes(1);
+    const hashed = upgrade.mock.calls[0][0];
+    expect(hashed.startsWith("$2")).toBe(true);
+    await expect(verifyPassword("hunter2", hashed)).resolves.toBe(true);
+  });
+
+  it("refuses a wrong legacy value without upgrading", async () => {
+    const upgrade = jest.fn();
+    await expect(
+      verifyPasswordOrUpgradeLegacy("wrong", "hunter2", { upgrade }),
+    ).resolves.toBe(false);
+    expect(upgrade).not.toHaveBeenCalled();
+  });
+
+  it("still succeeds when the upgrade write fails", async () => {
+    const upgrade = jest.fn(async () => {
+      throw new Error("db down");
+    });
+    await expect(
+      verifyPasswordOrUpgradeLegacy("hunter2", "hunter2", { upgrade }),
+    ).resolves.toBe(true);
   });
 });

@@ -15,7 +15,6 @@ export const dynamic = "force-dynamic";
  */
 
 export const GET = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (req) => {
     const authError = await requireAuthorization("crm", "view");
     if (authError) return authError;
@@ -36,7 +35,6 @@ export const GET = createHandler(
 );
 
 export const POST = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (req) => {
     const authError = await requireAuthorization("crm", "create");
     if (authError) return authError;

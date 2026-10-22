@@ -14,7 +14,7 @@ export const POST = createHandler(
   async (req) => {
     await initDb();
     const session = await getSession();
-    if (!session?.cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session?.cid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const body = await req.json();
     if (!body.template_id || !body.venture) {
       return NextResponse.json({ success: false, error: "template_id and venture are required." }, { status: 400 });
@@ -23,7 +23,7 @@ export const POST = createHandler(
     const access = await resolvePlanAccess(body.venture, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "create"))) {
-      return NextResponse.json({ success: false, error: "Your assignment does not allow creating operating plans." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.operatingPlansCreateDenied" }, { status: 403 });
     }
 
     const result = await applyTemplateToVenture({

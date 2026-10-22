@@ -394,7 +394,7 @@ export default function VentureReportsPage() {
               <p className="text-sm text-[var(--text-secondary)] text-center py-8">{t("vadmin.reports.noJourneyData")}</p>
             ) : (() => {
               const jp = journeyReport.journey_progression || {};
-              const overdueCount = (journeyReport.overdue || []).length;
+              const overdueCount = journeyReport.overdue_total ?? (journeyReport.overdue || []).length;
               const upcomingSessions = journeyReport.sessions?.upcoming || 0;
               const responsibilities = journeyReport.support?.responsibilities || [];
               return (

@@ -32,6 +32,12 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn(),
 }));
 
+// The document-type READ moved to the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  __esModule: true,
+  requireVentureScopedAccess: jest.fn(),
+}));
+
 jest.mock("@/services/ventures/operatingPlans", () => ({
   __esModule: true,
   resolveVentureCode: jest.fn(async (id) => id),
@@ -50,6 +56,8 @@ jest.mock("@/models/ventureDocumentTypesStore", () => ({
 
 const { getSession } = require("@/server/auth/session");
 const { requireVentureAccess } = require("@/lib/ventureAuth");
+const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
+const { refusalResponse } = require("@/server/http/refusal");
 const model = {
   ...require("@/services/ventures/ventureDocumentTypes"),
   ...require("@/models/ventureDocumentTypesStore"),
@@ -73,15 +81,24 @@ beforeEach(() => {
   model.listVentureDocumentTypes.mockResolvedValue([]);
   getSession.mockResolvedValue({ cid: "USR-1", role: "staff" });
   requireVentureAccess.mockResolvedValue({ ventureId: VENTURE, session: { cid: "USR-1", role: "staff" } });
+  requireVentureScopedAccess.mockResolvedValue({
+    session: { cid: "USR-1", role: "staff" },
+  });
 });
 
 describe("GET — the same door as the Venture itself", () => {
   test("a reader who may not see the Venture is refused before anything is read", async () => {
-    requireVentureAccess.mockResolvedValue({ ventureId: VENTURE, session: null });
+    requireVentureScopedAccess.mockResolvedValue({
+      error: refusalResponse({
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+      }),
+    });
 
     const res = await listTypes(new Request(url), ctx);
 
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ error: "errors.insufficientPermissions" });
     expect(model.listVentureDocumentTypes).not.toHaveBeenCalled();
   });
 

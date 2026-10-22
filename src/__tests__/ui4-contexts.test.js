@@ -214,22 +214,17 @@ describe("UI-4c — the screens use them", () => {
     expect(src).toContain("identityGroups:");
   });
 
-  test("Individual Access renders the contexts panel", () => {
-    const src = read("src/components/permissions/people-view/PeopleContextsCard.js");
-    expect(src).toContain("peopleContextsTitle");
-    expect(src).toContain("contextKind_");
-    expect(src).toContain("peopleContextsPartial");
+  test("the person detail renders the contexts panel", () => {
+    const src = read("src/components/permissions/center/sections/PersonDetail.js");
+    expect(src).toContain("context.contexts");
+    expect(src).toContain("center.noContexts");
   });
 
   test("the eligibility matrix lists baseline roles and profiles", () => {
-    // Pinned to the file that owns the behaviour: EligibilityView was extracted
-    // out of PermissionCenter.js, so reading the shim would pass vacuously.
-    const center = read("src/components/permissions/permission-center/EligibilityView.js");
-    // The matrix rows are the baseline roles + the profiles.
-    expect(center).toContain("matrixRoles");
-    expect(center).toContain("matrixProfiles");
-    // No database-found role rows any more.
-    expect(center).not.toContain("extraRoles");
+    const rules = read("src/components/permissions/center/sections/RulesSection.js");
+    expect(rules).toContain("eligibility?.roles");
+    expect(rules).toContain("eligibility?.profiles");
+    expect(rules).toContain("eligibilityProfileTag");
   });
 
   test("every new string exists in English and French", () => {

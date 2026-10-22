@@ -118,7 +118,7 @@ describe("getFeatureEligibilityRows", () => {
   });
 });
 
-// ── Decision: OR semantics, deny still wins ──────────────────────────────────
+// ── Decision: OR semantics (D4 union of the identities) ─────────────────────
 
 describe("evaluateEligibility with profile rows", () => {
   test("a plain member is refused a feature only the Founder profile opens", () => {
@@ -132,12 +132,12 @@ describe("evaluateEligibility with profile rows", () => {
     expect(evaluateEligibility(rows, "ventures")).toBe(true);
   });
 
-  test("an explicit deny on the profile still wins over a role allow", () => {
+  test("D4 union: a role allow stands even when the profile explicitly denies", () => {
     const rows = [
       { feature_key: "ventures", identity_type: "role", identity_value: "member", eligible: 1 },
       { feature_key: "ventures", identity_type: "profile", identity_value: "founder", eligible: 0 },
     ];
-    expect(evaluateEligibility(rows, "ventures")).toBe(false);
+    expect(evaluateEligibility(rows, "ventures")).toBe(true);
   });
 });
 

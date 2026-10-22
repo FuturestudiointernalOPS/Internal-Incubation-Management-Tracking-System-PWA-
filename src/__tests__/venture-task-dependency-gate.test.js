@@ -98,7 +98,7 @@ describe("a founder never moves a task's status", () => {
     mockRole = "founder";
     const res = await PATCH(patchReq({ status }), ctx);
     expect(res.status).toBe(403);
-    expect((await res.json()).error).toMatch(/Future Studio staff/);
+    expect((await res.json()).error).toBe("errors.taskStatusInternalOnly");
     expect(updateTask).not.toHaveBeenCalled();
   });
 

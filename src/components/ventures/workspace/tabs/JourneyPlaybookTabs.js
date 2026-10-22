@@ -466,6 +466,3 @@ export function JourneyTab() {
   );
 }
 
-// The Business Model tab lives in its own file; re-exported here so the
-// participant venture page keeps importing both tabs from this module.
-export { BusinessModelTab } from "@/components/ventures/journey/BusinessModelTab";

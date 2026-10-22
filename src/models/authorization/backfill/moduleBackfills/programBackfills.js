@@ -22,7 +22,7 @@ import { profileKeyForAccessProfileName } from "@/models/authorization/profileTa
 //                                    SA holds delete — same as today's V2)
 //
 // Backfills: staff gets programs.edit (Staff Default profile and
-// role_capabilities). Program Manager already holds edit via its
+// profiles). Program Manager already holds edit via its
 // profile. Zero gains: the only routes enforcing programs.edit are these,
 // where staff were already allowed via the bypass.
 //
@@ -38,9 +38,6 @@ const PROGRAMS_BACKFILL = {
   profiles: {
     "Staff Default": [["programs", "edit", 3]],
     Instructor: [["programs", "edit", 3]],
-  },
-  roles: {
-    staff: [["programs", "edit", 3]],
   },
 };
 
@@ -59,17 +56,6 @@ async function ensureProgramsBackfill() {
       });
     }
   }
-
-  for (const [role, rows] of Object.entries(PROGRAMS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
-      });
-    }
-  }
 }
 
 // ─── Phase 10: Ventures (CRUD only) ─────────────────────────────────────────
@@ -81,26 +67,22 @@ async function ensureProgramsBackfill() {
 //   ventures/[id] PATCH → ventures.edit   (allowlist: super_admin — same)
 //
 // Backfills: staff + program_manager get ventures.create (Staff Default +
-// Program Manager profiles and role_capabilities). Zero gains: the only
+// Program Manager profiles). Zero gains: the only
 // ventures.create-enforced route is POST, where both roles are already
 // allowed; ventures/register stays role-gated (staff would gain it via
 // create — a separate decision).
 //
-// Deliberately NOT migrated: the ~55 membership-scoped sub-routes
-// (requireVentureAccess — founders and venture members working in their own
-// venture workspace) and the broad read allowlists (participant/founder). Capability cannot express per-venture membership; the
-// scoped guard is the real gate there, exactly like projects GET/PUT and the
-// facilitator routes.
+// Deliberately NOT migrated: the ~55 membership-scoped sub-routes (founders and
+// venture members working in their own venture workspace) and the broad read
+// allowlists (participant/founder). Capability cannot express per-venture
+// membership; the scoped guard (requireVentureScopedAccess) is the real gate
+// there, exactly like projects GET/PUT and the facilitator routes.
 
 const VENTURES_BACKFILL = {
   eligibility: { ventures: ["super_admin", "staff", "program_manager"] },
   profiles: {
     "Staff Default": [["ventures", "create", 2]],
     "Program Manager": [["ventures", "create", 2]],
-  },
-  roles: {
-    staff: [["ventures", "create", 2]],
-    program_manager: [["ventures", "create", 2]],
   },
 };
 
@@ -129,17 +111,6 @@ async function ensureVenturesBackfill() {
               VALUES (?, ?, ?, ?)
               ON CONFLICT (profile_key, module, capability) DO NOTHING`,
         args: [key, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(VENTURES_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
       });
     }
   }

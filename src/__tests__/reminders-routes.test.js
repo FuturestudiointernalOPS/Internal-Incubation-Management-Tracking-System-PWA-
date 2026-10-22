@@ -58,7 +58,12 @@ jest.mock("@/services/reminders/engine", () => ({
   sendManualReminder: (...args) => mockSendManual(...args),
 }));
 
+jest.mock("@/services/ventures/schema", () => ({
+  ensureVentureSchema: jest.fn(async () => {}),
+}));
+
 const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
+const { ensureVentureSchema } = require("@/services/ventures/schema");
 const { upsertAssigneeEmail, deleteAssigneeEmail } = require("@/models/ventureAssigneeEmails");
 const { insertReminderRule, deleteReminderRule } = require("@/models/ventureReminders");
 
@@ -137,6 +142,15 @@ describe("reading", () => {
 });
 
 describe("sending", () => {
+  test("the send heals the reminder schema before it writes the log", async () => {
+    // The content columns (subject/body/attachment) live in ensureVentureSchema(),
+    // which no reminder path used to run — the INSERT failed with
+    // `column "subject" of relation "venture_reminder_log" does not exist`.
+    await callRoute({ method: "POST", body: { action: "send", work_item: "activity:41" } });
+
+    expect(ensureVentureSchema).toHaveBeenCalledTimes(1);
+  });
+
   test("a manual reminder for a work item of THIS Venture is sent", async () => {
     const body = await (await callRoute({ method: "POST", body: { action: "send", work_item: "activity:41" } })).json();
 

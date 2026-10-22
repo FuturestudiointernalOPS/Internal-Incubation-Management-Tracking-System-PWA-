@@ -14,6 +14,29 @@ import {
   selectContactsByCids,
 } from "@/models/lms/learningStore";
 
+/**
+ * Phase 8 — the LEARNER trigger, made INLINE (spec §8.2).
+ *
+ * An LMS enrollment is the business relation that justifies the `learner`
+ * profile in the lms context. It had no inline call either, so the card only
+ * appeared at the next connect / sweep. Best-effort: a reconcile failure never
+ * fails the enrollment.
+ */
+async function reconcileLearnerContextGrants(cid) {
+  if (!cid) return;
+  try {
+    const { syncContextGrantsForUser } = await import(
+      "@/services/authorization/contextGrants"
+    );
+    await syncContextGrantsForUser(cid, { context: "lms", roleKey: "learner" });
+  } catch (error) {
+    console.error(
+      `[lms] learner access reconcile failed for ${cid}:`,
+      error.message,
+    );
+  }
+}
+
 export async function enrollLearner({ courseId, userCid, userEmail, source }) {
   const course = await getCourse(courseId);
   if (!course) throw new LmsError("lms.errors.courseNotFound", 404);
@@ -27,6 +50,7 @@ export async function enrollLearner({ courseId, userCid, userEmail, source }) {
   if (!cid) throw new LmsError("lms.errors.userNotFound", 400);
 
   await insertEnrollment(courseId, cid, source);
+  await reconcileLearnerContextGrants(cid);
   return { success: true, courseId, userCid: cid };
 }
 

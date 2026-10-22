@@ -77,7 +77,7 @@ export async function applyAssignmentChange(patch, {
         pendingAssignmentCreated,
         failure: {
           status: 403,
-          error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+          error: "errors.assignmentOutsideGroup",
         },
       };
     }

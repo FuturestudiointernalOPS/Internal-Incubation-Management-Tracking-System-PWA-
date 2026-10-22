@@ -16,7 +16,7 @@ export const GET = createHandler(
 
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -25,7 +25,7 @@ export const GET = createHandler(
     const canRead = await canReadStartupProfile(id, session);
     if (!canRead) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized to view this startup profile." },
+        { success: false, error: "errors.startupProfileAccessDenied" },
         { status: 403 },
       );
     }
@@ -62,7 +62,7 @@ export const PATCH = createHandler(
 
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }
@@ -71,7 +71,7 @@ export const PATCH = createHandler(
     const canEdit = await canEditStartupProfile(id, session);
     if (!canEdit) {
       return NextResponse.json(
-        { success: false, error: "Unauthorized to edit this startup profile." },
+        { success: false, error: "errors.startupProfileAccessDenied" },
         { status: 403 },
       );
     }

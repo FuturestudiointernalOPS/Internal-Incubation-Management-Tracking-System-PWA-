@@ -47,7 +47,8 @@ export async function GET(req) {
     const sessionCid = session?.cid || null;
 
     // The program-scope decision (relationship-derived, fail-closed) lives in
-    // the workspace service — see src/services/workspace/calendar.js.
+    // the workspace service — see src/services/workspace/calendar.js. That is
+    // the permission decision for this route (declared as delegated).
     const { programScopeSql, programTableScopeSql, programScopeArgs } =
       await resolveCalendarProgramScope(sessionCid, session?.role);
     const { searchParams } = new URL(req.url);

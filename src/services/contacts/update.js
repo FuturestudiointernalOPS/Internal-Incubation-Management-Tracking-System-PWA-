@@ -26,6 +26,7 @@ import {
   getContactIdentityByCid,
   markAdminNotificationsRead,
 } from "@/models/contacts/contactStore";
+import { logPermissionAudit } from "@/models/authorization/accessQueries";
 
 /** Roles that are not participants: promoting to one drops the enrollment. */
 const NON_PARTICIPANT_ROLES = [
@@ -94,6 +95,43 @@ export function buildContactUpdate({ data, canAssignRole, actor }) {
 
   args.push(data.cid);
   return { fieldsToUpdate, args };
+}
+
+/**
+ * §12.1 — audit a GLOBAL role change made through the standard contacts update.
+ *
+ * The Permission Center path (`permissionWrites` set_role) already writes a
+ * `role_changed` entry; this standard screen did not, so a role could change
+ * with no trace in `permission_audit_log`. The SAME entry shape is written here
+ * so the history reads the same whichever screen made the change.
+ *
+ * Best-effort: the role write already happened, so a failed audit must never
+ * fail the update (it is logged and swallowed).
+ *
+ * @param {{session?: object, cid: string, targetName?: string|null,
+ *          previousRole?: string|null, newRole: string}} args
+ */
+export async function recordRoleChangeAudit({
+  session,
+  cid,
+  targetName = null,
+  previousRole = null,
+  newRole,
+}) {
+  try {
+    await logPermissionAudit({
+      actorCid: session?.cid || null,
+      actorName: session?.name || session?.email || null,
+      targetCid: String(cid),
+      targetName: targetName ? String(targetName) : String(cid),
+      action: "role_changed",
+      previousValue: previousRole || "none",
+      newValue: String(newRole),
+      details: `Role changed to ${newRole}`,
+    });
+  } catch (error) {
+    console.error(`[contacts] role change audit failed for ${cid}:`, error.message);
+  }
 }
 
 /** Which program-sync branch this update falls into. */

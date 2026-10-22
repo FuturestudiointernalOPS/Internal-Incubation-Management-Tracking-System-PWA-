@@ -13,7 +13,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { deriveProfileBadges } = require("@/components/permissions/profileBadges");
-const { PROTOTYPE_TABS } = require("@/components/permissions/prototype/prototypeNav");
+const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
@@ -51,19 +51,20 @@ describe("UI-2c — profile badges", () => {
 
 describe("UI-2c — screen contracts", () => {
   const route = "src/app/admin/security/permissions/profiles/page.js";
-  const view = "src/components/permissions/ProfilesView.js";
+  const section = "src/components/permissions/center/sections/ProfilesSection.js";
 
   test("the Profiles door renders the catalogue and the context-role mapping", () => {
     const src = read(route);
-    expect(src).toContain("PermissionPrototype");
+    expect(src).toContain("PermissionCenter");
     expect(src).toContain('initialSection="profiles"');
-    expect(PROTOTYPE_TABS.profiles).toEqual(["matrix", "contextRoles"]);
-    expect(src).not.toContain("PermissionManager");
-    expect(src).not.toContain("EntitlementRollup");
+    expect(CENTER_TABS.profiles).toEqual(["matrix", "contextRoles"]);
+    expect(read(section)).toContain("ContextRolesTab");
   });
 
   test("profile writes carry the review reason (audited server-side)", () => {
-    expect(read(view)).toMatch(/reason: reason\.trim\(\) \|\| undefined/);
+    expect(read("src/components/permissions/center/drawers/ProfileFeatureDrawer.js")).toMatch(
+      /reason: reason\.trim\(\) \|\| undefined/,
+    );
   });
 
   test("every badge label exists in English and French", () => {

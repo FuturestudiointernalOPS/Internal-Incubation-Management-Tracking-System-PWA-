@@ -25,7 +25,7 @@ export async function POST(req, { params }) {
     const access = await resolvePlanAccess(id, session);
     if (!access.ok) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     if (!(await allowsPlanAction(access, "manage"))) {
-      return NextResponse.json({ success: false, error: "Your assignment does not allow saving this Venture's journey as a template." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.journeyTemplateSaveDenied" }, { status: 403 });
     }
 
     const body = await req.json();

@@ -104,13 +104,13 @@ export default function VentureAnalyticsPage() {
               <p className={`text-xl font-black mt-1 ${
                 key === "win_rate" && (analyticsData[key]||0) >= 50 ? "text-emerald-400" :
                 key === "win_rate" && (analyticsData[key]||0) < 30 ? "text-rose-400" :
-                key === "readiness_score" && (analyticsData[key]||0) >= 50 ? "text-emerald-400" :
-                key === "readiness_score" && (analyticsData[key]||0) < 25 ? "text-rose-400" :
+                key === "readiness_score" && analyticsData[key] != null && analyticsData[key] >= 50 ? "text-emerald-400" :
+                key === "readiness_score" && analyticsData[key] != null && analyticsData[key] < 25 ? "text-rose-400" :
                 key === "investor_engagement_score" && (analyticsData[key]||0) >= 50 ? "text-emerald-400" :
                 "text-[var(--text-primary)]"
               }`}>{renderValue(key, analyticsData[key])}</p>
-              {["readiness_score", "win_rate", "investor_engagement_score", "avg_match_score"].includes(key) && (
-                <div className="mt-2">{progressBar(analyticsData[key]||0, (analyticsData[key]||0) >= 70 ? "bg-emerald-500" : (analyticsData[key]||0) >= 40 ? "bg-amber-500" : "bg-rose-500")}</div>
+              {["readiness_score", "win_rate", "investor_engagement_score", "avg_match_score"].includes(key) && analyticsData[key] != null && (
+                <div className="mt-2">{progressBar(analyticsData[key], analyticsData[key] >= 70 ? "bg-emerald-500" : analyticsData[key] >= 40 ? "bg-amber-500" : "bg-rose-500")}</div>
               )}
             </div>
           ))}

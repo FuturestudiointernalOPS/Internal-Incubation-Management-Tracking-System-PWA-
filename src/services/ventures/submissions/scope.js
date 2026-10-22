@@ -9,7 +9,6 @@
  */
 
 import { getFacilitatorTeamScope } from "@/models/authorization/accessQueries";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
 
 /** Bind a team-entity session to its own team; others keep the chosen teamId. */
 export function bindSubmissionTeamScope({ session, teamId }) {
@@ -27,11 +26,16 @@ export function bindSubmissionTeamScope({ session, teamId }) {
  * Own-scope fallback: without a program context, non-management / non-staff /
  * non-team sessions (participants, members, …) read only their own rows.
  */
-export function applyOwnSubmissionScope({ session, participantId, programId }) {
+export function applyOwnSubmissionScope({
+  session,
+  participantId,
+  programId,
+  canManage = false,
+}) {
   if (
     session &&
     !programId &&
-    !hasProgramManagementAccess(session.role) &&
+    !canManage &&
     session.role !== "staff" &&
     session.role !== "team"
   ) {
@@ -41,11 +45,15 @@ export function applyOwnSubmissionScope({ session, participantId, programId }) {
 }
 
 /** Whether a program-scoped read needs the facilitator scope filter. */
-export function needsFacilitatorSubmissionScope(session, programId) {
+export function needsFacilitatorSubmissionScope(
+  session,
+  programId,
+  canManage = false,
+) {
   return Boolean(
     session &&
       programId &&
-      !hasProgramManagementAccess(session.role) &&
+      !canManage &&
       session.role !== "staff" &&
       session.role !== "team",
   );

@@ -1,0 +1,36 @@
+{
+  "generatedAt": "2026-10-19",
+  "note": "Lot 0 baseline. Debt counters may only go DOWN; coverage counters may only go UP. Update this file deliberately when a lot improves a counter, never to accommodate a regression.",
+  "metrics": {
+    "routes.centralCapabilityFiles": { "value": 169, "direction": "up" },
+    "routes.capabilityFiles": { "value": 223, "direction": "up" },
+    "routes.centralCapabilityRouteFiles": { "value": 147, "direction": "up" },
+    "routes.capabilityRouteFiles": { "value": 201, "direction": "up" },
+    "routes.strictRequireAuthOnlyNoCapability": { "value": 105, "direction": "down" },
+    "routes.withoutCapabilityWorklist": { "value": 197, "direction": "down" },
+    "routes.withoutCapabilityByCategory.a_proteger": { "value": 137, "direction": "down" },
+    "routes.withoutCapabilityByCategory.a_verifier_decision_deleguee": {
+      "value": 26,
+      "direction": "down"
+    },
+    "roleGates.hardcodedRoleListsInActions": { "value": 177, "direction": "down" },
+    "roleGates.staticGuardExceptions": { "value": 282, "direction": "down" },
+    "roleGates.extendedGuardExceptions": { "value": 50, "direction": "down" },
+    "roleGates.staticGuardUnexpected": { "value": 0, "direction": "down" },
+    "roleGates.staticGuardStale": { "value": 0, "direction": "down" },
+    "roleGates.roleMotifLineTotal": { "value": 462, "direction": "down" },
+    "roleGates.roleMotifPairCount": { "value": 282, "direction": "down" },
+    "roleGates.pmOnlyRoleGates": { "value": 0, "direction": "down" },
+    "roleVocabulary.pmRoleDecisions": { "value": 76, "direction": "down" },
+    "roleVocabulary.historicalRoles": { "value": 3, "direction": "down" },
+    "roleVocabulary.legacyContextualLoginValues": { "value": 5, "direction": "down" },
+    "roleVocabulary.sessionLoginValues": { "value": 8, "direction": "down" },
+    "roleVocabulary.loginResolverValues": { "value": 8, "direction": "down" },
+    "roleVocabulary.loginRoleValuesUnion": { "value": 8, "direction": "down" },
+    "scope.policies": { "value": 7, "direction": "down" },
+    "scope.programScopeWithCapability": { "value": 0, "direction": "up" },
+    "scope.ventureFullCalls": { "value": 66, "direction": "up" },
+    "scope.legacyVentureCalls": { "value": 38, "direction": "down" },
+    "scope.unifiedScopedCalls": { "value": 0, "direction": "up" }
+  }
+}

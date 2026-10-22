@@ -27,7 +27,7 @@ export async function listIntentsForSession({ session, filters }) {
   ) {
     return {
       status: 403,
-      body: { success: false, error: "You can only view your own intents." },
+      body: { success: false, error: "errors.ownIntentsOnly" },
     };
   }
 

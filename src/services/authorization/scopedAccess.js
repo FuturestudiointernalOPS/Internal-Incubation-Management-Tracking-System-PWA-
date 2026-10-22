@@ -35,12 +35,36 @@
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, evaluateAuthorization } from "./context";
+import { AUTHZ_REASONS } from "./contextDecisions";
+import { isWithinScope, resolveVentureScopeId } from "./scope";
 import {
-  getProgramStaffAssignmentRows,
-  getContactRoleAssignmentRows,
   getProjectMembershipRows,
   getVentureMembershipRows,
 } from "@/models/authorization/contextAssignmentReads";
+import { resolveProgramAssignment as resolveProgramStanding } from "./programAssignment";
+
+/**
+ * D-3 — the policies the decision ENFORCES today. They are the same ones the
+ * route guards already apply, so adopting this entry point changes no answer:
+ *
+ *   program → `program_managed` (the person holds the manager PROFILE)
+ *   venture → `venture_own`    (the venture is theirs)
+ *
+ * A project has no declared policy yet; it keeps its membership lookup.
+ *
+ * `program_staffed` is deliberately absent: it is NOT a replaced rule measured in
+ * shadow, it is the staffing perimeter the manager repair route enforces on
+ * purpose (see `scope-catalog.js`). The transition probe that compared the two
+ * program perimeters was removed once its single divergence was explained
+ * (Lot 8); the measurement lives in `scripts/db-audit/program-perimeter-compare.sql`,
+ * not in this decision.
+ *
+ * EXCEPTION — Super Admin bypasses every policy, as everywhere else.
+ */
+export const ENFORCED_SCOPE_POLICY = {
+  program: "program_managed",
+  venture: "venture_own",
+};
 
 /**
  * Resolve a person's assignment to a specific resource.
@@ -50,7 +74,8 @@ export async function resolveContextAssignment({ resource, contextId, userCid, u
   await initDb();
   switch (resource) {
     case "program":
-      return resolveProgramAssignment(contextId, userCid, userEmail);
+      // ONE calculation, shared with the facilitator guard (step 3.3).
+      return resolveProgramStanding({ programId: contextId, userCid, userEmail });
     case "project":
       return resolveProjectAssignment(contextId, userCid);
     case "venture":
@@ -61,20 +86,10 @@ export async function resolveContextAssignment({ resource, contextId, userCid, u
 }
 
 /**
- * Program assignment: ANY v2_program_staff row for this program (facilitator,
- * program_manager, assistant, …) OR a current contact_roles 'program'
- * assignment (the generalized layer, which also preserves participant →
- * facilitator history — the previous relationship stays historical via
- * is_current). Organizational membership is deliberately NOT consulted here.
+ * Program assignment (ANY staff role, or a current contact_roles row) now lives
+ * in `./programAssignment`, so the facilitator guard and this decision share one
+ * answer instead of two divergent ones.
  */
-async function resolveProgramAssignment(contextId, userCid, userEmail) {
-  const rows = await getProgramStaffAssignmentRows(contextId, userCid, userEmail);
-  if (rows.length > 0) return { source: "v2_program_staff", assignment: rows[0] };
-
-  const contactRoleRows = await getContactRoleAssignmentRows(contextId, userCid);
-  if (contactRoleRows.length > 0) return { source: "contact_roles", assignment: contactRoleRows[0] };
-  return null;
-}
 
 async function resolveProjectAssignment(contextId, userCid) {
   const rows = await getProjectMembershipRows(contextId, userCid);
@@ -87,48 +102,115 @@ async function resolveVentureAssignment(contextId, userCid) {
 }
 
 /**
- * Route helper — the same decision as before, without building the HTTP answer.
- * Returns a decision the HTTP boundary turns into a response
- * (`@/server/authz/responses.requireScopedAccess`).
+ * THE SINGLE DECISION ENTRY (Phase 5 — convergence toward one API).
  *
- * @param {{resource: "program"|"project"|"venture", contextId: string|number,
- *          module: string, capability: string, minLevel?: number}} params
- * @returns {Promise<{allowed: boolean, status: number, errorKey: string|null}>}
+ * One function answers "may this caller do this, to this?": GLOBAL when no
+ * `resource` is given, RESOURCE-SCOPED otherwise. It composes the capability
+ * primitive (`evaluateAuthorization`, which already carries a `reason`) with the
+ * context-assignment step, and always returns
+ * `{ allowed, status, errorKey, reason }`.
+ *
+ * `evaluateScopedAccess` delegates here, so the scoped behavior is unchanged.
+ *
+ * @param {{module: string, capability: string, minLevel?: number,
+ *          resource?: "program"|"project"|"venture"|null,
+ *          contextId?: string|number|null,
+ *          scopePolicy?: string|null}} params
+ *   `scopePolicy` names the perimeter when one resource has more than one
+ *   intent. A program WRITE is scoped by the manager profile; FACILITATOR
+ *   delivery is scoped by the staffing assignment. Without the override the
+ *   resource's declared policy applies.
  */
-export async function evaluateScopedAccess({ resource, contextId, module, capability, minLevel = 1 }) {
+export async function decide({
+  module,
+  capability,
+  minLevel = 1,
+  resource = null,
+  contextId = null,
+  scopePolicy = null,
+} = {}) {
+  // GLOBAL path — nothing to scope to: the capability primitive decides.
+  if (!resource) {
+    return evaluateAuthorization(module, capability, minLevel);
+  }
+
+  // SCOPED path.
   try {
     if (!contextId) {
-      return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
+      // An action that cannot be attributed to a resource cannot be scope-checked.
+      return {
+        allowed: false,
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+        reason: "missing_resource",
+      };
     }
     const session = await getSession();
     if (!session) {
-      return { allowed: false, status: 401, errorKey: "errors.authRequired" };
+      return { allowed: false, status: 401, errorKey: "errors.authRequired", reason: "unauthenticated" };
     }
 
     // Super Admin bypass — existing resolver semantics.
     const authorizationContext = await getAuthorizationContext(session);
     if (authorizationContext?.isSuperAdmin) {
-      return { allowed: true, status: 200, errorKey: null };
+      return { allowed: true, status: 200, errorKey: null, reason: AUTHZ_REASONS.SUPER_ADMIN };
     }
 
     // CAPABILITY — the resolver decides (eligibility, default/individual
-    // access, restrictions). Never bypassed by an assignment.
+    // access, restrictions). Never bypassed by an assignment. The decision
+    // already carries its own `reason` (spec §11).
     const capabilityDecision = await evaluateAuthorization(module, capability, minLevel);
     if (!capabilityDecision.allowed) return capabilityDecision;
 
-    // CONTEXT ASSIGNMENT — the person must belong to THIS resource.
-    const resolved = await resolveContextAssignment({
-      resource,
-      contextId,
-      userCid: session.cid,
-      userEmail: session.email,
-    });
-    if (!resolved) {
-      return { allowed: false, status: 403, errorKey: "errors.insufficientPermissions" };
+    // CONTEXT ASSIGNMENT — the person must belong to THIS resource, under the
+    // same rule the route guards apply (D-3: adopt the shape, keep the policy).
+    let inScope;
+    if (resource === "project") {
+      inScope = Boolean(
+        await resolveContextAssignment({
+          resource,
+          contextId,
+          userCid: session.cid,
+          userEmail: session.email,
+        }),
+      );
+    } else {
+      const scopeId = resource === "venture" ? await resolveVentureScopeId(contextId) : contextId;
+      const policy = scopePolicy || ENFORCED_SCOPE_POLICY[resource];
+      inScope = await isWithinScope(policy, session.cid, scopeId, {
+        email: session.email,
+      });
     }
-    return { allowed: true, status: 200, errorKey: null };
+
+    if (!inScope) {
+      return {
+        allowed: false,
+        status: 403,
+        errorKey: "errors.insufficientPermissions",
+        reason: "out_of_scope",
+      };
+    }
+    return { allowed: true, status: 200, errorKey: null, reason: AUTHZ_REASONS.GRANTED };
   } catch (error) {
-    console.error("[evaluateScopedAccess] error:", error?.message);
-    return { allowed: false, status: 500, errorKey: "errors.authzSystemFailure" };
+    console.error("[decide] error:", error?.message);
+    return {
+      allowed: false,
+      status: 500,
+      errorKey: "errors.authzSystemFailure",
+      reason: "system_failure",
+    };
   }
+}
+
+/**
+ * Route helper — resource-scoped decision, delegating to `decide`.
+ * Returns a decision the HTTP boundary turns into a response
+ * (`@/server/authz/responses.requireScopedAccess`).
+ *
+ * @param {{resource: "program"|"project"|"venture", contextId: string|number,
+ *          module: string, capability: string, minLevel?: number}} params
+ * @returns {Promise<{allowed: boolean, status: number, errorKey: string|null, reason: string}>}
+ */
+export async function evaluateScopedAccess(params) {
+  return decide(params);
 }

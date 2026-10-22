@@ -2,11 +2,11 @@
  * STAGING-ONLY — Phase 1 bulk-upload gate migration + founder eligibility row.
  *
  * Step 1 (inventory, read-only): every holder of permissions.assign_capabilities
- *   across access_profile_capabilities / user_capabilities / role_capabilities /
- *   group_capabilities (the legacy gate for /api/admin/bulk-upload).
+ *   across user_capabilities / profile_capabilities / group_capabilities (the
+ *   legacy gate for /api/admin/bulk-upload).
  * Step 2 (`apply`): additive mapping — each holder source receives a matching
  *   bulk_upload.execute row at the SAME access level (profiles → profile rows,
- *   users → user_capabilities, roles → role_capabilities, groups →
+ *   users → user_capabilities, profiles → profile_capabilities, groups →
  *   group_capabilities). Legacy rows are NOT deleted or overwritten.
  * Step 3 (`apply`): founder eligibility row ventures|founder (additive,
  *   ON-CONFLICT-safe via existence check).
@@ -42,8 +42,7 @@ const SOURCES = [
   { label: "user_capabilities", sql: `SELECT user_cid, module, capability, access_level FROM user_capabilities
       WHERE module='permissions' AND capability='assign_capabilities'
         AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY user_cid` },
-  { label: "role_capabilities", sql: `SELECT role, module, capability, access_level FROM role_capabilities
-      WHERE module='permissions' AND capability='assign_capabilities' ORDER BY role` },
+
   { label: "group_capabilities", sql: `SELECT group_name, module, capability, access_level FROM group_capabilities
       WHERE module='permissions' AND capability='assign_capabilities' ORDER BY group_name` },
 ];
@@ -102,14 +101,7 @@ try {
     );
     added += 1;
   }
-  for (const row of inventory.role_capabilities) {
-    await pool.query(
-      `INSERT INTO role_capabilities (role, module, capability, access_level)
-       VALUES ($1,'bulk_upload','execute',$2) ON CONFLICT (role, module, capability) DO NOTHING`,
-      [row.role, row.access_level],
-    );
-    added += 1;
-  }
+
   for (const row of inventory.group_capabilities) {
     await pool.query(
       `INSERT INTO group_capabilities (group_name, module, capability, access_level)

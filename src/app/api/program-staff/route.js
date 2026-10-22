@@ -15,11 +15,20 @@ import {
 } from "@/models/programMembership";
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import { buildFullFacilitatorPermissions } from "@/lib/facilitator-permissions";
 import { reconcileFacilitatorAccessForUser } from "@/services/authorization/contextGrantProgramAccess";
 
-const ROLE = { roles: ['super_admin'] };
+/**
+ * Facilitator/program assignments are a platform operation (decision 2 of
+ * 2026-10-20): creating, editing or ending them requires the assignment
+ * capability. It is the same right that governs teams, and no standard profile
+ * carries it, so by default only the platform owner holds it.
+ */
+async function assignmentGuard() {
+  return requireAuthorization("permissions", "assign_groups");
+}
 
 /**
  * Phase E, step 6 — apply a facilitator relationship change immediately,
@@ -51,7 +60,10 @@ async function logFacilitatorTimeline(staffId, programId, eventType, description
   } catch (_) {}
 }
 
-export const GET = createHandler(ROLE, async (req) => {
+export const GET = createHandler(async (req) => {
+  const capError = await assignmentGuard();
+  if (capError) return capError;
+
   const { searchParams } = new URL(req.url);
   const staffId = searchParams.get("staff_id");
   const programId = searchParams.get("program_id");
@@ -60,7 +72,10 @@ export const GET = createHandler(ROLE, async (req) => {
   return NextResponse.json({ success: true, assignments: assignmentsResult.rows });
 });
 
-export const POST = createHandler(ROLE, async (req) => {
+export const POST = createHandler(async (req) => {
+  const capError = await assignmentGuard();
+  if (capError) return capError;
+
   const { program_id, staff_id, role, permissions } = await req.json();
   const roleLower = String(role || "").toLowerCase();
   const finalPermissions =
@@ -99,7 +114,10 @@ export const POST = createHandler(ROLE, async (req) => {
   return NextResponse.json({ success: true, id: assignmentResult.rows[0]?.id ?? assignmentResult.lastInsertRowid });
 });
 
-export const PUT = createHandler(ROLE, async (req) => {
+export const PUT = createHandler(async (req) => {
+  const capError = await assignmentGuard();
+  if (capError) return capError;
+
   const { id, role, permissions } = await req.json();
   if (!id) {
     return NextResponse.json(
@@ -158,7 +176,10 @@ export const PUT = createHandler(ROLE, async (req) => {
   return NextResponse.json({ success: true });
 });
 
-export const DELETE = createHandler(ROLE, async (req) => {
+export const DELETE = createHandler(async (req) => {
+  const capError = await assignmentGuard();
+  if (capError) return capError;
+
   const { id } = await req.json();
   const row = await getProgramStaffAssignmentForDelete(id);
   await deleteProgramStaffAssignmentById(id);

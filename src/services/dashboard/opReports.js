@@ -61,7 +61,7 @@ export async function listReports({ session, filters }) {
         status: 403,
         body: {
           success: false,
-          error: "You can only view your own operational reports.",
+          error: "errors.ownReportsOnly",
         },
       };
     }

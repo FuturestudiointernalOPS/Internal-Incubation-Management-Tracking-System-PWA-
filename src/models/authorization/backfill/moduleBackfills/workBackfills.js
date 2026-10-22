@@ -25,10 +25,6 @@ const RUNS_BACKFILL = {
     "Staff Default": [["runs", "view", 1]],
     "Program Manager": [["runs", "view", 1]],
   },
-  roles: {
-    staff: [["runs", "view", 1]],
-    program_manager: [["runs", "view", 1]],
-  },
 };
 
 async function ensureRunsBackfill() {
@@ -43,17 +39,6 @@ async function ensureRunsBackfill() {
               VALUES (?, ?, ?, ?)
               ON CONFLICT (profile_key, module, capability) DO NOTHING`,
         args: [key, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(RUNS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
       });
     }
   }
@@ -94,14 +79,6 @@ const PROJECTS_BACKFILL = {
     ],
     "Staff Default": [["projects", "delete", 4]],
   },
-  roles: {
-    program_manager: [
-      ["projects", "create", 2],
-      ["projects", "edit", 3],
-      ["projects", "delete", 4],
-    ],
-    staff: [["projects", "delete", 4]],
-  },
 };
 
 async function ensureProjectsBackfill() {
@@ -119,17 +96,6 @@ async function ensureProjectsBackfill() {
       });
     }
   }
-
-  for (const [role, rows] of Object.entries(PROJECTS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
-      });
-    }
-  }
 }
 
 // ─── Phase 7: Tasks (team-tasks board) ──────────────────────────────────────
@@ -140,9 +106,9 @@ async function ensureProjectsBackfill() {
 //
 // Route allowlist (verified): super_admin, staff, program_manager, team.
 // Backfills reproduce it:
-//   - staff: tasks caps via Staff Default profile + role_capabilities
-//   - program_manager: tasks caps via Program Manager profile + role_capabilities
-//   - team: tasks caps via role_capabilities (team has no default profile)
+//   - staff: tasks caps via Staff Default profile
+//   - program_manager: tasks caps via Program Manager profile
+//   - team: a legacy label aligned to the member baseline; no base profile
 //
 // The eligibility table was seeded in Phase 0 BEFORE the tasks feature
 // existed, so existing databases have no tasks rows at all — the backfill
@@ -158,26 +124,6 @@ const TASKS_BACKFILL = {
       ["tasks", "delete", 4],
     ],
     "Program Manager": [
-      ["tasks", "view", 1],
-      ["tasks", "create", 2],
-      ["tasks", "edit", 3],
-      ["tasks", "delete", 4],
-    ],
-  },
-  roles: {
-    staff: [
-      ["tasks", "view", 1],
-      ["tasks", "create", 2],
-      ["tasks", "edit", 3],
-      ["tasks", "delete", 4],
-    ],
-    program_manager: [
-      ["tasks", "view", 1],
-      ["tasks", "create", 2],
-      ["tasks", "edit", 3],
-      ["tasks", "delete", 4],
-    ],
-    team: [
       ["tasks", "view", 1],
       ["tasks", "create", 2],
       ["tasks", "edit", 3],
@@ -211,17 +157,6 @@ async function ensureTasksBackfill() {
               VALUES (?, ?, ?, ?)
               ON CONFLICT (profile_key, module, capability) DO NOTHING`,
         args: [key, module, capability, level],
-      });
-    }
-  }
-
-  for (const [role, rows] of Object.entries(TASKS_BACKFILL.roles)) {
-    for (const [module, capability, level] of rows) {
-      await db.execute({
-        sql: `INSERT INTO role_capabilities (role, module, capability, access_level)
-              VALUES (?, ?, ?, ?)
-              ON CONFLICT (role, module, capability) DO NOTHING`,
-        args: [role, module, capability, level],
       });
     }
   }

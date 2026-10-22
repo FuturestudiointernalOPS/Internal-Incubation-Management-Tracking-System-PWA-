@@ -3,9 +3,10 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { requireProgramFacilitator } from "@/server/authz/guards";
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import { isProgramManagerSession } from "@/services/authorization/programManagement";
 import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildProgramFullState } from "@/services/programs/fullState";
+import { projectProgramAccess } from "@/services/authorization/programAccessProjection";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +33,7 @@ export async function GET(req) {
     // AND for any staff member who is the explicitly assigned PM of this program.
     if (id) {
       const session = await getSession();
-      if (session && !hasProgramManagementAccess(session.role)) {
+      if (session && !(await isProgramManagerSession(session))) {
         const isPm = await isAssignedPmForProgram(id, session.cid);
         if (!isPm) {
           const guardError = await requireProgramFacilitator(id);
@@ -44,7 +45,11 @@ export async function GET(req) {
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
     const body = await buildProgramFullState({ id, includeMetrics });
-    return NextResponse.json(body);
+    // Lot 7.3 — the decision this screen's writes will meet, shaped for display.
+    // `access` is the answer of the SAME unified decision the routes enforce; it
+    // is never authority (every write re-decides).
+    const access = await projectProgramAccess(id);
+    return NextResponse.json({ ...body, access });
   } catch (error) {
     return NextResponse.json(
       { success: false, error: error.message },

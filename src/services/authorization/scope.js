@@ -34,14 +34,16 @@
  */
 
 import { isScopePolicyImplemented } from "@/models/authorization/scope-catalog";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 import {
   getVentureOwnScopeIds,
   getProgramAssignedScopeIds,
   getProgramStaffedScopeIds,
+  getProgramManagedScopeIds,
   getLearningOwnScopeIds,
   getVentureManagedHistoryScopeIds,
   getProgramManagedHistoryScopeIds,
-  getVentureIdByUuid,
+  ventureExists as ventureExistsRead,
   contactSharesStaffedProgram,
 } from "@/models/authorization/scopeReads";
 
@@ -58,10 +60,10 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
   if (!userCid || !isScopePolicyImplemented(policyKey)) return null;
   try {
     switch (policyKey) {
-      // UNION matches requireVentureAccess() exactly: an active membership
-      // (founders/team — the venture is theirs) OR an active delegated staff
-      // assignment (venture_staff_assignments). Global-role bypass stays in
-      // the resolver (Super Admin) and in the transitional legacy path.
+      // UNION: an active membership (founders/team — the venture is theirs) OR
+      // an active delegated staff assignment (venture_staff_assignments). This
+      // is the same rule the retired membership gate enforced. Global-role
+      // bypass stays in the resolver (Super Admin).
       case "venture_own":
         return await getVentureOwnScopeIds(userCid);
       // Assignment (program staff — staff_id may hold a cid OR an email)
@@ -74,6 +76,10 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
       // being attached must never authorise changing it.
       case "program_staffed":
         return await getProgramStaffedScopeIds(userCid, email);
+      // PROFILE-BASED program perimeter: the programs where this person holds the
+      // `program_manager` profile (assigned on staff assignment, or granted).
+      case "program_managed":
+        return await getProgramManagedScopeIds(userCid);
       case "learning_own":
         return await getLearningOwnScopeIds(userCid);
       // Phase F — the residual read: the contexts a former manager consulted.
@@ -93,24 +99,49 @@ export async function resolveScopeIds(policyKey, userCid, { email = null } = {})
 /**
  * Normalize a route's venture identifier to the canonical scope key.
  *
- * venture_members / venture_staff_assignments store the VNT code, while some
- * routes receive the internal UUID — the predicate compares strings, so pass
- * the canonical code. Fail-soft: when a UUID cannot be resolved (or the lookup
- * errors) the raw value is returned and the predicate simply won't match
- * (deny), never a false allow.
+ * THE CANONICAL KEY IS THE INTERNAL ID. Before Phase 0 the membership and
+ * assignment tables stored the VNT code, so this normalised a UUID to the code.
+ * After the migration those tables store the internal id and `getVentureOwnScopeIds`
+ * returns it — so the old normalisation compared a CODE (every route carries one)
+ * against a list of IDS and matched nothing: every founder and every delegated
+ * staff member was "out of scope" on every venture-scoped route, reported as
+ * "insufficient permissions".
+ *
+ * One resolver handles both forms, and a reference that matches no Venture is
+ * returned unchanged — the predicate then fails closed, never open.
  */
 export async function resolveVentureScopeId(ventureId) {
   if (ventureId === null || ventureId === undefined || ventureId === "") {
     return null;
   }
   const value = String(ventureId);
-  if (value.startsWith("VNT-")) return value;
   try {
-    const resolved = await getVentureIdByUuid(value);
-    return resolved || value;
+    return await resolveVentureInternalId(value);
   } catch (error) {
     console.warn("[Scope] resolveVentureScopeId failed:", error.message);
     return value;
+  }
+}
+
+/**
+ * D-6 — does the record itself EXIST?
+ *
+ * The unified venture gate answers "not yours" (403) for both a real venture
+ * and a missing one, because the perimeter predicate cannot tell them apart.
+ * The product chose to say the real reason, so the gate may ask this question
+ * when it is about to refuse. An unreadable answer is `false`: the gate then
+ * answers out-of-scope (403). An infrastructure failure must never turn into a
+ * confident 404.
+ */
+export async function ventureExists(ventureId) {
+  if (ventureId === null || ventureId === undefined || ventureId === "") {
+    return false;
+  }
+  try {
+    return await ventureExistsRead(String(ventureId));
+  } catch (error) {
+    console.warn("[Scope] ventureExists failed:", error.message);
+    return false;
   }
 }
 

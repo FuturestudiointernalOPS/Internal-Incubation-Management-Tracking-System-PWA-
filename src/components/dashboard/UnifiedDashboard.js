@@ -4,11 +4,12 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { usePermissions } from "@/lib/PermissionProvider";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import {
   getCalendarDays,
-  hasMinRole,
   pickDashboard,
 } from "./unified-dashboard/constants";
 import DashboardHeader from "./unified-dashboard/DashboardHeader";
@@ -134,6 +135,12 @@ export default function UnifiedDashboard({ role: propRole }) {
   // Determine effective role
   const effectiveRole = user?.role || propRole || "staff";
 
+  // "Management" is a FUNCTION, not a role rank: the program cards describe
+  // what this person may manage, so they follow the capability. Super Admin is
+  // covered by `can` too; the helper only reads the shared matrix.
+  const { can } = usePermissions();
+  const managesPrograms = can("programs", "edit");
+
   // ── Read data ──
   // The payload is read through the shared hook, which owns the cache, the
   // cache-first paint and the discarding of a stale answer, so the screen keeps
@@ -165,7 +172,7 @@ export default function UnifiedDashboard({ role: propRole }) {
 
   // Determine what sections to show based on role & data
   const visibility = useMemo(() => {
-    const isMgmt = hasMinRole(effectiveRole, "program_manager");
+    const isMgmt = managesPrograms;
     const hasPrograms = (data?.summary?.programs || 0) > 0;
     const hasProjects = (data?.summary?.projects || 0) > 0;
     const hasTasks = (data?.summary?.tasks?.open || 0) > 0;
@@ -196,7 +203,7 @@ export default function UnifiedDashboard({ role: propRole }) {
       // Assignments section
       showAssignments: hasAssignments,
     };
-  }, [effectiveRole, data]);
+  }, [managesPrograms, data]);
 
   // Ticket 1.6: refetch calendar when tab becomes visible again
   useEffect(() => {
@@ -287,17 +294,17 @@ export default function UnifiedDashboard({ role: propRole }) {
   );
 
   // ── The routes the extracted cards ask for ──
-  const isSuperAdmin = user?.role === "super_admin";
+  const isSuperAdmin = isPlatformOwnerRole(user?.role);
   const openRoleAwareReport = () =>
     router.push(isSuperAdmin ? "/admin/op-report" : "/staff/op-report");
   const openStaffReport = () => router.push("/staff/op-report");
   const openTasksOrReport = () =>
     router.push(
-      effectiveRole === "super_admin" ? "/admin/tasks" : "/staff/op-report",
+      isPlatformOwnerRole(effectiveRole) ? "/admin/tasks" : "/staff/op-report",
     );
   const openProjectsOrListing = () =>
     router.push(
-      effectiveRole === "super_admin" ? "/admin/projects" : "/staff/projects",
+      isPlatformOwnerRole(effectiveRole) ? "/admin/projects" : "/staff/projects",
     );
   const openProgram = (program) => router.push(`/pm/programs/${program.id}`);
   const openFacilitatorProgram = (program) =>

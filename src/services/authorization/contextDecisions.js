@@ -18,7 +18,8 @@
  */
 
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
-import { evaluateEligibility } from "./eligibility";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { explainEligibility } from "./eligibility";
 
 // ─── Authorization decision ─────────────────────────────────────────────────
 
@@ -29,19 +30,96 @@ import { evaluateEligibility } from "./eligibility";
  * explicit grant below minLevel — V2 edge case, preserved).
  * Everyone else: ELIGIBLE (feature) AND effective level >= minLevel.
  */
-export function authorize(ctx, module, capability, minLevel = 1) {
-  if (!ctx || !module || !capability) return false;
+export const AUTHZ_REASONS = {
+  GRANTED: "granted",
+  SUPER_ADMIN: "super_admin",
+  ACCOUNT_NOT_ACTIVE: "account_not_active",
+  NOT_ELIGIBLE: "not_eligible",
+  BLOCKED: "blocked",
+  MISSING_PERMISSION: "missing_permission",
+  INSUFFICIENT_LEVEL: "insufficient_level",
+  INVALID_INPUT: "invalid_input",
+};
+
+/**
+ * Pure decision WITH its justification (spec §11, §12.4). The rules are exactly
+ * those of `authorize`, which delegates here — so the boolean and the reason can
+ * never drift apart. The reason is an enum (safe to surface) and is the SAME one
+ * the Permission Center explains.
+ */
+export function explainAuthorization(ctx, module, capability, minLevel = 1) {
+  if (!ctx || !module || !capability) {
+    return { allowed: false, reason: AUTHZ_REASONS.INVALID_INPUT, minLevel };
+  }
 
   if (ctx.isSuperAdmin) {
-    if (ctx.restrictions?.[module]?.has(capability)) return false;
+    if (ctx.restrictions?.[module]?.has(capability)) {
+      return { allowed: false, reason: AUTHZ_REASONS.BLOCKED, minLevel };
+    }
     const grantLevel = ctx.grants?.[module]?.[capability];
-    if (grantLevel !== undefined) return Number(grantLevel) >= minLevel;
-    return true;
+    if (grantLevel !== undefined) {
+      return Number(grantLevel) >= minLevel
+        ? { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel }
+        : { allowed: false, reason: AUTHZ_REASONS.INSUFFICIENT_LEVEL, minLevel };
+    }
+    return { allowed: true, reason: AUTHZ_REASONS.SUPER_ADMIN, minLevel };
+  }
+
+  // Spec §11 — the account gate is the FIRST question after the Super Admin
+  // bypass: a disabled / inactive / pending / archived / suspended account is
+  // refused before eligibility or capability are consulted. An UNKNOWN status
+  // (no contact row) leaves the previous behaviour untouched, so this is
+  // additive and cannot mass-deny a session that has no contact row.
+  if (ctx.accountStatus && ctx.accountStatus !== "active") {
+    return { allowed: false, reason: AUTHZ_REASONS.ACCOUNT_NOT_ACTIVE, minLevel };
   }
 
   const featureKey = MODULE_TO_FEATURE[module];
-  if (featureKey && ctx.eligibility?.[featureKey] !== true) return false;
-  return Number(ctx.effective?.[module]?.[capability] ?? 0) >= minLevel;
+  if (featureKey && ctx.eligibility?.[featureKey] !== true) {
+    return { allowed: false, reason: AUTHZ_REASONS.NOT_ELIGIBLE, minLevel };
+  }
+
+  // A block removes the capability from `effective`; naming it here keeps the
+  // reason accurate ("blocked") rather than reporting it as a missing right.
+  if (ctx.restrictions?.[module]?.has(capability)) {
+    return { allowed: false, reason: AUTHZ_REASONS.BLOCKED, minLevel };
+  }
+
+  const level = Number(ctx.effective?.[module]?.[capability] ?? 0);
+  if (level >= minLevel) return { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel };
+  return {
+    allowed: false,
+    reason: level > 0 ? AUTHZ_REASONS.INSUFFICIENT_LEVEL : AUTHZ_REASONS.MISSING_PERMISSION,
+    minLevel,
+  };
+}
+
+/**
+ * Pure decision: "Can this context perform ACTION on FEATURE?" Delegates to
+ * `explainAuthorization` so the boolean and the justification stay in step.
+ */
+export function authorize(ctx, module, capability, minLevel = 1) {
+  return explainAuthorization(ctx, module, capability, minLevel).allowed;
+}
+
+/**
+ * The ENGINE's verdict for EVERY catalogue capability (spec §12.4). Runs the very
+ * `explainAuthorization` the route guards use, so a screen that displays these
+ * reasons can never contradict the enforced decision — refusals included.
+ *
+ * @param {object} ctx the resolved authorization context
+ * @returns {{[module: string]: {[capability: string]: {allowed: boolean, reason: string}}}}
+ */
+export function buildContextDecisions(ctx) {
+  const decisions = {};
+  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+    decisions[module] = {};
+    for (const capability of definition.capabilities) {
+      const decision = explainAuthorization(ctx, module, capability, 1);
+      decisions[module][capability] = { allowed: decision.allowed, reason: decision.reason };
+    }
+  }
+  return decisions;
 }
 
 /** Effective permission matrix ({module:{capability:level}}) for UI display. */
@@ -85,8 +163,13 @@ export function buildPermissionExplanation(ctx) {
     const rows = (ctx.eligibilityRows || []).filter(
       (row) => row.feature_key === featureKey,
     );
+    const verdict = explainEligibility(rows, featureKey);
     eligibility[featureKey] = {
-      eligible: evaluateEligibility(rows, featureKey),
+      eligible: verdict.eligible,
+      // D4 — a section opened by a PROFILE despite the role's explicit deny: the
+      // explanation carries the SECTION warning beside the verdict, so the
+      // "why" screen never contradicts the enforced union decision.
+      openedByProfile: verdict.openedByProfile,
       sources: rows.map((row) => ({
         identity_type: row.identity_type,
         identity_value: row.identity_value,
@@ -97,6 +180,7 @@ export function buildPermissionExplanation(ctx) {
 
   return {
     eligibility,
+    accountStatus: ctx.accountStatus ?? null,
     sources: {
       profile: ctx.baseCaps || {},
       groups: ctx.groupCaps || {},

@@ -19,7 +19,10 @@
  * the assignment guard (which answers HTTP) and the envelope.
  */
 
-import { hasProgramManagementAccess } from "@/server/authz/capabilities";
+import {
+  isProgramManagerProfileSession,
+  isProgramManagerSession,
+} from "@/services/authorization/programManagement";
 import {
   createFacilitatorReview,
   decideFacilitatorReview,
@@ -65,7 +68,7 @@ export async function listReviews({ session, programId, facilitatorId, weekNumbe
     programId,
     facilitatorId,
     weekNumber,
-    onlyOwn: !!(session && !hasProgramManagementAccess(session.role)),
+    onlyOwn: !!(session && !(await isProgramManagerSession(session))),
     ownCid: session?.cid,
   });
   return { status: 200, body: { success: true, reviews: reviewsResult.rows } };
@@ -155,8 +158,9 @@ export async function decideReview({ session, id, pm_decision, pm_decision_note 
     return { status: 400, error: "id is required" };
   }
 
-  // PMs can only decide on reviews for programs they manage (or SA/staff)
-  if (session.role === "program_manager") {
+  // The PM function can only decide on reviews for programs it manages. The
+  // platform owner is exempt, exactly as before.
+  if (await isProgramManagerProfileSession(session)) {
     const reviewProgramResult = await getReviewProgramId(id);
     const programId = reviewProgramResult.rows[0]?.program_id;
     if (programId) {

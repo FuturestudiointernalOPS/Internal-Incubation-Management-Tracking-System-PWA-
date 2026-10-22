@@ -14,6 +14,7 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import {
   getPlaybookStageMilestones,
@@ -22,7 +23,6 @@ import {
 } from "@/models/platformConfig";
 import { createPlaybookTemplate, assignPlaybookToVenture } from "@/models/ventureTemplates";
 
-const SETUP_ROLES = ["super_admin", "staff"];
 
 export async function GET() {
   await initDb();
@@ -49,15 +49,9 @@ export async function GET() {
 
 export async function POST(req) {
   await initDb();
-  const authError = await requireAuth();
+  const authError = await requireAuthorization("ventures", "setup");
   if (authError) return authError;
   const session = await getSession();
-  if (!session || !SETUP_ROLES.includes(session.role)) {
-    return NextResponse.json(
-      { success: false, error: "Unauthorized. Venture Setup permission required." },
-      { status: 403 },
-    );
-  }
 
   try {
     const body = await req.json();

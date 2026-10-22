@@ -17,12 +17,16 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { seedInvestorApplication } from "@/services/platform/seed";
 
 export async function POST() {
   await initDb();
-  const authError = await requireAuth(["super_admin"]);
+  const authError = await requireAuth();
   if (authError) return authError;
+
+  const capError = await requireAuthorization("settings", "edit");
+  if (capError) return capError;
 
   try {
     const { status, body } = await seedInvestorApplication();

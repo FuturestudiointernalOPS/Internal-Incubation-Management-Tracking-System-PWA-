@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   findContactCidByCid,
   setContactInactive,
@@ -9,8 +10,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export const POST = createHandler(
-  { roles: ["super_admin"] },
   async (req, { params }) => {
+    const authError = await requireAuthorization("users", "suspend");
+    if (authError) return authError;
+
     const { cid } = await params;
     const contactResult = await findContactCidByCid(cid);
     if (contactResult.rows.length === 0)

@@ -42,6 +42,7 @@ import path from "node:path";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
 const LIST = process.argv.includes("--list");
+const WRITES_ONLY = process.argv.includes("--writes");
 
 /** Verified against production on 2026-10-15 (information_schema). A column in this
  *  set holds the INTERNAL id; comparing it to a text expression is class A or B. */
@@ -179,6 +180,7 @@ for (const file of files) {
       tables: tables.join(", "),
       resolves,
       resolvedInFunction: resolvesBefore(source, index),
+      write: /^\s*(INSERT\s+INTO|UPDATE|DELETE\s+FROM)/i.test(body),
       sql: body.replace(/\s+/g, " ").trim().slice(0, 120),
     });
   }
@@ -191,17 +193,23 @@ findings.sort((a, b) => {
   return `${a.file}:${a.line}`.localeCompare(`${b.file}:${b.line}`);
 });
 
+// `--writes` narrows to statements that CREATE or CHANGE a row: those fail loudly
+// (the request errors) rather than showing an empty panel, so they come first.
+const shown = WRITES_ONLY
+  ? findings.filter((finding) => finding.write && !finding.resolvedInFunction)
+  : findings;
+
 console.log("=== VENTURE IDENTITY AUDIT ===");
 console.log(`  files scanned: ${files.length}`);
 console.log(`  sites flagged: ${findings.length}\n`);
 
 let current = null;
-for (const finding of findings) {
-  if (LIST && finding.klass !== current) {
-    console.log(`\n--- ${finding.klass} ---`);
-    current = finding.klass;
-  }
-  if (LIST) {
+for (const finding of shown) {
+  if (LIST || WRITES_ONLY) {
+    if (finding.klass !== current) {
+      console.log(`\n--- ${finding.klass} ---`);
+      current = finding.klass;
+    }
     console.log(`  ${finding.file}:${finding.line}`);
     console.log(`      tables: ${finding.tables}  | resolves in function: ${finding.resolvedInFunction ? "yes" : "NO"}`);
     console.log(`      ${finding.sql}`);
@@ -211,8 +219,9 @@ for (const finding of findings) {
 for (const klass of ["A", "B", "C"]) {
   const group = findings.filter((finding) => finding.klass.startsWith(klass));
   const unsettled = group.filter((finding) => !finding.resolvedInFunction);
+  const unsettledWrites = unsettled.filter((finding) => finding.write);
   console.log(
-    `  class ${klass}: ${group.length} site(s) — ${unsettled.length} with NO resolve in the enclosing function`,
+    `  class ${klass}: ${group.length} site(s) — ${unsettled.length} with NO resolve in the enclosing function, ${unsettledWrites.length} of them writes`,
   );
 }
 console.log("\n  The last number is the one that matters: those are the sites to settle by");

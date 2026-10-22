@@ -46,7 +46,7 @@ export async function GET(req) {
     const targetCid = requestedCid || session?.cid;
     if (!targetCid)
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     const denied = await denyIfNotAllowed(session, targetCid);
@@ -70,7 +70,7 @@ export async function POST(req) {
     const body = await req.json();
     const { email, cid: requestedCid } = body || {};
     const targetCid = requestedCid || session?.cid;
-    if (!targetCid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!targetCid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     if (!email) return NextResponse.json({ success: false, error: "email is required." }, { status: 400 });
     const denied = await denyIfNotAllowed(session, targetCid);
     if (denied) return denied;
@@ -104,7 +104,7 @@ export async function DELETE(req) {
     const requestedCid = searchParams.get("cid");
     const targetCid = requestedCid || session?.cid;
     if (!id) return NextResponse.json({ success: false, error: "id is required." }, { status: 400 });
-    if (!targetCid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!targetCid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const denied = await denyIfNotAllowed(session, targetCid);
     if (denied) return denied;
 

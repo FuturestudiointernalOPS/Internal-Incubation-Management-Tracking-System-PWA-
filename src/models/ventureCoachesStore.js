@@ -14,6 +14,7 @@
  */
 
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── Coach catalog ────────────────────────────────────────────────────────────
 
@@ -56,7 +57,10 @@ export function deleteCoachRow(coachId) {
 // ── Assignments ──────────────────────────────────────────────────────────────
 
 /** A Venture's active coach assignments (with the coach join). */
-export function selectVentureAssignments(ventureId) {
+export async function selectVentureAssignments(ventureRef) {
+  // venture_coach_assignments holds the INTERNAL id (Phase 0). The coaches route and
+  // the invite flow both carry the VNT code, so binding it raw listed nothing.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `SELECT vca.*, vc.coach_type, vc.full_name, vc.email, vc.photo_url, vc.organization, vc.biography, vc.years_experience,
        vc.areas_of_expertise, vc.industries, vc.availability, vc.timezone, vc.linkedin_url, vc.status as coach_status
@@ -69,7 +73,8 @@ export function selectVentureAssignments(ventureId) {
 }
 
 /** The active assignment id for a coach on a Venture, if any. */
-export function selectActiveCoachAssignment(ventureId, coachId) {
+export async function selectActiveCoachAssignment(ventureRef, coachId) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "SELECT id FROM venture_coach_assignments WHERE venture_id = ? AND coach_id = ? AND status = 'active'",
     args: [ventureId, coachId],
@@ -77,7 +82,8 @@ export function selectActiveCoachAssignment(ventureId, coachId) {
 }
 
 /** Clear the primary flag for a coach type on a Venture. */
-export function clearPrimaryCoachAssignments(ventureId, coachType) {
+export async function clearPrimaryCoachAssignments(ventureRef, coachType) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: "UPDATE venture_coach_assignments SET is_primary = FALSE WHERE venture_id = ? AND coach_type = ?",
     args: [ventureId, coachType],
@@ -85,7 +91,9 @@ export function clearPrimaryCoachAssignments(ventureId, coachType) {
 }
 
 /** Insert one coach assignment, returning its id. */
-export function insertCoachAssignment(ventureId, coachId, coachType, isPrimary, assignedBy, notes) {
+export async function insertCoachAssignment(ventureRef, coachId, coachType, isPrimary, assignedBy, notes) {
+  // A WRITE: storing the code here produced a row every id-based reader then missed.
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_coach_assignments (venture_id, coach_id, coach_type, is_primary, assigned_by, notes)
           VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
@@ -94,7 +102,8 @@ export function insertCoachAssignment(ventureId, coachId, coachType, isPrimary, 
 }
 
 /** Append a coach-activity row (assign / remove). */
-export function insertCoachActivity(coachId, ventureId, action, actorCid, detailsJson) {
+export async function insertCoachActivity(coachId, ventureRef, action, actorCid, detailsJson) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `INSERT INTO venture_coach_activity (coach_id, venture_id, action, actor_cid, details)
           VALUES (?, ?, ?, ?, ?::jsonb)`,

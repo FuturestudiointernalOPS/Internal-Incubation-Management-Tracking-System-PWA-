@@ -1,130 +1,27 @@
 /**
  * server/authz — capabilities.
  *
- * The permission vocabulary: which module exposes which capability, the ordered
- * access levels, and the roles that hold program-wide management access.
+ * The ordered access levels and the roles that hold program-wide management
+ * access. The permission vocabulary itself — which module exposes which
+ * capability — now has ONE source (the feature/module capability registry under
+ * `@/models/authorization/constants`) and is re-exported here as
+ * PERMISSION_MODULES so this server-layer import path stays unchanged.
  *
  * Pure data and pure predicates: no database, no session. Safe to import from
  * anywhere that needs to reason about "what could this account do".
  */
 
+import {
+  INTERNAL_STAFF_ROLE,
+  PLATFORM_OWNER_ROLE,
+  PROGRAM_MANAGER_PROFILE,
+  PROGRAM_MANAGER_ROLE,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 
-// =============================================================================
-// AUTHORIZATION SYSTEM
-// =============================================================================
-
-export const PERMISSION_MODULES = {
-  projects: {
-    name: "Projects",
-    capabilities: ["view", "create", "edit", "delete", "archive"],
-  },
-  programs: {
-    name: "Programs",
-    capabilities: ["view", "create", "edit", "delete", "publish"],
-  },
-  users: {
-    name: "Users",
-    capabilities: [
-      "view",
-      "create",
-      "edit",
-      "suspend",
-      "delete",
-      "assign_roles",
-    ],
-  },
-  reports: {
-    name: "Reports",
-    capabilities: ["view", "create", "export", "delete"],
-  },
-  messaging: { name: "Messages", capabilities: ["view", "send", "delete"] },
-  internal_comms: {
-    name: "Announcements",
-    capabilities: ["view", "create_announcements", "moderate"],
-  },
-  forms: { name: "Forms", capabilities: ["view", "create", "edit", "delete"] },
-  // `review` is separate from `edit` on purpose: sending run messages, assigning
-  // people and retrying emails must never imply the authority to admit or reject
-  // an applicant. Granted to nobody by default.
-  runs: { name: "Runs", capabilities: ["view", "create", "edit", "delete", "review"] },
-  contacts: {
-    name: "Contacts",
-    capabilities: ["view", "create", "edit", "delete"],
-  },
-  crm: {
-    name: "CRM",
-    capabilities: ["view", "create", "edit", "delete", "assign", "manage"],
-  },
-  permissions: {
-    name: "Permissions",
-    capabilities: [
-      "view_matrix",
-      "grant",
-      "revoke",
-      "assign_capabilities",
-      "assign_groups",
-      "assign_responsibilities",
-      "promote_super_admin",
-      "remove_super_admin",
-      "configure_eligibility",
-    ],
-  },
-  engineering: {
-    name: "Engineering Operations",
-    capabilities: [
-      "view",
-      "manage_tasks",
-      "manage_errors",
-    ],
-  },
-  finance: {
-    name: "Finance",
-    capabilities: ["view", "create", "edit", "delete", "export"],
-  },
-  settings: { name: "System Settings", capabilities: ["view", "edit"] },
-  org_membership: {
-    name: "Organizational Membership",
-    capabilities: ["view", "manage"],
-  },
-  knowledge: {
-    name: "Knowledge Base",
-    capabilities: ["view", "create", "edit", "delete"],
-  },
-  lms: {
-    name: "LMS",
-    capabilities: ["view", "create", "edit", "delete"],
-  },
-  tasks: {
-    name: "Tasks",
-    capabilities: ["view", "create", "edit", "delete"],
-  },
-  ventures: {
-    name: "Ventures",
-    capabilities: ["view", "create", "edit", "delete"],
-  },
-  investor: {
-    name: "Investor",
-    capabilities: ["view", "create", "edit", "delete"],
-  },
-  facilitator: {
-    name: "Program Facilitator",
-    capabilities: [
-      "participants.view",
-      "participants.manage",
-      "attendance.view",
-      "attendance.record",
-      "assignments.view",
-      "assignments.review",
-      "assignments.grade",
-      "sessions.conduct",
-      "sessions.record",
-      "progress.view",
-      "groups.view",
-      "groups.manage",
-      "reviews.submit",
-    ],
-  },
-};
+export { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
 
 export const ACCESS_LEVELS = {
   NONE: 0,
@@ -153,7 +50,7 @@ export const ACCESS_LEVELS = {
 //     (families.lead_facilitator_id)
 // =============================================================================
 
-export const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager"];
+export const FACILITATOR_BYPASS_ROLES = [PLATFORM_OWNER_ROLE, PROGRAM_MANAGER_ROLE];
 
 // NOTE: this list MUST stay aligned with hasProgramManagementAccess() below.
 // "staff" is deliberately NOT included: staff program-delivery access is
@@ -165,7 +62,23 @@ export const FACILITATOR_BYPASS_ROLES = ["super_admin", "program_manager"];
  * Roles with system-defined, program-wide management access. These roles keep
  * their existing program-management workflows and are NOT subject to the
  * per-program facilitator assignment check on shared program-data APIs.
+ *
+ * D-1 — when a resolved context is supplied, a baseline STAFF identity holding
+ * the `program_manager` PROFILE also qualifies. Existing callers pass only the
+ * role, so their behaviour is unchanged until they are migrated lot by lot.
  */
-export function hasProgramManagementAccess(role) {
-  return ["super_admin", "program_manager"].includes(role);
+export function hasProgramManagementAccess(role, context = null) {
+  if (isPlatformOwnerRole(role) || isLegacyProgramManagerRole(role)) return true;
+  return (
+    isInternalStaffRole(role) &&
+    Array.isArray(context?.profiles) &&
+    context.profiles.includes(PROGRAM_MANAGER_PROFILE)
+  );
 }
+
+export {
+  INTERNAL_STAFF_ROLE,
+  PLATFORM_OWNER_ROLE,
+  PROGRAM_MANAGER_PROFILE,
+  PROGRAM_MANAGER_ROLE,
+};

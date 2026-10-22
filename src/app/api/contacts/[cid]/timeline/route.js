@@ -34,7 +34,7 @@ export async function GET(req, { params }) {
     const offset = parseInt(searchParams.get("offset") || "0");
 
     if (!mayReadContactTimeline(session, cid)) {
-      return NextResponse.json({ success: false, error: "Access denied" }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
     }
 
     const { contact, events, total } = await listContactTimeline(session, cid, {

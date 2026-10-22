@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
+import { requireAuthorization } from "@/models/authorization/index";
 import { createDeliverable, listDeliverables } from "@/models/facilitation";
 
 export const POST = createHandler(
-  { roles: ["staff", "super_admin"] },
   async (req) => {
+    const capError = await requireAuthorization("programs", "edit");
+    if (capError) return capError;
+
     const body = await req.json();
     const { program_id, title, description, week_number } = body;
 
@@ -31,7 +34,10 @@ export const POST = createHandler(
 );
 
 export const GET = createHandler(
-  { roles: ["staff", "super_admin", "program_manager", "team", "participant"] },
+  // Stays on a role list for now: the team ENTITY account (role "team") has no
+  // profile, so no capability expresses it yet, and the team workspace reads
+  // this list. Documented in docs/permissions/LOT4-STEP4-2C.md.
+  { roles: ["staff", "super_admin", "program_manager", "team", "member"] },
   async (req) => {
     const { searchParams } = new URL(req.url);
     const program_id = searchParams.get("program_id");

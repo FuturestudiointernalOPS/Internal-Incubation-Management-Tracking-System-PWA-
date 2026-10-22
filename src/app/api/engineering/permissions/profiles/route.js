@@ -13,7 +13,7 @@ import {
   PROFILE_BASELINE_ROLES,
   getProfileDefinition,
 } from "@/models/authorization/profile-catalog";
-import { PERMISSION_MODULES } from "@/server/authz/capabilities";
+import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
 import {
   ensureProfilesSchema,
   seedProfiles,

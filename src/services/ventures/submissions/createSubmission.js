@@ -21,8 +21,11 @@ import {
   getSubmissionProgramStatus,
 } from "@/models/forms";
 import { getTeamForOwnershipCheck } from "@/models/teams";
-
-const MANAGEMENT_ROLES = ["staff", "super_admin", "program_manager"];
+import {
+  carriesContextualValue,
+  isInternalStaffFamilyRole,
+  isMemberIdentityRole,
+} from "@/lib/identity";
 
 /**
  * Create a new submission version. Returns `{ denied: { error, status } }`, or
@@ -38,7 +41,7 @@ export async function createSubmissionRecord({ session, body }) {
   //    program that owns the team.
   // The caller-chosen participant_id/team_id can no longer target someone
   // else's record.
-  if (session && (role === "participant" || role === "member")) {
+  if (session && isMemberIdentityRole(role)) {
     if (body.participant_id && String(body.participant_id) !== String(session.cid)) {
       return { denied: { error: "errors.insufficientPermissions", status: 403 } };
     }
@@ -79,7 +82,7 @@ export async function createSubmissionRecord({ session, body }) {
     }
     body.team_id = session.cid;
     delete body.participant_id;
-  } else if (session && !MANAGEMENT_ROLES.includes(role)) {
+  } else if (session && !isInternalStaffFamilyRole(role)) {
     // Parity guard: every other role (founder, investor, …) was denied by the
     // old pre-filter and stays denied — only staff/PM/SA may submit on behalf.
     return { denied: { error: "errors.insufficientPermissions", status: 403 } };
@@ -112,14 +115,14 @@ export async function createSubmissionRecord({ session, body }) {
   // View-only gate: participants/teams cannot submit into a program that is no
   // longer active (completed/archived), nor when their own membership is closed
   // even if the program itself is still active.
-  if (session && ["participant", "team"].includes(session.role)) {
+  if (session && (isMemberIdentityRole(session.role) || carriesContextualValue(session.role, "team"))) {
     try {
       const programCheckResult = await getSubmissionProgramStatus(program_id);
       const programStatus = programCheckResult.rows[0]?.status;
       if (programStatus && String(programStatus).toLowerCase() !== "active") {
         return { denied: { error: "errors.programCompletedViewOnly", status: 403 } };
       }
-      if (session.role === "participant") {
+      if (isMemberIdentityRole(session.role)) {
         const participationCheck = await getParticipantProgramSubmissionStatus(
           session.cid,
           program_id,

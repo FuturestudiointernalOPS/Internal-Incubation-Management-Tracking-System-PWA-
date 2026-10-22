@@ -57,7 +57,7 @@ export async function reconcileTasks({
     role,
     sessionCid,
     requestedCid: userId,
-    denialMessage: "You can only reconcile your own tasks.",
+    denialMessage: "errors.ownReconcileOnly",
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -87,7 +87,7 @@ export async function reconcileTasks({
           String(row.assigned_to || "") !== String(sessionCid) &&
           String(row.supervisor_id || "") !== String(sessionCid))
       ) {
-        results.push({ id, success: false, error: "Not your task" });
+        results.push({ id, success: false, error: "errors.notYourTask" });
         continue;
       }
     }

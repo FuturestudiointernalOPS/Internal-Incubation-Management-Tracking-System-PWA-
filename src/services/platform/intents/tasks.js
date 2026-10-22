@@ -51,7 +51,7 @@ export async function createIntentTaskForSession({ session, intentId, input }) {
           status: 403,
           body: {
             success: false,
-            error: "You do not have permission to add tasks to this intent.",
+            error: "errors.intentAccessDenied",
           },
         };
       }
@@ -60,7 +60,7 @@ export async function createIntentTaskForSession({ session, intentId, input }) {
         status: 403,
         body: {
           success: false,
-          error: "Only the responsible person can add tasks to this intent.",
+          error: "errors.intentTaskAddDenied",
         },
       };
     }
@@ -99,7 +99,7 @@ export async function createIntentTaskForSession({ session, intentId, input }) {
         status: 403,
         body: {
           success: false,
-          error: `Cannot assign task outside the Intent's Contact Group. ${groupCheck.reason || "No shared group found."}`,
+          error: "errors.assignmentOutsideIntentGroup",
         },
       };
     }

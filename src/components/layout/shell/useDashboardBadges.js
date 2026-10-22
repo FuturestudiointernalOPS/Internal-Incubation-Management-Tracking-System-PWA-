@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchSwrJson } from "@/lib/hooks/useApi";
 import { hasCapability } from "@/lib/masterNavigation";
+import { isPlatformOwnerRole } from "@/lib/identity";
 
 // LocalStorage keys that remember when the user last viewed a given page,
 // so sidebar badges only count items that arrived after that visit.
@@ -42,7 +43,11 @@ const isNewerThan = (dateValue, watermark) => {
   return timestamp > watermark;
 };
 
-export function useDashboardBadges({ effectiveCaps, pathname }) {
+export function useDashboardBadges({
+  effectiveCaps,
+  hasProgramManagerProfile = false,
+  pathname,
+}) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showAllNotifications, setShowAllNotifications] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -71,6 +76,11 @@ export function useDashboardBadges({ effectiveCaps, pathname }) {
   // depends on this value, so the read fires the moment the answer arrives
   // rather than being skipped for the session.
   const canReadMessages = hasCapability(effectiveCaps, "messaging", "view");
+
+  // The submission badge belongs to the PROGRAM-MANAGER function, which is a
+  // PROFILE now (D-1): the shell passes the answer the server resolved. The
+  // platform owner keeps reading no manager queue, exactly as before.
+  const canManagePrograms = hasProgramManagerProfile;
 
   // When the inbox was last read — shared by every trigger through
   // fetchNotifications, so they throttle each other instead of each keeping
@@ -112,10 +122,9 @@ export function useDashboardBadges({ effectiveCaps, pathname }) {
     } catch {
       return;
     }
-    const recipientId =
-      parsedUser.role === "super_admin"
-        ? "sa"
-        : parsedUser.cid || parsedUser.id;
+    const recipientId = isPlatformOwnerRole(parsedUser.role)
+      ? "sa"
+      : parsedUser.cid || parsedUser.id;
     fetchSwrJson(`/api/notifications?recipient_id=${recipientId}`, (data) => {
       const rows = data.notifications || [];
       setNotifications(rows);
@@ -166,7 +175,7 @@ export function useDashboardBadges({ effectiveCaps, pathname }) {
     } catch {
       return;
     }
-    if (parsedUser.role !== "super_admin") return;
+    if (!isPlatformOwnerRole(parsedUser.role)) return;
     fetchSwrJson("/api/admin/pending-users", (data) => {
       const seenAt = readSeenWatermark(SEEN_KEYS.pendingUsers);
       setPendingUsersCount(
@@ -188,7 +197,8 @@ export function useDashboardBadges({ effectiveCaps, pathname }) {
     } catch {
       return;
     }
-    if (parsedUser.role !== "program_manager") return;
+    if (isPlatformOwnerRole(parsedUser.role)) return;
+    if (!canManagePrograms) return;
     const pmId = parsedUser.cid || parsedUser.id;
     if (!pmId) return;
     fetchSwrJson(
@@ -201,7 +211,7 @@ export function useDashboardBadges({ effectiveCaps, pathname }) {
         setSubmissionCount(pending);
       },
     );
-  }, []);
+  }, [canManagePrograms]);
 
   // When a PM opens the submissions page (or a program's submissions tab),
   // remember the visit so the sidebar "programs" badge only counts submissions
@@ -214,26 +224,13 @@ export function useDashboardBadges({ effectiveCaps, pathname }) {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!pathname || !pathname.startsWith("/pm/submissions")) return;
-    try {
-      const savedUser = JSON.parse(localStorage.getItem("user") || "null");
-      if (savedUser?.role !== "program_manager") return;
-    } catch (_) {
-      return;
-    }
+    if (!canManagePrograms) return;
     markSubmissionsSeen();
-  }, [pathname, markSubmissionsSeen]);
+  }, [pathname, canManagePrograms, markSubmissionsSeen]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const onSeen = () => {
-      try {
-        const savedUser = JSON.parse(localStorage.getItem("user") || "null");
-        if (savedUser?.role !== "program_manager") return;
-      } catch (_) {
-        return;
-      }
-      markSubmissionsSeen();
-    };
+    const onSeen = () => markSubmissionsSeen();
     window.addEventListener("pm:submissions-seen", onSeen);
     return () => window.removeEventListener("pm:submissions-seen", onSeen);
   }, [markSubmissionsSeen]);

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { isPlatformOwnerRole } from "@/lib/identity";
 import { teamAccountability } from "@/components/admin/dashboard-page/accountabilityModel";
 
 export function useAdminDashboardData({ router, t, lang }) {
@@ -73,7 +74,7 @@ export function useAdminDashboardData({ router, t, lang }) {
   const checkAuth = useCallback(async () => {
     try {
       const storedUser = localStorage.getItem("user");
-      if (storedUser && JSON.parse(storedUser).role === "super_admin") {
+      if (storedUser && isPlatformOwnerRole(JSON.parse(storedUser).role)) {
         fetchDashboardData();
       }
     } catch (_) {}
@@ -84,7 +85,7 @@ export function useAdminDashboardData({ router, t, lang }) {
       if (
         !payload.authenticated ||
         !payload.user ||
-        payload.user.role !== "super_admin"
+        !isPlatformOwnerRole(payload.user.role)
       ) {
         router.replace("/login");
         return;

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
+import { requireAuthorization } from "@/models/authorization/index";
 import { runPhase1MigrationStatement } from "@/models/platformConfig";
 import fs from "fs";
 import path from "path";
@@ -13,8 +14,11 @@ import path from "path";
  */
 export async function POST(_req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const sqlPath = path.join(
       process.cwd(),
@@ -91,8 +95,11 @@ export async function POST(_req) {
  */
 export async function GET(_req) {
   try {
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
+
+    const capError = await requireAuthorization("settings", "edit");
+    if (capError) return capError;
 
     const sqlPath = path.join(
       process.cwd(),

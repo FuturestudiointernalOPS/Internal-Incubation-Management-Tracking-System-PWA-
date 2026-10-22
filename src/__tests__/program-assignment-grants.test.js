@@ -125,13 +125,13 @@ describe("resolveAssignmentCapabilityLevel — consistency with the assignment",
 
   test("falls back to the assignment's profile, then the program default", () => {
     expect(
-      resolveAssignmentCapabilityLevel(assignment(PROGRAM_ACTIVE, null), "sessions.record", {
-        profileCaps: [{ module: "facilitator", capability: "sessions.record", access_level: 2 }],
+      resolveAssignmentCapabilityLevel(assignment(PROGRAM_ACTIVE, null), "sessions.conduct", {
+        profileCaps: [{ module: "facilitator", capability: "sessions.conduct", access_level: 2 }],
       }),
     ).toBe(2);
     expect(
-      resolveAssignmentCapabilityLevel(assignment(PROGRAM_ACTIVE, null), "sessions.record", {
-        programDefault: { "sessions.record": 1 },
+      resolveAssignmentCapabilityLevel(assignment(PROGRAM_ACTIVE, null), "sessions.conduct", {
+        programDefault: { "sessions.conduct": 1 },
       }),
     ).toBe(1);
   });
@@ -140,7 +140,7 @@ describe("resolveAssignmentCapabilityLevel — consistency with the assignment",
     // Reading it as denied would strip access from every facilitator already in
     // production the moment enforcement starts reading the tick list.
     expect(
-      resolveAssignmentCapabilityLevel(assignment(PROGRAM_ACTIVE, {}), "groups.view", {}),
+      resolveAssignmentCapabilityLevel(assignment(PROGRAM_ACTIVE, {}), "attendance.view", {}),
     ).toBe(UNCONFIGURED_LEVEL);
     expect(UNCONFIGURED_LEVEL).toBeGreaterThanOrEqual(1);
   });
@@ -159,10 +159,10 @@ describe("deriveFacilitatorDesiredCaps — the union of what the assignments gra
 
   test("a capability ticked off in EVERY program is not granted", () => {
     const { desired } = deriveFacilitatorDesiredCaps([
-      assignment(PROGRAM_ACTIVE, { "groups.manage": 0 }),
-      assignment(PROGRAM_OPEN_ENDED, { "groups.manage": 0 }),
+      assignment(PROGRAM_ACTIVE, { "attendance.record": 0 }),
+      assignment(PROGRAM_OPEN_ENDED, { "attendance.record": 0 }),
     ]);
-    expect(desired["facilitator.groups.manage"]).toBeUndefined();
+    expect(desired["facilitator.attendance.record"]).toBeUndefined();
   });
 
   test("no assignments justify nothing at all", () => {
@@ -262,14 +262,14 @@ describe("removability — a block beats the assignment-derived grant", () => {
     // What the reconcile writes (max-merged with profile/group/grants):
     const baseCaps = {};
     const groupCaps = {};
-    const grants = { facilitator: { "attendance.record": 2, "groups.view": 1 } };
+    const grants = { facilitator: { "attendance.record": 2, "reviews.submit": 1 } };
     // What an administrator set from the People screen:
     const restrictions = { facilitator: new Set(["attendance.record"]) };
 
     const effective = mergeEffectiveCapabilities(baseCaps, groupCaps, grants, restrictions);
 
     expect(effective.facilitator["attendance.record"]).toBeUndefined();
-    expect(effective.facilitator["groups.view"]).toBe(1);
+    expect(effective.facilitator["reviews.submit"]).toBe(1);
   });
 
   test("re-granting through the relationship does not bypass the block", () => {

@@ -16,7 +16,6 @@ export const dynamic = "force-dynamic";
  * A manual adjustment stays possible through PATCH /api/crm/leads/[id].
  */
 export const POST = createHandler(
-  { roles: ["super_admin", "staff", "program_manager"] },
   async (_req, { params }) => {
     const authError = await requireAuthorization("crm", "edit");
     if (authError) return authError;

@@ -90,14 +90,24 @@ export async function createV2ProgramRecord({ payload }) {
 }
 
 /**
- * The v2 program directory. An assignment-only caller sees only the single
- * program it resolved (by id); a directory reader sees everything.
+ * The v2 program directory. Three shapes, most restrictive first:
+ *   - a BOUNDED historical reader (`programIds`) sees only the contexts it may
+ *     consult (an ex-manager's former programs, D1) — never the directory;
+ *   - an assignment-only caller sees only the single program it resolved (by id);
+ *   - a directory reader sees everything.
  */
-export async function getV2ProgramDirectory({ canReadDirectory, id }) {
+export async function getV2ProgramDirectory({ canReadDirectory, id, programIds = null }) {
   const { rows } = await getAllPrograms();
 
-  // Assignment-only callers may only see the single program they resolved.
-  const scopedRows = !canReadDirectory && id ? rows.filter((row) => String(row.id) === String(id)) : rows;
+  let scopedRows = rows;
+  if (!canReadDirectory) {
+    if (id) {
+      scopedRows = rows.filter((row) => String(row.id) === String(id));
+    } else if (Array.isArray(programIds)) {
+      const allowed = new Set(programIds.map(String));
+      scopedRows = rows.filter((row) => allowed.has(String(row.id)));
+    }
+  }
 
   // Parse JSON columns
   const programs = scopedRows.map((row) => ({

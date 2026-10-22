@@ -121,7 +121,7 @@ export async function readNotificationInbox({ session, requestedId, groupBy }) {
 export async function publishInboxNotification({ session, recipient_id, title, message, type }) {
   const recipientId = recipient_id || session.cid;
   if (!canCreateNotificationFor(session, recipient_id)) {
-    return { denied: { error: "You cannot create notifications for other users.", status: 403 } };
+    return { denied: { error: "errors.notificationsForOthersDenied", status: 403 } };
   }
 
   await createNotification(recipientId, title, message, type || "general");
@@ -136,7 +136,7 @@ export async function applyInboxNotificationAction({ session, id, action }) {
       return { denied: { error: "Notification not found.", status: 404 } };
     }
     if (!canModifyInboxNotification(session, recipientResult.rows[0].recipient_id)) {
-      return { denied: { error: "You cannot modify this notification.", status: 403 } };
+      return { denied: { error: "errors.notificationModifyDenied", status: 403 } };
     }
     if (action === "read") await markNotificationRead(id);
     else await markNotificationUnread(id);

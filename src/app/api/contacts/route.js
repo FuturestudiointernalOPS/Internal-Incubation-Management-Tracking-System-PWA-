@@ -17,9 +17,11 @@ import {
   findMissingProgram,
   applyContactProgramMembership,
   completeContactUpdate,
+  recordRoleChangeAudit,
 } from "@/services/contacts/update";
 import {
   updateContactFields,
+  getContactIdentityByCid,
 } from "@/models/contacts/contactStore";
 import {
   deleteContactPrograms,
@@ -121,7 +123,30 @@ export async function PUT(req) {
       });
     }
 
+    // §12.1 — read the prior role BEFORE the write, so a real role change can be
+    // audited. `role` is only writable when the caller may assign roles. The
+    // presence test avoids a role-value comparison that is not a decision.
+    const roleIsBeingWritten = canAssignRole && "role" in data;
+    let priorRole = null;
+    let targetName = null;
+    if (roleIsBeingWritten && data.cid) {
+      const prior = await getContactIdentityByCid(data.cid);
+      priorRole = prior.rows?.[0]?.role ?? null;
+      targetName = prior.rows?.[0]?.name ?? null;
+    }
+
     const updateResult = await updateContactFields(built.fieldsToUpdate, built.args);
+
+    // Only a real change leaves a trace (a no-op write is not an event).
+    if (roleIsBeingWritten && String(priorRole ?? "") !== String(data.role)) {
+      await recordRoleChangeAudit({
+        session,
+        cid: data.cid,
+        targetName,
+        previousRole: priorRole,
+        newRole: data.role,
+      });
+    }
 
     // Sync participant_programs if program_ids array is provided
     const plan = planContactProgramSync(data);
@@ -197,7 +222,7 @@ export async function GET(req) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: "errors.authRequired" },
         { status: 401 },
       );
     }

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
+import { isInternalStaffFamilyRole } from "@/lib/identity";
 import {
   Megaphone,
   Plus,
@@ -143,10 +144,7 @@ export default function AnnouncementsPage() {
   };
 
   const canCreate =
-    user?.role === "super_admin" ||
-    user?.role === "program_manager" ||
-    user?.role === "admin" ||
-    user?.role === "staff";
+    isInternalStaffFamilyRole(user?.role);
 
   return (
     <>

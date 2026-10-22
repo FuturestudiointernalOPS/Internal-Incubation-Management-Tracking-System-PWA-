@@ -17,7 +17,7 @@ export default function LanguageSelector({ t, lang, translating, onLangChange })
           <Globe className="w-3.5 h-3.5 text-orange-400" />
         )}
         <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider">
-          {translating ? "Translating..." : t("common.language")}
+          {translating ? t("common.translating") : t("common.language")}
         </span>
         <select
           value={lang}

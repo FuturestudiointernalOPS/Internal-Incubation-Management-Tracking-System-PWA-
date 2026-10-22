@@ -65,8 +65,12 @@ describe("the dashboard shell wiring", () => {
     ).toEqual([]);
   });
 
-  test("the shell feeds the badge hook the capability matrix and the route", () => {
-    expect(calledWithKeys(parent, "useDashboardBadges").sort()).toEqual(["effectiveCaps", "pathname"]);
+  test("the shell feeds the badge hook the capability matrix, the manager profile and the route", () => {
+    expect(calledWithKeys(parent, "useDashboardBadges").sort()).toEqual([
+      "effectiveCaps",
+      "hasProgramManagerProfile: isProgramManager",
+      "pathname",
+    ]);
   });
 
   test("the shell feeds the navigation hook everything the sidebar derives from", () => {

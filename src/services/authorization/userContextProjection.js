@@ -26,6 +26,7 @@
  */
 
 import { restrictionsToJson } from "./context";
+import { buildContextDecisions } from "./contextDecisions";
 
 /**
  * Which resolver inputs feed the Permission Center's source columns.
@@ -41,7 +42,7 @@ const SOURCE_COLUMNS = [
 
 /** The fixed note the screen shows about the scope engine's state. */
 export const SCOPE_ENGINE_NOTE =
-  "venture_own · program_assigned · learning_own (team_own pending)";
+  "venture_own · program_assigned · learning_own";
 
 /**
  * The read-only projection of one person's authorization context.
@@ -69,6 +70,9 @@ export function projectUserContext(cid, authorizationContext, contextData) {
     eligibility: authorizationContext.eligibility,
     sources,
     effective: authorizationContext.effective,
+    // §12.4 — the engine's own verdict + reason per capability, so the screen
+    // displays the ENFORCED reason (refusals included), not a re-derivation.
+    decisions: buildContextDecisions(authorizationContext),
     contexts: contextData.contexts,
     contextsUnavailable: contextData.unavailable,
     scope: {

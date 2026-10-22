@@ -2,6 +2,13 @@
 
 import { Sun, Moon, Monitor, Bell, ChevronRight, ChevronDown, Menu } from "lucide-react";
 import { tnav, navCrumb } from "./navigation";
+import {
+  carriesContextualValue,
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isMemberSurfaceRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
@@ -176,19 +183,19 @@ export default function ShellHeader({
                                 router.push("/admin/communications/contacts");
                                 setShowNotifications(false);
                               }
-                              if (notification.type === "announcement" && ["participant", "member", "founder"].includes(user?.role)) {
+                              if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {
                                 router.push("/participant/announcements");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "message") {
                                 const role = user?.role || "";
-                                if (role === "super_admin")
+                                if (isPlatformOwnerRole(role))
                                   router.push("/admin/internal-comms");
-                                else if (role === "staff")
-                                  router.push("/staff/messages");
-                                else if (role === "program_manager")
+                                else if (isLegacyProgramManagerRole(role))
                                   router.push("/pm/messages");
-                                else if (role === "participant")
+                                else if (isInternalStaffRole(role))
+                                  router.push("/staff/messages");
+                                else if (carriesContextualValue(role, "participant"))
                                   router.push("/participant/messages");
                                 setShowNotifications(false);
                               }
@@ -201,7 +208,7 @@ export default function ShellHeader({
                               }
                               if (notification.type === "blocker_discussion") {
                                 const role = user?.role || "";
-                                if (role === "super_admin")
+                                if (isPlatformOwnerRole(role))
                                   router.push("/admin/blockers");
                                 else router.push("/staff/op-report");
                                 setShowNotifications(false);

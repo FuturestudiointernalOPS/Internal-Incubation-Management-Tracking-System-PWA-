@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import { listVenturesAssignedToStaff } from "@/models/ventureWorkspace";
 
 /**
@@ -13,11 +14,13 @@ import { listVenturesAssignedToStaff } from "@/models/ventureWorkspace";
  * admin console instead and receive an empty list here.
  */
 export const GET = createHandler(
-  { roles: ["staff", "program_manager", "super_admin"] },
   async (req) => {
+    const authError = await requireAuthorization("ventures", "my_assignments");
+    if (authError) return authError;
+
     await initDb();
     const session = await getSession();
-    if (!session?.cid) return NextResponse.json({ success: false, error: "Authentication required." }, { status: 401 });
+    if (!session?.cid) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
     // Global Venture authority uses /admin — this endpoint is for delegated staff.
     if (["super_admin"].includes(session.role)) {

@@ -38,7 +38,7 @@ export async function POST(req) {
     // program is resolved from THAT row — a client-supplied program_id must
     // never authorise a foreign record.
     const scopeProgramId = await resolveActionScopeProgramId({ action, payload });
-    const scopeError = await requireProgramScope({ programId: scopeProgramId, wave: "content" });
+    const scopeError = await requireProgramScope({ programId: scopeProgramId, wave: "content", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const result = await runCurriculumAction({ payload });
@@ -71,7 +71,7 @@ export async function PUT(req) {
     // itself — never from the payload — so a forged program_id cannot authorise
     // a foreign record.
     const scopeProgramId = await resolveRecordScopeProgramId({ targetId, field, type });
-    const scopeError = await requireProgramScope({ programId: scopeProgramId, wave: "content" });
+    const scopeError = await requireProgramScope({ programId: scopeProgramId, wave: "content", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const result = await updateCurriculum({ payload, userId });
@@ -98,7 +98,7 @@ export async function DELETE(req) {
     // Resolve the program from the record that is about to be deleted — never
     // from the payload — so a forged program_id cannot authorise a foreign row.
     const targetProgramId = await resolveRecordScopeProgramId({ targetId: id, type });
-    const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content" });
+    const scopeError = await requireProgramScope({ programId: targetProgramId, wave: "content", module: "programs", capability: "edit" });
     if (scopeError) return scopeError;
 
     const result = await deleteCurriculumItem({ id, type, programId: targetProgramId });

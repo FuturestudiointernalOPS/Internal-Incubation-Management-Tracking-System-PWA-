@@ -52,7 +52,7 @@ export async function applyAssignmentAction({
   if (String(task.assigned_to) !== String(sessionCid)) {
     return {
       status: 403,
-      error: "You are not the assigned person for this task",
+      error: "errors.notAssignee",
     };
   }
 

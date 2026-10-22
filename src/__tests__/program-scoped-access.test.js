@@ -27,6 +27,13 @@ jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
 
+const mockShadowEnabled = jest.fn(() => false);
+const mockShadowCheck = jest.fn();
+jest.mock("@/services/authorization/shadow", () => ({
+  shadowEnabled: () => mockShadowEnabled(),
+  shadowCheck: (...args) => mockShadowCheck(...args),
+}));
+
 const { getSession } = require("@/server/auth/session");
 const { getAuthorizationContext, requireAuthorization } = require("@/models/authorization/index");
 const { isWithinScope } = require("@/services/authorization/scope");
@@ -43,6 +50,7 @@ beforeEach(() => {
   getAuthorizationContext.mockResolvedValue({ isSuperAdmin: false });
   requireAuthorization.mockResolvedValue(null);
   isWithinScope.mockResolvedValue(true);
+  mockShadowEnabled.mockReturnValue(false);
 });
 
 describe("enforcement is unconditional", () => {
@@ -52,7 +60,7 @@ describe("enforcement is unconditional", () => {
     expect(res).toBeNull();
     // No switch, no cache of "is it on": the assignment data is read.
     expect(isWithinScope).toHaveBeenCalledWith(
-      "program_staffed",
+      "program_managed",
       "USR_PM",
       "P1",
       { email: "pm@x.test" },
@@ -86,21 +94,21 @@ describe("denials", () => {
     expect(isWithinScope).not.toHaveBeenCalled();
   });
 
-  test("staffed on the program → allowed", async () => {
+  test("managing the program → allowed", async () => {
     isWithinScope.mockResolvedValueOnce(true);
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
 
     expect(res).toBeNull();
   });
 
-  test("NOT staffed on the program → refused, and the missing scope is named", async () => {
+  test("NOT managing the program → refused, and the missing scope is named", async () => {
     isWithinScope.mockResolvedValueOnce(false);
     const res = await requireProgramScope({ programId: "P1", wave: "content" });
     const body = await res.json();
 
     expect(res.status).toBe(403);
     expect(decision(res)).toBe("out-of-scope");
-    expect(body.missing).toEqual({ scope: "program_staffed", wave: "content" });
+    expect(body.missing).toEqual({ scope: "program_managed", wave: "content" });
   });
 
   test("a missing program id is a denial, never a pass", async () => {
@@ -190,5 +198,72 @@ describe("bulk actions — every id must be in scope", () => {
     });
     expect(res.status).toBe(401);
     expect(isWithinScope).not.toHaveBeenCalled();
+  });
+});
+
+describe("D-4 / Lot 8 — the replaced staffing rule is no longer probed", () => {
+  const MANAGED = "program_managed";
+
+  test("only the manager profile is consulted, even with the shadow flag on", async () => {
+    // The transition probe was removed once its single divergence was explained.
+    // Turning the flag on must not bring it back: the perimeter is one rule.
+    mockShadowEnabled.mockReturnValue(true);
+
+    const res = await requireProgramScope({ programId: "P1", wave: "content" });
+
+    expect(res).toBeNull();
+    expect(isWithinScope.mock.calls.map(([policy]) => policy)).toEqual([MANAGED]);
+    expect(mockShadowCheck).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Lot 3.2 — capability and perimeter are decided TOGETHER.
+ *
+ * A program-scope call that does not name a capability leaves the route to
+ * check the right somewhere else (or nowhere). This scan freezes the coupling:
+ * a new call without a capability fails here, and removing an entry from the
+ * exception list is the only direction that keeps this green.
+ */
+describe("3.2 — every program-scope call names the capability it enforces", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+
+  const ROOT = path.join(__dirname, "..", "..");
+
+  // One call has no literal capability:
+  //   - team-tasks: the helper receives `module`/`capability` as parameters, so
+  //     every caller does name one even though this line does not.
+  //
+  // `submissions` used to be the second: grading is `assignments.grade` for a
+  // facilitator and `programs.edit` for a program manager. The ANY-OF list
+  // (`capabilities: [...]`) now expresses exactly that, so no route is left
+  // uncoupled.
+  const EXPECTED = ["src/app/api/team-tasks/route.js"];
+
+  function walk(dir, out = []) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full, out);
+      else if (entry.name.endsWith(".js")) out.push(full);
+    }
+    return out;
+  }
+
+  test("no route or service adds an uncoupled program-scope call", () => {
+    const offenders = [];
+
+    for (const file of [...walk(path.join(ROOT, "src", "app")), ...walk(path.join(ROOT, "src", "services"))]) {
+      const lines = fs.readFileSync(file, "utf8").split("\n");
+      lines.forEach((line, index) => {
+        if (!/requireProgramScope(ForAll)?\(/.test(line)) return;
+        if (/export async function/.test(line)) return;
+        const window = lines.slice(index, index + 9).join("\n");
+        if (/capabilit(?:y|ies):/.test(window)) return;
+        offenders.push(path.relative(ROOT, file).split(path.sep).join("/"));
+      });
+    }
+
+    expect([...new Set(offenders)].sort()).toEqual([...EXPECTED].sort());
   });
 });

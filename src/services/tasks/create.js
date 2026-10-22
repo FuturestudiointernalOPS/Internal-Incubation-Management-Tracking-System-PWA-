@@ -208,7 +208,7 @@ export async function createTaskRecord({ input, role, sessionCid }) {
     if (!groupCheck.allowed) {
       return {
         status: 403,
-        error: `Cannot assign task outside your Contact Group. ${groupCheck.reason || "No shared group found."}`,
+        error: "errors.assignmentOutsideGroup",
       };
     }
   }

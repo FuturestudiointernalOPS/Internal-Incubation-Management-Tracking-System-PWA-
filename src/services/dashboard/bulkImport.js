@@ -27,6 +27,8 @@ import {
   updateContactByEmail,
 } from "@/models/adminOps";
 
+import { normalizeIdentityForStorage } from "@/lib/identity";
+
 /** Roles a CSV import may assign without the role-assignment capability. */
 const IMPORTABLE_ROLES = new Set([
   "participant",
@@ -89,13 +91,15 @@ export async function importContacts({ rows, canAssignRole }) {
     const phone = (row.phone || "").trim();
     const groupName =
       (row.group_name || row.group || "").trim().toUpperCase() || "UNASSIGNED";
-    const requestedRole = (row.role || "participant").trim().toLowerCase();
+    const requestedRole = normalizeIdentityForStorage(
+      (row.role || "member").trim().toLowerCase(),
+    );
     // Role is a server-controlled boundary: an importer who cannot assign
     // roles may only import self-service ones, never staff/super_admin.
     const role =
       canAssignRole || IMPORTABLE_ROLES.has(requestedRole)
         ? requestedRole
-        : "participant";
+        : "member";
 
     // 7.5: Missing mandatory fields
     if (!name || !email) {

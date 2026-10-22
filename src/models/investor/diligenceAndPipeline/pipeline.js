@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 
 // ── POST/GET /api/investor/pipeline ─────────────────────────────────────────
 
@@ -102,7 +103,10 @@ export async function createInvestmentDecision({ pipeline_id, investment_amount,
 }
 
 /** pipeline POST — add committed amount to the active fundraising campaign. */
-export async function addInvestmentToActiveCampaign({ amount, venture_id }) {
+export async function addInvestmentToActiveCampaign({ amount, venture_id: ventureRef }) {
+  // fundraising_campaigns holds the INTERNAL id (Phase 0). The caller swallows a
+  // failure here, so a bound code would quietly leave the campaign behind.
+  const venture_id = await resolveVentureInternalId(ventureRef);
   return db.execute({
     sql: `UPDATE fundraising_campaigns
                   SET current_raised = COALESCE(current_raised, 0) + ?,

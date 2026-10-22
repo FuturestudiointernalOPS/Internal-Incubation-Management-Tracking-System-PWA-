@@ -69,11 +69,11 @@ export async function getUserEffectiveProfile(userCid, userRole) {
       }
     }
 
-    // Step 3: No profile found — the identity's role capabilities are the base.
-    return { profileKey: null, profileName: null, source: "legacy" };
+    // Step 3: No profile found — no base capabilities (fail closed).
+    return { profileKey: null, profileName: null, source: "none" };
   } catch (error) {
     console.error("getUserEffectiveProfile error:", error.message);
-    return { profileKey: null, profileName: null, source: "legacy" };
+    return { profileKey: null, profileName: null, source: "none" };
   }
 }
 
