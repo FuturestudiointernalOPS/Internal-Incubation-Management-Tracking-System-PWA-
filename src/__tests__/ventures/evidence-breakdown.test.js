@@ -55,3 +55,11 @@ test("clicking the score tile opens the breakdown", () => {
   fireEvent.click(screen.getByTitle(/How the score is calculated|Comment le score/));
   expect(screen.getByText("Statutes")).toBeTruthy();
 });
+
+test("the tile is named Readiness, not Stage & Evidence Score", () => {
+  const en = require("@/locales/en/vadmin.json");
+  const fr = require("@/locales/fr/vadmin.json");
+  expect(en.vadmin.dashboard.stageEvidenceScore).toBe("Readiness");
+  expect(fr.vadmin.dashboard.stageEvidenceScore).toBe("Préparation");
+  expect(en.vadmin.dashboard.stageEvidenceHint).not.toMatch(/not investment readiness/i);
+});

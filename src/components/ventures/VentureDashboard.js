@@ -47,7 +47,7 @@ function isWidgetEmpty(data) {
 
 // ─── Main Dashboard Component ────────────────────────────────────────────
 
-export default function VentureDashboard({ id, embedded = false }) {
+export default function VentureDashboard({ id, embedded = false, onOpenProfile }) {
   const router = useRouter();
   const { t } = useI18n();
 
@@ -141,6 +141,16 @@ export default function VentureDashboard({ id, embedded = false }) {
       );
   };
 
+  // Verification widget status → localized label; unknown statuses stay raw.
+  const verificationStatusLabel = (status) => {
+    const key =
+      status === "verified" ? "verified" :
+      status === "pending_review" ? "pending" :
+      status === "rejected" ? "rejected" :
+      status === "draft" ? "draft" : null;
+    return key ? t(`vadmin.dashboard.${key}`) : (status ? status.replace(/_/g, " ") : t("vadmin.dashboard.draft"));
+  };
+
   // When embedded in the Venture hub page, the hub provides the outer chrome
   // (venture header, tabs, back link); the standalone route keeps its own.
   const wrapperClass = embedded ? "space-y-8" : "max-w-6xl mx-auto space-y-8 pb-20";
@@ -200,14 +210,14 @@ export default function VentureDashboard({ id, embedded = false }) {
         {/* Manager attention (Vinance 3 — what needs attention right now) */}
         <AttentionWidget id={id} />
 
-        <HealthSummary data={dashboardData} ventureId={id} />
+        <HealthSummary data={dashboardData} ventureId={id} onOpenProfile={onOpenProfile} />
 
         <QuickActions id={id} />
 
         {/* Progress & Metrics Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1 */}
-          <MetricsColumn data={dashboardData} widgetState={widgetState} refreshWidget={refreshWidget} />
+          <MetricsColumn id={id} data={dashboardData} widgetState={widgetState} refreshWidget={refreshWidget} verificationStatusLabel={verificationStatusLabel} />
 
           {/* Column 2 */}
           <TeamCoachingColumn id={id} data={dashboardData} widgetState={widgetState} refreshWidget={refreshWidget} />

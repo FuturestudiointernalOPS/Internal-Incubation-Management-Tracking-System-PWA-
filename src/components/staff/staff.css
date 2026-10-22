@@ -414,3 +414,11 @@
 .jy-act.jy-plain { display: grid; }
 .jy-act.jy-plain > * + * { margin-top: 0; padding-top: 0; border-top: 0; }
 .jy-note { width: 100%; box-sizing: border-box; }
+
+/* A collapsible activity block: the header is the whole collapsed state. */
+.jy-act-head { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer; font-size: 14.5px; font-weight: 600; color: var(--text-primary); }
+.jy-act-head:hover { color: var(--brand-orange); }
+.jy-act-head:focus-visible { outline: 2px solid color-mix(in srgb, var(--brand-orange) 60%, transparent); outline-offset: 4px; border-radius: 6px; }
+.jy-act-body { display: grid; gap: 0; }
+.jy-act-body > * + * { margin-top: 14px; padding-top: 14px; border-top: 2px solid var(--jy-line); }
+.jy-act-body > .jy-facts.in { border-top: 0; padding-top: 0; margin-top: 12px; }
