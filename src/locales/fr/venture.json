@@ -202,7 +202,12 @@
       "delete": "Supprimer",
       "deleteConfirm": "Supprimer cette note interne ? Elle ne sera plus visible.",
       "deleted": "Note supprimée.",
-      "deleteFailed": "Échec de la suppression."
+      "deleteFailed": "Échec de la suppression.",
+      "section": {
+        "milestones": "Jalons",
+        "sessions": "Sessions"
+      },
+      "sessionsHint": "Notes rédigées lors de chaque session. Elles restent liées à cette session."
     },
     "insights": "Apprentissages",
     "validation": "Validation",
@@ -259,7 +264,6 @@
     "calendar": "Calendrier",
     "noEvents": "Aucun événement pour le moment",
     "taskCompletion": "Achèvement des tâches",
-
     "standupsCount": "Standups soumis",
     "retrosCount": "Rétros soumises",
     "documents": "Data Room",
@@ -1213,6 +1217,13 @@
         "leadRemoved": "Référent mis à jour",
         "leadRemovedMsg": "{name} n'est plus affecté à votre Venture."
       }
+    },
+    "quickNote": {
+      "button": "Note",
+      "title": "Ajouter une note",
+      "prefix": "Note",
+      "saved": "Note enregistrée — elle est dans l'onglet Notes.",
+      "memo": "Mémo de séance"
     }
   }
 }

@@ -201,7 +201,12 @@
       "delete": "Delete",
       "deleteConfirm": "Delete this internal note? It will no longer be visible.",
       "deleted": "Note deleted.",
-      "deleteFailed": "Delete failed."
+      "deleteFailed": "Delete failed.",
+      "section": {
+        "milestones": "Milestones",
+        "sessions": "Sessions"
+      },
+      "sessionsHint": "Notes written in each session. They stay with that session."
     },
     "insights": "Insights",
     "validation": "Validation",
@@ -258,7 +263,6 @@
     "calendar": "Calendar",
     "noEvents": "No events yet",
     "taskCompletion": "Task Completion",
-
     "standupsCount": "Standups Submitted",
     "retrosCount": "Retros Submitted",
     "documents": "Data Room",
@@ -1213,6 +1217,13 @@
         "leadRemoved": "Venture Lead updated",
         "leadRemovedMsg": "{name} is no longer assigned to your Venture."
       }
+    },
+    "quickNote": {
+      "button": "Note",
+      "title": "Add a note",
+      "prefix": "Note",
+      "saved": "Note saved — it is in the Notes tab.",
+      "memo": "Session memo"
     }
   }
 }

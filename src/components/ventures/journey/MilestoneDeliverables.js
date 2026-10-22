@@ -1,5 +1,6 @@
 "use client";
 
+import QuickNote from "@/components/ventures/journey/QuickNote";
 import ActivityReport from "@/components/ventures/journey/ActivityReport";
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
@@ -225,6 +226,16 @@ export default function MilestoneDeliverables({
                 <span className={`stf-tag ${TAG_TONE[status?.tone] || ""} shrink-0`}>
                   {statusLabel(status, t)}
                 </span>
+                {milestoneAuthority && deliverable.approval_status !== "approved" && (
+                  <button
+                    type="button"
+                    onClick={() => reviewDeliverable(deliverable, "approved")}
+                    disabled={deliverableBusy === deliverable.id}
+                    className="stf-btn sm ok shrink-0"
+                  >
+                    {t("venture.manager.approveDeliverable")}
+                  </button>
+                )}
                 {milestoneAuthority && (
                   <AppMenu
                     label={t("venture.manager.deliverableActions")}
@@ -285,6 +296,11 @@ export default function MilestoneDeliverables({
               stage={stage}
             />
           )}
+            <QuickNote
+              ventureId={ventureId}
+              milestoneId={milestone.id}
+              subject={`${group.activity?.source_ref ? `${group.activity.source_ref} · ` : ""}${group.activity?.title || milestone.title || ""}`.trim()}
+            />
             <ActivityReport ventureId={ventureId} milestone={milestone} activity={group.activity} />
           </div>
         </div>
