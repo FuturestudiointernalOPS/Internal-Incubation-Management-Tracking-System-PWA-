@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Search, Eye, Rocket, Archive, Loader2, BookOpen } from "lucide-react";
+import { Plus, Search, Eye, Rocket, Archive, ArchiveRestore, Loader2, BookOpen } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
@@ -107,6 +107,11 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
   const confirmArchive = async (course) => {
     if (!(await confirm({ message: t("lms.confirm.archive"), tone: "danger" }))) return;
     runAction(course.id, "archive", "lms.courses.archived");
+  };
+
+  const confirmUnarchive = async (course) => {
+    if (!(await confirm({ message: `${t("lms.confirm.unarchive")}\n${t("lms.confirm.unarchiveHint")}` }))) return;
+    runAction(course.id, "unarchive", "lms.courses.unarchived");
   };
 
   return (
@@ -249,6 +254,17 @@ export default function CourseList({ basePath = "/admin/lms/courses" }) {
                     onClick={() => confirmArchive(course)}
                   >
                     {t("lms.courses.archive")}
+                  </AppButton>
+                )}
+                {allow("edit") && course.status === "archived" && (
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    icon={ArchiveRestore}
+                    loading={busyId === course.id}
+                    onClick={() => confirmUnarchive(course)}
+                  >
+                    {t("lms.courses.unarchive")}
                   </AppButton>
                 )}
               </div>

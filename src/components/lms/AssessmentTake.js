@@ -81,7 +81,9 @@ export default function AssessmentTake({ courseId, assessmentId }) {
   // The loader showed the server's own key when it refused a payload and the
   // request's message when there was no answer; the entry view translates
   // whichever arrives, with the same fallback as before.
-  const error = assessmentRead.failure || readError || null;
+  // A request that never got an answer shows the screen's message, not the
+  // browser's raw (English) network error.
+  const error = assessmentRead.failure || (readError ? "lms.assessment.unavailable" : null);
 
   const questions = useMemo(() => data?.questions || [], [data]);
   const question = questions[index];
