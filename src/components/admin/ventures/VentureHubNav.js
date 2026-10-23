@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Activity, Building2, Calendar, FileText, FolderKanban, FolderOpen, Rocket, Route,
+  Activity, ArrowLeft, Building2, Calendar, FileText, FolderKanban, FolderOpen, Rocket, Route,
   TrendingUp, UserPlus, Users,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
@@ -78,6 +78,14 @@ export default function VentureHubNav({ id }) {
 
   return (
     <>
+      {/* The way back to the list of Ventures: shown once, on every page of a Venture. */}
+      <Link
+        href="/admin/ventures"
+        className="flex items-center gap-2 mb-5 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
+      >
+        <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
+      </Link>
+
       <div className="card mb-8">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div className="flex items-center gap-5">

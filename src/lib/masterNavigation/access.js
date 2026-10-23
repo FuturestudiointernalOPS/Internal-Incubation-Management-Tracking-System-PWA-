@@ -22,7 +22,7 @@ export const ROLE_ACCESS = {
   super_admin: {
     top: [
       "dashboard", "crm", "communication", "programs", "ventures", "investors",
-      "finance", "operations", "intelligence", "reports", "knowledge", "lms", "security", "settings",
+      "finance", "operations", "intelligence", "reports", "knowledge", "lms", "settings",
     ],
     children: {
       crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
@@ -34,8 +34,7 @@ export const ROLE_ACCESS = {
       reports: ["program_reports", "internal_reports", "metrics"],
       knowledge: ["knowledge_base"],
       lms: ["lms_courses", "lms_registrations"],
-      security: ["security", "audit_logs", "access_summary", "permissions"],
-      settings: ["system"],
+      settings: ["system", "security", "audit_logs", "access_summary", "permissions"],
     },
     hrefs: {},
     icons: {},

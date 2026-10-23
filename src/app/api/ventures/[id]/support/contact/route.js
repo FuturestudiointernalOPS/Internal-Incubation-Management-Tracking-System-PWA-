@@ -13,21 +13,18 @@ import {
 /**
  * POST /api/ventures/[id]/support/contact — a founder writes to their Leads.
  *
- * WHY THIS EXISTS. A `mailto:` link hands the message to the founder's own mail
- * client: ImpactOS never learns it happened, nothing is logged, and a founder
- * without a configured mail client gets no feedback at all. This route sends the
- * message through the platform's own transport instead, so the Venture Lead is
- * reached even when the founder's desktop is not set up for mail — and the
- * founder is told whether it actually left.
+ * The message goes into the platform's own MESSAGE SPACE: each chosen Lead
+ * receives a direct message in their ImpactOS inbox (and the usual notification),
+ * from the founder, and the founder keeps the conversation. Nothing is mailed.
  *
- * THE RECIPIENTS ARE NEVER TAKEN FROM THE REQUEST. They are resolved here from
- * the Venture's ACTIVE lead assignments, so nobody can use this endpoint as an
- * open relay. A lead without an address on file is reported back as unreachable
+ * THE RECIPIENTS ARE NEVER TAKEN FROM THE REQUEST. They are resolved here from the
+ * Venture's ACTIVE lead assignments; the request may only choose among them, by
+ * assignment id. A lead without an account has no inbox and is reported back
  * rather than dropped.
  *
  * The gate is `ventures.view` — the weakest right that already means "this
  * person is part of this Venture". Sending is rate limited per Venture and per
- * sender, so the endpoint cannot be turned into a bulk mailer.
+ * sender, so the endpoint cannot be turned into a bulk messenger.
  */
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -83,24 +80,20 @@ export const POST = createHandler(async (req, { params }) => {
 
   const outcome = await sendFounderMessageToLeads({
     ventureName,
+    founderCid: session?.cid,
     founderName: session?.name || null,
-    founderEmail: session?.email || null,
     message,
     leads,
   });
 
-  // "Sent to nobody" is a failure, not a success with an empty list.
+  // Nobody reached: say why. Leads with no ImpactOS account have no inbox.
   if (outcome.sent === 0) {
+    const noAccountOnly = outcome.failed.length > 0 && outcome.failed.every((entry) => entry.reason === "no_account");
     return NextResponse.json(
-      { success: false, error: "errors.contactNotDelivered", failed: outcome.failed },
-      { status: 502 },
+      { success: false, error: noAccountOnly ? "errors.contactNoAccount" : "errors.contactNotDelivered", failed: outcome.failed },
+      { status: noAccountOnly ? 409 : 502 },
     );
   }
 
-  return NextResponse.json({
-    success: true,
-    sent: outcome.sent,
-    failed: outcome.failed,
-    reply_to_used: outcome.reply_to_used,
-  });
+  return NextResponse.json({ success: true, sent: outcome.sent, failed: outcome.failed });
 });
