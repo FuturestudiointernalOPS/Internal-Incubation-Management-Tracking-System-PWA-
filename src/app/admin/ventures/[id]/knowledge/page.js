@@ -155,7 +155,7 @@ export default function VentureKnowledgePage() {
 
   const progressBar = (pct) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className={`h-full rounded-full transition-all bg-[var(--progress-fill)]`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
 

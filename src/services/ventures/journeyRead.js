@@ -148,6 +148,25 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
     for (const milestone of stageMilestones) {
       milestone.deliverables = deliverablesByMilestone[String(milestone.id)] || [];
       milestone.task_counts = taskCountsByMilestone[String(milestone.id)] || { total: 0, done: 0 };
+      // A task whose linked deliverable has been APPROVED is finished: the
+      // approval is the evidence, and it never rewrites the task row itself, so
+      // the count reads it from the deliverable (never beyond the milestone's total).
+      const approvedTaskIds = new Set(
+        milestone.deliverables
+          .filter((deliverable) => deliverable.approval_status === "approved" && deliverable.task_id != null)
+          .map((deliverable) => String(deliverable.task_id)),
+      );
+      if (approvedTaskIds.size > 0) {
+        const alsoDone = (tasksByMilestone[String(milestone.id)] || []).filter(
+          (task) =>
+            approvedTaskIds.has(String(task.id)) &&
+            !TASK_COMPLETED_STATUSES.includes(String(task.status || "").trim().toLowerCase()),
+        ).length;
+        milestone.task_counts = {
+          total: milestone.task_counts.total,
+          done: Math.min(milestone.task_counts.total, milestone.task_counts.done + alsoDone),
+        };
+      }
       // A session can be booked AGAINST one of the milestone's ACTIVITIES (a
       // task), not only against the milestone: the whole work list is exposed
       // here so the booking form can offer it.

@@ -12,7 +12,7 @@ export default function DiligenceProgress({ progress, completedReqs, totalReques
         <span className="text-xs font-bold text-[var(--brand-orange)]">{progress}%</span>
       </div>
       <div className="h-2 rounded-full bg-[var(--surface-3)] overflow-hidden">
-        <div className="h-full rounded-full bg-[var(--brand-orange)] transition-all" style={{ width: `${progress}%` }} />
+        <div className="h-full rounded-full bg-[var(--progress-fill)] transition-all" style={{ width: `${progress}%` }} />
       </div>
       <p className="text-[10px] text-[var(--text-tertiary)] mt-2">{completedReqs}/{totalRequests} items resolved</p>
     </div>

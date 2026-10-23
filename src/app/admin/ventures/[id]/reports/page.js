@@ -123,7 +123,7 @@ export default function VentureReportsPage() {
 
   const progressBar = (pct) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-      <div className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className={`h-full rounded-full bg-[var(--progress-fill)]`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
 
@@ -370,7 +370,7 @@ export default function VentureReportsPage() {
                       <div key={index} className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] w-24 truncate">{teamMember.name}</span>
                         <div className="flex-1 bg-tertiary rounded-full h-3 overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-[var(--progress-fill)] rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-[10px] text-[var(--text-secondary)] w-8 text-right">{teamMember.total_tasks}</span>
                       </div>

@@ -159,7 +159,7 @@ export default function VentureFeedbackPage() {
                         <span className="text-[9px] font-bold text-slate-500 w-4">{rating}</span>
                         {renderStars(rating)}
                         <div className="flex-1 bg-tertiary rounded-full h-2 overflow-hidden">
-                          <div className="h-full rounded-full bg-amber-400" style={{ width: `${(count/max)*100}%` }} />
+                          <div className="h-full rounded-full bg-[var(--progress-fill)]" style={{ width: `${(count/max)*100}%` }} />
                         </div>
                         <span className="text-[8px] text-slate-500 w-6 text-right">{count}</span>
                       </div>
