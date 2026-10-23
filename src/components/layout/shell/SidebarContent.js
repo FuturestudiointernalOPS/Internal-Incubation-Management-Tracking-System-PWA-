@@ -29,6 +29,10 @@ const PROFILE_SECTION = {
   investor: "investor",
 };
 
+// A group unfolds only when it is clicked: touching it with the pointer must
+// not open it. (The collapsed rail's flyout is a separate, hover-driven surface.)
+const HOVER_EXPANDS_SECTIONS = false;
+
 export const SidebarContent = ({
   mobile = false,
   collapsed,
@@ -179,7 +183,7 @@ export const SidebarContent = ({
                 : collapsed
                   ? undefined
                   : () => {
-                      if (pointerCanHover()) scheduleHoverOpen(item.id);
+                      if (HOVER_EXPANDS_SECTIONS && pointerCanHover()) scheduleHoverOpen(item.id);
                     }
             }
             onMouseLeave={

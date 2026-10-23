@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
+import { notify } from "@/lib/notify";
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -14,7 +15,10 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * the reminders route, gated on `ventures.edit`, so the server decides who may).
  * One address covers every activity that name owns or supports in the Venture.
  *
- * Returns `addEmail(name, { onDone })` and `savingName`, the name being saved.
+ * A save takes a few seconds on the server, so the caller learns the address the
+ * moment it is stored — `onDone(email)` — and can show it at once instead of
+ * waiting for the next read; a toast confirms it. Returns `addEmail(name, { onDone })`
+ * and `savingName`, the name being saved.
  */
 export function useAssigneeEmail(ventureId) {
   const { t } = useI18n();
@@ -47,7 +51,9 @@ export function useAssigneeEmail(ventureId) {
         await alert({ message: t(payload?.error || "errors.somethingWrong"), tone: "danger" });
         return false;
       }
-      onDone?.();
+      const saved = String(payload?.saved?.email || value).trim();
+      notify("success", t("vadmin.dashboard.collaborators.emailAdded", { name }), 4000);
+      onDone?.(saved);
       return true;
     } catch (_) {
       await alert({ message: t("errors.networkError"), tone: "danger" });

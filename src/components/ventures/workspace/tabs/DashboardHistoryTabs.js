@@ -141,6 +141,7 @@ export function DashboardTab({ onSection }) {
           hint={t("venture.progressOverview.ventureSetupHint")}
           icon={Target}
           loading={milestonePending}
+          onClick={onSection ? () => onSection("profile") : undefined}
         />
         <KpiCard
           label={t("venture.taskCompletion")}

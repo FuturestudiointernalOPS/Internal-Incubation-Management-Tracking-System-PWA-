@@ -104,7 +104,13 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     // every render and the memo would never hold.
     const all = data?.items || [];
     const needle = search.trim().toLowerCase();
-    return all.filter((item) => {
+    // Nearest due date first; undated work goes last.
+    const byDue = [...all].sort((left, right) => {
+      const a = left.finish ? new Date(left.finish).getTime() : Infinity;
+      const b = right.finish ? new Date(right.finish).getTime() : Infinity;
+      return a - b;
+    });
+    return byDue.filter((item) => {
       if (bucket !== ANY && item.bucket !== bucket) return false;
       if (owner !== ANY && item.owner?.name !== owner) return false;
       if (supporting !== ANY && !(item.supporting_names || []).includes(supporting)) return false;
@@ -271,7 +277,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
           aria-label={t("venture.manager.milestoneOwner")}
           title={t("venture.manager.milestoneOwner")}
         >
-          {selectOptions(options.owners || [], t("venture.projects.anyOption")).map((option) => (
+          {selectOptions(options.owners || [], t("venture.manager.milestoneOwner")).map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
@@ -283,7 +289,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
           aria-label={t("venture.manager.supporting")}
           title={t("venture.manager.supporting")}
         >
-          {selectOptions(options.supporting || [], t("venture.projects.anyOption")).map((option) => (
+          {selectOptions(options.supporting || [], t("venture.manager.supporting")).map((option) => (
             <option key={option.value} value={option.value}>{option.label}</option>
           ))}
         </select>
@@ -295,7 +301,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
           aria-label={t("venture.projects.status")}
           title={t("venture.projects.status")}
         >
-          <option value={ANY}>{t("venture.projects.anyOption")}</option>
+          <option value={ANY}>{t("venture.projects.status")}</option>
           {(options.statuses || []).map((entry) => (
             <option key={entry.id} value={entry.id}>{t(entry.key)}</option>
           ))}
@@ -308,7 +314,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
           aria-label={t("venture.projects.journey")}
           title={t("venture.projects.journey")}
         >
-          <option value={ANY}>{t("venture.projects.anyOption")}</option>
+          <option value={ANY}>{t("venture.projects.journey")}</option>
           {(options.journeys || []).map((entry) => (
             <option key={entry.id} value={String(entry.id)}>{tv(entry.name)}</option>
           ))}
@@ -321,7 +327,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
           aria-label={t("venture.projects.milestone")}
           title={t("venture.projects.milestone")}
         >
-          <option value={ANY}>{t("venture.projects.anyOption")}</option>
+          <option value={ANY}>{t("venture.projects.milestone")}</option>
           {(options.milestones || []).map((entry) => (
             <option key={entry.id} value={String(entry.id)}>{tv(entry.title)}</option>
           ))}

@@ -83,7 +83,13 @@ export default function VenturesPage() {
         cls: "bg-rose-500/10 text-rose-400",
       };
     }
-    return { label: t("vadmin.list.readinessUndefined"), cls: "bg-slate-500/10 text-slate-400" };
+    // Nothing is marked REQUIRED at this venture's stage, so there is nothing to
+    // measure: say that, instead of a bare dash that reads like missing data.
+    return {
+      label: t("vadmin.list.readinessUndefined"),
+      cls: "bg-slate-500/10 text-slate-400",
+      hint: t("vadmin.list.readinessUndefinedHint"),
+    };
   };
 
   const notify = (type, message, duration = 4000) => {
@@ -259,7 +265,10 @@ export default function VenturesPage() {
                           </span>
                         </td>
                         <td className="px-5 py-3">
-                          <span className={`inline-flex items-center gap-1.5 text-[9px] font-black uppercase px-2 py-1 rounded ${readiness.cls}`}>
+                          <span
+                            title={readiness.hint || t("vadmin.list.readinessHint")}
+                            className={`inline-flex items-center gap-1.5 whitespace-nowrap text-[9px] font-black uppercase px-2 py-1 rounded ${readiness.cls}`}
+                          >
                             <span className="w-1.5 h-1.5 rounded-full bg-current" />
                             {readiness.label}
                           </span>

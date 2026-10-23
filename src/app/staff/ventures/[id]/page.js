@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen, Building2 } from "lucide-react";
+import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen, TrendingUp, Building2 } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
@@ -16,6 +16,11 @@ import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
+import { useApi } from "@/lib/hooks/useApi";
+import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
+import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { pickInvestmentReadiness } from "@/components/participant/ventures/ventureScreenModel";
+import { cardStyle } from "@/components/participant/ventures/ventureScreenHelpers";
 
 /**
  * Staff → Ventures → [Venture] — staff workspace (Phase 3).
@@ -40,6 +45,9 @@ const TABS = [
   // The Project lens on the same work: every milestone, activity and deliverable
   // in one row each — the Super Admin's "Project" button, for the Lead Manager.
   { id: "projects", label: "venture.projects.pageTitle", icon: FolderKanban, leadManagerOnly: true },
+  // Investment readiness: the same two indicators the founder sees (roadmap
+  // progress and Data Room completeness), between the work lens and the tasks.
+  { id: "investment", label: "venture.investment", icon: TrendingUp },
   { id: "tasks", label: "venture.tasks", icon: ListTodo },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
@@ -89,6 +97,11 @@ export default function StaffVentureWorkspace() {
   // (The SERVER is still the authority — this only decides what is rendered.)
   const visibleTabs = TABS.filter((tab) => !tab.leadManagerOnly || isLeadManager);
   const activeTab = visibleTabs.some((tab) => tab.id === tabFromUrl) ? tabFromUrl : "overview";
+
+  const { data: investmentReadiness } = useApi(
+    activeTab === "investment" ? `/api/ventures/${id}/investment-readiness` : null,
+    { defaultValue: null, transform: pickInvestmentReadiness, deps: [id, activeTab] },
+  );
 
   const selectTab = (tabId) => {
     const params = new URLSearchParams(searchParams?.toString?.() || "");
@@ -427,6 +440,12 @@ export default function StaffVentureWorkspace() {
         <div className="pt-2">
           <VenturePeoplePanel ventureId={id} />
         </div>
+      )}
+
+      {activeTab === "investment" && (
+        <VentureWorkspace.Provider value={{ investmentReadiness, cardStyle }}>
+          <InvestmentTab />
+        </VentureWorkspace.Provider>
       )}
 
       {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}

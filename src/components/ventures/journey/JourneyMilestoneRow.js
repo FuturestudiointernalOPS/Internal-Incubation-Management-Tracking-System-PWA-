@@ -4,8 +4,9 @@ import React from "react";
 import { useI18n } from "@/lib/i18n";
 import { earliestStoredDate, nextMilestoneDate, todayDateInput } from "@/lib/ventureMilestoneDates";
 import { datePickerCeiling, datePickerFloor } from "@/components/ventures/journey/journeyShapers";
-import { Flag, ChevronDown, ChevronRight, Loader2, Save } from "lucide-react";
+import { Flag, ChevronRight, Loader2, Save } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
+import AppModal from "@/components/ui/AppModal";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
 import ScopedNotes from "@/components/ventures/ScopedNotes";
 import MilestoneReviewInbox from "@/components/ventures/journey/MilestoneReviewInbox";
@@ -56,6 +57,7 @@ export default function JourneyMilestoneRow({
   deliverableFile,
   deliverableForm,
   deliverableMenuItems,
+  canApproveDeliverable,
   deliverableNewUrl,
   deliverableSaving,
   deliverableStatus,
@@ -169,7 +171,7 @@ export default function JourneyMilestoneRow({
           <button
             type="button"
             onClick={() => toggleMilestoneOpen(milestone.id)}
-            aria-expanded={isOpen}
+            aria-haspopup="dialog"
             className="jy-mtog"
           >
             <span className={`jy-dot ${milestoneDotClass(milestone.status)}`} />
@@ -181,7 +183,7 @@ export default function JourneyMilestoneRow({
                 <Flag size={13} /> {deliverableList.length}
               </span>
             )}
-            {isOpen ? <ChevronDown size={15} className="shrink-0 text-[var(--text-secondary)]" /> : <ChevronRight size={15} className="shrink-0 text-[var(--text-secondary)]" />}
+            <ChevronRight size={15} className="shrink-0 text-[var(--text-secondary)]" />
           </button>
           <span className={`${milestoneStatusClass(milestone.status)} shrink-0`}>
             {milestoneStatusKey(milestone.status)}
@@ -197,10 +199,15 @@ export default function JourneyMilestoneRow({
           {milestoneBusy === milestone.id && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)] shrink-0" />}
         </div>
 
+        {/* The milestone's tasks open in a pop-up, not inline: its metadata, review
+            inbox, activities and deliverables, booked sessions and notes. The row
+            stays one line; the state (which milestone is open) is still the panel's. */}
+        <AppModal isOpen={isOpen} onClose={() => toggleMilestoneOpen(milestone.id)} title={milestone.title} size="xl">
+        <div className="space-y-4">
         {/* The milestone's metadata, label → value: people first, then timing.
             Progress is deliberately absent from this view. */}
         {isOpen && (
-          <div className="jy-facts">
+          <div className="jy-facts in">
             <div><span>{t("venture.manager.milestoneOwner")}</span><b>{milestoneOwner || "—"}</b></div>
             <div><span>{t("venture.manager.supporting")}</span><b>{milestoneSupport || "—"}</b></div>
             <div><span>{t("venture.manager.startDate")}</span><b>{milestoneStart ? fmtDate(milestoneStart) : "—"}</b></div>
@@ -244,6 +251,7 @@ export default function JourneyMilestoneRow({
             deliverableForm={deliverableForm}
             deliverableList={deliverableList}
             deliverableMenuItems={deliverableMenuItems}
+            canApproveDeliverable={canApproveDeliverable}
             deliverableNewUrl={deliverableNewUrl}
             deliverableSaving={deliverableSaving}
             deliverableStatus={deliverableStatus}
@@ -294,6 +302,8 @@ export default function JourneyMilestoneRow({
             <ScopedNotes ventureId={ventureId} scopeType="milestone" scopeId={milestone.id} />
           </div>
         )}
+        </div>
+        </AppModal>
         </>
       )}
     </div>

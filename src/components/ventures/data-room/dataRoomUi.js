@@ -84,3 +84,9 @@ export async function downloadDocument(documentEntry) {
     window.open(href, "_blank", "noopener,noreferrer");
   }
 }
+
+/** Address that shows one document inline (never as a download). */
+export function inlineDocumentUrl(ventureId, documentEntry, versionNumber) {
+  const base = `/api/ventures/${ventureId}/data-room/${documentEntry.id}/file`;
+  return versionNumber ? `${base}?version=${versionNumber}` : base;
+}

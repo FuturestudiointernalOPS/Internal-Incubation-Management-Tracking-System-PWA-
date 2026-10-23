@@ -165,12 +165,14 @@
       "backToVenture": "Back to {name}",
       "coaches": "Coaches",
       "coachingAndAdvisors": "Collaborators",
+      "openProfile": "Open the Profile tab",
       "collaborators": {
         "title": "Collaborators",
         "subtitle": "The people this Venture's work names — the same list as the Project page. Give an email to those who have none so reminders can reach them.",
         "openHint": "Open the list of collaborators",
         "noEmail": "No email",
         "addEmail": "Add email",
+        "emailAdded": "Email added for {name}",
         "withoutEmail": "{count} without email"
       },
       "completeProfileForScore": "Complete your profile to see score",
@@ -180,8 +182,8 @@
       "editVenture": "Edit Venture",
       "investmentReadiness": "Investment Readiness",
       "investmentScore": "Investment score",
-      "stageEvidenceScore": "Stage & Evidence Score",
-      "stageEvidenceHint": "Business stage plus the evidence already filed — not investment readiness",
+      "stageEvidenceScore": "Readiness",
+      "stageEvidenceHint": "Business stage plus the required documents already approved",
       "evidence": {
         "title": "How the score is calculated",
         "stagePart": "Stage",
@@ -780,7 +782,9 @@
       "readiness": "Readiness",
       "ready": "Ready",
       "notReady": "Not ready",
-      "readinessUndefined": "—"
+      "readinessUndefined": "No required documents",
+      "readinessUndefinedHint": "No document category is marked required for this venture at its stage, so its readiness cannot be measured yet. Mark categories as required in its Data Room.",
+      "readinessHint": "Share of the required Data Room documents that are approved."
     },
     "milestones": {
       "title": "Milestones & Deliverables",

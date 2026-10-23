@@ -6,7 +6,7 @@ import { deliverableStatusWord, statusDotClass, statusLabel } from "@/lib/ventur
 import { groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
 import FounderSessionBooking from "@/components/ventures/journey/FounderSessionBooking";
 import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
-import { ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 // The kit tag for a status word (same tones as the Venture Manager view).
 const TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes_requested: "r", completed: "g", approved: "g" };
@@ -34,6 +34,17 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
   // Only the id is kept: the dialog then reads the CURRENT deliverable from
   // props, so a just-submitted status shows without reopening it.
   const [openId, setOpenId] = useState(null);
+  // The activities opened by hand (by key). Collapsed by default: a milestone
+  // carries many activities, and each one's header already says what it is and
+  // how its deliverable stands.
+  const [openActs, setOpenActs] = useState(() => new Set());
+  const toggleAct = (key) =>
+    setOpenActs((previous) => {
+      const next = new Set(previous);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
 
   const groups = groupActivitiesWithDeliverables(milestone.activities || [], milestone.deliverables || []);
   const openGroup = openId == null ? null : groups.find((group) => group.deliverables.some((item) => item.id === openId));
@@ -44,28 +55,54 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
   const canSubmit = !!openDeliverable && stage.status === "active" && openStatus.id !== "approved";
 
   const fmtDate = (value) => (value ? new Date(value).toLocaleDateString() : "—");
+  const actKey = (group, index) => group.activity?.id ?? `group-${index}`;
+  const allOpen = groups.length > 0 && groups.every((group, index) => openActs.has(actKey(group, index)));
 
   return (
     <>
       {((milestone.deliverables || []).length > 0 || (milestone.activities || []).length > 0) && (
         <div className="jy-del">
-          <p className="jy-lbl">{t("venture.manager.tasksHeading")}</p>
+          <div className="flex items-center justify-between gap-3">
+            <p className="jy-lbl">{t("venture.manager.tasksHeading")}</p>
+            {groups.length > 1 && (
+              <button
+                type="button"
+                className="text-[12px] font-bold text-[var(--brand-orange)] hover:underline"
+                onClick={() => setOpenActs(allOpen ? new Set() : new Set(groups.map((group, index) => actKey(group, index))))}
+              >
+                {allOpen ? t("common.collapse") : t("common.expand")}
+              </button>
+            )}
+          </div>
 
-          {groups.map((group, groupIndex) => (
-            <div key={group.activity?.id ?? `group-${groupIndex}`} className="jy-act">
-              {/* ACTIVITY — the work that produces what follows */}
-              <div>
-                <p className="jy-lbl">{t("venture.manager.activityLabel")}</p>
-                <p className="text-[13px] font-semibold text-[var(--text-primary)] mt-0.5">
-                  {group.activity?.source_ref && (
-                    <span className="stf-tag mr-1.5 align-middle">{group.activity.source_ref}</span>
-                  )}
+          {groups.map((group, groupIndex) => {
+            const key = actKey(group, groupIndex);
+            const isOpen = openActs.has(key);
+            return (
+            <div key={key} className="jy-act">
+              {/* ACTIVITY — the work that produces what follows. Its header is the
+                  whole collapsed state: reference, title and where each deliverable stands. */}
+              <button type="button" className="jy-act-head" aria-expanded={isOpen} onClick={() => toggleAct(key)}>
+                {isOpen ? <ChevronDown className="w-4 h-4 shrink-0" /> : <ChevronRight className="w-4 h-4 shrink-0" />}
+                <span className="min-w-0 flex-1">
+                  {group.activity?.source_ref && <span className="stf-tag mr-1.5 align-middle">{group.activity.source_ref}</span>}
                   {group.activity?.title || t("venture.manager.notProvided")}
-                </p>
-                {group.activity?.description && (
-                  <p className="text-[12px] text-[var(--text-secondary)] mt-0.5 whitespace-pre-line break-words">{group.activity.description}</p>
-                )}
-              </div>
+                </span>
+                {group.deliverables.map((deliverable) => {
+                  const status = deliverableStatusWord(deliverable);
+                  return (
+                    <span key={deliverable.id} className={`stf-tag ${TAG_TONE[status?.tone] || ""} shrink-0`}>
+                      {statusLabel(status, t)}
+                    </span>
+                  );
+                })}
+              </button>
+
+              {isOpen && (
+              <div className="jy-act-body">
+              {group.activity?.description && (
+                <p className="text-[12px] text-[var(--text-secondary)] whitespace-pre-line break-words">{group.activity.description}</p>
+              )}
 
               {/* DELIVERABLE(S) — the output, underneath its activity */}
               <div className="space-y-1">
@@ -145,8 +182,11 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
                   />
                 )}
               </div>
+              </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
