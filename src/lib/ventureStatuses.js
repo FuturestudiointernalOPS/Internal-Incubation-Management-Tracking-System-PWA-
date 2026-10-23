@@ -231,10 +231,13 @@ export function deliverableStatusWord(deliverable = {}) {
   const approval = String(deliverable.approval_status || "").trim().toLowerCase();
   const status = String(deliverable.status || "").trim().toLowerCase();
 
+  // The reviewer's LATEST decision comes first: a refusal outranks an older
+  // `completed` left on the row by an earlier approval.
+  if (approval === "rejected") return statusWord("changes_requested");
   if (approval === "approved" || status === "completed" || status === "accepted") {
     return statusWord("approved");
   }
-  if (approval === "rejected" || status === "changes_requested" || status === "revision_requested") {
+  if (status === "changes_requested" || status === "revision_requested") {
     return statusWord("changes_requested");
   }
   if (status === "submitted" || status === "under_review" || status === "review") {

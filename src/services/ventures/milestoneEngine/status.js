@@ -55,8 +55,10 @@ export function deriveMilestoneStatusFromDeliverables(deliverables = []) {
   const stateOf = (deliverable) => {
     const approval = String(deliverable.approval_status || "").trim().toLowerCase();
     const status = String(deliverable.status || "").trim().toLowerCase();
+    // The latest review decision first: a refusal outranks a stale `completed`.
+    if (approval === "rejected") return "changes_requested";
     if (approval === "approved" || status === "approved" || status === "completed" || status === "accepted") return "approved";
-    if (approval === "rejected" || status === "changes_requested" || status === "revision_requested") return "changes_requested";
+    if (status === "changes_requested" || status === "revision_requested") return "changes_requested";
     if (status === "submitted" || status === "under_review" || status === "review") return "awaiting_review";
     if (status === "in_progress") return "in_progress";
     return "not_started";
