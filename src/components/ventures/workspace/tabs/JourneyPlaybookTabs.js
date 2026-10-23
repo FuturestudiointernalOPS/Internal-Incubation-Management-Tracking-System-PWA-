@@ -256,11 +256,13 @@ export function JourneyTab() {
 
   // Deliverable evidence: the Venture submits a URL; the status chip then
   // reflects the review (submitted / approved / changes requested).
+  // Resolves true once the evidence is in (the caller closes its dialog), false when
+  // nothing was sent or the server refused (the dialog stays, with its draft).
   const submitDeliverable = async (deliverableId) => {
     const draft = dvDrafts[deliverableId] || {};
     const file = draft.file || null;
     const url = (draft.url || "").trim();
-    if (!file && !url) return;
+    if (!file && !url) return false;
     try {
       let evidenceUrl = url;
       let evidenceName = null;
@@ -272,7 +274,7 @@ export function JourneyTab() {
         const uploadPayload = await uploadResponse.json().catch(() => ({}));
         if (!uploadPayload.success) {
           notifyMsg(uploadPayload.error || t("venture.submitFailed"));
-          return;
+          return false;
         }
         evidenceUrl = uploadPayload.path;
         evidenceName = uploadPayload.name || file.name || null;
@@ -287,11 +289,13 @@ export function JourneyTab() {
         notifyMsg(t("venture.manager.deliverableSubmitted"));
         setDvDrafts((prev) => ({ ...prev, [deliverableId]: { url: "", file: null } }));
         fetchJourney(true);
-      } else {
-        notifyMsg(payload.error || t("venture.submitFailed"));
+        return true;
       }
+      notifyMsg(payload.error || t("venture.submitFailed"));
+      return false;
     } catch (_) {
       notifyMsg(t("venture.submitFailed"));
+      return false;
     }
   };
 
@@ -327,7 +331,6 @@ export function JourneyTab() {
 
   const renderMilestoneDetail = (stage, milestone) => {
     const tasks = tasksByMilestone[milestone.id] || [];
-    const normalizedMilestoneStatus = milestoneStatusWord(milestone.status);
     const isCurrent = milestoneIsCurrent(stage, milestone);
     // ONE authoritative Owner / Support / Start / Finish: the milestone's own, else
     // its first activity's — the manager's rule, so both views show the same values.

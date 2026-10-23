@@ -36,6 +36,7 @@ jest.mock("@/lib/appUrl", () => ({
 jest.mock("@/lib/ventureAuth", () => ({
   requireOperationalVentureAccess: jest.fn().mockResolvedValue({ ok: true }),
   roleIsPrivileged: jest.fn(() => false),
+  isStaffActorForVenture: jest.fn(async () => false),
 }));
 
 // The roster read/write now starts at the canonical venture gate (Lot 5).
@@ -112,7 +113,7 @@ beforeEach(() => {
 
 describe("POST /api/ventures/[id]/members", () => {
   it("creates a pending invitation and emails the accept link", async () => {
-    const res = await POST(jsonReq({ email: "guest@outside.io", member_type: "team_member" }), ctx);
+    const res = await POST(jsonReq({ email: "guest@outside.io", member_type: "founder" }), ctx);
 
     expect(res.status).toBe(200);
     const body = await readJson(res);
@@ -123,7 +124,7 @@ describe("POST /api/ventures/[id]/members", () => {
       expect.objectContaining({
         ventureId: "VNT-1",
         email: "guest@outside.io",
-        memberType: "team_member",
+        memberType: "founder",
         invitedByCid: "USR_FOUNDER",
       }),
     );
@@ -232,7 +233,7 @@ describe("POST /api/ventures/[id]/members", () => {
       contact_has_account: true,
     });
 
-    await POST(jsonReq({ email: "member@venture.io", member_type: "team_member" }), ctx);
+    await POST(jsonReq({ email: "member@venture.io", member_type: "founder" }), ctx);
 
     expect(createLinkedNotification).toHaveBeenCalledWith(
       "USR_MEMBER",
