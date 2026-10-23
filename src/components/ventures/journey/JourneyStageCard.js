@@ -183,7 +183,17 @@ export default function JourneyStageCard({
           </form>
         ) : (
           <>
-            <div className="jy-sh">
+            {/* The whole header folds and unfolds the journey, not only the arrow:
+                a click on any part of the bar does it, except on the controls inside
+                it (select box, menu, restore, the arrow itself), which keep their own. */}
+            <div
+              className="jy-sh"
+              style={{ cursor: "pointer" }}
+              onClick={(event) => {
+                if (event.target.closest("button, a, input, select, textarea, label, [role='menu']")) return;
+                setCollapsed((value) => !value);
+              }}
+            >
               <div className="jy-sh-row">
                 <span className={`jy-num ${stageNodeClass(stage.status)}`}>
                   {isDone ? <CheckCircle2 size={17} /> : (stage.stage_order || index + 1)}

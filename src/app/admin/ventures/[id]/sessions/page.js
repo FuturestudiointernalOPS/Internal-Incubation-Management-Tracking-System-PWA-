@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
+  Loader2, CheckCircle2, AlertCircle, X, Plus, Calendar, Clock, User,
   Video, MapPin, BookOpen, Target,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -40,7 +40,6 @@ const STATUS_CFG = {
 
 export default function VentureSessionsPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { t } = useI18n();
   const [toast, setToast] = useState(null);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -211,10 +210,6 @@ export default function VentureSessionsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={()=>router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> {t("vadmin.sessions.backToDashboard")}
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <Calendar className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.sessions.mentoringSessions")}
             </h1>

@@ -6,13 +6,13 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 
-jest.mock("@/components/ventures/journey/MilestoneDeliverables", () => () => <div data-testid="tasks-content">TASKS CONTENT</div>);
+jest.mock("@/components/ventures/journey/MilestoneDeliverables", () => function TasksContent() { return <div data-testid="tasks-content">TASKS CONTENT</div>; });
 jest.mock("@/components/ventures/journey/MilestoneReviewInbox", () => () => null);
 jest.mock("@/components/ventures/journey/MilestoneSessionsList", () => () => null);
 jest.mock("@/components/ventures/ScopedNotes", () => () => null);
 jest.mock("@/components/ventures/VenturePersonField", () => () => null);
-jest.mock("@/components/ventures/journey/JourneyReportSection", () => () => <div data-testid="report-section" />);
-jest.mock("@/components/ventures/journey/AddMilestoneForm", () => () => <div data-testid="add-milestone" />);
+jest.mock("@/components/ventures/journey/JourneyReportSection", () => function ReportSection() { return <div data-testid="report-section" />; });
+jest.mock("@/components/ventures/journey/AddMilestoneForm", () => function AddMilestone() { return <div data-testid="add-milestone" />; });
 
 const { I18nProvider } = require("@/lib/i18n");
 const JourneyMilestoneRow = require("@/components/ventures/journey/JourneyMilestoneRow").default;
@@ -97,6 +97,27 @@ describe("the journey card folds down to its header", () => {
     expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
     expect(screen.queryByTestId("report-section")).toBeNull();
     expect(screen.queryByText("The foundation")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+  });
+
+  test("a click anywhere on the header bar folds and unfolds it — not only on the arrow", () => {
+    card();
+    // on the title (not a button)
+    fireEvent.click(screen.getByText("Foundation to Investment Readiness"));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+    // on the status chip
+    fireEvent.click(screen.getByText("In Progress"));
+    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+    // on the progress line
+    fireEvent.click(screen.getByText(/0%/));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+  });
+
+  test("the arrow still works on its own, once (the bar does not double-toggle it)", () => {
+    card();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
   });

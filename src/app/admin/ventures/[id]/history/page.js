@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, History, ShieldCheck, ClipboardList, FileText, CalendarClock } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Loader2, History, ShieldCheck, ClipboardList, FileText, CalendarClock } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -43,7 +43,6 @@ const Empty = () => {
 export default function VentureHistoryPage() {
   const { t } = useI18n();
   const { id } = useParams();
-  const router = useRouter();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,12 +66,6 @@ export default function VentureHistoryPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <button
-        onClick={() => router.push(`/admin/ventures/${id}`)}
-        className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
-      >
-        <ArrowLeft className="w-3 h-3" /> {t("common.back") || "Back"}
-      </button>
 
       <div className="card">
         <div className="flex items-center gap-4">

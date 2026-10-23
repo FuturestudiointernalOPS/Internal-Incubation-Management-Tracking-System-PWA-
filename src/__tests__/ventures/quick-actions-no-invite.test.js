@@ -20,8 +20,8 @@ test("the quick actions no longer offer Invite Founder", () => {
 });
 
 test("the Staff menu offers Add Lead Manager and Invite Founder", () => {
-  const source = fs.readFileSync(path.join(process.cwd(), "src/components/admin/ventures/VentureDetailView.js"), "utf8");
+  const source = fs.readFileSync(path.join(process.cwd(), "src/components/admin/ventures/VentureHubNav.js"), "utf8");
   expect(source).toContain('t("vadmin.detail.addLeadManager")');
   expect(source).toContain('t("vadmin.dashboard.inviteFounder")');
-  expect(source).toContain("/admin/ventures/${id}/founders");
+  expect(source).toContain("${base}/founders");
 });

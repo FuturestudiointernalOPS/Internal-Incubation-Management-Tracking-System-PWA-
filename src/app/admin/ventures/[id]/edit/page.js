@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
-  ArrowLeft,
   Building2,
   Loader2,
   AlertTriangle,
@@ -168,9 +167,6 @@ export default function EditVenturePage({ params }) {
       <div className="max-w-3xl mx-auto space-y-8 pb-20">
         {/* Header */}
         <div className="flex items-center gap-4">
-          <button onClick={goBack} className="p-2 rounded-lg hover:bg-tertiary transition-all">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
           <div>
             <div className="flex items-center gap-2">
               <Rocket className="w-5 h-5 text-[var(--brand-orange)]" />

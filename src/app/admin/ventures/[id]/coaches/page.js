@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Trash2, Mail,
+  Loader2, CheckCircle2, AlertCircle, X, Plus, Trash2, Mail,
   BookOpen, Star,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -20,7 +20,6 @@ const pickCoaches = (payload) => (payload?.success ? payload.coaches || [] : [])
 
 export default function VentureCoachesPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { t } = useI18n();
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("assigned");
@@ -130,10 +129,6 @@ export default function VentureCoachesPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={()=>router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> {t("vadmin.coaches.backToDashboard")}
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.coaches.title")}
             </h1>
