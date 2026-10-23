@@ -197,7 +197,7 @@
         "section": {
           "verified": "Counted now — approved",
           "awaiting": "Awaiting approval — will count once approved",
-          "rejected": "Rejected — counts half until re-filed",
+          "rejected": "Rejected — not counted until re-filed and approved",
           "missing": "Missing — nothing usable filed yet"
         },
         "verdict": {
@@ -399,6 +399,7 @@
       "reviewAndSubmit": "Review & Submit",
       "staff": "Staff",
       "staffTitle": "Who manages/coaches this Venture and at what scope",
+      "navigation": "Venture navigation",
       "stageEarlyTraction": "Early Traction",
       "stageGrowth": "Growth",
       "stageIdea": "Idea",

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, X, Plus, Search, RefreshCw,
+  Loader2, X, Plus, Search, RefreshCw,
   Building2, Globe, Linkedin, Target,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
@@ -20,7 +20,6 @@ const pickInvestors = (payload) => (payload?.success ? payload.investors || [] :
 
 export default function VentureInvestorsPage() {
   const { id } = useParams();
-  const router = useRouter();
   const [generating, setGenerating] = useState(false);
   const [activeView, setActiveView] = useState("matches");
   const [search, setSearch] = useState("");
@@ -115,10 +114,6 @@ export default function VentureInvestorsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <Target className="w-6 h-6 text-[var(--brand-orange)]" /> Investor Matching
             </h1>

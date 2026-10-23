@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Rocket,
   Send,
@@ -48,14 +48,6 @@ const summarizeMembers = (venture) => {
     owner: members.find((member) => member.is_owner) || null,
     members,
   };
-};
-
-const STAGE_CONFIG = {
-  idea: { label: "vadmin.detail.stageIdea", color: "text-blue-400 bg-blue-500/10", order: 1 },
-  validation: { label: "vadmin.detail.stageValidation", color: "text-purple-400 bg-purple-500/10", order: 2 },
-  early_traction: { label: "vadmin.detail.stageEarlyTraction", color: "text-amber-400 bg-amber-500/10", order: 3 },
-  growth: { label: "vadmin.detail.stageGrowth", color: "text-emerald-400 bg-emerald-500/10", order: 4 },
-  scaling: { label: "vadmin.detail.stageScaling", color: "text-[var(--brand-orange)] bg-brand-orange/10", order: 5 },
 };
 
 const ACTIVITY_ICONS = {
@@ -118,7 +110,12 @@ export default function VentureDetailPage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
   const { t, lang } = useI18n();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // The open tab lives in the address (`?tab=`): the Venture's navigation bar links
+  // to it, and a reload or a shared link lands on the same tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams?.get("tab") || "dashboard";
+  const setActiveTab = (next) => router.replace(next === "dashboard" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
 
   // The Venture, through the shared hook: it owns the cache, the cache-first
   // paint and the discarding of a stale answer, so the page keeps no copy of its
@@ -141,7 +138,6 @@ export default function VentureDetailPage({ params }) {
       ? t("vadmin.detail.ventureNotFound")
       : null;
 
-  const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
   const getActivityIcon = (action) => ACTIVITY_ICONS[action] || Activity;
   const getActivityColor = (action) => ACTIVITY_COLORS[action] || "text-slate-500 bg-slate-500/10";
 
@@ -161,7 +157,6 @@ export default function VentureDetailPage({ params }) {
     error,
     getActivityColor,
     getActivityIcon,
-    getStageConfig,
     id,
     lang,
     memberSummary,

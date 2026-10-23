@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
+  Loader2, CheckCircle2, AlertCircle, X, Plus, Search, BookOpen, Bookmark,
   ExternalLink, Clock, Eye, FileText, Video, Link as LinkIcon, TrendingUp,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -29,7 +29,6 @@ const TYPE_ICONS = {
 
 export default function VentureKnowledgePage() {
   const { id } = useParams();
-  const router = useRouter();
   const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState("");
@@ -169,10 +168,6 @@ export default function VentureKnowledgePage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> {t("vadmin.knowledge.backToDashboard")}
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <BookOpen className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.knowledge.knowledgeHub")}
             </h1>

@@ -105,13 +105,13 @@ describe("computeDataRoomCompleteness", () => {
     expect(result.is_ready).toBe(false);
   });
 
-  test("a verified document scores 1 and a rejected one 0.5", () => {
+  test("a verified document scores 1 and a rejected one 0 — only approved documents count", () => {
     const result = computeDataRoomCompleteness(requirements, [
       { category: "company_overview", status: "verified" },
       { category: "pitch_deck_business_plan", status: "rejected" },
     ]);
 
-    expect(result.readiness_percent).toBe(75); // (1 + 0.5) / 2
+    expect(result.readiness_percent).toBe(50); // 1 verified of 2 required
     expect(result.verified_documents).toBe(1);
     expect(result.rejected_documents).toBe(1);
     expect(result.missing_required).toEqual([]);

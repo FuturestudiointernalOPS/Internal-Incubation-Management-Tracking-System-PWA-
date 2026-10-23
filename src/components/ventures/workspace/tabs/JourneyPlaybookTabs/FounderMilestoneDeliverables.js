@@ -196,7 +196,14 @@ export default function FounderMilestoneDeliverables({ milestone, stage, dvDraft
         onClose={() => setOpenId(null)}
         submit={
           canSubmit
-            ? { drafts: dvDrafts, setDrafts: setDvDrafts, onSubmit: submitDeliverable }
+            ? {
+              drafts: dvDrafts,
+              setDrafts: setDvDrafts,
+              // Once the evidence is in, the dialog has done its job: it closes.
+              onSubmit: async (deliverableId) => {
+                if (await submitDeliverable(deliverableId)) setOpenId(null);
+              },
+            }
             : null
         }
       />

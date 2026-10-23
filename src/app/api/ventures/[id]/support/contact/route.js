@@ -61,7 +61,15 @@ export const POST = createHandler(async (req, { params }) => {
   }
 
   const support = await readVentureSupport(id);
-  const leads = activeLeadRecipients(support);
+  const activeLeads = activeLeadRecipients(support);
+  // The founder may pick WHO among the leads (one, or all). The request names
+  // assignment ids only — never an address — and anyone who is not an active
+  // lead of this Venture is simply ignored, so it still cannot act as a relay.
+  const picked = Array.isArray(body?.recipients) ? body.recipients.map((value) => String(value)) : null;
+  const leads = picked ? activeLeads.filter((lead) => picked.includes(String(lead.id))) : activeLeads;
+  if (picked && leads.length === 0 && activeLeads.length > 0) {
+    return NextResponse.json({ success: false, error: "errors.contactRecipientRequired" }, { status: 400 });
+  }
   if (leads.length === 0) {
     // Nobody to write to: say so instead of silently succeeding.
     return NextResponse.json(

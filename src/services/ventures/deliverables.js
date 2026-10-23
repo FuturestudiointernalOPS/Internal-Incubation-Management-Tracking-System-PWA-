@@ -79,6 +79,9 @@ export async function updateDeliverable(deliverableId, updates, actorCid, actorN
     assignments.set("reviewer_cid", updates.reviewer_cid || actorCid);
     assignments.set("reviewer_name", updates.reviewer_name || actorName);
     if (updates.approval_status === "approved") assignments.set("status", "completed");
+    // A refusal ("changes requested") takes the deliverable OUT of `completed`: left
+    // as it was, an earlier approval kept reading as approved on every screen.
+    if (updates.approval_status === "rejected") assignments.set("status", "changes_requested");
 
     await insertDeliverableReview(
       deliverableId,

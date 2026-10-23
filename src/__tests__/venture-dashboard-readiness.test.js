@@ -4,7 +4,7 @@
  *   score = stage 40% + evidence 60%
  *
  * The evidence half is the Data Room's: the categories marked REQUIRED for the
- * Venture, each earning 1 when approved (0.5 when rejected). Nothing else feeds
+ * Venture, each earning 1 only when approved. Nothing else feeds
  * it. With nothing required the evidence cannot be measured, so the score rests
  * on the stage alone. The answer carries the list of required categories with
  * their documents, so the percentage can show its working.
@@ -59,7 +59,7 @@ const { buildVentureDashboard } = require("@/services/ventures/dashboard");
 
 const evidenceWith = (items) => {
   const count = (status) => items.filter((item) => item.status === status).length;
-  const points = items.reduce((sum, item) => sum + (item.status === "verified" ? 1 : item.status === "rejected" ? 0.5 : 0), 0);
+  const points = items.reduce((sum, item) => sum + (item.status === "verified" ? 1 : 0), 0);
   return {
     percent: items.length ? Math.round((points / items.length) * 100) : null,
     required_total: items.length,
@@ -106,10 +106,10 @@ describe("Stage & Evidence Score — Venture dashboard", () => {
     expect(after.score).toBeGreaterThan(before.score);
   });
 
-  it("a rejected required document earns half", async () => {
+  it("a rejected required document earns nothing", async () => {
     mockEvidence.mockResolvedValue(evidenceWith([{ status: "rejected" }, { status: "missing" }]));
     const readiness = await readinessFor("idea");
-    expect(readiness.evidence_percent).toBe(25);
+    expect(readiness.evidence_percent).toBe(0);
   });
 
   it("rests on the stage alone when nothing is marked required", async () => {

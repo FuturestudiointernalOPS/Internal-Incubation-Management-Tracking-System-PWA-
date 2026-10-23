@@ -1,8 +1,8 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, Download, FileText, BarChart3, Eye, Download as DownloadIcon,
+  Loader2, Download, FileText, BarChart3, Eye, Download as DownloadIcon,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -30,7 +30,6 @@ const pickVentureAnalytics = (payload) => (payload?.success ? payload : null);
 
 export default function VentureAnalyticsPage() {
   const { id } = useParams();
-  const router = useRouter();
   // Both reads — and the cache-first paint they used to gate on together —
   // belong to the hook, so the screen keeps no data state of its own and never
   // sets state from an effect. Two separate reads keep the venture identifier a
@@ -61,7 +60,7 @@ export default function VentureAnalyticsPage() {
     return typeof value === "number" ? value.toLocaleString() : value;
   };
 
-  const progressBar = (percentage, color) => (
+  const progressBar = (percentage) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
       <div className={`h-full rounded-full bg-[var(--progress-fill)]`} style={{ width: `${Math.min(percentage||0, 100)}%` }} />
     </div>
@@ -82,10 +81,6 @@ export default function VentureAnalyticsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" /> Investment Analytics
             </h1>

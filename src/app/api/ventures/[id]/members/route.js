@@ -2,6 +2,7 @@ import db, { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { isStaffActorForVenture, roleIsPrivileged } from "@/lib/ventureAuth";
 import { getSession } from "@/server/auth/session";
 import { createVentureMemberInvitation } from "@/models/ventureMemberInvitations";
 import {
@@ -25,6 +26,12 @@ import {
   afterVentureMemberUpdated,
 } from "@/services/ventures/memberRoster";
 
+
+/** Super Admin / privileged role, or staff assigned to this Venture. */
+async function isVentureStaffActor(ventureId, session) {
+  if (roleIsPrivileged(session?.role)) return true;
+  return session?.cid ? isStaffActorForVenture(ventureId, session) : false;
+}
 
 export async function GET(req, { params }) {
   try {
@@ -111,12 +118,21 @@ export async function POST(req, { params }) {
         { status: 400 },
       );
     }
-    const memberType = member_type || "team_member";
+    // Staff (Super Admin, Lead Manager) may add team members; a founder adds
+    // founders, so an invite that names no type is a founder invite for them.
+    const staffActor = await isVentureStaffActor(id, session);
+    const memberType = member_type || (staffActor ? "team_member" : "founder");
     if (!["founder", "team_member"].includes(memberType)) {
       return NextResponse.json(
         { success: false, error: "member_type must be 'founder' or 'team_member'" },
         { status: 400 },
       );
+    }
+
+    // A founder adds FOUNDERS only. Team members and the roles people carry are the
+    // Venture's staff decision (Super Admin, Lead Manager), never a founder's.
+    if (memberType !== "founder" && !staffActor) {
+      return NextResponse.json({ success: false, error: "errors.founderInviteOnly" }, { status: 403 });
     }
 
     // Everything roster-shaped keys on the INTERNAL id (Phase 0); the Venture's
@@ -247,6 +263,10 @@ export async function PATCH(req, { params }) {
       // Role and permissions are server-controlled fields: downstream access
       // facts read them, so an arbitrary client string must not be written.
       const MEMBER_ROLES = new Set(["member", "founder", "admin", "lead"]);
+      if (role !== undefined && !(await isVentureStaffActor(id, session))) {
+        // A founder sees their people's roles; changing them is staff's call.
+        return NextResponse.json({ success: false, error: "errors.memberRoleStaffOnly" }, { status: 403 });
+      }
       if (role !== undefined) {
         const nextRole = String(role).trim().toLowerCase();
         if (!MEMBER_ROLES.has(nextRole)) {

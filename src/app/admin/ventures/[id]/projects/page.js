@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Route } from "lucide-react";
+import { Route } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import PageHero from "@/components/ui/PageHero";
@@ -45,12 +45,6 @@ export default function VentureProjectsPage() {
 
   return (
     <div className="pb-20">
-      <button
-        onClick={() => router.push(`/admin/ventures/${id}`)}
-        className="flex items-center gap-2 mb-5 text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
-      >
-        <ArrowLeft className="w-3 h-3" /> {t("venture.projects.backToVenture", { name })}
-      </button>
 
       <PageHero
         kicker={venture?.venture_id || id}
