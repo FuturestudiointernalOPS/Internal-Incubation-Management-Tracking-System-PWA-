@@ -63,7 +63,7 @@ export default function VentureAnalyticsPage() {
 
   const progressBar = (percentage, color) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-      <div className={`h-full rounded-full ${color || "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(percentage||0, 100)}%` }} />
+      <div className={`h-full rounded-full bg-[var(--progress-fill)]`} style={{ width: `${Math.min(percentage||0, 100)}%` }} />
     </div>
   );
 
@@ -142,7 +142,7 @@ export default function VentureAnalyticsPage() {
                   <div key={stage.stage} className="flex items-center gap-3">
                     <span className="text-[10px] font-bold text-[var(--text-secondary)] w-28 capitalize truncate">{stageLabel}</span>
                     <div className="flex-1 bg-tertiary rounded-full h-6 overflow-hidden relative">
-                      <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full flex items-center justify-end px-3"
+                      <div className="h-full bg-[var(--progress-fill)] rounded-full flex items-center justify-end px-3"
                         style={{ width: `${Math.max(percentage, 5)}%` }}>
                         <span className="text-[10px] font-bold text-black">{stage.count}</span>
                       </div>

@@ -131,7 +131,7 @@ function WeekHistoryBar({ week }) {
           </span>
           <div className="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-[var(--brand-orange)]"
+              className="h-full rounded-full bg-[var(--progress-fill)]"
               style={{ width: `${deliverablesPercent}%` }}
             />
           </div>
@@ -145,7 +145,7 @@ function WeekHistoryBar({ week }) {
           </span>
           <div className="flex-1 h-1.5 bg-surface-3 rounded-full overflow-hidden">
             <div
-              className="h-full rounded-full bg-emerald-400"
+              className="h-full rounded-full bg-[var(--progress-fill)]"
               style={{ width: `${sessionsPercent}%` }}
             />
           </div>

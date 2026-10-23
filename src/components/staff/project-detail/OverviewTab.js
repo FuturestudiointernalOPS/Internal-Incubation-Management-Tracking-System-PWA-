@@ -18,7 +18,7 @@ export default function OverviewTab({ project, tasks }) {
         <div className="flex items-center gap-4">
           <div className="flex-1 h-3 bg-[var(--bg-primary)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              className="h-full bg-[var(--progress-fill)] rounded-full transition-all duration-500"
               style={{ width: `${project.completionRate || 0}%` }}
             />
           </div>

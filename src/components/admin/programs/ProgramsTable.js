@@ -228,7 +228,7 @@ export default function ProgramsTable({
                       </div>
                       <div className="w-16 h-1 bg-secondary rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[var(--brand-orange)]"
+                          className="h-full bg-[var(--progress-fill)]"
                           style={{ width: `${program?.completion_index || 0}%` }}
                         />
                       </div>

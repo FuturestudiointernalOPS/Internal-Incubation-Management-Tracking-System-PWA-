@@ -54,7 +54,7 @@ export default function VentureInvestmentPage() {
   const progressBar = (pct, color) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
       <div
-        className={`h-full rounded-full transition-all ${color || "bg-[var(--brand-orange)]"}`}
+        className={`h-full rounded-full transition-all bg-[var(--progress-fill)]`}
         style={{ width: `${Math.min(pct || 0, 100)}%` }}
       />
     </div>
