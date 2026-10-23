@@ -128,26 +128,19 @@ export const MASTER_NAVIGATION = [
     ],
   },
 
-  // Security & compliance
-  {
-    id: "security",
-    name: "SECURITY",
-    icon: "shieldCheck",
-    children: [
-      { id: "security", name: "SECURITY", href: "/admin/security" },
-      { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
-      { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
-      { id: "permissions", name: "PERMISSIONS", href: "/admin/security/permissions" },
-    ],
-  },
-
-  // System configuration
+  // System configuration — settings, plus security & compliance: the security
+  // pages (security overview, audit logs, user access, permissions) live UNDER
+  // Settings rather than as a section of their own.
   {
     id: "settings",
     name: "SETTINGS",
     icon: "wrench",
     children: [
       { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
+      { id: "security", name: "SECURITY", href: "/admin/security" },
+      { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+      { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+      { id: "permissions", name: "PERMISSIONS", href: "/admin/security/permissions" },
     ],
   },
 
