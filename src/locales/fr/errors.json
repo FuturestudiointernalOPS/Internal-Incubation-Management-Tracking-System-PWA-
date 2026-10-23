@@ -13,6 +13,7 @@
     "contactMessageTooLong": "Ce message est trop long. Limitez-le à 2000 caractères.",
     "noActiveVentureLead": "Aucun référent n'est actuellement affecté : il n'y a personne à qui écrire.",
     "contactRecipientRequired": "Choisis au moins un Venture Lead à qui écrire.",
+    "contactNoAccount": "Aucun des Venture Leads choisis n'a encore de compte ImpactOS pour recevoir des messages.",
     "founderInviteOnly": "Un founder ne peut ajouter que d'autres founders.",
     "memberRoleStaffOnly": "Les rôles sont fixés par l'équipe de la Venture, pas par ses membres.",
     "contactNotDelivered": "Le message n'a pas pu être délivré. Réessayez plus tard.",
