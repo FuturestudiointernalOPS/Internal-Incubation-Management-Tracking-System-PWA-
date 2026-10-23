@@ -62,8 +62,13 @@ export async function getVentureById(ventureId) {
   // docs/VENTURE_IDENTITY_PHASE0.md); the code above only found the row. The
   // business key is never handed to a child read again.
 
-  // Get founders
-  const foundersRes = await selectFoundersByVenture(relatedId);
+  // Related reads must never take the whole Venture detail down. A type
+  // mismatch or missing table on one child feed used to 500 the hub and paint
+  // "Venture Not Found" for a Venture that clearly exists.
+  let founders = [];
+  try {
+    founders = (await selectFoundersByVenture(relatedId)).rows || [];
+  } catch (_) {}
 
   // Get members — the membership list IS the Venture's people. The founder table
   // read above is the INVITATION ledger; it is shown on the founders screen and
@@ -85,8 +90,10 @@ export async function getVentureById(ventureId) {
     }));
   } catch (_) {}
 
-  // Get history
-  const historyRes = await selectVentureHistory(relatedId);
+  let history = [];
+  try {
+    history = (await selectVentureHistory(relatedId)).rows || [];
+  } catch (_) {}
 
   // Get startup profile progress
   let profileProgress = null;
@@ -97,11 +104,11 @@ export async function getVentureById(ventureId) {
 
   return {
     ...venture,
-    founders: foundersRes.rows,
+    founders,
     members,
     member_summary: memberSummary,
     activity,
-    history: historyRes.rows,
+    history,
     profile_progress: profileProgress,
   };
 }

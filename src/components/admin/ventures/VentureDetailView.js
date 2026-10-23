@@ -98,7 +98,7 @@ export default function VentureDetailView({ ctx }) {
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            {t("vadmin.detail.ventureNotFound")}
+            {ctx.errorTitle || t("vadmin.detail.ventureNotFound")}
           </h2>
           <p className="text-slate-500 mb-6">{error || t("vadmin.detail.ventureLoadError")}</p>
           <button
@@ -156,7 +156,7 @@ export default function VentureDetailView({ ctx }) {
               <div>
                 <div className="flex items-center gap-3 mb-1">
                   <h1 className="text-2xl font-black text-[var(--text-primary)]">
-                    {venture.company_name}
+                    {venture.company_name || venture.name}
                   </h1>
                   <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${stage.color}`}>
                     {t(stage.label)}
