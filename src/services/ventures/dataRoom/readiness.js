@@ -4,7 +4,7 @@
  *
  * THE SINGLE READINESS ENGINE IS THE DATA ROOM'S. `computeDataRoomCompleteness`
  * already decides what "filed and verified" means: only `required` categories
- * count, `verified` earns 1, `rejected` earns 0.5, and a Venture with nothing
+ * count, only `verified` earns a point, and a Venture with nothing
  * required is INDETERMINATE (`null`) rather than 0% or 100%.
  *
  * This module adds no rule of its own. It exists for one reason: the admin
@@ -142,11 +142,11 @@ export async function getDataRoomReadiness(ventureRef) {
  * Data Room category, where it stands and which documents sit in it.
  *
  * Same rule as everywhere else (`computeDataRoomCompleteness`): only required
- * categories count, `verified` earns 1, `rejected` earns 0.5, anything else 0.
+ * categories count, and only `verified` earns a point (1), anything else 0.
  * What this adds is the LIST — so the score can show its working:
  *   - `verified`           counted in the percentage now
  *   - `awaiting`           filed but not validated yet; will count once approved
- *   - `rejected`           filed and refused (earns half until re-filed)
+ *   - `rejected`           filed and refused (earns nothing until re-filed and approved)
  *   - `missing`/`expired`  nothing usable on file
  *
  * A Venture with nothing required answers `percent: null` (not measurable —
@@ -181,7 +181,7 @@ export async function getRequiredEvidence(ventureRef) {
       return {
         category: row.category,
         status,
-        points: status === "verified" ? 1 : status === "rejected" ? 0.5 : 0,
+        points: status === "verified" ? 1 : 0,
         documents: documents
           .filter((documentEntry) => documentEntry.category === row.category)
           .map((documentEntry) => ({

@@ -213,7 +213,8 @@ export async function loadDataRoomRequirements(ventureId, database) {
  * documents that do not apply to it.
  *
  * Points per required category (the highest result among its documents):
- *   verified → 1 · rejected → 0.5 · anything else / no document → 0
+ *   verified → 1 · anything else (rejected, awaiting, expired, nothing filed) → 0
+ * Only an APPROVED document counts: a refused or unreviewed one is not evidence.
  * The percentage is null when nothing is required (indeterminate, not 100%).
  */
 export function computeDataRoomCompleteness(requirements, documents) {
@@ -230,7 +231,7 @@ export function computeDataRoomCompleteness(requirements, documents) {
     return "missing";
   };
 
-  const pointsFor = (status) => (status === "verified" ? 1 : status === "rejected" ? 0.5 : 0);
+  const pointsFor = (status) => (status === "verified" ? 1 : 0);
 
   const requirementRows = (requirements || []).map((row) => {
     const status = statusFor(row.category);
