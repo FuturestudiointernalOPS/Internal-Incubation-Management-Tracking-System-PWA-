@@ -59,7 +59,7 @@ export async function listJourneyDeliverablesByMilestoneIds(milestoneIds) {
 export async function listJourneyTasksByMilestoneIds(milestoneIds) {
   return db.execute({
     sql: `SELECT id, milestone_id, title, description, definition_of_done, support_name,
-                 assigned_name, start_date, due_date, source_ref
+                 assigned_name, start_date, due_date, source_ref, status
           FROM venture_tasks
           WHERE milestone_id::text = ANY(?) AND COALESCE(is_archived, FALSE) = FALSE
           ORDER BY COALESCE(display_order, 0), id`,

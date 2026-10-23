@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, Flag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import {
   stageStatusWord,
@@ -9,6 +9,7 @@ import {
   statusWord,
   statusLabel,
   statusChipClass,
+  statusDotClass,
 } from "@/lib/ventureStatuses";
 import {
   minSessionStartInput,
@@ -22,7 +23,11 @@ import { sessionBookingKey } from "@/components/ventures/journey/journeyShapers"
 import FounderMilestoneSessions from "@/components/ventures/journey/FounderMilestoneSessions";
 import FounderMilestoneTasks from "@/components/ventures/journey/FounderMilestoneTasks";
 import { dateOnly } from "@/lib/ventureMilestoneDates";
+import AppModal from "@/components/ui/AppModal";
 import FounderMilestoneDeliverables from "./JourneyPlaybookTabs/FounderMilestoneDeliverables";
+
+// The kit tag for a status word (the same tones as the Venture Manager view).
+const MILESTONE_TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes_requested: "r", completed: "g", approved: "g" };
 
 /* Journey Tab — the Venture journey as its operating workspace.
    Each stage lists the milestones bound to it; each milestone lists its
@@ -35,6 +40,8 @@ export function JourneyTab() {
   const { alert } = useDialogs();
   const { journeyStages, cardStyle, params, notifyMsg, fetchJourney, journeyDeliverablesUnavailable } = useVenture();
   const [openId, setOpenId] = useState(null);
+  // The milestone whose pop-up is open (id only, so it always reads the current row).
+  const [openMilestoneId, setOpenMilestoneId] = useState(null);
   const [tasksByMilestone, setTasksByMilestone] = useState({});
   const [subsByTask, setSubsByTask] = useState({});
   const [openTaskId, setOpenTaskId] = useState(null);
@@ -306,6 +313,95 @@ export function JourneyTab() {
     );
   };
 
+  // The open milestone, found wherever it sits: its detail lives in a pop-up.
+  const openMilestoneStage = journeyStages.find((stage) => (stage.milestones || []).some((milestone) => String(milestone.id) === String(openMilestoneId)));
+  const openMilestone = openMilestoneStage ? openMilestoneStage.milestones.find((milestone) => String(milestone.id) === String(openMilestoneId)) : null;
+
+  // STRICTLY the one milestone the Venture may book against: the first unfinished,
+  // open milestone of the Journey that is actually current. Upcoming and blocked
+  // milestones are already filtered out by the journey API.
+  const milestoneIsCurrent = (stage, milestone) => {
+    const firstOpenId = (stage.milestones || []).find((candidateMilestone) => candidateMilestone.status !== "completed")?.id;
+    return stage.status === "active" && String(milestone.status) !== "completed" && String(firstOpenId) === String(milestone.id);
+  };
+
+  const renderMilestoneDetail = (stage, milestone) => {
+    const tasks = tasksByMilestone[milestone.id] || [];
+    const normalizedMilestoneStatus = milestoneStatusWord(milestone.status);
+    const isCurrent = milestoneIsCurrent(stage, milestone);
+    // ONE authoritative Owner / Support / Start / Finish: the milestone's own, else
+    // its first activity's — the manager's rule, so both views show the same values.
+    const primaryActivity = (milestone.deliverables || []).find((deliverable) => deliverable.activity)?.activity || null;
+    const milestoneOwner = milestone.owner_name || primaryActivity?.owner_name || null;
+    const milestoneSupport = milestone.support_name || primaryActivity?.support_name || null;
+    const milestoneStart = milestone.start_date || primaryActivity?.start_date || null;
+    const milestoneFinish = milestone.target_date || primaryActivity?.due_date || null;
+    return (
+      <div className="space-y-4">
+        {/* The milestone's metadata, label → value, as in the Venture Manager's
+            pop-up: people first, then timing. */}
+        <div className="jy-facts in">
+          <div><span>{t("venture.manager.milestoneOwner")}</span><b>{milestoneOwner || "—"}</b></div>
+          <div><span>{t("venture.manager.supporting")}</span><b>{milestoneSupport || "—"}</b></div>
+          <div><span>{t("venture.manager.startDate")}</span><b>{milestoneStart ? new Date(milestoneStart).toLocaleDateString() : "—"}</b></div>
+          <div><span>{t("venture.manager.finishDate")}</span><b>{milestoneFinish ? new Date(milestoneFinish).toLocaleDateString() : "—"}</b></div>
+        </div>
+
+        <FounderMilestoneDeliverables
+          milestone={milestone}
+          stage={stage}
+          dvDrafts={dvDrafts}
+          setDvDrafts={setDvDrafts}
+          submitDeliverable={submitDeliverable}
+          canBook={isCurrent}
+          bookFor={bookFor}
+          bookForm={bookForm}
+          bookSaving={bookSaving}
+          bookSession={bookSession}
+          openBooking={openBooking}
+          setBookFor={setBookFor}
+          setBookForm={setBookForm}
+        />
+
+        {/* Sessions already booked on this milestone, with the
+            documents they were booked with. */}
+        {(sessionsByMilestone[String(milestone.id)] || []).length > 0 && (
+          <FounderMilestoneSessions
+            milestone={milestone}
+            noteDraft={noteDraft}
+            noteEditFor={noteEditFor}
+            noteSaving={noteSaving}
+            saveSessionNote={saveSessionNote}
+            sessionsByMilestone={sessionsByMilestone}
+            setNoteDraft={setNoteDraft}
+            setNoteEditFor={setNoteEditFor}
+          />
+        )}
+        {stage.status === 'upcoming' ? null : tasks.length === 0 && tasksByMilestone[milestone.id] !== undefined ? (
+          <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.noTasksYet')}</p>
+        ) : null}
+        {stage.status !== 'upcoming' && (tasksByMilestone[milestone.id] === undefined ? (
+          <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.loading') || 'Loading...'}</p>
+        ) : tasks.length > 0 ? (
+          <FounderMilestoneTasks
+            TASK_LABEL_KEYS={TASK_LABEL_KEYS}
+            drafts={drafts}
+            label={label}
+            milestone={milestone}
+            openTaskId={openTaskId}
+            setDrafts={setDrafts}
+            stage={stage}
+            submissionChip={submissionChip}
+            submitTask={submitTask}
+            subsByTask={subsByTask}
+            tasks={tasks}
+            toggleTask={toggleTask}
+          />
+        ) : null)}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{t('venture.journeyDesc') || 'Your journey is defined by the team supporting your Venture.'}</p>
@@ -324,133 +420,78 @@ export function JourneyTab() {
           {journeyStages.map((stage) => {
             const isOpen = openId === stage.id;
             const milestoneCounts = stage.milestone_counts || { total: 0, completed: 0 };
+            const stageWord = stageStatusWord(stage.status);
+            const stagePct = milestoneCounts.total > 0 ? Math.round((milestoneCounts.completed / milestoneCounts.total) * 100) : 0;
+            const stageDone = stage.status === 'completed';
             return (
-              <div key={stage.id} className={`rounded-xl border overflow-hidden ${stage.status === 'upcoming' ? 'opacity-75' : ''}`} style={cardStyle}>
-                <button type="button" onClick={() => openStage(stage)} className="w-full flex items-center gap-4 p-4 text-left">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                    stage.status === 'completed' ? 'bg-green-600 text-white' :
-                    stage.status === 'active' ? 'bg-blue-600 text-white' :
-                    'bg-[var(--surface-3)] text-gray-400'
-                  }`}>
-                    {stage.status === 'completed' ? '✓' : String(stage.stage_order).padStart(2, '0')}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className={`font-medium ${stage.status === 'completed' ? 'line-through' : ''}`} style={{ color: stage.status === 'completed' ? 'var(--text-secondary)' : 'var(--text-primary)' }}>{stage.name}</p>
-                      <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(stageStatusWord(stage.status))}`}>{statusLabel(stageStatusWord(stage.status), t)}</span>
-                      {milestoneCounts.total > 0 && (
-                        <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-[var(--surface-3)] text-slate-400">{milestoneCounts.completed}/{milestoneCounts.total} {t('venture.milestones')}</span>
-                      )}
+              <div key={stage.id} className={`jy-stage ${stage.status === 'active' ? 'is-active' : ''} ${stage.status === 'upcoming' ? 'is-locked' : ''}`}>
+                {/* The same header as the Venture Manager's journey: number, fold
+                    chevron, title, status and the progress of its milestones. */}
+                <button type="button" onClick={() => openStage(stage)} aria-expanded={isOpen} className="jy-sh w-full text-left">
+                  <div className="jy-sh-row">
+                    <span className={`jy-num ${stageDone ? 'is-done' : stage.status === 'active' ? 'is-active' : ''}`}>
+                      {stageDone ? <CheckCircle2 size={17} /> : (stage.stage_order || '')}
+                    </span>
+                    <div className="jy-sh-body">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {isOpen ? <ChevronDown size={17} className="shrink-0 text-[var(--text-secondary)]" /> : <ChevronRight size={17} className="shrink-0 text-[var(--text-secondary)]" />}
+                        <h4 className={`jy-sh-title ${stageDone ? 'is-done' : ''}`}>{stage.name}</h4>
+                      </div>
+                    </div>
+                    <div className="jy-sh-side">
+                      <span className={`stf-tag ${MILESTONE_TAG_TONE[stageWord?.tone] || ''}`}>{statusLabel(stageWord, t)}</span>
                     </div>
                   </div>
-                  {isOpen ? <ChevronDown size={18} className="shrink-0" style={{ color: 'var(--text-secondary)' }} /> : <ChevronRight size={18} className="shrink-0" style={{ color: 'var(--text-secondary)' }} />}
+                  {milestoneCounts.total > 0 && (
+                    <div className="jy-prog">
+                      <div className="stf-bar-prog"><i style={{ width: `${stagePct}%` }} /></div>
+                      <span><b>{stagePct}%</b> · {t('venture.manager.milestoneProgress', { done: milestoneCounts.completed, total: milestoneCounts.total })}</span>
+                    </div>
+                  )}
                 </button>
                 {isOpen && (
-                  <div className="px-4 pb-4 pt-3 border-t space-y-3" style={{ borderColor: 'var(--border-primary)' }}>
+                  <div className="jy-sec space-y-3">
                     {stage.objective && (
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-secondary)' }}>{t('venture.objective') || 'Objective'}</p>
-                        <p className="text-sm">{stage.objective}</p>
-                      </div>
+                      <p className="jy-obj"><b>{t('venture.manager.objective')}: </b>{stage.objective}</p>
                     )}
-                    {stage.description && (
-                      <div>
-                        <p className="text-[10px] font-black uppercase tracking-widest mb-0.5" style={{ color: 'var(--text-secondary)' }}>{t('venture.description') || 'Description'}</p>
-                        <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{stage.description}</p>
-                      </div>
-                    )}
-                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-[11px]">
-                      {stage.target_date && <span style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${dateOnly(stage.target_date)}T00:00:00`).toLocaleDateString()}</span>}
-                      {stage.completed_at && <span style={{ color: 'var(--chart-success)' }}>✓ {t('venture.completed') || 'Completed'}: {new Date(stage.completed_at).toLocaleDateString()}</span>}
+                    {stage.description && <p className="jy-sh-meta">{stage.description}</p>}
+                    <div className="jy-hint">
+                      {stage.target_date && <span>{t('venture.targetDate') || 'Target Date'}: {new Date(`${dateOnly(stage.target_date)}T00:00:00`).toLocaleDateString()}</span>}
+                      {stage.completed_at && <span>✓ {t('venture.completed') || 'Completed'}: {new Date(stage.completed_at).toLocaleDateString()}</span>}
                     </div>
 
                     {/* Milestones bound to this stage (canonical spine) */}
                     {stage.milestones && stage.milestones.length > 0 && (
-                      <div className="pt-2 space-y-3">
+                      <div className="jy-ms">
                         {stage.milestones.map((milestone) => {
-                          const tasks = tasksByMilestone[milestone.id] || [];
                           const normalizedMilestoneStatus = milestoneStatusWord(milestone.status);
-                          // STRICTLY the one milestone the Venture may book against:
-                          // the first unfinished, open milestone of the Journey that
-                          // is actually current. Upcoming and blocked milestones are
-                          // already filtered out by the journey API, so this is the
-                          // only open one.
-                          const firstOpenId = (stage.milestones || []).find((candidateMilestone) => candidateMilestone.status !== "completed")?.id;
-                          const isCurrent =
-                            stage.status === "active" &&
-                            String(milestone.status) !== "completed" &&
-                            String(firstOpenId) === String(milestone.id);
+                          const deliverableCount = (milestone.deliverables || []).length;
                           return (
-                            <div key={milestone.id} className="rounded-xl border p-3 space-y-2" style={{ borderColor: 'var(--border-primary)' }}>
-                              <div className="flex items-center justify-between gap-2 flex-wrap">
-                                <p className="text-sm font-bold">{milestone.title}</p>
-                                <div className="flex items-center gap-2">
-                                  {milestone.status && <span className={`text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${statusChipClass(normalizedMilestoneStatus)}`}>{statusLabel(normalizedMilestoneStatus, t)}</span>}
-                                  {milestone.progress > 0 && <span className="text-[10px] font-bold" style={{ color: 'var(--brand-orange)' }}>{milestone.progress}%</span>}
-                                  {/* The WORK under the outcome, shown beside it: the badge
-                                      says what the milestone is, this says how much of it is
-                                      done. Deliberately separate from the % — that stays
-                                      evidence-driven, so nothing downstream changes meaning. */}
-                                  {milestone.task_counts?.total > 0 && (
-                                    <span className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>
-                                      {t('venture.manager.tasksDone', { done: milestone.task_counts.done, total: milestone.task_counts.total })}
+                            <div key={milestone.id} className="jy-m">
+                              <div className="jy-mrow">
+                                {/* One line per milestone; its tasks, deliverables and sessions
+                                    open in a pop-up, exactly like the Venture Manager's view. */}
+                                <button
+                                  type="button"
+                                  onClick={() => setOpenMilestoneId(milestone.id)}
+                                  aria-haspopup="dialog"
+                                  className="jy-mtog"
+                                >
+                                  <span className={`jy-dot ${statusDotClass(normalizedMilestoneStatus)}`} />
+                                  <span className={`jy-mt ${String(milestone.status) === "completed" ? "is-done" : ""}`}>{milestone.title}</span>
+                                  {deliverableCount > 0 && (
+                                    <span className="jy-cnt" title={t("venture.manager.tasksHeading")}>
+                                      <Flag size={13} /> {deliverableCount}
                                     </span>
                                   )}
-                                </div>
+                                  <ChevronRight size={15} className="shrink-0 text-[var(--text-secondary)]" />
+                                </button>
+                                {milestone.status && (
+                                  <span className={`stf-tag ${MILESTONE_TAG_TONE[normalizedMilestoneStatus?.tone] || ""} shrink-0`}>
+                                    {statusLabel(normalizedMilestoneStatus, t)}
+                                  </span>
+                                )}
                               </div>
-                              {milestone.target_date && <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.targetDate') || 'Target Date'}: {new Date(`${dateOnly(milestone.target_date)}T00:00:00`).toLocaleDateString()}</p>}
-
-                              <FounderMilestoneDeliverables
-                                milestone={milestone}
-                                stage={stage}
-                                dvDrafts={dvDrafts}
-                                setDvDrafts={setDvDrafts}
-                                submitDeliverable={submitDeliverable}
-                                canBook={isCurrent}
-                                bookFor={bookFor}
-                                bookForm={bookForm}
-                                bookSaving={bookSaving}
-                                bookSession={bookSession}
-                                openBooking={openBooking}
-                                setBookFor={setBookFor}
-                                setBookForm={setBookForm}
-                              />
-
-                              {/* Sessions already booked on this milestone, with the
-                                  documents they were booked with. */}
-                              {(sessionsByMilestone[String(milestone.id)] || []).length > 0 && (
-                                <FounderMilestoneSessions
-                                  milestone={milestone}
-                                  noteDraft={noteDraft}
-                                  noteEditFor={noteEditFor}
-                                  noteSaving={noteSaving}
-                                  saveSessionNote={saveSessionNote}
-                                  sessionsByMilestone={sessionsByMilestone}
-                                  setNoteDraft={setNoteDraft}
-                                  setNoteEditFor={setNoteEditFor}
-                                />
-                              )}
-                              {stage.status === 'upcoming' ? null : tasks.length === 0 && tasksByMilestone[milestone.id] !== undefined ? (
-                                <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{t('venture.noTasksYet')}</p>
-                              ) : null}
-                              {stage.status !== 'upcoming' && (tasksByMilestone[milestone.id] === undefined ? (
-                                <p className="text-[10px]" style={{ color: 'var(--text-secondary)' }}>{t('venture.loading') || 'Loading...'}</p>
-                              ) : tasks.length > 0 ? (
-                                <FounderMilestoneTasks
-                                  TASK_LABEL_KEYS={TASK_LABEL_KEYS}
-                                  drafts={drafts}
-                                  label={label}
-                                  milestone={milestone}
-                                  openTaskId={openTaskId}
-                                  setDrafts={setDrafts}
-                                  stage={stage}
-                                  submissionChip={submissionChip}
-                                  submitTask={submitTask}
-                                  subsByTask={subsByTask}
-                                  tasks={tasks}
-                                  toggleTask={toggleTask}
-                                />
-                              ) : null)}
                             </div>
                           );
                         })}
@@ -463,6 +504,15 @@ export function JourneyTab() {
           })}
         </div>
       )}
+
+      <AppModal
+        isOpen={Boolean(openMilestone)}
+        onClose={() => setOpenMilestoneId(null)}
+        title={openMilestone?.title || ""}
+        size="xl"
+      >
+        {openMilestone ? renderMilestoneDetail(openMilestoneStage, openMilestone) : null}
+      </AppModal>
     </div>
   );
 }

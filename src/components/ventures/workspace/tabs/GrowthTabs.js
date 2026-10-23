@@ -83,7 +83,7 @@ export function RoadmapReadinessCard() {
               <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: "var(--surface-3)" }}>
                 <div
                   className="h-full rounded-full"
-                  style={{ width: `${Math.min(row.pct, 100)}%`, backgroundColor: "var(--brand-orange)" }}
+                  style={{ width: `${Math.min(row.pct, 100)}%`, backgroundColor: "var(--progress-fill)" }}
                 />
               </div>
             )}

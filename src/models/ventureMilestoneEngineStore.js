@@ -207,6 +207,16 @@ export function selectJourneyStageForBooking(stageId, dbId) {
 
 // ── Status sync ──────────────────────────────────────────────────────────────
 
+/** The milestones of a Venture whose status the work inside them may still move. */
+export function selectOpenMilestoneIds(dbId) {
+  return db.execute({
+    sql: `SELECT id FROM venture_milestones
+           WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE
+             AND status NOT IN ('completed', 'upcoming', 'blocked', 'locked')`,
+    args: [dbId],
+  });
+}
+
 /** One milestone's identity for the work-driven status sync. */
 export function selectMilestoneForSync(milestoneId, dbId) {
   return db.execute({

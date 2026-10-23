@@ -129,7 +129,7 @@ export default function VentureTimelineView({ id: idProp = null, embedded = fals
 
   const progressBar = (percentage) => (
     <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${percentage >= 80 ? "bg-emerald-500" : percentage >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`}
+      <div className={`h-full rounded-full transition-all bg-[var(--progress-fill)]`}
         style={{ width: `${Math.min(percentage, 100)}%` }} />
     </div>
   );

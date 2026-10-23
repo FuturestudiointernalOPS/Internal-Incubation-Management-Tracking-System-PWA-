@@ -16,6 +16,7 @@ import {
   selectActiveTaskStatusesForMilestone,
   selectDeliverableStatesForMilestone,
   selectMilestoneForSync,
+  selectOpenMilestoneIds,
   selectTaskStatusesForMilestonePlain,
   updateMilestoneStatusRow,
 } from "@/models/ventureMilestoneEngineStore";
@@ -243,4 +244,38 @@ export async function syncMilestoneStatusFromDeliverables(options = {}) {
 export async function completeMilestone({ dbId, milestoneId }) {
   await completeMilestoneRow(milestoneId, dbId);
   return { ok: true };
+}
+
+/**
+ * Bring EVERY open milestone of a Venture in step with its work.
+ *
+ * The status sync normally runs when a deliverable or task changes. A milestone
+ * whose work was finished before that rule existed (or by someone the rule did
+ * not let close it) would otherwise stay `in progress` next to fully approved
+ * evidence, and every count built on its status — "2/6 milestones", the
+ * journey's progress — would stay behind. This runs the SAME sync on each open
+ * milestone, so the statuses follow the work whenever the Journey is read:
+ * everything approved and every task finished closes the milestone, and the last
+ * one closes its Journey.
+ *
+ * Held milestones (`upcoming`, `blocked`, `locked`) and completed ones are never
+ * touched, exactly like the sync itself. Idempotent: a milestone already in the
+ * right status is left alone. Never throws — a failed pass leaves things as they
+ * were.
+ *
+ * @returns {Promise<{ examined: number, changed: number }>}
+ */
+export async function reconcileMilestonesFromWork({ dbId, cid = null } = {}) {
+  if (!dbId) return { examined: 0, changed: 0 };
+  try {
+    const ids = rowsOf(await selectOpenMilestoneIds(dbId)).map((row) => row.id);
+    let changed = 0;
+    for (const milestoneId of ids) {
+      const outcome = await syncMilestoneFromWork({ dbId, milestoneId, cid, canComplete: true });
+      if (outcome?.changed) changed += 1;
+    }
+    return { examined: ids.length, changed };
+  } catch (_) {
+    return { examined: 0, changed: 0 };
+  }
 }

@@ -53,5 +53,6 @@ export {
   syncMilestoneFromWork,
   syncMilestoneStatusFromDeliverables,
   completeMilestone,
+  reconcileMilestonesFromWork,
 } from "./milestoneEngine/status";
 

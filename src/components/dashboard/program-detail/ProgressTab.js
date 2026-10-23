@@ -23,7 +23,7 @@ export default function ProgressTab({ metrics, user, programId, followups, t }) 
           </p>
           <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
             <div
-              className="h-full rounded-full bg-[var(--brand-orange)] transition-all"
+              className="h-full rounded-full bg-[var(--progress-fill)] transition-all"
               style={{ width: `${Math.min(metrics.percentComplete, 100)}%` }}
             />
           </div>
@@ -42,7 +42,7 @@ export default function ProgressTab({ metrics, user, programId, followups, t }) 
           </p>
           <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
             <div
-              className="h-full rounded-full bg-emerald-400 transition-all"
+              className="h-full rounded-full bg-[var(--progress-fill)] transition-all"
               style={{ width: `${Math.min(metrics.attendanceRate, 100)}%` }}
             />
           </div>
@@ -61,7 +61,7 @@ export default function ProgressTab({ metrics, user, programId, followups, t }) 
           </p>
           <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
             <div
-              className="h-full rounded-full bg-blue-400 transition-all"
+              className="h-full rounded-full bg-[var(--progress-fill)] transition-all"
               style={{ width: `${Math.min(metrics.kpiCompletion, 100)}%` }}
             />
           </div>
@@ -80,7 +80,7 @@ export default function ProgressTab({ metrics, user, programId, followups, t }) 
           </p>
           <div className="w-full h-1.5 bg-white/10 rounded-full mt-3 overflow-hidden">
             <div
-              className="h-full rounded-full bg-purple-400 transition-all"
+              className="h-full rounded-full bg-[var(--progress-fill)] transition-all"
               style={{
                 width: `${metrics.totalDeliverables > 0 ? Math.min((metrics.completedDeliverables / metrics.totalDeliverables) * 100, 100) : 0}%`,
               }}

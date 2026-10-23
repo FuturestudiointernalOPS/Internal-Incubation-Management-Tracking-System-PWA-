@@ -12,6 +12,7 @@
     :root {
         /* GLOBAL COLOR CONTROL */
         --brand-orange: #ff6600;
+        --progress-fill: var(--brand-orange); /* every progress bar: the Future Studio colour, for every role */
         --brand-blue: #0066ff;
 
         /* THEME TOKENS (LIGHT MODE DEFAULT) */

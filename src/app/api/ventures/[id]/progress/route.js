@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeRoadmapReadiness } from "@/services/ventures/readiness";
+import { reconcileMilestonesFromWork } from "@/services/ventures/milestoneEngine";
 import {
   countVentureCustomerInterviews,
   countVentureDocumentsByVentureId,
@@ -36,6 +37,8 @@ export async function GET(req, { params }) {
     // The roadmap engine owns the counting (an approved deliverable finishes the
     // task it belongs to), so this widget and the Investment Readiness screen
     // cannot disagree. Completion statuses stay defined once in lib/ventureStatuses.
+    // Statuses follow the work first, so the milestone counts below are current.
+    await reconcileMilestonesFromWork({ dbId });
     const roadmap = await computeRoadmapReadiness({ dbId, code: id });
     const total = roadmap.counts.tasks.total;
     const done = roadmap.counts.tasks.completed;
