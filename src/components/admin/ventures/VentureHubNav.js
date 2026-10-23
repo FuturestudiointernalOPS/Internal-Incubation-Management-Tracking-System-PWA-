@@ -86,7 +86,7 @@ export default function VentureHubNav({ id }) {
             </div>
             <div>
               <div className="flex items-center gap-3 mb-1">
-                <h1 className="text-2xl font-black text-[var(--text-primary)]">{venture?.company_name || "…"}</h1>
+                <h1 className="text-2xl font-black text-[var(--text-primary)]">{venture?.company_name || venture?.name || "…"}</h1>
                 {venture && (
                   <span className={`text-[8px] font-black uppercase px-2 py-1 rounded ${stageColor}`}>{t(stageLabel)}</span>
                 )}

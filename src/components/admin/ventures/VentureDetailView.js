@@ -63,7 +63,7 @@ export default function VentureDetailView({ ctx }) {
         <div className="text-center py-20">
           <AlertTriangle className="w-12 h-12 text-rose-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">
-            {t("vadmin.detail.ventureNotFound")}
+            {ctx.errorTitle || t("vadmin.detail.ventureNotFound")}
           </h2>
           <p className="text-slate-500 mb-6">{error || t("vadmin.detail.ventureLoadError")}</p>
           <button
