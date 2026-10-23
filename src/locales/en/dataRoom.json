@@ -192,6 +192,16 @@
       "levelInvalid": "Choose a valid requirement level.",
       "loadFailed": "The Data Room could not be loaded.",
       "uploadFailed": "The file could not be uploaded."
+    },
+    "preview": {
+      "title": "Document preview",
+      "openTab": "Open in new tab",
+      "unavailable": "This file type cannot be previewed in the browser. Use Download to read it.",
+      "approve": "Approve",
+      "reject": "Do not approve",
+      "confirmReject": "Confirm rejection",
+      "button": "Preview",
+      "approveConfirm": "Approve “{title}”?"
     }
   }
 }

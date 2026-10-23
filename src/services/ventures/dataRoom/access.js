@@ -114,7 +114,10 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   let canReview = false;
   if (superAdmin) {
     canReview = true;
-  } else if (assigned && !isLeadManager) {
+  } else if (assigned && isLeadManager) {
+    // The Lead Manager decides on what the founder files: approve or not.
+    canReview = true;
+  } else if (assigned) {
     canReview =
       (await canManageVerification(ventureId, session).catch(() => ({ allowed: false }))).allowed === true ||
       (cid
@@ -122,8 +125,8 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
         : false);
   }
 
-  // A Lead Manager configures WHAT must be provided, but only sees the
-  // documents themselves: no upload, no edit, no review decision.
+  // A Lead Manager configures WHAT must be provided and reviews what is filed;
+  // they still do not upload or edit the documents themselves.
   const canConfigureRequirements = canReview || (assigned && isLeadManager);
 
   if (canView) {

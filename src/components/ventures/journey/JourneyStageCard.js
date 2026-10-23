@@ -75,6 +75,7 @@ export default function JourneyStageCard({
   deliverableFile,
   deliverableForm,
   deliverableMenuItems,
+  canApproveDeliverable,
   deliverableNewUrl,
   deliverableSaving,
   deliverableStatus,
@@ -325,6 +326,7 @@ export default function JourneyStageCard({
                         deliverableFile={deliverableFile}
                         deliverableForm={deliverableForm}
                         deliverableMenuItems={deliverableMenuItems}
+                        canApproveDeliverable={canApproveDeliverable}
                         deliverableNewUrl={deliverableNewUrl}
                         deliverableSaving={deliverableSaving}
                         deliverableStatus={deliverableStatus}

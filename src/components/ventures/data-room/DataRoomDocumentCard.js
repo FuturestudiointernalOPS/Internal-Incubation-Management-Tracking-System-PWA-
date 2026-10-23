@@ -1,6 +1,6 @@
 "use client";
 
-import { Download, Eye, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
+import { CheckCircle2, Download, Eye, FileSearch, XCircle, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
 import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
 import { formatBytes, formatDate, STATUS_ACCENT, STATUS_CLASS, documentTitle } from "./dataRoomUi";
 
@@ -22,6 +22,7 @@ export default function DataRoomDocumentCard({
   onReplace,
   onEdit,
   onReview,
+  onDecide,
   onAccess,
   onDelete,
 }) {
@@ -85,6 +86,7 @@ export default function DataRoomDocumentCard({
         {href ? (
           <>
             <ActionButton icon={Eye} label={t("dataRoom.view")} onClick={() => onOpen(documentEntry, "view")} />
+            <ActionButton icon={FileSearch} label={t("dataRoom.preview.button")} onClick={() => onOpen(documentEntry, "preview")} />
             <ActionButton icon={Download} label={t("dataRoom.download")} onClick={() => onOpen(documentEntry, "download")} />
           </>
         ) : (
@@ -97,6 +99,26 @@ export default function DataRoomDocumentCard({
             <ActionButton icon={Share2} label={t("dataRoom.shareAccess")} onClick={() => onAccess(documentEntry)} />
             <ActionButton icon={Pencil} label={t("dataRoom.editDetails")} onClick={() => onEdit(documentEntry)} />
             <ActionButton icon={Trash2} label={t("dataRoom.delete")} danger onClick={() => onDelete(documentEntry)} />
+          </>
+        ) : null}
+        {canReview && href ? (
+          <>
+            <button
+              type="button"
+              onClick={() => onDecide(documentEntry, "verified")}
+              disabled={status === "verified"}
+              className="stf-btn sm pr disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <CheckCircle2 size={11} /> {t("dataRoom.preview.approve")}
+            </button>
+            <button
+              type="button"
+              onClick={() => onDecide(documentEntry, "rejected")}
+              disabled={status === "rejected"}
+              className="stf-btn sm rj disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <XCircle size={11} /> {t("dataRoom.preview.reject")}
+            </button>
           </>
         ) : null}
         {canReview ? (

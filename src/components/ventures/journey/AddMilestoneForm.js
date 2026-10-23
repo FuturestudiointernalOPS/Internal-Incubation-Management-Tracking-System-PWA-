@@ -75,14 +75,32 @@ export default function AddMilestoneForm({
               listId="milestone-owner-options"
             />
           </div>
-          <input
-            type="date"
-            value={milestoneForm.target_date}
-            min={todayDateInput()}
-            max={nextMilestoneDate(stages, { stageId: stage.id }) || undefined}
-            onChange={(event) => setMilestoneForm({ ...milestoneForm, target_date: event.target.value })}
-            className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
-          />
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.startDate")}</label>
+              <input
+                type="date"
+                value={milestoneForm.start_date}
+                min={todayDateInput()}
+                max={milestoneForm.target_date || undefined}
+                onChange={(event) => setMilestoneForm({ ...milestoneForm, start_date: event.target.value })}
+                required
+                className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.finishDate")}</label>
+              <input
+                type="date"
+                value={milestoneForm.target_date}
+                min={milestoneForm.start_date || todayDateInput()}
+                max={nextMilestoneDate(stages, { stageId: stage.id }) || undefined}
+                onChange={(event) => setMilestoneForm({ ...milestoneForm, target_date: event.target.value })}
+                required
+                className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+              />
+            </div>
+          </div>
 
           {/* Deliverables are defined with the milestone, so
               the milestone is never created empty. */}
@@ -109,8 +127,18 @@ export default function AddMilestoneForm({
                 </select>
                 <input
                   type="date"
+                  value={deliverable.start_date || ""}
+                  min={milestoneForm.start_date || todayDateInput()}
+                  max={deliverable.due_date || undefined}
+                  title={t("venture.manager.startDate")}
+                  onChange={(event) => updateMilestoneDeliverable(deliverableIndex, { start_date: event.target.value })}
+                  className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+                />
+                <input
+                  type="date"
                   value={deliverable.due_date}
-                  min={milestoneForm.target_date || todayDateInput()}
+                  min={deliverable.start_date || milestoneForm.target_date || todayDateInput()}
+                  title={t("venture.manager.finishDate")}
                   onChange={(event) => updateMilestoneDeliverable(deliverableIndex, { due_date: event.target.value })}
                   className="px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
                 />

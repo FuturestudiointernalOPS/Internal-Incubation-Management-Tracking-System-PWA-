@@ -203,7 +203,12 @@
       "delete": "Delete",
       "deleteConfirm": "Delete this internal note? It will no longer be visible.",
       "deleted": "Note deleted.",
-      "deleteFailed": "Delete failed."
+      "deleteFailed": "Delete failed.",
+      "section": {
+        "milestones": "Milestones",
+        "sessions": "Sessions"
+      },
+      "sessionsHint": "Notes written in each session. They stay with that session."
     },
     "insights": "Insights",
     "validation": "Validation",
@@ -260,7 +265,6 @@
     "calendar": "Calendar",
     "noEvents": "No events yet",
     "taskCompletion": "Task Completion",
-
     "standupsCount": "Standups Submitted",
     "retrosCount": "Retros Submitted",
     "documents": "Data Room",
@@ -806,7 +810,11 @@
         "authorId": "Author ID",
         "updatedOn": "Last edited",
         "reference": "Reference"
-      }
+      },
+      "milestoneDatesRequired": "Set a start date and an end date for the milestone.",
+      "milestoneStartAfterEnd": "The start date cannot be after the end date.",
+      "deliverableDatesRequired": "Each deliverable needs a start date and an end date, the start not after the end.",
+      "nothingToApprove": "Nothing to approve yet: no evidence has been submitted."
     },
     "personal": {
       "title": "My Dashboard",
@@ -1225,6 +1233,13 @@
         "leadRemoved": "Venture Lead updated",
         "leadRemovedMsg": "{name} is no longer assigned to your Venture."
       }
+    },
+    "quickNote": {
+      "button": "Note",
+      "title": "Add a note",
+      "prefix": "Note",
+      "saved": "Note saved — it is in the Notes tab.",
+      "memo": "Session memo"
     }
   }
 }

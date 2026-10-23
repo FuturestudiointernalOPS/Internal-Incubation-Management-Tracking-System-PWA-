@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Rocket, Archive, Trash2, Save, AlertCircle, Users, Pencil } from "lucide-react";
+import { ArrowLeft, Rocket, Archive, ArchiveRestore, Trash2, Save, AlertCircle, Users, Pencil } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppCard from "@/components/ui/AppCard";
 import CourseStatusBadge from "./CourseStatusBadge";
@@ -221,6 +221,19 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
     }
   };
 
+  const unarchive = async () => {
+    if (!(await confirm({ message: `${t("lms.confirm.unarchive")}\n${t("lms.confirm.unarchiveHint")}` }))) return;
+    try {
+      const res = await fetch(`/api/lms/courses/${courseId}/unarchive`, { method: "POST" });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
+      notify("success", "lms.courses.unarchived");
+      refresh();
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
+    }
+  };
+
   const remove = async () => {
     if (!(await confirm({ message: `${t("lms.confirm.deleteCourse")}\n${t("lms.confirm.deleteCourseHint")}`, tone: "danger" }))) return;
     try {
@@ -300,6 +313,11 @@ export default function CourseEditor({ courseId, basePath = "/admin/lms/courses"
               {allow("edit") && course.status === "published" && (
                 <AppButton variant="secondary" icon={Archive} onClick={archive}>
                   {t("lms.courses.archive")}
+                </AppButton>
+              )}
+              {allow("edit") && course.status === "archived" && (
+                <AppButton variant="secondary" icon={ArchiveRestore} onClick={unarchive}>
+                  {t("lms.courses.unarchive")}
                 </AppButton>
               )}
               {allow("delete") && course.status === "draft" && (

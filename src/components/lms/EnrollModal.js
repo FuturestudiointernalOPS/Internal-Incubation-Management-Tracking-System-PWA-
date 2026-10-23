@@ -119,11 +119,11 @@ export default function EnrollModal({ isOpen, onClose, courseId }) {
                       {enrollment.learner?.name || enrollment.user_cid}
                     </p>
                     <p className="text-[9px] font-bold uppercase tracking-wider mt-0.5" style={{ color: "var(--text-tertiary)" }}>
-                      {enrollment.learner?.email || enrollment.user_cid} · {t(`lms.status.${enrollment.status}`)?.replace("lms.status.", "") || enrollment.status}
+                      {enrollment.learner?.email || enrollment.user_cid} · {t(`lms.enroll.statuses.${enrollment.status}`)}
                     </p>
                   </div>
                   <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
-                    {enrollment.source} · {formatDate(enrollment.enrolled_at)}
+                    {t(`lms.enroll.sources.${enrollment.source}`)} · {formatDate(enrollment.enrolled_at)}
                   </span>
                 </div>
               ))}

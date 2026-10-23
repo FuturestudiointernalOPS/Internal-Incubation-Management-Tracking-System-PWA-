@@ -9,10 +9,11 @@ import { DATA_ROOM_CATEGORIES, dataRoomCategory, isLegacyDocumentCategory } from
 import DataRoomDocumentCard from "./DataRoomDocumentCard";
 import DataRoomUploadModal from "./DataRoomUploadModal";
 import DataRoomReviewModal from "./DataRoomReviewModal";
+import DataRoomPreviewModal from "./DataRoomPreviewModal";
 import DataRoomAccessModal from "./DataRoomAccessModal";
 import DataRoomVersionsModal from "./DataRoomVersionsModal";
 import DataRoomActivity from "./DataRoomActivity";
-import { downloadDocument, STATUS_ORDER } from "./dataRoomUi";
+import { downloadDocument, inlineDocumentUrl, STATUS_ORDER } from "./dataRoomUi";
 
 const pickDataRoom = (payload) => (payload?.success ? payload : null);
 
@@ -30,7 +31,7 @@ const LEGACY_FILTER = "__legacy__";
  */
 export default function VentureDataRoom({ ventureId, className = "" }) {
   const { t } = useI18n();
-  const { confirm } = useDialogs();
+  const { confirm, prompt } = useDialogs();
   const { data, loading, error, status, refresh } = useApi(
     ventureId ? `/api/ventures/${ventureId}/data-room` : null,
     { defaultValue: null, transform: pickDataRoom, deps: [ventureId] },
@@ -43,6 +44,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   // Bumped after each inline save so the form comes back empty.
   const [inlineRun, setInlineRun] = useState(0);
   const [reviewDoc, setReviewDoc] = useState(null);
+  const [previewDoc, setPreviewDoc] = useState(null);
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
 
@@ -127,12 +129,31 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const openDocument = (documentEntry) => {
     if (!documentEntry.file_url_signed) return;
     void recordAccess(documentEntry, "view");
-    window.open(documentEntry.file_url_signed, "_blank", "noopener,noreferrer");
+    window.open(inlineDocumentUrl(ventureId, documentEntry), "_blank", "noopener,noreferrer");
   };
 
   const download = async (documentEntry) => {
     await recordAccess(documentEntry, "download");
     await downloadDocument(documentEntry);
+  };
+
+  // Approve / do not approve, straight from the document's own row. A refusal
+  // must say why; the same endpoint and rule as the review dialog.
+  const decideDocument = async (documentEntry, decision) => {
+    let notes = null;
+    if (decision === "verified") {
+      if (!(await confirm({ message: t("dataRoom.preview.approveConfirm", { title: documentEntry.title || documentEntry.file_name || "" }) }))) return;
+    } else {
+      notes = await prompt({ message: t("dataRoom.reviewModal.rejectionReason"), required: true });
+      if (!notes || !notes.trim()) return;
+    }
+    const response = await fetch(`/api/ventures/${ventureId}/data-room`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "review", document_id: documentEntry.id, decision, notes: notes ? notes.trim() : null }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (data.success) refresh();
   };
 
   const removeDocument = async (documentEntry) => {
@@ -317,11 +338,19 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                   t={t}
                   canManage={viewer.can_manage}
                   canReview={viewer.can_review}
-                  onOpen={(documentEntry, mode) => (mode === "download" ? download(documentEntry) : openDocument(documentEntry))}
+                  onOpen={(documentEntry, mode) => {
+                    if (mode === "download") return download(documentEntry);
+                    if (mode === "preview") {
+                      void recordAccess(documentEntry, "view");
+                      return setPreviewDoc(documentEntry);
+                    }
+                    return openDocument(documentEntry);
+                  }}
                   onVersions={setVersionsDoc}
                   onReplace={(documentEntry) => setUploadState({ mode: "replace", document: documentEntry })}
                   onEdit={(documentEntry) => setUploadState({ mode: "edit", document: documentEntry })}
                   onReview={setReviewDoc}
+                  onDecide={decideDocument}
                   onAccess={setAccessDoc}
                   onDelete={removeDocument}
                 />
@@ -353,6 +382,17 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           maxFileMb={data.max_file_mb}
           t={t}
           onClose={() => setUploadState(null)}
+          onDone={refresh}
+        />
+      ) : null}
+
+      {previewDoc ? (
+        <DataRoomPreviewModal
+          documentEntry={previewDoc}
+          ventureId={ventureId}
+          t={t}
+          canReview={viewer.can_review}
+          onClose={() => setPreviewDoc(null)}
           onDone={refresh}
         />
       ) : null}
