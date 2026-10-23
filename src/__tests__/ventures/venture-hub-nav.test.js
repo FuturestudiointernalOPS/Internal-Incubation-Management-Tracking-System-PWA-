@@ -50,6 +50,12 @@ test("the bar carries the Venture's name and every destination as a link", async
   ]));
 });
 
+test("the way back to the list of Ventures is there, once", async () => {
+  view();
+  const back = await screen.findByRole("link", { name: /Back to Ventures|Retour/i });
+  expect(back.getAttribute("href")).toBe("/admin/ventures");
+});
+
 test("the active tab follows the address", () => {
   mockPath = "/admin/ventures/VNT-1/journey";
   view();
