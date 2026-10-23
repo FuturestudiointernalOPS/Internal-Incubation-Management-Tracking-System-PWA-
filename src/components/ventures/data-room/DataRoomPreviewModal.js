@@ -60,6 +60,9 @@ export default function DataRoomPreviewModal({ documentEntry, ventureId, t, canR
   const kind = previewKind(documentEntry);
   const url = documentEntry?.file_url_signed ? inlineDocumentUrl(ventureId, documentEntry) : null;
   const status = documentEntry?.status || "uploaded";
+  const decided =
+    (status === "verified" || status === "rejected") &&
+    Number(documentEntry?.reviewed_version || 0) === Number(documentEntry?.current_version || 1);
   const [office, setOffice] = useState({ html: null, failed: false });
 
   useEffect(() => {
@@ -168,10 +171,10 @@ export default function DataRoomPreviewModal({ documentEntry, ventureId, t, canR
                 </>
               ) : (
                 <>
-                  <button type="button" disabled={busy || status === "rejected"} onClick={() => setRejecting(true)} className="stf-btn sm rj">
+                  <button type="button" disabled={busy || decided} onClick={() => setRejecting(true)} className="stf-btn sm rj">
                     <XCircle size={12} /> {t("dataRoom.preview.reject")}
                   </button>
-                  <button type="button" disabled={busy || status === "verified"} onClick={() => decide("verified")} className="stf-btn sm pr">
+                  <button type="button" disabled={busy || decided} onClick={() => decide("verified")} className="stf-btn sm pr">
                     <CheckCircle2 size={12} /> {t("dataRoom.preview.approve")}
                   </button>
                 </>

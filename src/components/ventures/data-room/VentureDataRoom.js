@@ -10,6 +10,7 @@ import DataRoomDocumentCard from "./DataRoomDocumentCard";
 import DataRoomUploadModal from "./DataRoomUploadModal";
 import DataRoomReviewModal from "./DataRoomReviewModal";
 import DataRoomPreviewModal from "./DataRoomPreviewModal";
+import DataRoomSessionModal from "./DataRoomSessionModal";
 import DataRoomAccessModal from "./DataRoomAccessModal";
 import DataRoomVersionsModal from "./DataRoomVersionsModal";
 import { downloadDocument, inlineDocumentUrl, STATUS_ORDER } from "./dataRoomUi";
@@ -30,7 +31,7 @@ const LEGACY_FILTER = "__legacy__";
  */
 export default function VentureDataRoom({ ventureId, className = "" }) {
   const { t } = useI18n();
-  const { confirm, prompt } = useDialogs();
+  const { confirm, prompt, alert } = useDialogs();
   const { data, loading, error, status, refresh } = useApi(
     ventureId ? `/api/ventures/${ventureId}/data-room` : null,
     { defaultValue: null, transform: pickDataRoom, deps: [ventureId] },
@@ -44,6 +45,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const [inlineRun, setInlineRun] = useState(0);
   const [reviewDoc, setReviewDoc] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
+  const [sessionDoc, setSessionDoc] = useState(null);
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -160,7 +162,15 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
       body: JSON.stringify({ action: "review", document_id: documentEntry.id, decision, notes: notes ? notes.trim() : null }),
     });
     const data = await response.json().catch(() => ({}));
-    if (data.success) refresh();
+    if (data.success) {
+      refresh();
+      // Not approving usually means a conversation: offer to schedule it.
+      if (decision === "rejected" && (await confirm({ message: t("dataRoom.session.planPrompt") }))) {
+        setSessionDoc({ ...documentEntry, review_notes: notes });
+      }
+    } else if (data.error) {
+      await alert({ message: String(data.error).startsWith("dataRoom.") ? t(data.error) : data.error });
+    }
   };
 
   const removeDocument = async (documentEntry) => {
@@ -401,6 +411,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                   onEdit={(documentEntry) => setUploadState({ mode: "edit", document: documentEntry })}
                   onReview={setReviewDoc}
                   onDecide={decideDocument}
+                  onSession={setSessionDoc}
                   onAccess={setAccessDoc}
                   onDelete={removeDocument}
                 />
@@ -498,6 +509,15 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           canReview={viewer.can_review}
           onClose={() => setPreviewDoc(null)}
           onDone={refresh}
+        />
+      ) : null}
+
+      {sessionDoc ? (
+        <DataRoomSessionModal
+          documentEntry={sessionDoc}
+          ventureId={ventureId}
+          t={t}
+          onClose={() => setSessionDoc(null)}
         />
       ) : null}
 

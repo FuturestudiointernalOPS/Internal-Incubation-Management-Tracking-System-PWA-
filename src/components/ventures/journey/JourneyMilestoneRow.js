@@ -238,6 +238,8 @@ export default function JourneyMilestoneRow({
             setBookFor={setBookFor}
             setBookForm={setBookForm}
             stage={stage}
+            sessionStatusKey={sessionStatusKey}
+            ventureSessions={ventureSessions}
             deliverableAction={deliverableAction}
             deliverableAddFor={deliverableAddFor}
             deliverableBusy={deliverableBusy}

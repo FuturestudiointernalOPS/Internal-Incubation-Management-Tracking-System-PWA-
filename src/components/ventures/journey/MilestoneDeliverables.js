@@ -2,13 +2,13 @@
 
 import QuickNote from "@/components/ventures/journey/QuickNote";
 import ActivityReport from "@/components/ventures/journey/ActivityReport";
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { datePickerFloor, groupActivitiesWithDeliverables, sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
-import MilestoneSessionBooking from "@/components/ventures/journey/MilestoneSessionBooking";
 import { dateOnly, todayDateInput } from "@/lib/ventureMilestoneDates";
 import { statusDotClass, statusLabel } from "@/lib/ventureStatuses";
-import { CheckCircle2, Loader2, Plus, Save } from "lucide-react";
+import { CheckCircle2, ChevronDown, Loader2, Plus, RotateCcw, Save } from "lucide-react";
+import ActivitySession from "@/components/ventures/journey/ActivitySession";
 import AppMenu from "@/components/ui/AppMenu";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
 import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDetailDialog";
@@ -23,6 +23,50 @@ import DeliverableDetailDialog from "@/components/ventures/journey/DeliverableDe
  */
 // The kit tag for a status word (same tones as everywhere else).
 const TAG_TONE = { blocked: "r", in_progress: "b", awaiting_review: "w", changes_requested: "r", completed: "g", approved: "g" };
+
+// "Review" on a deliverable: one button, two decisions.
+function ReviewMenu({ busy, canApprove, onApprove, onChanges }) {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef(null);
+  useEffect(() => {
+    if (!open) return undefined;
+    const close = (event) => {
+      if (event.type === "keydown" ? event.key === "Escape" : wrapRef.current && !wrapRef.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, [open]);
+  const itemClass = "w-full flex items-center gap-2.5 px-3 py-2 text-left text-[11px] font-bold text-[var(--text-primary)] hover:bg-tertiary disabled:opacity-40 disabled:cursor-not-allowed";
+  return (
+    <div className="relative shrink-0" ref={wrapRef}>
+      <button type="button" className="stf-btn sm pr" aria-haspopup="menu" aria-expanded={open} disabled={busy} onClick={() => setOpen((value) => !value)}>
+        {t("venture.manager.review")} <ChevronDown className="w-3 h-3" />
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 z-[60] mt-1 min-w-[190px] rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)] shadow-2xl py-1">
+          <button type="button" role="menuitem" className={itemClass} onClick={() => { setOpen(false); onChanges(); }}>
+            <RotateCcw className="w-3.5 h-3.5 shrink-0" /> {t("venture.manager.requestChanges")}
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className={itemClass}
+            disabled={!canApprove}
+            title={canApprove ? undefined : t("venture.manager.nothingToApprove")}
+            onClick={() => { setOpen(false); onApprove(); }}
+          >
+            <CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> {t("venture.manager.approveDeliverable")}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MilestoneDeliverables({
   DELIVERABLE_TYPES,
@@ -63,8 +107,10 @@ export default function MilestoneDeliverables({
   openBooking,
   setBookFor,
   setBookForm,
+  sessionStatusKey,
   stage,
   ventureId,
+  ventureSessions,
 }) {
   const { t } = useI18n();
   // The deliverable whose detail dialog is open (id only, so the dialog reads
@@ -183,7 +229,7 @@ export default function MilestoneDeliverables({
                     {t("common.cancel")}
                   </button>
                   <button type="button" onClick={submitDeliverableEvidence} disabled={deliverableSaving || (!deliverableFile && !deliverableText.trim())} className="stf-btn sm pr">
-                    {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null} {t("venture.manager.submitEvidence")}
+                    {deliverableSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : null} {t("venture.manager.submitDeliverable")}
                   </button>
                 </div>
               </div>
@@ -227,16 +273,13 @@ export default function MilestoneDeliverables({
                 <span className={`stf-tag ${TAG_TONE[status?.tone] || ""} shrink-0`}>
                   {statusLabel(status, t)}
                 </span>
-                {milestoneAuthority && deliverable.approval_status !== "approved" && (
-                  <button
-                    type="button"
-                    onClick={() => reviewDeliverable(deliverable, "approved")}
-                    disabled={deliverableBusy === deliverable.id || !canApproveDeliverable(deliverable)}
-                    title={canApproveDeliverable(deliverable) ? undefined : t("venture.manager.nothingToApprove")}
-                    className="stf-btn sm pr shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    <CheckCircle2 className="w-3 h-3" /> {t("venture.manager.approveDeliverable")}
-                  </button>
+                {milestoneAuthority && status?.id !== "approved" && status?.id !== "not_started" && (
+                  <ReviewMenu
+                    busy={deliverableBusy === deliverable.id}
+                    canApprove={canApproveDeliverable(deliverable)}
+                    onApprove={() => reviewDeliverable(deliverable, "approved")}
+                    onChanges={() => { setDeliverableAction({ id: deliverable.id, mode: "review" }); setDeliverableText(""); }}
+                  />
                 )}
                 {milestoneAuthority && (
                   <AppMenu
@@ -281,29 +324,32 @@ export default function MilestoneDeliverables({
 
           {/* Book a session AGAINST THIS ACTIVITY (date + exact time) */}
           <div className="jy-btns">
-          {canBook && (
-            <MilestoneSessionBooking
-              autoGrow={autoGrow}
-              bookFor={bookFor}
-              bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
-              bookForm={bookForm}
-              bookSaving={bookSaving}
-              bookSession={bookSession}
-              coachOptions={coachOptions}
-              deliverableList={group.deliverables}
-              milestone={milestone}
-              onOpen={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
-              setBookFor={setBookFor}
-              setBookForm={setBookForm}
-              stage={stage}
-            />
-          )}
             <QuickNote
               ventureId={ventureId}
               milestoneId={milestone.id}
               subject={`${group.activity?.source_ref ? `${group.activity.source_ref} · ` : ""}${group.activity?.title || milestone.title || ""}`.trim()}
             />
             <ActivityReport ventureId={ventureId} milestone={milestone} activity={group.activity} />
+            <ActivitySession
+              activity={group.activity}
+              autoGrow={autoGrow}
+              bookFor={bookFor}
+              bookForKey={sessionBookingKey(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+              bookForm={bookForm}
+              bookSaving={bookSaving}
+              bookSession={bookSession}
+              canBook={canBook}
+              coachOptions={coachOptions}
+              deliverableList={group.deliverables}
+              milestone={milestone}
+              onOpenBooking={() => openBooking(milestone, group.activity, group.deliverables[0]?.id ?? null)}
+              sessionStatusKey={sessionStatusKey}
+              sessions={ventureSessions}
+              setBookFor={setBookFor}
+              setBookForm={setBookForm}
+              stage={stage}
+              ventureId={ventureId}
+            />
           </div>
         </div>
       ))}

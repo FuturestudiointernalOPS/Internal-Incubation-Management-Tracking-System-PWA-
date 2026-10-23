@@ -191,7 +191,8 @@
       "invalidAction": "Action non prise en charge.",
       "levelInvalid": "Choisissez un niveau d'exigence valide.",
       "loadFailed": "Le Data Room n'a pas pu être chargé.",
-      "uploadFailed": "Le fichier n'a pas pu être téléversé."
+      "uploadFailed": "Le fichier n'a pas pu être téléversé.",
+      "decisionFinal": "Une décision a déjà été prise sur cette version. Elle ne peut pas être inversée ; déposez une nouvelle version pour la relire."
     },
     "preview": {
       "title": "Aperçu du document",
@@ -202,6 +203,20 @@
       "confirmReject": "Confirmer le refus",
       "button": "Aperçu",
       "approveConfirm": "Approuver « {title} » ?"
+    },
+    "session": {
+      "title": "Planifier une session",
+      "milestone": "Jalon",
+      "milestonePlaceholder": "Choisir un jalon",
+      "noMilestone": "Ce venture n'a pas encore de jalon : une session doit en dépendre.",
+      "date": "Date",
+      "time": "Heure",
+      "duration": "Minutes",
+      "note": "Objet de la rencontre",
+      "book": "Planifier",
+      "button": "Planifier une session",
+      "planPrompt": "Planifier une session pour discuter de ce document ?",
+      "decided": "Décision déjà prise sur cette version"
     }
   }
 }
