@@ -602,6 +602,18 @@
       "deliverableUpdated": "Livrable mis à jour.",
       "deliverableSubmitted": "Preuve soumise.",
       "deliverableReviewed": "Livrable examiné : {decision}.",
+      "submitDeliverable": "Soumettre le livrable",
+      "review": "Réviser",
+      "changesRequested": "Modifications demandées",
+      "activitySession": {
+        "button": "Session",
+        "title": "Sessions",
+        "empty": "Aucune session réservée sur cette activité pour le moment.",
+        "date": "Date",
+        "time": "Heure",
+        "coach": "Coach",
+        "finished": "Cette activité est terminée : il n'est plus possible de réserver de session."
+      },
       "submitEvidence": "Soumettre la preuve",
       "approveDeliverable": "Approuver",
       "requestChanges": "Demander des modifications",
@@ -973,6 +985,19 @@
       "clear": "Effacer"
     },
     "projects": {
+    "shouldStart": "Devraient avoir démarré",
+    "followUp": {
+      "title": "Les responsables sont-ils sur leurs tâches ? (tâches dont la date de début est arrivée)",
+      "none": "Aucune tâche n'a encore atteint sa date de début.",
+      "assignee": "Responsable",
+      "due": "Devraient avoir démarré",
+      "working": "En cours / terminées",
+      "blocked": "Bloquées",
+      "waiting": "Non démarrées",
+      "verdict": "État",
+      "nobody": "Personne d'assigné",
+      "verdicts": { "onIt": "Dessus", "partial": "Démarré en partie", "notStarted": "N'a pas démarré", "unassigned": "Sans responsable" }
+    },
       "title": "Gestion de projet",
       "subtitle": "Tous les jalons, activités et livrables de ce Venture, avec le responsable, les personnes en appui et les dates qui comptent.",
       "open": "Ouvrir",

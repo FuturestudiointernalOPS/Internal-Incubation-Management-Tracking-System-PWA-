@@ -191,7 +191,8 @@
       "invalidAction": "Unsupported action.",
       "levelInvalid": "Choose a valid requirement level.",
       "loadFailed": "The Data Room could not be loaded.",
-      "uploadFailed": "The file could not be uploaded."
+      "uploadFailed": "The file could not be uploaded.",
+      "decisionFinal": "This version has already been decided on. A decision cannot be reversed; upload a new version to review it again."
     },
     "preview": {
       "title": "Document preview",
@@ -202,6 +203,20 @@
       "confirmReject": "Confirm rejection",
       "button": "Preview",
       "approveConfirm": "Approve “{title}”?"
+    },
+    "session": {
+      "title": "Schedule a session",
+      "milestone": "Milestone",
+      "milestonePlaceholder": "Choose a milestone",
+      "noMilestone": "This venture has no milestone yet: a session must belong to one.",
+      "date": "Date",
+      "time": "Time",
+      "duration": "Minutes",
+      "note": "Why we are meeting",
+      "book": "Schedule",
+      "button": "Schedule a session",
+      "planPrompt": "Schedule a session to discuss this document?",
+      "decided": "Decision taken on this version"
     }
   }
 }

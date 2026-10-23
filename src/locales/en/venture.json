@@ -602,6 +602,18 @@
       "deliverableUpdated": "Deliverable updated.",
       "deliverableSubmitted": "Evidence submitted.",
       "deliverableReviewed": "Deliverable reviewed: {decision}.",
+      "submitDeliverable": "Submit deliverable",
+      "review": "Review",
+      "changesRequested": "Changes requested",
+      "activitySession": {
+        "button": "Session",
+        "title": "Sessions",
+        "empty": "No session booked on this activity yet.",
+        "date": "Date",
+        "time": "Time",
+        "coach": "Coach",
+        "finished": "This activity is finished: no more sessions can be booked."
+      },
       "submitEvidence": "Submit evidence",
       "approveDeliverable": "Approve",
       "requestChanges": "Request changes",
@@ -973,6 +985,19 @@
       "clear": "Clear"
     },
     "projects": {
+    "shouldStart": "Should have started",
+    "followUp": {
+      "title": "Are the assignees on their tasks? (tasks whose start date has come)",
+      "none": "No task has reached its start date yet.",
+      "assignee": "Assignee",
+      "due": "Should have started",
+      "working": "In progress / done",
+      "blocked": "Blocked",
+      "waiting": "Not started",
+      "verdict": "Status",
+      "nobody": "Nobody assigned",
+      "verdicts": { "onIt": "On it", "partial": "Partly started", "notStarted": "Has not started", "unassigned": "No assignee" }
+    },
       "title": "Project Management",
       "subtitle": "Every milestone, activity and deliverable of this Venture, with the owner, the people supporting it and the dates that matter.",
       "open": "Open",

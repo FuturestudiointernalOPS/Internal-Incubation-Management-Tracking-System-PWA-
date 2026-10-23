@@ -227,7 +227,7 @@ export default function StaffVentureWorkspace() {
   const displayName = venture.company_name || venture.name || t("venture.label");
 
   return (
-    <div className={`p-6 space-y-6 mx-auto ${activeTab === "projects" ? "max-w-7xl" : "max-w-5xl"}`}>
+    <div className="p-6 space-y-6 w-full max-w-none">
       <VenturePageHeader
         displayName={displayName}
         brandColor={venture.branding?.color}

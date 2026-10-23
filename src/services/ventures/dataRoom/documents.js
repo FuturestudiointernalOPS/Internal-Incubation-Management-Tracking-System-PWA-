@@ -261,6 +261,15 @@ export async function reviewDataRoomDocument({
   if (document.is_deleted) return refusal(404, "errors.notFound");
 
   const reviewedVersion = document.current_version || 1;
+  // A decision is final for the version it was taken on: an approval cannot be
+  // turned into a refusal, nor a refusal into an approval. A new version of the
+  // file is a new document to decide on.
+  if (
+    (document.review_status === "verified" || document.review_status === "rejected") &&
+    Number(document.reviewed_version || 0) === Number(reviewedVersion)
+  ) {
+    return refusal(409, "dataRoom.errors.decisionFinal");
+  }
   await updateDataRoomReview(
     {
       documentId,

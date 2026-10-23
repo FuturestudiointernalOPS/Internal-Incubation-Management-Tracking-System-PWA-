@@ -37,6 +37,7 @@ import {
   TASK_COMPLETED_STATUSES,
   isMilestoneComplete,
   storedStatusWord,
+  statusWord,
   deliverableStatusWord,
 } from "@/lib/ventureStatuses";
 
@@ -130,6 +131,8 @@ function shapeWorkItem({
   dependsOn = [],
   blocks = [],
 }) {
+  // Work whose start date is still ahead has not begun, whatever was stored.
+  if (status.id === "in_progress" && start && start > todayIso()) status = statusWord("not_started");
   return {
     id: `${kind}:${row.id}`,
     kind,
@@ -147,6 +150,10 @@ function shapeWorkItem({
     finish,
     status: { id: status.id, key: status.key, tone: status.tone, raw: status.raw },
     is_complete: isComplete,
+    // What a manager edits in place: the stored (not the summarised) status, and
+    // the priority where the kind carries one.
+    stored_status: row.status ? String(row.status) : null,
+    priority: row.priority ? String(row.priority) : null,
     journey: journey ? { id: journey.id, name: journey.name } : null,
     milestone: milestone ? { id: milestone.id, title: milestone.title } : null,
     parent,
