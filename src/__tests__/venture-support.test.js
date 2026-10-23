@@ -19,8 +19,10 @@ jest.mock("@/services/ventures/permissions", () => ({
   listAssignments: jest.fn(),
 }));
 
-jest.mock("@/lib/email", () => ({
-  sendStandaloneEmail: jest.fn(),
+jest.mock("@/models/communications", () => ({
+  createMessage: jest.fn(async () => ({ rows: [{ id: 1 }] })),
+  ensureMessagesIsReadColumn: jest.fn(async () => ({})),
+  insertDirectMessageNotification: jest.fn(async () => ({})),
 }));
 
 jest.mock("@/services/reminders/recipients", () => ({
@@ -36,7 +38,7 @@ jest.mock("@/services/reminders/recipients", () => ({
 }));
 
 import { listAssignments } from "@/services/ventures/permissions";
-import { sendStandaloneEmail } from "@/lib/email";
+import { createMessage, insertDirectMessageNotification } from "@/models/communications";
 import {
   FORMER_SUPPORT_LIMIT,
   activeLeadRecipients,
@@ -216,111 +218,75 @@ describe("activeLeadRecipients", () => {
 });
 
 describe("sendFounderMessageToLeads", () => {
-  const leads = [
-    { id: 1, name: "Lena", email: "lena@future.studio", contact_cid: "C-1" },
-    { id: 2, name: "David", email: "david@future.studio", contact_cid: "C-2" },
-  ];
+  const lead = (id, name, contact_cid = `USR_${id}`) => ({ id, name, contact_cid });
 
-  it("emails every lead and sets Reply-To from the founder", async () => {
-    sendStandaloneEmail.mockResolvedValue({ success: true });
+  beforeEach(() => {
+    createMessage.mockClear();
+    createMessage.mockResolvedValue({ rows: [{ id: 1 }] });
+    insertDirectMessageNotification.mockClear();
+  });
 
+  it("writes one direct message per lead, from the founder, into the message space", async () => {
     const outcome = await sendFounderMessageToLeads({
-      ventureName: "AgriNova",
-      founderName: "Awa",
-      founderEmail: "awa@agrinova.co",
-      message: "Could we meet on Thursday?",
-      leads,
+      ventureName: "AgroTech",
+      founderCid: "USR_FOUNDER",
+      founderName: "Chris",
+      message: "Can we talk?",
+      leads: [lead(1, "Harry"), lead(2, "Joakh")],
     });
 
-    expect(outcome.sent).toBe(2);
-    expect(outcome.failed).toEqual([]);
-    expect(outcome.reply_to_used).toBe(true);
-    expect(sendStandaloneEmail).toHaveBeenCalledTimes(2);
-    expect(sendStandaloneEmail).toHaveBeenCalledWith(
+    expect(outcome).toEqual({ sent: 2, failed: [] });
+    expect(createMessage).toHaveBeenCalledTimes(2);
+    expect(createMessage).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "lena@future.studio",
-        replyTo: "awa@agrinova.co",
-        email_type: "venture_contact",
+        senderId: "USR_FOUNDER",
+        recipientId: "USR_1",
+        targetType: "individual",
+        body: "Can we talk?",
+        subject: "AgroTech — message from Chris",
       }),
     );
+    expect(createMessage.mock.calls.map(([arg]) => arg.recipientId)).toEqual(["USR_1", "USR_2"]);
   });
 
-  it("escapes the founder's text — it is body, never markup", async () => {
-    sendStandaloneEmail.mockResolvedValue({ success: true });
-
-    await sendFounderMessageToLeads({
-      ventureName: "AgriNova",
-      founderName: "Awa",
-      founderEmail: "awa@agrinova.co",
-      message: "<script>alert(1)</script>",
-      leads: [leads[0]],
-    });
-
-    const html = sendStandaloneEmail.mock.calls[0][0].html;
-    expect(html).not.toContain("<script>");
-    expect(html).toContain("&lt;script&gt;");
+  it("notifies each recipient that a message arrived", async () => {
+    await sendFounderMessageToLeads({ ventureName: "V", founderCid: "USR_F", founderName: "Chris", message: "hi", leads: [lead(1, "Harry")] });
+    expect(insertDirectMessageNotification).toHaveBeenCalledWith("USR_1", "New Message", "You have 1 new message from Chris");
   });
 
-  it("omits Reply-To when the founder's address is unusable, and still sends", async () => {
-    sendStandaloneEmail.mockResolvedValue({ success: true });
+  it("keeps the founder's text as text: nothing is rewritten or escaped into markup", async () => {
+    await sendFounderMessageToLeads({ ventureName: "V", founderCid: "USR_F", founderName: "Chris", message: "<b>hi</b> & bye", leads: [lead(1, "Harry")] });
+    expect(createMessage.mock.calls[0][0].body).toBe("<b>hi</b> & bye");
+  });
 
+  it("reports a lead with no account — there is no inbox to write to — and messages the others", async () => {
     const outcome = await sendFounderMessageToLeads({
-      ventureName: "AgriNova",
-      founderName: "Awa",
-      founderEmail: "not-an-address",
-      message: "Hello",
-      leads: [leads[0]],
+      ventureName: "V", founderCid: "USR_F", founderName: "Chris", message: "hi",
+      leads: [lead(1, "No Account", null), lead(2, "Has Account")],
     });
-
     expect(outcome.sent).toBe(1);
-    expect(outcome.reply_to_used).toBe(false);
-    expect(sendStandaloneEmail).toHaveBeenCalledWith(expect.objectContaining({ replyTo: null }));
+    expect(outcome.failed).toEqual([{ name: "No Account", reason: "no_account" }]);
+    expect(createMessage).toHaveBeenCalledTimes(1);
   });
 
-  it("reports a lead with no address as unreachable and mails the others", async () => {
-    sendStandaloneEmail.mockResolvedValue({ success: true });
-
+  it("isolates one failing write from the rest", async () => {
+    createMessage.mockRejectedValueOnce(new Error("db down"));
     const outcome = await sendFounderMessageToLeads({
-      ventureName: "AgriNova",
-      founderName: "Awa",
-      founderEmail: "awa@agrinova.co",
-      message: "Hello",
-      leads: [leads[0], { id: 3, name: "No Address", email: null }],
+      ventureName: "V", founderCid: "USR_F", founderName: "Chris", message: "hi",
+      leads: [lead(1, "First"), lead(2, "Second")],
     });
-
     expect(outcome.sent).toBe(1);
-    expect(outcome.failed).toEqual([{ name: "No Address", reason: "no_email" }]);
+    expect(outcome.failed).toEqual([{ name: "First", reason: "db down" }]);
   });
 
-  it("isolates one failing send from the rest", async () => {
-    sendStandaloneEmail
-      .mockRejectedValueOnce(new Error("transport down"))
-      .mockResolvedValueOnce({ success: true });
-
-    const outcome = await sendFounderMessageToLeads({
-      ventureName: "AgriNova",
-      founderName: "Awa",
-      founderEmail: "awa@agrinova.co",
-      message: "Hello",
-      leads,
-    });
-
-    expect(outcome.sent).toBe(1);
-    expect(outcome.failed).toEqual([{ name: "Lena", reason: "transport down" }]);
+  it("a notification that fails does not undo a message already in the inbox", async () => {
+    insertDirectMessageNotification.mockRejectedValueOnce(new Error("notify down"));
+    const outcome = await sendFounderMessageToLeads({ ventureName: "V", founderCid: "USR_F", founderName: "Chris", message: "hi", leads: [lead(1, "Harry")] });
+    expect(outcome).toEqual({ sent: 1, failed: [] });
   });
 
-  it("reports a transport refusal rather than counting it as sent", async () => {
-    sendStandaloneEmail.mockResolvedValue({ success: false, error: "no provider" });
-
-    const outcome = await sendFounderMessageToLeads({
-      ventureName: "AgriNova",
-      founderName: "Awa",
-      founderEmail: "awa@agrinova.co",
-      message: "Hello",
-      leads: [leads[0]],
-    });
-
-    expect(outcome.sent).toBe(0);
-    expect(outcome.failed).toEqual([{ name: "Lena", reason: "no provider" }]);
+  it("names the founder generically when no name is known", async () => {
+    await sendFounderMessageToLeads({ ventureName: "", founderCid: "USR_F", message: "hi", leads: [lead(1, "Harry")] });
+    expect(createMessage.mock.calls[0][0].subject).toBe("your Venture — message from A founder");
   });
 });

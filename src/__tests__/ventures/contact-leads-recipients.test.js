@@ -11,9 +11,9 @@ const ContactLeadModal = require("@/components/ventures/support/ContactLeadModal
 const VentureSupportCard = require("@/components/ventures/support/VentureSupportCard").default;
 const { clearResponseCache } = require("@/lib/hooks/useApi");
 
-const harry = { id: 1, name: "Harry", email: "h@x.org", reachable: true, active: true, responsibility_code: "lead_manager" };
-const joakh = { id: 2, name: "Joakh", email: "j@x.org", reachable: true, active: true, responsibility_code: "lead_manager" };
-const coach = { id: 3, name: "Coach", email: "c@x.org", reachable: true, active: true, responsibility_code: "coach" };
+const harry = { id: 1, name: "Harry", email: "h@x.org", reachable: true, has_account: true, active: true, responsibility_code: "lead_manager" };
+const joakh = { id: 2, name: "Joakh", email: "j@x.org", reachable: true, has_account: true, active: true, responsibility_code: "lead_manager" };
+const coach = { id: 3, name: "Coach", email: "c@x.org", reachable: true, has_account: true, active: true, responsibility_code: "coach" };
 
 let posted;
 beforeEach(() => {
@@ -71,4 +71,36 @@ test("the card lists the Lead Managers only: no Primary, no Also supporting, no 
   expect(screen.queryByText("Coach")).toBeNull();
   expect(screen.queryByText("Primary")).toBeNull();
   expect(screen.queryByText(/Also supporting/i)).toBeNull();
+});
+
+test('"Write to them" sits in the card header, beside the title — not on a person row', async () => {
+  const { container } = render(<I18nProvider><VentureSupportCard ventureId="VNT-1" /></I18nProvider>);
+  await screen.findByText("Harry");
+  const button = screen.getByRole("button", { name: /Write to them/ });
+  const header = container.querySelector(".stf-sech");
+  expect(header.contains(button)).toBe(true);
+  expect(screen.getAllByRole("button", { name: /Write to them/ })).toHaveLength(1);
+  // and it still opens the recipient chooser
+  fireEvent.click(button);
+  expect(await screen.findByRole("checkbox", { name: /All Venture Leads/ })).toBeTruthy();
+});
+
+test("the founder is told the message went to the leads' messages — no email involved", async () => {
+  modal([harry, joakh]);
+  fireEvent.change(screen.getByPlaceholderText(/Write your message/), { target: { value: "Hello" } });
+  fireEvent.click(screen.getByRole("button", { name: /Send message/ }));
+  expect(await screen.findByText(/Message sent to 1 Venture Lead\(s\) in their messages/)).toBeTruthy();
+  expect(screen.queryByText(/email/i)).toBeNull();
+});
+
+test("a lead with no ImpactOS account is flagged in the chooser and reported after sending", async () => {
+  global.fetch = jest.fn((url, options = {}) =>
+    options.method === "POST"
+      ? Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true, sent: 1, failed: [{ name: "Joakh", reason: "no_account" }] }) })
+      : Promise.resolve({ ok: true, json: () => Promise.resolve({ success: true }) }));
+  modal([harry, { ...joakh, has_account: false }]);
+  expect(screen.getByText(/No ImpactOS account yet/)).toBeTruthy();
+  fireEvent.change(screen.getByPlaceholderText(/Write your message/), { target: { value: "Hello" } });
+  fireEvent.click(screen.getByRole("button", { name: /Send message/ }));
+  expect(await screen.findByText(/no ImpactOS account to receive messages: Joakh/)).toBeTruthy();
 });

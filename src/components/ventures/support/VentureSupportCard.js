@@ -42,7 +42,7 @@ function Initial({ name }) {
   );
 }
 
-function PersonRow({ person, showUnassigned = false, onContact }) {
+function PersonRow({ person, showUnassigned = false }) {
   const { t } = useI18n();
   const unassigned = showUnassigned && !person.active;
 
@@ -69,11 +69,6 @@ function PersonRow({ person, showUnassigned = false, onContact }) {
           </p>
         )}
       </div>
-      {onContact && person.active && (
-        <button type="button" className="stf-btn" onClick={onContact}>
-          <MessageSquare size={13} /> {t("venture.support.contact")}
-        </button>
-      )}
     </div>
   );
 }
@@ -97,7 +92,7 @@ export default function VentureSupportCard({ ventureId }) {
   // A lead who was removed stays visible, labelled, until a replacement exists.
   const shownLeads = leads.length > 0 ? leads : primary && isLead(primary) ? [primary] : [];
   const former = (data?.former || []).filter(isLead);
-  const canContact = leads.some((person) => person.reachable);
+  const canContact = leads.some((person) => person.has_account);
 
   return (
     <section className="stf-card">
@@ -105,6 +100,14 @@ export default function VentureSupportCard({ ventureId }) {
         icon={UserRound}
         title={t("venture.support.title")}
         subtitle={t("venture.support.subtitle")}
+        // "Write to them" sits beside the title, not down in the list.
+        action={
+          canContact ? (
+            <button type="button" className="stf-btn" onClick={() => setContacting(true)}>
+              <MessageSquare size={13} /> {t("venture.support.contact")}
+            </button>
+          ) : null
+        }
       />
 
       {failed ? (
@@ -126,12 +129,11 @@ export default function VentureSupportCard({ ventureId }) {
         </div>
       ) : (
         <div>
-          {shownLeads.map((person, index) => (
+          {shownLeads.map((person) => (
             <PersonRow
               key={person.id}
               person={person}
               showUnassigned
-              onContact={canContact && index === 0 ? () => setContacting(true) : null}
             />
           ))}
 

@@ -6,18 +6,13 @@ import { useI18n } from "@/lib/i18n";
 import AppModal from "@/components/ui/AppModal";
 
 /**
- * Write to the Venture Leads, from inside ImpactOS.
+ * Write to the Venture Leads, inside ImpactOS.
  *
- * WHY NOT mailto. A mailto link hands the message to the founder's own mail
- * client — the platform never learns a message was composed, nothing is logged,
- * and on a machine with no mail client configured the button does nothing at
- * all. This dialog posts the message to the server, which mails every ACTIVE
- * lead through the studio's own transport, so the founder is told what actually
- * happened and the lead can simply hit Reply (the founder's address travels as
- * Reply-To when it is usable).
- *
- * The recipients are chosen by the server from the assignment rows. This dialog
- * cannot name an address, and never tries to.
+ * The message lands in each chosen lead's own Messages inbox — the platform's
+ * message space — from the founder, who keeps the conversation. Nothing is sent
+ * by email, so it works wherever the app does. The recipients are chosen by the
+ * server from the assignment rows; this dialog only picks among them by id and
+ * can never name an address.
  */
 export default function ContactLeadModal({ ventureId, leads = [], onClose }) {
   const { t } = useI18n();
@@ -69,8 +64,9 @@ export default function ContactLeadModal({ ventureId, leads = [], onClose }) {
     }
   };
 
-  const unreachable = (outcome?.failed || []).filter((entry) => entry.reason === "no_email");
-  const notDelivered = (outcome?.failed || []).filter((entry) => entry.reason !== "no_email");
+  const stillFailed = outcome?.failed || [];
+  const unreachable = stillFailed.filter((entry) => entry.reason === "no_account");
+  const notDelivered = stillFailed.filter((entry) => entry.reason !== "no_account");
 
   return (
     <AppModal
@@ -84,14 +80,9 @@ export default function ContactLeadModal({ ventureId, leads = [], onClose }) {
           <p className="text-sm" style={{ color: "var(--text-primary)" }}>
             {t("venture.support.sent", { count: outcome.sent })}
           </p>
-          {!outcome.reply_to_used && (
-            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-              {t("venture.support.noReplyTo")}
-            </p>
-          )}
           {unreachable.length > 0 && (
             <p className="text-xs" style={{ color: "var(--stf-warn)" }}>
-              {t("venture.support.someUnreachable", {
+              {t("venture.support.someNoAccount", {
                 names: unreachable.map((entry) => entry.name).filter(Boolean).join(", ") || "—",
               })}
             </p>
@@ -125,8 +116,8 @@ export default function ContactLeadModal({ ventureId, leads = [], onClose }) {
                 <label key={lead.id} className="flex items-center gap-2 text-sm pl-5">
                   <input type="checkbox" checked={selected.has(String(lead.id))} onChange={() => toggleLead(lead.id)} />
                   <span>{lead.name || t("venture.support.unnamed")}</span>
-                  {!lead.reachable && (
-                    <span className="text-[11px]" style={{ color: "var(--stf-warn)" }}>{t("venture.support.noEmail")}</span>
+                  {!lead.has_account && (
+                    <span className="text-[11px]" style={{ color: "var(--stf-warn)" }}>{t("venture.support.noAccount")}</span>
                   )}
                 </label>
               ))}
