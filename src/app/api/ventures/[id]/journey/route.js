@@ -3,7 +3,7 @@ import { getSession } from "@/server/auth/session";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { resolvePlanAccess, allowsPlanAction } from "@/services/ventures/operatingPlans";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
-import { canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
+import { canManageMilestones, activateDueStages, reconcileMilestonesFromWork } from "@/services/ventures/milestoneEngine";
 import { evidenceDownloadUrl, isExternalEvidenceLink } from "@/lib/ventureEvidence";
 import { projectJourneyStagesForVenture } from "@/lib/ventureVisibility";
 import {
@@ -70,6 +70,9 @@ export async function GET(req, { params }) {
     // active — and its milestones are offered — right here. Journeys never
     // wait for another Journey to complete, so no one presses "activate".
     await activateDueStages({ dbId });
+    // Statuses follow the work: a milestone whose deliverables and tasks are all
+    // done closes now, and the counts below read the result.
+    await reconcileMilestonesFromWork({ dbId });
 
     // Management surfaces (staff) may request archived journeys; the
     // Venture-facing read never includes them.
