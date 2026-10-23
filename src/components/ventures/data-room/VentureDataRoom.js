@@ -11,6 +11,7 @@ import DataRoomUploadModal from "./DataRoomUploadModal";
 import DataRoomReviewModal from "./DataRoomReviewModal";
 import DataRoomAccessModal from "./DataRoomAccessModal";
 import DataRoomVersionsModal from "./DataRoomVersionsModal";
+import DataRoomActivity from "./DataRoomActivity";
 import { downloadDocument, STATUS_ORDER } from "./dataRoomUi";
 
 const pickDataRoom = (payload) => (payload?.success ? payload : null);
@@ -44,8 +45,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const [reviewDoc, setReviewDoc] = useState(null);
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
-  const [showAllHistory, setShowAllHistory] = useState(false);
-  const [showAllAccess, setShowAllAccess] = useState(false);
 
   const documents = useMemo(() => data?.documents || [], [data]);
   const viewer = data?.viewer || {
@@ -342,62 +341,8 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         />
       ) : null}
 
-      {!isInvestor && history.length > 0 ? (
-        <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-4 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            {t("dataRoom.history.title")}
-          </p>
-          {history.slice(0, showAllHistory ? history.length : 12).map((event) => (
-            <div key={event.id} className="flex items-center justify-between gap-2 text-[10px]">
-              <span className="text-[var(--text-primary)]">
-                {t(`dataRoom.history.actions.${event.action}`)}
-                {event.details?.category ? ` · ${dataRoomCategory(event.details.category) ? t(dataRoomCategory(event.details.category).labelKey) : event.details.category}` : ""}
-              </span>
-              <span className="text-[var(--text-secondary)] shrink-0">
-                {event.actor_name || event.actor_cid} · {new Date(event.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          ))}
-          {history.length > 12 ? (
-            <button
-              type="button"
-              onClick={() => setShowAllHistory((value) => !value)}
-              className="text-[9px] font-bold uppercase tracking-widest text-[var(--brand-orange)] hover:underline"
-            >
-              {showAllHistory ? t("dataRoom.history.showLess") : t("dataRoom.history.showAll", { count: history.length })}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {!isInvestor && accessHistory.length > 0 ? (
-        <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-4 space-y-2">
-          <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-            {t("dataRoom.accessHistory.title")}
-          </p>
-          {accessHistory.slice(0, showAllAccess ? accessHistory.length : 12).map((event) => (
-            <div key={event.id} className="flex items-center justify-between gap-2 text-[10px]">
-              <span className="text-[var(--text-primary)] min-w-0 truncate">
-                {t(`dataRoom.accessHistory.actions.${event.access_type}`)}
-                {" · "}
-                <span className="text-[var(--text-secondary)]">{event.document_title || t("dataRoom.accessHistory.document")}</span>
-              </span>
-              <span className="text-[var(--text-secondary)] shrink-0">
-                {event.viewer_name || event.viewer_email || t("dataRoom.accessHistory.someone")} · {new Date(event.created_at).toLocaleDateString()}
-              </span>
-            </div>
-          ))}
-          {accessHistory.length > 12 ? (
-            <button
-              type="button"
-              onClick={() => setShowAllAccess((value) => !value)}
-              className="text-[9px] font-bold uppercase tracking-widest text-[var(--brand-orange)] hover:underline"
-            >
-              {showAllAccess ? t("dataRoom.accessHistory.showLess") : t("dataRoom.accessHistory.showAll", { count: accessHistory.length })}
-            </button>
-          ) : null}
-        </div>
-      ) : null}
+      {!isInvestor ? <DataRoomActivity kind="history" events={history} /> : null}
+      {!isInvestor ? <DataRoomActivity kind="access" events={accessHistory} /> : null}
 
       {uploadState ? (
         <DataRoomUploadModal
