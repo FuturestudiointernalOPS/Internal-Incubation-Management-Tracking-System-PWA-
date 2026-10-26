@@ -62,6 +62,9 @@ permissions déjà en place.
 5. **Le refus est la valeur par défaut.**
    Une appartenance absente, une organisation suspendue, un module désactivé, un
    périmètre vide ou une erreur de lecture refusent l’accès.
+   Décision confirmée par Christelle le 22 octobre 2026 : une organisation
+   suspendue n’a aucun accès client, y compris en lecture ; aucune période de
+   grâce en lecture seule. Les données restent conservées.
 6. **La migration est additive.**
    Les données existantes rejoignent l’organisation plateforme. Aucune colonne
    existante n’est supprimée, aucun rôle n’est renommé, aucun droit n’est retiré.
@@ -465,8 +468,9 @@ installe des déclencheurs et des privilèges sur les tables critiques.
   nécessaire parce que la portée est polymorphe et ne peut pas être une clé
   étrangère simple.
 - `audit_lifecycle_change()` : écrit un événement minimal dans le journal pour
-  les tables critiques, même si le service a oublié de le faire. Le service peut
-  enrichir l’événement ensuite.
+  les tables critiques, même si le service a oublié de le faire. Les compléments
+  du service sont de nouveaux événements ; aucun événement existant n'est
+  enrichi par UPDATE, puisque le journal est en ajout seul.
 
 **Privilèges :**
 
@@ -530,6 +534,29 @@ filtrées.
 ---
 
 ## 7. Migration
+
+**Décision confirmée par Christelle le 23 octobre 2026 : migrations additives,
+non destructives.** Ajouter les structures nécessaires sans supprimer ni
+renommer les tables/colonnes existantes, sans effacer les données et sans
+remplacer les contraintes d'unicité existantes dans la première tranche.
+Les nouvelles colonnes des tables existantes restent facultatives au départ.
+Le repli conserve les ajouts et ferme le portail ; il ne lance pas de migration
+de suppression. Le DDL proposé dans les annexes reste une cible à découper et
+à tester, pas une migration à appliquer intégralement.
+
+La première migration préparée est
+`supabase/migrations/20261023_white_label_programs_foundation.sql`.
+Elle n'est pas exécutée automatiquement par l'application. Elle prépare
+Programmes uniquement et bloque encore l'activation des clients et l'ajout
+de programmes clients, tant que les lectures internes et la supervision ne
+sont pas protégées. Les lignes existantes ne sont ni reprises ni modifiées.
+
+La suite `20261023_white_label_programs_history.sql` ajoute les protections
+d'historique, le journal et les références typées de cette première tranche.
+Les deux fichiers ont été appliqués deux fois sur PostgreSQL 16 dans un
+conteneur sans réseau avec schéma minimal et données fictives. Ce résultat
+ne remplace pas la validation du schéma complet ni l'isolation du portail.
+Voir `docs/white-label-phase0/PLAN_SOLO.md` pour le bilan et les limites de validation.
 
 ### 7.1 Ordre
 
@@ -2070,6 +2097,7 @@ testé après son installation.
 
 | Date | Décision | Statut |
 |---|---|---|
+| 2026-10-22 | Organisation suspendue : refus de tout accès client, sans lecture seule ni période de grâce ; données conservées | Confirmé par Christelle dans la conversation |
 | 2026-10-22 | Portail client séparé de la console interne | À valider |
 | 2026-10-22 | Moteur de permissions existant non modifié en Phase 1 | À valider |
 | 2026-10-22 | Organisation active dans la session, jamais dans l’URL | À valider |

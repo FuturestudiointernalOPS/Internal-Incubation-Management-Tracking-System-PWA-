@@ -1,5 +1,13 @@
 # ImpactOS Design System — Developer Guide
 
+The separate client entry at `/o/select` and `/o/[organizationCode]` uses
+`OrganizationProgramPortal` from `components/ui/`. It reuses the shared cards,
+inputs, selects, hero and status components without the internal dashboard shell.
+Its requests use `useApi(..., { cache: false })` to avoid the shared SWR cache.
+Changing organisation reloads the portal; other tabs invalidate their view on
+the storage signal, window focus or restored browser pages. Organisation IDs in
+request headers are freshness preconditions only, never access authority.
+
 ## 1. Theme Architecture
 
 ImpactOS uses a **CSS custom property (variable) system** with a `data-theme` attribute on `<html>`.
@@ -438,7 +446,7 @@ src/
 - [ ] Tables use `AppTable`
 - [ ] Modals use `AppModal`
 - [ ] Theme toggle uses `useTheme()` hook
-- [ ] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
+- [x] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
 - [ ] Chart colors use `var(--chart-*)` tokens
 
 ### Blocs internes de la coquille et de la messagerie
