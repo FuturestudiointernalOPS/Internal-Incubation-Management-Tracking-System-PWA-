@@ -7,7 +7,6 @@ import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import PageHero from "@/components/ui/PageHero";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
-import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 import VentureTimelineView from "@/components/ventures/timeline/VentureTimelineView";
 
 const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
@@ -76,11 +75,6 @@ export default function VentureProjectsPage() {
 
       {id && view === "work" && <ProjectsWorkItemsView ventureId={id} emailsHref={`/admin/ventures/${id}/projects/emails`} />}
 
-      {id && view === "work" && (
-        <div className="pt-2">
-          <VenturePeoplePanel ventureId={id} />
-        </div>
-      )}
     </div>
   );
 }

@@ -10,6 +10,7 @@
  * it sent.
  */
 
+import { buildGoogleCalendarUrl, buildIcsEvent } from "@/lib/calendarIcs";
 import { APP_URL } from "../config";
 import { sendAndRecord } from "../delivery";
 import { FUTURE_STUDIO_FOOTER } from "../templates";
@@ -109,6 +110,31 @@ export async function sendVentureReminderEmail({
     ? `${APP_URL}/open/venture/${encodeURIComponent(ventureCode)}${hasAccount ? "" : "?signup=1"}`
     : null;
 
+  // The deadline as a calendar entry: an .ics the recipient's calendar can take
+  // in (Gmail adds a REQUEST by itself) and a one-click Google Calendar link for
+  // the transports that cannot carry the file.
+  const dayIso = String(watchedDate || (trigger === "start" ? item.start : item.finish) || "").slice(0, 10);
+  const calendarEvent = /^\d{4}-\d{2}-\d{2}$/.test(dayIso)
+    ? {
+        uid: `reminder-${ventureCode || "venture"}-${item.id || "item"}-${trigger}-${dayIso}@impactos`,
+        title: `${item.ref ? `${item.ref} ` : ""}${title}`,
+        description: `${venue} — ${trigger === "start" ? "start" : "deadline"} of "${title}"`,
+        allDayDate: dayIso,
+        url: ventureCode ? `${APP_URL}/open/venture/${encodeURIComponent(ventureCode)}` : undefined,
+        attendeeEmail: to,
+        alarmDaysBefore: 1,
+      }
+    : null;
+  const ics = calendarEvent ? buildIcsEvent(calendarEvent) : null;
+  const googleUrl = calendarEvent ? buildGoogleCalendarUrl(calendarEvent) : null;
+  const calendarBlock = googleUrl
+    ? `<p style="margin: 16px 0 0;"><a href="${googleUrl}" style="color: #ff6600; font-size: 12px; font-weight: 700;">Add to Google Calendar</a></p>`
+    : "";
+  const mailAttachments = [
+    ...(attachments || []),
+    ...(ics ? [{ filename: "reminder.ics", content: ics, contentType: "text/calendar" }] : []),
+  ];
+
   const context = [item.journey?.name, item.milestone?.title].filter(Boolean).join("  ›  ");
   const manualLine = sentBy
     ? `<p style="color: #64748b; font-size: 12px; margin: 0 0 20px;">${escapeHtml(sentBy)} sent you this reminder.</p>`
@@ -158,6 +184,7 @@ export async function sendVentureReminderEmail({
                      ${hasAccount ? "" : `<p style="color: #64748b; font-size: 12px; margin: 12px 0 0;">You do not have an ImpactOS account yet — the button takes you to registration.</p>`}`
                   : ""
               }
+              ${calendarBlock}
             </td></tr>
             <tr><td style="padding: 0 32px 28px;">${FUTURE_STUDIO_FOOTER}</td></tr>
           </table>
@@ -178,6 +205,6 @@ export async function sendVentureReminderEmail({
     note: `${trigger}:${item.id || ""}`,
     // Files travel with the message when the transport can carry them; the
     // workspace mailbox can, the transactional fallback cannot.
-    attachments,
+    attachments: mailAttachments.length ? mailAttachments : null,
   });
 }
