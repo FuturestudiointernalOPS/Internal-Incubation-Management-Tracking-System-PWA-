@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * ProgramMembership model — participant program detail reads (REPOSITORY layer).
@@ -25,7 +26,7 @@ export async function getParticipantProgramEnrollmentByCid(cid) {
 /** Program row by text id. */
 export async function getParticipantProgramDetailById(programId) {
   return db.execute({
-    sql: "SELECT * FROM v2_programs WHERE id::text = ?",
+    sql: `SELECT * FROM v2_programs WHERE id::text = ? AND ${platformProgramPredicate()}`,
     args: [programId],
   });
 }

@@ -21,6 +21,7 @@ import { requireSession } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext } from "./contextCache";
 import { isProgramManagerSession } from "./programManagement";
+import { isInternalProgramAvailable } from "@/services/organizations/internalPrograms";
 import { resolveProgramAssignment, getFacilitatorPermissionLevel } from "@/server/authz/programAccess";
 import {
   PROGRAM_MANAGER_PROFILE,
@@ -70,6 +71,7 @@ export async function evaluateProgramFacilitator(programId) {
   try {
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
+    if (!(await isInternalProgramAvailable(programId))) return denied(403, "errors.insufficientPermissions");
     if (isPlatformOwnerRole(session.role)) return ALLOWED;
     const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
     if (!resolved) return denied(403, "errors.insufficientPermissions");
@@ -88,6 +90,7 @@ export async function evaluateFacilitatorProgramAccess(programId, capability = n
   try {
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
+    if (!(await isInternalProgramAvailable(programId))) return denied(403, "errors.insufficientPermissions");
     if (isPlatformOwnerRole(session.role)) return ALLOWED;
     const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
     if (!resolved) return denied(403, "errors.insufficientPermissions");
@@ -173,9 +176,10 @@ export async function evaluateAssignmentAccess({
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
 
-    if (await isProgramManagerSession(session)) return ALLOWED;
-
     if (resource !== "program") return denied(403, "errors.insufficientPermissions");
+    if (!(await isInternalProgramAvailable(contextId))) return denied(403, "errors.insufficientPermissions");
+
+    if (await isProgramManagerSession(session)) return ALLOWED;
 
     const base = await evaluateFacilitatorProgramAccess(contextId, capability, minLevel);
     if (!base.allowed) return base;

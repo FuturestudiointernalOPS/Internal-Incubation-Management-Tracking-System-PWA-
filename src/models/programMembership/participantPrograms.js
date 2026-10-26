@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * ProgramMembership model — participant program dashboard reads (REPOSITORY
@@ -26,7 +27,7 @@ export async function getParticipantContactProfile(cid) {
 /** Program row by text id. */
 export async function getParticipantProgramById(programId) {
   return db.execute({
-    sql: "SELECT * FROM v2_programs WHERE id::text = ?",
+    sql: `SELECT * FROM v2_programs WHERE id::text = ? AND ${platformProgramPredicate()}`,
     args: [programId],
   });
 }

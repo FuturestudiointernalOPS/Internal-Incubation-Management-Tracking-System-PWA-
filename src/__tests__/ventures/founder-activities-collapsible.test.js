@@ -7,7 +7,7 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 
-jest.mock("@/components/ventures/journey/FounderSessionBooking", () => () => <div data-testid="booking" />);
+jest.mock("@/components/ventures/journey/FounderSessionBooking", () => function MockFounderSessionBooking() { return <div data-testid="booking" />; });
 jest.mock("@/components/ventures/journey/DeliverableDetailDialog", () => () => null);
 
 const { I18nProvider } = require("@/lib/i18n");

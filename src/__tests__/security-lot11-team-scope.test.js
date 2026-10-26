@@ -1,3 +1,4 @@
+jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * SECURITY — Lot 11 (team task board scope + team credential exposure).
  *

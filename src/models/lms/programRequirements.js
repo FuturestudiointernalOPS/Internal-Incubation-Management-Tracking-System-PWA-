@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 import { participantBatches } from "@/lib/participantBatches";
 import { LmsError } from "./errors";
 import { getCourse } from "./courses";
@@ -104,7 +105,7 @@ export async function attachCourseToProgram({
 
   // Program must exist (v2_programs; TEXT id — validated in service code, no FK).
   const progRes = await db.execute({
-    sql: "SELECT id FROM v2_programs WHERE id = ?",
+    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [String(programId)],
   });
   if (progRes.rows.length === 0) {

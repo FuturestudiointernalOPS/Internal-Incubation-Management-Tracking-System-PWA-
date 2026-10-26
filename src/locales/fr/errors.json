@@ -143,6 +143,7 @@
     "journeyDeletePlatformOwnerOnly": "Seul un administrateur de la plateforme peut supprimer définitivement un parcours. Archivez-le plutôt.",
     "ventureLifecycleDenied": "Seul le personnel assigné à la venture peut changer son cycle de vie.",
     "startupProfileAccessDenied": "Vous n'êtes pas autorisé à accéder à ce profil de startup.",
-    "featureRetired": "Cette fonctionnalité a été retirée et n'est plus accessible."
+    "featureRetired": "Cette fonctionnalité a été retirée et n'est plus accessible.",
+    "organizationContextChanged": "Votre organisation a changé. Sélectionnez à nouveau votre espace."
   }
 }

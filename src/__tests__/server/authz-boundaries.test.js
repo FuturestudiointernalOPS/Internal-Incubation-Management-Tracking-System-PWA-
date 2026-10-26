@@ -1,3 +1,4 @@
+jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * AUTHORIZATION LAYER — boundaries and guard behaviour.
  *
