@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { AlertTriangle, Loader2, Mail, Paperclip, Send, X } from "lucide-react";
+import { AlertTriangle, CalendarClock, ChevronDown, Loader2, Mail, Paperclip, Send, Trash2, X } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { notify } from "@/lib/notify";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
+import AppSelect from "@/components/ui/AppSelect";
 import AppTextarea from "@/components/ui/AppTextarea";
 import IdentifyPersonModal from "./IdentifyPersonModal";
 
@@ -41,6 +42,11 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
   const [attachment, setAttachment] = useState(null); // { path, name }
   const [uploading, setUploading] = useState(false);
   const [identifying, setIdentifying] = useState(null);
+  // The whole form folds: a work item shows one "Reminder" line until opened.
+  const [open, setOpen] = useState(false);
+  const [scheduleTrigger, setScheduleTrigger] = useState("finish");
+  const [scheduleDays, setScheduleDays] = useState("3");
+  const [scheduling, setScheduling] = useState(false);
 
   // The recipients a reminder would reach are a READ, so they come through the
   // shared hook like every other read on the platform.
@@ -51,6 +57,54 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
     { deps: [ventureId, item?.id], defaultValue: null },
   );
   const recipients = Array.isArray(data?.recipients) ? data.recipients : [];
+  // Rules written for THIS item: the scheduled reminders the sweep will send.
+  const itemRules = (Array.isArray(data?.rules) ? data.rules : []).filter(
+    (rule) => rule.scope === "work_item" && `${rule.work_item_kind}:${rule.work_item_id}` === item?.id,
+  );
+
+  /** Schedule the reminder N days before the start/finish; the sweep sends it. */
+  const schedule = async () => {
+    setScheduling(true);
+    try {
+      const res = await fetch(`/api/ventures/${ventureId}/reminders`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "add_rule",
+          scope: "work_item",
+          work_item: item.id,
+          trigger: scheduleTrigger,
+          days_before: Number(scheduleDays),
+          notify_owner: true,
+          notify_supporting: true,
+        }),
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || !payload?.success) {
+        await alert({ message: t(payload?.error || "errors.somethingWrong"), tone: "danger" });
+        return;
+      }
+      notify("success", t("venture.reminders.scheduledToast", { days: scheduleDays }));
+      refresh();
+      onChanged?.();
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const removeRule = async (ruleId) => {
+    const res = await fetch(`/api/ventures/${ventureId}/reminders`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "delete_rule", rule_id: ruleId }),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok || !payload?.success) {
+      await alert({ message: t(payload?.error || "errors.somethingWrong"), tone: "danger" });
+      return;
+    }
+    refresh();
+  };
 
   /** Add or change the address on file for one assignee name. */
   const setEmail = async (entry, { editing = false } = {}) => {
@@ -194,11 +248,23 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
   const busy = sending || uploading;
 
   return (
-    <div className="space-y-3 rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)] p-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+    <div className="rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)] p-3">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <span className="text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
           {t("venture.reminders.title")}
-        </p>
+          {itemRules.length > 0 ? ` · ${itemRules.length}` : ""}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-[var(--text-tertiary)] transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+    <div className="space-y-3 pt-3">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <AppButton
           variant="primary"
           size="sm"
@@ -209,6 +275,45 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
         >
           {t("venture.reminders.send")}
         </AppButton>
+      </div>
+
+      {/* SCHEDULE — N days before, sent by the sweep, with the date added to the
+          recipient's calendar (.ics + Google Calendar link in the mail). */}
+      <div className="space-y-2 rounded-lg border border-[var(--border-primary)] p-3">
+        <p className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-[var(--text-tertiary)]">
+          <CalendarClock className="w-3 h-3" /> {t("venture.reminders.scheduleTitle")}
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          <AppSelect
+            label={t("venture.reminders.scheduleTrigger")}
+            value={scheduleTrigger}
+            onChange={(event) => setScheduleTrigger(event.target.value)}
+            options={[
+              { value: "finish", label: t("venture.reminders.triggerFinish") },
+              { value: "start", label: t("venture.reminders.triggerStart") },
+            ]}
+          />
+          <AppInput
+            label={t("venture.reminders.scheduleDays")}
+            type="number"
+            min={1}
+            max={60}
+            value={scheduleDays}
+            onChange={(event) => setScheduleDays(event.target.value)}
+          />
+        </div>
+        <AppButton variant="secondary" size="sm" icon={scheduling ? Loader2 : CalendarClock} loading={scheduling} disabled={scheduling || !scheduleDays} onClick={schedule}>
+          {t("venture.reminders.schedule")}
+        </AppButton>
+        <p className="text-[10px] text-[var(--text-tertiary)]">{t("venture.reminders.calendarHint")}</p>
+        {itemRules.map((rule) => (
+          <div key={rule.id} className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
+            <span>{t("venture.reminders.ruleLine", { days: rule.days_before, trigger: t(rule.trigger === "start" ? "venture.reminders.triggerStart" : "venture.reminders.triggerFinish") })}</span>
+            <button type="button" aria-label={t("common.delete")} onClick={() => removeRule(rule.id)} className="text-rose-400">
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
       </div>
 
       {/* The reminder goes TO the owner (and supporting people); a copy also
@@ -379,6 +484,9 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
             <p className="text-[10px] text-amber-400">{t("venture.reminders.attachmentDropped")}</p>
           ) : null}
         </div>
+      )}
+
+    </div>
       )}
 
       {identifying && (

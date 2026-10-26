@@ -27,7 +27,10 @@ import { runReminderSweep } from "@/services/reminders/sweep";
 export async function POST(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const presented = req.headers.get("x-cron-secret") || searchParams.get("key");
+    // `x-cron-secret` for a hand-made call; `Authorization: Bearer` is what
+    // Vercel Cron sends on its own when CRON_SECRET is set.
+    const bearer = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "") || null;
+    const presented = req.headers.get("x-cron-secret") || bearer || searchParams.get("key");
     const configured = process.env.CRON_SECRET || process.env.REMINDERS_SECRET_KEY;
 
     const authorization = resolveSweepAuthorization({
@@ -49,3 +52,6 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+/** Vercel Cron calls with GET; it runs the same sweep as POST. */
+export const GET = POST;
