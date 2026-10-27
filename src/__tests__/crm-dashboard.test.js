@@ -9,6 +9,7 @@ jest.mock("@/models/crm/dashboard", () => ({
   getCrmDashboardCounts: jest.fn(),
   getCrmOverdueNextActions: jest.fn(),
   getCrmStaleOpportunities: jest.fn(),
+  getCrmStuckOpportunities: jest.fn(),
   getCrmPipelineValueByCurrency: jest.fn(),
   getCrmPerformance: jest.fn(),
 }));
@@ -17,6 +18,7 @@ const {
   getCrmDashboardCounts,
   getCrmOverdueNextActions,
   getCrmStaleOpportunities,
+  getCrmStuckOpportunities,
   getCrmPipelineValueByCurrency,
   getCrmPerformance,
 } = require("@/models/crm/dashboard");
@@ -26,6 +28,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   getCrmOverdueNextActions.mockResolvedValue({ rows: [] });
   getCrmStaleOpportunities.mockResolvedValue({ rows: [] });
+  getCrmStuckOpportunities.mockResolvedValue({ rows: [] });
   getCrmPipelineValueByCurrency.mockResolvedValue({ rows: [] });
   getCrmPerformance.mockResolvedValue({ rows: [] });
 });
@@ -44,6 +47,7 @@ test("counts add leads and opportunities, and read text numbers as numbers", asy
       soon_opportunities: "4",
       awaiting_qualification: "5",
       stale_opportunities: 6,
+      stuck_opportunities: "1",
     }],
   });
 
@@ -54,6 +58,7 @@ test("counts add leads and opportunities, and read text numbers as numbers", asy
     dueSoon: 5,
     awaitingQualification: 5,
     stale: 6,
+    stuck: 1,
   });
   expect(result.staleAfterDays).toBe(14);
 });
@@ -68,6 +73,7 @@ test("an empty counts row reads as zero everywhere", async () => {
     dueSoon: 0,
     awaitingQualification: 0,
     stale: 0,
+    stuck: 0,
   });
 });
 
@@ -107,6 +113,26 @@ test("the overdue and dormant lists are returned as read", async () => {
 
   expect(result.overdue).toEqual(overdue);
   expect(result.stale).toEqual(stale);
+});
+
+test("stuck opportunities carry numeric days and targets", async () => {
+  getCrmDashboardCounts.mockResolvedValue({ rows: [{}] });
+  getCrmStuckOpportunities.mockResolvedValue({
+    rows: [{
+      id: "o-1",
+      name: "MTN",
+      stage_name: "Proposal",
+      target_days: "7",
+      days_in_stage: "12",
+      owner_name: "Godwin",
+    }],
+  });
+
+  const result = await getCrmDashboard();
+
+  expect(result.stuck).toEqual([
+    expect.objectContaining({ id: "o-1", target_days: 7, days_in_stage: 12 }),
+  ]);
 });
 
 test("performance counts won and lost, rounds the stage duration, and turns the window into a rate", async () => {

@@ -62,7 +62,20 @@ export async function getCrmDashboardCounts() {
                   (SELECT MAX(a.activity_date) FROM crm_activities a WHERE a.opportunity_id = o.id),
                   o.created_at
                 ) < NOW() - INTERVAL '14 days'
-        ) AS stale_opportunities
+        ) AS stale_opportunities,
+        (SELECT COUNT(*) FROM crm_opportunities o
+          JOIN crm_pipeline_stages s ON s.id = o.stage_id
+          LEFT JOIN LATERAL (
+            SELECT MAX(h.changed_at) AS entered_at
+            FROM crm_opportunity_stage_history h
+            WHERE h.opportunity_id = o.id
+          ) hist ON true
+          WHERE o.deleted_at IS NULL
+            AND o.status = 'active'
+            AND s.is_terminal = false
+            AND COALESCE(hist.entered_at, o.created_at)
+                < NOW() - (s.target_days * INTERVAL '1 day')
+        ) AS stuck_opportunities
     `,
   });
 }
@@ -162,6 +175,44 @@ export async function getCrmPipelineValueByCurrency() {
       GROUP BY p.id, p.name, o.currency
       ORDER BY p.name ASC, o.currency ASC
     `,
+  });
+}
+
+/**
+ * Active opportunities that have overstayed their current stage's target.
+ *
+ * The entry moment is the last stage-history row (when the deal entered the
+ * stage it is on now); a record with no history falls back to its creation. The
+ * threshold is the stage's own target, set when the stage was created.
+ */
+export async function getCrmStuckOpportunities(limit = 5) {
+  return db.execute({
+    sql: `
+      SELECT
+        o.id::text AS id,
+        o.name,
+        s.name AS stage_name,
+        s.target_days,
+        own.name AS owner_name,
+        COALESCE(hist.entered_at, o.created_at) AS entered_at,
+        FLOOR(EXTRACT(EPOCH FROM (NOW() - COALESCE(hist.entered_at, o.created_at))) / 86400.0) AS days_in_stage
+      FROM crm_opportunities o
+      JOIN crm_pipeline_stages s ON s.id = o.stage_id
+      LEFT JOIN contacts own ON own.cid = o.owner_cid
+      LEFT JOIN LATERAL (
+        SELECT MAX(h.changed_at) AS entered_at
+        FROM crm_opportunity_stage_history h
+        WHERE h.opportunity_id = o.id
+      ) hist ON true
+      WHERE o.deleted_at IS NULL
+        AND o.status = 'active'
+        AND s.is_terminal = false
+        AND COALESCE(hist.entered_at, o.created_at)
+            < NOW() - (s.target_days * INTERVAL '1 day')
+      ORDER BY days_in_stage DESC
+      LIMIT ?
+    `,
+    args: [Math.max(1, Math.min(50, Number(limit) || 5))],
   });
 }
 

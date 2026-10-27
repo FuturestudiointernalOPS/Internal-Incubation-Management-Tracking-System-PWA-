@@ -43,3 +43,28 @@ export function ensureCrmNextActionColumns() {
   }
   return ensured;
 }
+
+/**
+ * The per-stage target duration (migrations/phase9_crm_stage_target_days.sql).
+ * A stage without it cannot be measured against its expected time, so the
+ * dashboard and the stage write paths ensure it the same way.
+ */
+const STAGE_TARGET_STATEMENTS = [
+  "ALTER TABLE crm_pipeline_stages ADD COLUMN IF NOT EXISTS target_days INTEGER NOT NULL DEFAULT 7",
+];
+
+let stageTargetEnsured = null;
+
+export function ensureCrmStageTargetColumn() {
+  if (!stageTargetEnsured) {
+    stageTargetEnsured = (async () => {
+      for (const statement of STAGE_TARGET_STATEMENTS) {
+        await db.execute(statement);
+      }
+    })().catch((error) => {
+      stageTargetEnsured = null;
+      throw error;
+    });
+  }
+  return stageTargetEnsured;
+}

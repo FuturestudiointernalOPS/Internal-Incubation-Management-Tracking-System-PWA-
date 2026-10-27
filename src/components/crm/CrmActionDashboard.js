@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, Award, CalendarClock, Filter, Moon, Percent, Timer, XCircle } from "lucide-react";
+import { AlertTriangle, Award, CalendarClock, Filter, Hourglass, Moon, Percent, Timer, XCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
 
@@ -75,7 +75,7 @@ export default function CrmActionDashboard() {
 
   if (!data) return null;
 
-  const { counts, overdue = [], stale = [], pipelines = [], performance = { won: 0, lost: 0, averageStageDays: null, conversion: { rate: null, windowDays: 90 } }, staleAfterDays = 14 } = data;
+  const { counts, overdue = [], stale = [], stuck = [], pipelines = [], performance = { won: 0, lost: 0, averageStageDays: null, conversion: { rate: null, windowDays: 90 } }, staleAfterDays = 14 } = data;
 
   return (
     <section className="space-y-4">
@@ -86,7 +86,7 @@ export default function CrmActionDashboard() {
         <p className="text-sm text-[var(--text-secondary)]">{t("crm.dashboard.subtitle")}</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         <Stat
           icon={AlertTriangle}
           label={t("crm.dashboard.overdue")}
@@ -109,6 +109,12 @@ export default function CrmActionDashboard() {
           label={t("crm.dashboard.stale", { days: staleAfterDays })}
           value={counts.stale}
           tone={counts.stale > 0 ? "warning" : "neutral"}
+        />
+        <Stat
+          icon={Hourglass}
+          label={t("crm.dashboard.stuck")}
+          value={counts.stuck}
+          tone={counts.stuck > 0 ? "danger" : "neutral"}
         />
       </div>
 
@@ -164,6 +170,37 @@ export default function CrmActionDashboard() {
                       date: item.last_activity_at
                         ? formatDate(new Date(item.last_activity_at), { short: true }, lang)
                         : "—",
+                    })}
+                    {item.owner_name ? ` · ${item.owner_name}` : ""}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {stuck.length > 0 && (
+        <div className="bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl p-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-3">
+            {t("crm.dashboard.stuckTitle")}
+          </h3>
+          <ul className="space-y-2">
+            {stuck.map((item) => (
+              <li key={item.id} className="flex items-start gap-3">
+                <Hourglass className="w-4 h-4 text-red-500 mt-0.5 shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <a
+                    href={`/crm/opportunities/${item.id}`}
+                    className="text-sm font-semibold text-[var(--text-primary)] hover:text-[var(--brand-orange)] hover:underline"
+                  >
+                    {item.name}
+                  </a>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    {t("crm.dashboard.stuckItem", {
+                      stage: item.stage_name,
+                      days: item.days_in_stage,
+                      target: item.target_days,
                     })}
                     {item.owner_name ? ` · ${item.owner_name}` : ""}
                   </p>

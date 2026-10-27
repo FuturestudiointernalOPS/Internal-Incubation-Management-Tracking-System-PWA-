@@ -2,6 +2,7 @@ import {
   getCrmDashboardCounts,
   getCrmOverdueNextActions,
   getCrmStaleOpportunities,
+  getCrmStuckOpportunities,
   getCrmPipelineValueByCurrency,
   getCrmPerformance,
 } from "@/models/crm/dashboard";
@@ -14,6 +15,7 @@ import {
  *  - four counts (overdue, next 7 days, awaiting qualification, dormant);
  *  - the most overdue next actions, soonest first;
  *  - the most dormant opportunities;
+ *  - opportunities stuck in a stage past that stage's own target;
  *  - active pipeline value, one line per pipeline AND currency;
  *  - performance: won, lost, and the average completed dwell time per stage.
  *
@@ -55,11 +57,12 @@ function groupPipelineValues(rows = []) {
 }
 
 export async function getCrmDashboard() {
-  const [countsResult, overdueResult, staleResult, pipelineResult, performanceResult] =
+  const [countsResult, overdueResult, staleResult, stuckResult, pipelineResult, performanceResult] =
     await Promise.all([
       getCrmDashboardCounts(),
       getCrmOverdueNextActions(5),
       getCrmStaleOpportunities(5),
+      getCrmStuckOpportunities(5),
       getCrmPipelineValueByCurrency(),
       getCrmPerformance(),
     ]);
@@ -80,9 +83,16 @@ export async function getCrmDashboard() {
       dueSoon: toCount(counts.soon_leads) + toCount(counts.soon_opportunities),
       awaitingQualification: toCount(counts.awaiting_qualification),
       stale: toCount(counts.stale_opportunities),
+      stuck: toCount(counts.stuck_opportunities),
     },
     overdue: overdueResult.rows ?? [],
     stale: staleResult.rows ?? [],
+    // Numeric columns arrive as text from the driver; the screen formats numbers.
+    stuck: (stuckResult.rows ?? []).map((row) => ({
+      ...row,
+      days_in_stage: toCount(row.days_in_stage),
+      target_days: toCount(row.target_days),
+    })),
     pipelines: groupPipelineValues(pipelineResult.rows ?? []),
     performance: {
       won: toCount(performance.won),

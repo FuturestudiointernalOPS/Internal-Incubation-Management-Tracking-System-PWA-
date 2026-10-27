@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getCrmStageById, updateCrmPipelineStage } from "@/models/crm/pipelines";
+import { ensureCrmStageTargetColumn } from "@/models/crm/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -43,11 +44,25 @@ export const PATCH = createHandler(
       );
     }
 
+    const targetDays = body.target_days == null ? undefined : Number(body.target_days);
+    if (
+      targetDays !== undefined &&
+      (!Number.isInteger(targetDays) || targetDays < 0 || targetDays > 365)
+    ) {
+      return NextResponse.json(
+        { success: false, error: "crm.pipelines.stageTargetRange" },
+        { status: 400 },
+      );
+    }
+
+    if (targetDays !== undefined) await ensureCrmStageTargetColumn();
+
     const result = await updateCrmPipelineStage(stageId, {
       name,
       description: body.description,
       probability,
       is_active: typeof body.is_active === "boolean" ? body.is_active : undefined,
+      target_days: targetDays,
     });
 
     return NextResponse.json({ success: true, stage: result.rows?.[0] ?? null });
