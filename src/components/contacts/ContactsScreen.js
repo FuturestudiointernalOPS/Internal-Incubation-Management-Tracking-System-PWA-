@@ -20,6 +20,8 @@ import { SegmentFormModal } from "@/app/admin/communications/contacts/SegmentFor
 import { GroupInviteModal } from "@/app/admin/communications/contacts/GroupInviteModal";
 import { BulkProgramModal } from "@/app/admin/communications/contacts/BulkProgramModal";
 import { ContactsConfirmDialog } from "@/app/admin/communications/contacts/ContactsConfirmDialog";
+import RecentContacts from "@/components/contacts/RecentContacts";
+import ContactStats from "@/components/contacts/ContactStats";
 
 function ContactsScreenContent() {
   const s = useContactsState();
@@ -36,6 +38,10 @@ function ContactsScreenContent() {
           onAddMember={s.openNewContact}
           onBulkAssign={() => s.setShowBulkProgramModal(true)}
         />
+
+        <ContactStats contacts={s.contacts} programs={s.programs} loading={s.loading} />
+
+        <RecentContacts contacts={s.contacts} loading={s.loading} />
 
         <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
           <ContactsSegmentsSidebar

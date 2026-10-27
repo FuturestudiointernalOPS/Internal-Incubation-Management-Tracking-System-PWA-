@@ -5,6 +5,8 @@ import { Users, Search } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import ContactsScreen from "@/components/contacts/ContactsScreen";
+import RecentContacts from "@/components/contacts/RecentContacts";
+import ContactStats from "@/components/contacts/ContactStats";
 import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 import { useI18n } from "@/lib/i18n";
 
@@ -138,6 +140,10 @@ function ReadOnlyContacts() {
           </p>
         </div>
       </header>
+
+      <ContactStats contacts={contacts} loading={loading} />
+
+      <RecentContacts contacts={contacts} loading={loading} />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px] max-w-md">
