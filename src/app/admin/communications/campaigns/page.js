@@ -22,7 +22,7 @@ const pickFamilies = (payload) => (payload?.success ? payload.families || [] : [
 export default function CampaignsPage() {
   const { t, lang } = useI18n();
   const { prompt } = useDialogs();
-  const goBack = useSafeBack('/admin/crm');
+  const goBack = useSafeBack('/crm');
 
   const { data: campaigns, loading: campaignsLoading, refresh: refreshCampaigns } = useApi(
     '/api/campaigns',
@@ -261,7 +261,7 @@ export default function CampaignsPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('crm.backToPrevious')}
           </button>
-          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('crm.backToCrm')}
           </Link>

@@ -3,10 +3,11 @@
 /**
  * CRM — Person timeline (shared screen).
  *
- * Rendered by BOTH the admin route (/admin/crm/timeline) and the non-admin CRM
- * workspace route (/crm/timeline). `basePath` is the only difference: it drives
- * the back links and the contact-search navigation. Read-only by nature (every
- * write is a contacts.edit API call made elsewhere), so no readOnly flag.
+ * Rendered by the CRM workspace route (/crm/timeline); the legacy admin route
+ * redirects here (and carries `?cid=` across). `basePath` drives the back links
+ * and the contact-search navigation and defaults to the workspace. Read-only by
+ * nature (every write is a contacts.edit API call made elsewhere), so no
+ * readOnly flag.
  */
 
 import React, { useState, useEffect, Suspense } from "react";
@@ -279,7 +280,7 @@ function TimelinePageContent({ basePath }) {
   );
 }
 
-export default function TimelineScreen({ basePath = "/admin/crm" }) {
+export default function TimelineScreen({ basePath = "/crm" }) {
   const { t } = useI18n();
   return (
     <Suspense fallback={<div className="p-8 text-center text-sm">{t("crm.timeline.loading")}</div>}>

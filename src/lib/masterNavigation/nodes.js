@@ -30,7 +30,7 @@ export const MASTER_NAVIGATION = [
       { id: "crm_activities", name: "ACTIVITIES", icon: "activity", href: "/crm/activities" },
       { id: "crm_segments", name: "SEGMENTS", icon: "filter", href: "/crm/segments" },
       { id: "crm_automations", name: "AUTOMATIONS", icon: "zap", href: "/crm/automations" },
-      { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
+      { id: "crm_timeline", name: "TIMELINE", href: "/crm/timeline" },
       { id: "crm_membership", name: "MEMBERSHIP", href: "/crm/membership" },
       { id: "crm_duplicates", name: "DUPLICATES", href: "/crm/duplicates" },
       { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },

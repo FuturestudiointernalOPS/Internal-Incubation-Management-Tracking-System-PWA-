@@ -183,7 +183,7 @@ function ImportReviewContent() {
                   <div className="flex flex-col gap-2 shrink-0">
                     {flag.matched_cid && (
                       <Link
-                        href={`/admin/crm/timeline?cid=${flag.matched_cid}`}
+                        href={`/crm/timeline?cid=${flag.matched_cid}`}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--brand-orange)]"
                       >
                         <Eye className="w-3 h-3" /> {t("adminMisc.platformImportReview.viewCrm")}

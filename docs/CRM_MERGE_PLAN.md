@@ -340,7 +340,7 @@ Chaque phase est livrable et testable seule. Les estimations sont indicatives.
   d'écriture du roster.
 - Les API conservent leurs gates (aucune régression de sécurité).
 
-### Phase 5 — Retrait et nettoyage (1 j)
+### Phase 5 — Retrait et nettoyage (1 j) — **faite le 2026-10-27**
 
 **Tâches**
 - Supprimer les pages `/admin/crm/*` devenues des redirections.
@@ -607,8 +607,43 @@ suivi à faire si l'on veut ouvrir l'écriture aux profils CRM.
 | Parité i18n | Missing 0 |
 | Lint des fichiers touchés | 0 erreur |
 
-### Relevé de la phase 4 (2026-10-27)
+### Relevé de la phase 5 (2026-10-27)
 
+**Ce qui a changé**
+
+- L'ancienne fiche personne et l'ancienne timeline redirigent vers `/crm/people/[cid]`
+  et `/crm/timeline` ; le `?cid=` de la timeline est conservé.
+- Les valeurs par défaut de `basePath` passent à `/crm` dans la fiche personne,
+  l'en-tête de personne et la timeline.
+- La navigation Timeline pointe sur `/crm/timeline`.
+- Les liens retour de campagnes, réponses et listes de diffusion, ainsi que le
+  lien de revue d'import, pointent sur `/crm`.
+- `/admin/crm/*` ne contient plus que des redirections serveur (dashboard,
+  doublons, membership, timeline, personne), conservées une release.
+- `docs/CRM_WORKSPACE_CASE_STUDY.md` décrit la surface unique.
+
+**Reste volontairement en l'état**
+
+- Les sous-composants de l'annuaire vivent encore dans l'ancien dossier et sont
+  importés explicitement par `ContactsScreen` ; les déplacer est un refactor
+  mécanique sans effet utilisateur.
+- Les clés de l'écran de listes de diffusion (retiré) restent dans les fichiers
+  de traduction : la réactivation éventuelle est une décision produit ouverte.
+- La recette navigateur sur staging reste à faire ; elle précède la promotion.
+
+**Validation**
+
+| Vérification | Résultat |
+|---|---|
+| Tests ciblés (navigation, équivalence, ratchet, gardes statiques, écrans CRM) | 62/62 |
+| Suite complète | même baseline : 22 suites / 90 tests déjà rouges, aucune nouvelle suite |
+| Build | succès |
+| Parité i18n | Missing 0 |
+| Lint des fichiers touchés | 0 erreur |
+
+---
+
+## 8. Retour arrière
 **Ce qui a changé**
 
 - **Doublons** : l'écran vit à `/crm/duplicates`. La lecture suit

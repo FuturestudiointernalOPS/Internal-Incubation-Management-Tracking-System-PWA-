@@ -17,7 +17,7 @@ export default function PersonHeader({
   inviting,
   inviteMessage,
   t,
-  basePath = "/admin/crm",
+  basePath = "/crm",
   canInvite = true,
   canEdit = false,
   onBack,

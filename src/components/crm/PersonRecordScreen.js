@@ -33,11 +33,12 @@ import {
 const EMPTY_EDIT = { name: "", email: "", phone: "", address: "" };
 
 /**
- * PERSON RECORD — the one dossier, reachable from two doors.
+ * PERSON RECORD — the one dossier.
  *
- * Rendered by the administration route and by the CRM workspace route; only
- * `basePath` differs (the back links). A person exists once, and the advanced
- * CRM must never grow a second record of the same human being.
+ * Rendered by the CRM workspace route; the legacy administration doors redirect
+ * here. `basePath` drives the back links and defaults to the workspace. A person
+ * exists once, and the advanced CRM must never grow a second record of the same
+ * human being.
  *
  * WHAT IS PROTECTED BY WHICH RIGHT (all existing, none invented):
  *  - reading the record and its person-domain tabs → `contacts.view`
@@ -47,7 +48,7 @@ const EMPTY_EDIT = { name: "", email: "", phone: "", address: "" };
  * Every API re-authorizes; these gates only keep the screen free of impossible
  * actions.
  */
-export default function PersonRecordScreen({ cid, basePath = "/admin/crm" }) {
+export default function PersonRecordScreen({ cid, basePath = "/crm" }) {
   const { t, lang } = useI18n();
   const { alert } = useDialogs();
   const goBack = useSafeBack(basePath);

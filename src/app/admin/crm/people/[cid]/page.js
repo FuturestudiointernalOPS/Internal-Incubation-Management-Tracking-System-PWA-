@@ -1,16 +1,12 @@
-"use client";
-
-import React, { use } from "react";
-import PersonRecordScreen from "@/components/crm/PersonRecordScreen";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The administration door to the person record. The screen itself is shared
- * with the CRM workspace (`/crm/people/[cid]`) so the same person is one
- * dossier, never two.
+ * The person record moved into the CRM workspace; the person id is preserved
+ * so the same dossier opens from an old link.
  */
-export default function CrmDetailPage({ params }) {
-  const { cid } = use(params);
-  return <PersonRecordScreen cid={cid} basePath="/admin/crm" />;
+export default async function LegacyPersonRedirect({ params }) {
+  const { cid } = await params;
+  redirect(`/crm/people/${encodeURIComponent(cid)}`);
 }

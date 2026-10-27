@@ -33,7 +33,7 @@ const FIXTURE = {
         { id: "crm_activities", href: "/crm/activities", subItems: null },
         { id: "crm_segments", href: "/crm/segments", subItems: null },
         { id: "crm_automations", href: "/crm/automations", subItems: null },
-        { id: "crm_timeline", href: "/admin/crm/timeline", subItems: null },
+        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
         { id: "crm_membership", href: "/crm/membership", subItems: null },
         { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
         { id: "pending_users", href: "/admin/pending-users", subItems: null },

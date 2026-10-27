@@ -28,8 +28,8 @@ const ORG_TYPES = [
  * CRM Organizations page — /crm/organizations
  *
  * List for CRM users (crm.view). The "New Organization" button only shows for
- * users holding crm.create (the POST checks it again server-side).
- * Full edit/delete stays in /admin/crm for Super Admin.
+ * users holding crm.create, and edit/delete for crm.edit / crm.delete (the API
+ * checks each right again server-side).
  */
 export default function CrmOrganizationsPage() {
   const { t } = useI18n();
