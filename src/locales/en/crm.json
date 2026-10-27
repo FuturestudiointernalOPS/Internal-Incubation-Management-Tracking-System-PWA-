@@ -44,6 +44,20 @@
       "opportunities": "Opportunities",
       "clear": "Clear"
     },
+    "notifications": {
+      "overdue": {
+        "title": "Overdue next action",
+        "message": "{name} — {action} was due {date}."
+      },
+      "dormant": {
+        "title": "Dormant opportunity",
+        "message": "{name} has had no activity for {days} days."
+      },
+      "stuck": {
+        "title": "Stuck in a stage",
+        "message": "{name} has been in {stage} for {days} days (target {target})."
+      }
+    },
     "backToPrevious": "Back to previous menu",
     "backToCrm": "Back to CRM",
     "directory": {

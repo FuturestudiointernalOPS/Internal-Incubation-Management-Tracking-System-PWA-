@@ -44,6 +44,20 @@
       "opportunities": "Opportunités",
       "clear": "Effacer"
     },
+    "notifications": {
+      "overdue": {
+        "title": "Prochaine action en retard",
+        "message": "{name} — {action} était attendue le {date}."
+      },
+      "dormant": {
+        "title": "Opportunité dormante",
+        "message": "{name} n'a eu aucune activité depuis {days} jours."
+      },
+      "stuck": {
+        "title": "Bloquée dans une étape",
+        "message": "{name} est dans {stage} depuis {days} jours (cible {target})."
+      }
+    },
     "backToPrevious": "Retour au menu précédent",
     "backToCrm": "Retour au CRM",
     "directory": {
