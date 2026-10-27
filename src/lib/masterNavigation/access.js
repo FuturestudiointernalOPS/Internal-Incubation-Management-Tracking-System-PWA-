@@ -96,13 +96,18 @@ export const ROLE_ACCESS = {
     // whose admin route has no non-admin equivalent are deliberately absent
     // (duplicates, pending approvals, bulk import arrive through capabilities
     // or stay in the Super Admin shell).
-    top: ["crm", "forms"],
+    //
+    // Forms and runs are NOT CRM: they belong to the Communication feature, so
+    // they open through the Communication section like they do for every other
+    // role. The Forms workspace itself carries Runs in its own sidebar.
+    top: ["crm", "communication"],
     children: {
       crm: [
         "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
         "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
         "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
       ],
+      communication: ["forms"],
     },
     hrefs: {
       crm_dashboard: "/crm",
@@ -191,7 +196,18 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   reports: { module: "reports", capability: "view" },
   ventures: { module: "ventures", capability: "view" },
   investors: { module: "investor", capability: "view" },
-  communication: { module: "messaging", capability: "view" },
+  // The section opens for any of its live domains, exactly like the CRM
+  // section: a person allowed to read forms or runs no longer loses the whole
+  // Communication section because they cannot read messages.
+  communication: {
+    anyOf: [
+      { module: "messaging", capability: "view" },
+      { module: "internal_comms", capability: "view" },
+      { module: "forms", capability: "view" },
+      { module: "runs", capability: "view" },
+      { module: "collections", capability: "view" },
+    ],
+  },
   weekly_ops: { module: "reports", capability: "create" },
   my_projects: { module: "projects", capability: "view" },
   messages: { module: "messaging", capability: "view" },

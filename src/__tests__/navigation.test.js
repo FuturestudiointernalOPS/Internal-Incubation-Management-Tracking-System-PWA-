@@ -209,7 +209,14 @@ const FIXTURE = {
         { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
       ],
     },
-    { id: "forms", href: "/platform", subItems: null },
+    // Forms and runs live under Communication, never under CRM.
+    {
+      id: "communication",
+      href: null,
+      subItems: [
+        { id: "forms", href: "/platform", subItems: null },
+      ],
+    },
   ],
 };
 
