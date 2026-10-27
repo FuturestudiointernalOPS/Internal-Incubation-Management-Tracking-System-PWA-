@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
-import { ensureCrmStageTargetColumn } from "@/models/crm/schema";
+import {
+  ensureCrmNextActionColumns,
+  ensureCrmStageTargetColumn,
+} from "@/models/crm/schema";
 import { getCrmDashboard } from "@/services/crm/dashboard";
 import { sweepCrmNotifications } from "@/services/crm/notifications";
 import { sweepCrmTimeTriggers } from "@/services/crm/timeTriggers";
@@ -18,8 +21,11 @@ export const GET = createHandler(async () => {
   const authError = await requireAuthorization("crm", "view");
   if (authError) return authError;
 
-  // The stuck count reads each stage's target; ensure the column exists before
-  // the read (idempotent, once per process).
+  // The dashboard reads the next-action columns on every count, and the stuck
+  // count reads each stage's target. A fresh environment may never have written
+  // a next action, so the write paths never created those columns — ensure them
+  // before the read (both idempotent, once per process).
+  await ensureCrmNextActionColumns();
   await ensureCrmStageTargetColumn();
 
   // Refresh the in-app alerts. The sweep is idempotent per record, kind and day,

@@ -9,12 +9,17 @@ import db from "@/lib/db";
  * `@/services/crm/dashboard`.
  *
  * Definitions used here, kept explicit because they drive what a team sees:
- *  - a next action is overdue when its due date is before today;
+ *  - a next action is overdue when its due date is before today, and due today
+ *    when it falls inside today's calendar day;
  *  - a record with a dedicated next action is what counts — the fallback on the
  *    earliest task/meeting is resolved on the record screen, not aggregated;
  *  - a lead awaiting qualification is `not_assessed` or `in_review`;
  *  - a dormant opportunity has had NO manual activity for the stale window,
- *    measured on the activity date, falling back to the record's creation.
+ *    measured on the activity date, falling back to the record's creation;
+ *  - "today's work" also counts the CRM meetings of the day and the CRM tasks
+ *    due today, because a follow-up is not the only thing a team does;
+ *  - an opportunity is approaching its close date when that date falls inside
+ *    the close window (default 30 days), never before today.
  */
 
 const OPEN_LEAD_STATUSES = "COALESCE(l.status,'new') NOT IN ('converted','lost','unqualified')";
@@ -50,6 +55,47 @@ export async function getCrmDashboardCounts() {
             AND o.next_action_due >= CURRENT_DATE
             AND o.next_action_due < CURRENT_DATE + INTERVAL '7 days'
         ) AS soon_opportunities,
+        (SELECT COUNT(*) FROM crm_leads l
+          WHERE l.deleted_at IS NULL
+            AND l.next_action IS NOT NULL
+            AND l.next_action_due >= CURRENT_DATE
+            AND l.next_action_due < CURRENT_DATE + INTERVAL '1 day'
+            AND ${OPEN_LEAD_STATUSES}
+        ) AS today_leads,
+        (SELECT COUNT(*) FROM crm_opportunities o
+          WHERE o.deleted_at IS NULL
+            AND o.status = 'active'
+            AND o.next_action IS NOT NULL
+            AND o.next_action_due >= CURRENT_DATE
+            AND o.next_action_due < CURRENT_DATE + INTERVAL '1 day'
+        ) AS today_opportunities,
+        (SELECT COUNT(*) FROM crm_activities a
+          WHERE a.type = 'meeting'
+            AND a.activity_date >= CURRENT_DATE
+            AND a.activity_date < CURRENT_DATE + INTERVAL '1 day'
+            AND COALESCE(a.outcome, '') NOT IN ('completed', 'cancelled')
+        ) AS meetings_today,
+        (SELECT COUNT(*) FROM tasks t
+          WHERE t.context_type IN ('crm_lead', 'crm_opportunity', 'crm_contact', 'crm_organization')
+            AND t.end_date >= CURRENT_DATE
+            AND t.end_date < CURRENT_DATE + INTERVAL '1 day'
+            AND t.status NOT IN ('completed', 'cancelled', 'archived')
+        ) AS tasks_today,
+        (SELECT COUNT(*) FROM crm_opportunities o
+          WHERE o.deleted_at IS NULL
+            AND o.status = 'active'
+            AND o.expected_close_date >= CURRENT_DATE
+            AND o.expected_close_date < CURRENT_DATE + INTERVAL '30 days'
+        ) AS approaching_close,
+        (SELECT COUNT(*) FROM crm_leads l
+          WHERE l.deleted_at IS NULL
+            AND l.created_at >= NOW() - INTERVAL '30 days'
+        ) AS new_leads_30,
+        (SELECT COUNT(*) FROM crm_leads l
+          WHERE l.deleted_at IS NULL
+            AND l.qualification_state = 'qualified'
+            AND l.qualification_date >= NOW() - INTERVAL '30 days'
+        ) AS qualified_leads_30,
         (SELECT COUNT(*) FROM crm_leads l
           WHERE l.deleted_at IS NULL
             AND l.qualification_state IN ('not_assessed','in_review')

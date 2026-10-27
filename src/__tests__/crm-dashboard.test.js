@@ -22,7 +22,13 @@ const {
   getCrmPipelineValueByCurrency,
   getCrmPerformance,
 } = require("@/models/crm/dashboard");
-const { getCrmDashboard, STALE_AFTER_DAYS, CONVERSION_WINDOW_DAYS } = require("@/services/crm/dashboard");
+const {
+  getCrmDashboard,
+  STALE_AFTER_DAYS,
+  CONVERSION_WINDOW_DAYS,
+  CLOSE_SOON_DAYS,
+  PERFORMANCE_WINDOW_DAYS,
+} = require("@/services/crm/dashboard");
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -33,9 +39,11 @@ beforeEach(() => {
   getCrmPerformance.mockResolvedValue({ rows: [] });
 });
 
-test("the dormant window is fourteen days, in one named place", () => {
+test("the dashboard windows live in one named place", () => {
   expect(STALE_AFTER_DAYS).toBe(14);
   expect(CONVERSION_WINDOW_DAYS).toBe(90);
+  expect(CLOSE_SOON_DAYS).toBe(30);
+  expect(PERFORMANCE_WINDOW_DAYS).toBe(30);
 });
 
 test("counts add leads and opportunities, and read text numbers as numbers", async () => {
@@ -45,9 +53,16 @@ test("counts add leads and opportunities, and read text numbers as numbers", asy
       overdue_opportunities: 3,
       soon_leads: 1,
       soon_opportunities: "4",
+      today_leads: "3",
+      today_opportunities: 5,
+      meetings_today: "2",
+      tasks_today: 4,
       awaiting_qualification: "5",
       stale_opportunities: 6,
       stuck_opportunities: "1",
+      approaching_close: "7",
+      new_leads_30: "8",
+      qualified_leads_30: 3,
     }],
   });
 
@@ -55,12 +70,19 @@ test("counts add leads and opportunities, and read text numbers as numbers", asy
 
   expect(result.counts).toEqual({
     overdue: 5,
+    dueToday: 8,
     dueSoon: 5,
+    meetingsToday: 2,
+    tasksToday: 4,
     awaitingQualification: 5,
     stale: 6,
     stuck: 1,
+    approachingClose: 7,
   });
   expect(result.staleAfterDays).toBe(14);
+  expect(result.closeSoonDays).toBe(30);
+  expect(result.performance.newLeads).toBe(8);
+  expect(result.performance.qualifiedLeads).toBe(3);
 });
 
 test("an empty counts row reads as zero everywhere", async () => {
@@ -70,11 +92,17 @@ test("an empty counts row reads as zero everywhere", async () => {
 
   expect(result.counts).toEqual({
     overdue: 0,
+    dueToday: 0,
     dueSoon: 0,
+    meetingsToday: 0,
+    tasksToday: 0,
     awaitingQualification: 0,
     stale: 0,
     stuck: 0,
+    approachingClose: 0,
   });
+  expect(result.performance.newLeads).toBe(0);
+  expect(result.performance.qualifiedLeads).toBe(0);
 });
 
 test("pipeline values keep each currency on its own line and drop empty pipelines", async () => {
@@ -151,6 +179,9 @@ test("performance counts won and lost, rounds the stage duration, and turns the 
   const result = await getCrmDashboard();
 
   expect(result.performance).toEqual({
+    windowDays: 30,
+    newLeads: 0,
+    qualifiedLeads: 0,
     won: 4,
     lost: 2,
     averageStageDays: 7.3,

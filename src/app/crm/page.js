@@ -176,7 +176,7 @@ export default function CrmWorkspace() {
 
   return (
     <>
-      <div className="max-w-3xl mx-auto space-y-8 pb-20">
+      <div className="max-w-6xl mx-auto space-y-8 pb-20">
         <header className="flex items-center gap-3 border-b border-[var(--border-primary)] pb-6">
           <Users className="w-6 h-6 text-[var(--brand-orange)]" />
           <div>
@@ -189,14 +189,15 @@ export default function CrmWorkspace() {
           </div>
         </header>
 
+        {canSeeCrm && <CrmActionDashboard />}
+
+        {canSeeCrm && <CrmGlobalSearch />}
+
         <CrmOverview
           canSeePeople={canSeePeople}
           isSuperAdmin={isSuperAdmin}
           canSeeDuplicates={canSeeDuplicates}
         />
-
-        {canSeeCrm && <CrmGlobalSearch />}
-        {canSeeCrm && <CrmActionDashboard />}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {cards.map((card) => {

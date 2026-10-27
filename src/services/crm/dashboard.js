@@ -12,18 +12,25 @@ import {
  *
  * The product asks the CRM to say what needs attention now, not to decorate a
  * screen with charts. This module turns the reads into one payload:
- *  - four counts (overdue, next 7 days, awaiting qualification, dormant);
+ *  - today's work: follow-ups due today, overdue, meetings and tasks;
  *  - the most overdue next actions, soonest first;
- *  - the most dormant opportunities;
- *  - opportunities stuck in a stage past that stage's own target;
+ *  - the attention counts (dormant, awaiting qualification, approaching close);
+ *  - the most dormant and most stuck opportunities;
  *  - active pipeline value, one line per pipeline AND currency;
- *  - performance: won, lost, and the average completed dwell time per stage.
+ *  - performance: new and qualified leads, won, lost, conversion and the
+ *    average completed dwell time per stage.
  *
  * `STALE_AFTER_DAYS` is the single place the dormant window is defined. It is
  * 14 days, the figure the product specification uses in its own examples.
+ * `CLOSE_SOON_DAYS` is the same for "approaching its close date", and
+ * `PERFORMANCE_WINDOW_DAYS` for the new/qualified lead figures.
  */
 
 export const STALE_AFTER_DAYS = 14;
+
+export const CLOSE_SOON_DAYS = 30;
+
+export const PERFORMANCE_WINDOW_DAYS = 30;
 
 /**
  * The conversion window. Decided default: the last 90 days, on the moment each
@@ -78,12 +85,17 @@ export async function getCrmDashboard() {
 
   return {
     staleAfterDays: STALE_AFTER_DAYS,
+    closeSoonDays: CLOSE_SOON_DAYS,
     counts: {
       overdue: toCount(counts.overdue_leads) + toCount(counts.overdue_opportunities),
+      dueToday: toCount(counts.today_leads) + toCount(counts.today_opportunities),
       dueSoon: toCount(counts.soon_leads) + toCount(counts.soon_opportunities),
+      meetingsToday: toCount(counts.meetings_today),
+      tasksToday: toCount(counts.tasks_today),
       awaitingQualification: toCount(counts.awaiting_qualification),
       stale: toCount(counts.stale_opportunities),
       stuck: toCount(counts.stuck_opportunities),
+      approachingClose: toCount(counts.approaching_close),
     },
     overdue: overdueResult.rows ?? [],
     stale: staleResult.rows ?? [],
@@ -95,6 +107,9 @@ export async function getCrmDashboard() {
     })),
     pipelines: groupPipelineValues(pipelineResult.rows ?? []),
     performance: {
+      windowDays: PERFORMANCE_WINDOW_DAYS,
+      newLeads: toCount(counts.new_leads_30),
+      qualifiedLeads: toCount(counts.qualified_leads_30),
       won: toCount(performance.won),
       lost: toCount(performance.lost),
       // One decimal is enough to read a trend; null means "no completed visit yet".
