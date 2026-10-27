@@ -15,14 +15,16 @@ import CrmGlobalSearch from "@/components/crm/CrmGlobalSearch";
 export const dynamic = "force-dynamic";
 
 /**
- * CRM WORKSPACE — non-admin entry point for users holding the CRM
- * responsibility. Full CRM administration (duplicates, pending approvals, bulk
- * import) stays in /admin for Super Admin.
+ * CRM WORKSPACE — the single entry point for the CRM section.
  *
- * The cards are capability-gated, exactly like the sidebar: People and Timeline
- * need `contacts.view`, Membership needs `org_membership.view`. Nothing here is
- * a permission — the APIs authorize every request again — it only keeps the hub
- * free of doors the user cannot open.
+ * Two rights open it: `crm.view` for the records layer (organizations, leads,
+ * opportunities, pipelines, activities, segments, automations) and
+ * `contacts.view` for people and their timeline. Membership keeps its own
+ * `org_membership.view`. Administration doors (duplicates, pending approvals,
+ * bulk import) follow the capability their endpoint actually checks.
+ *
+ * Nothing here is a permission — the APIs authorize every request again — it
+ * only keeps the hub free of doors the user cannot open.
  */
 export default function CrmWorkspace() {
   const { t } = useI18n();
@@ -60,6 +62,13 @@ export default function CrmWorkspace() {
   const has = (moduleKey, capability) =>
     Number(effective?.[moduleKey]?.[capability] ?? 0) >= 1;
 
+  // Two doors open this workspace: the records layer (`crm.view`) and the
+  // people layer (`contacts.view`). Each card follows the right its own screen
+  // actually asks for, so a people-only profile no longer sees doors its API
+  // would refuse — and a records-only profile still gets the hub.
+  const canSeeCrm = has("crm", "view");
+  const canSeePeople = has("contacts", "view");
+
   const cards = [
     {
       key: "forms",
@@ -77,14 +86,24 @@ export default function CrmWorkspace() {
     },
   ];
 
-  if (has("crm", "view")) {
+  if (canSeePeople) {
+    cards.push({
+      key: "people",
+      href: "/crm/contacts",
+      icon: Users,
+      title: t("crm.overview.allPeople"),
+      subtitle: t("crm.directory.subtitle"),
+    });
+  }
+
+  if (canSeeCrm) {
     cards.push(
       {
-        key: "people",
-        href: "/crm/contacts",
-        icon: Users,
-        title: t("crm.overview.allPeople"),
-        subtitle: t("crm.directory.subtitle"),
+        key: "organizations",
+        href: "/crm/organizations",
+        icon: Shield,
+        title: t("crm.organizations.title"),
+        subtitle: t("crm.organizations.subtitle"),
       },
       {
         key: "leads",
@@ -101,18 +120,18 @@ export default function CrmWorkspace() {
         subtitle: t("crm.opportunities.subtitle"),
       },
       {
-        key: "activities",
-        href: "/crm/activities",
-        icon: Activity,
-        title: t("crm.activities.title"),
-        subtitle: t("crm.activities.subtitle"),
-      },
-      {
         key: "pipelines",
         href: "/crm/pipelines",
         icon: Settings,
         title: t("crm.pipelines.title"),
         subtitle: t("crm.pipelines.subtitle"),
+      },
+      {
+        key: "activities",
+        href: "/crm/activities",
+        icon: Activity,
+        title: t("crm.activities.title"),
+        subtitle: t("crm.activities.subtitle"),
       },
       {
         key: "segments",
@@ -128,21 +147,17 @@ export default function CrmWorkspace() {
         title: t("crm.intelligence.automations.title"),
         subtitle: t("crm.intelligence.automations.subtitle"),
       },
-      {
-        key: "organizations",
-        href: "/crm/organizations",
-        icon: Shield,
-        title: t("crm.organizations.title"),
-        subtitle: t("crm.organizations.subtitle"),
-      },
-      {
-        key: "timeline",
-        href: "/crm/timeline",
-        icon: Clock,
-        title: t("crm.timeline.timelineTitle"),
-        subtitle: t("crm.hub.timelineSubtitle"),
-      },
     );
+  }
+
+  if (canSeePeople) {
+    cards.push({
+      key: "timeline",
+      href: "/crm/timeline",
+      icon: Clock,
+      title: t("crm.timeline.timelineTitle"),
+      subtitle: t("crm.hub.timelineSubtitle"),
+    });
   }
 
   if (has("org_membership", "view")) {
@@ -152,7 +167,6 @@ export default function CrmWorkspace() {
       icon: Shield,
       title: t("membership.page.title"),
       subtitle: t("membership.page.subtitle"),
-
     });
   }
 
@@ -171,8 +185,8 @@ export default function CrmWorkspace() {
           </div>
         </header>
 
-        {has("crm", "view") && <CrmGlobalSearch />}
-        {has("crm", "view") && <CrmActionDashboard />}
+        {canSeeCrm && <CrmGlobalSearch />}
+        {canSeeCrm && <CrmActionDashboard />}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {cards.map((card) => {

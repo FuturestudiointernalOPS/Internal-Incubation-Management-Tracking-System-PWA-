@@ -251,7 +251,7 @@ Chaque phase est livrable et testable seule. Les estimations sont indicatives.
 - Baseline consignée dans le §11 de ce document.
 - Aucune modification fonctionnelle.
 
-### Phase 1 — Droits et navigation (1–2 j)
+### Phase 1 — Droits et navigation (1–2 j) — **faite le 2026-10-27**
 
 **Tâches**
 - Ajouter les nœuds manquants dans `src/lib/masterNavigation/nodes.js`.
@@ -456,7 +456,9 @@ passe de recette staging.
 
 ---
 
-## 11. Relevé de la phase 0 (2026-10-27)
+## 11. Relevés de validation
+
+### Relevé de la phase 0 (2026-10-27)
 
 | Élément | Valeur |
 |---|---|
@@ -485,3 +487,47 @@ Trois d'entre elles touchent directement les droits et la navigation
 `responsibility-assign-decisions`) : elles resteront rouges pendant la fusion et
 ne peuvent donc pas servir de signal de non-régression. Les tests CRM et de
 navigation, eux, sont verts et doivent le rester.
+
+### Relevé de la phase 1 (2026-10-27)
+
+**Ce qui a changé**
+
+- La section CRM s'ouvre désormais par **l'un** de ces droits : `crm.view`
+  (objets commerciaux), `contacts.view` (personnes et timeline) ou
+  `org_membership.view` (roster seul). La projection de navigation sait
+  maintenant exprimer « l'un ou l'autre ».
+- Les nœuds des objets réels sont dans l'arbre de navigation : organisations,
+  leads, opportunités, pipelines, activités, segments, automatisations.
+- Chaque enfant garde son propre droit : People et Timeline → `contacts.view` ;
+  objets commerciaux → `crm.view` ; Membership → `org_membership.view` ;
+  doublons → `duplicates.view` ; approbations → `permissions.view_matrix` ;
+  import → `bulk_upload.execute`.
+- Le rôle de repli CRM projette la section entière (et non plus seulement le
+  hub), avec des liens non-admin vers `/crm/*`.
+- Le hub `/crm` gate désormais **chaque carte sur son propre module** : un
+  profil « personnes seulement » voit People et Timeline, un profil
+  « objets commerciaux seulement » voit les leads et opportunités, et aucun des
+  deux ne voit une porte que son API refuserait.
+- `feature-subsections.js` est aligné sur les nœuds réels ; les identifiants
+  fantômes sont remplacés par les objets existants.
+- Libellés de navigation et fils d'Ariane ajoutés en **en** et **fr**.
+
+**Fichiers modifiés** : `src/lib/masterNavigation/nodes.js`,
+`src/lib/masterNavigation/access.js`, `src/lib/masterNavigation/builders.js`,
+`src/components/layout/shell/navigation.js`,
+`src/components/layout/shell/useDashboardNavigation.js`, `src/app/crm/page.js`,
+`src/models/authorization/feature-subsections.js`, les deux fichiers de
+navigation `en`/`fr`, et les tests de navigation / équivalence UI-serveur.
+
+**Validation**
+
+| Vérification | Résultat |
+|---|---|
+| Tests ciblés (navigation + équivalence UI/serveur) | 38/38 |
+| Suite complète | même baseline : 22 suites / 90 tests déjà rouges, aucune nouvelle suite |
+| Build | succès |
+| Parité i18n | Missing 0 |
+| Lint des fichiers touchés | 0 erreur |
+
+Le garde-fou de taille signale une violation **préexistante** sur un fichier
+Ventures non touché (`ventureDataRoomStore.js`), sans rapport avec cette fusion.

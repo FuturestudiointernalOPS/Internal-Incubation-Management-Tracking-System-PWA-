@@ -25,7 +25,12 @@ export const ROLE_ACCESS = {
       "finance", "operations", "intelligence", "reports", "knowledge", "lms", "settings",
     ],
     children: {
-      crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
+      crm: [
+        "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
+        "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
+        "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
+        "pending_users", "bulk_upload",
+      ],
       communication: ["messages", "announcements", "forms"],
       programs: ["all_programs", "create_program", "progress"],
       ventures: ["all_ventures"],
@@ -87,9 +92,24 @@ export const ROLE_ACCESS = {
   },
 
   crm: {
-    top: ["crm_dashboard", "forms"],
-    children: {},
-    hrefs: { crm_dashboard: "/crm" },
+    // The CRM responsibility opens the whole workspace as one section. Children
+    // whose admin route has no non-admin equivalent are deliberately absent
+    // (duplicates, pending approvals, bulk import arrive through capabilities
+    // or stay in the Super Admin shell).
+    top: ["crm", "forms"],
+    children: {
+      crm: [
+        "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
+        "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
+        "crm_automations", "crm_timeline", "crm_membership",
+      ],
+    },
+    hrefs: {
+      crm_dashboard: "/crm",
+      all_contacts: "/crm/contacts",
+      crm_timeline: "/crm/timeline",
+      crm_membership: "/crm/membership",
+    },
     icons: {},
   },
 };
@@ -110,12 +130,53 @@ export const ROLE_ACCESS = {
 // Changing eligibility for a feature does NOT auto-change the menu — add the
 // node to a role's hide/show list deliberately (visibility is curated, and
 // the server gates remain authoritative).
+/**
+ * A requirement names one capability, or a list of alternatives ("any of").
+ * The CRM section is the first user: the workspace is granted by `crm.view`,
+ * while a people-only profile carries `contacts.view` — either one opens the
+ * section, and each child keeps its own, stricter requirement.
+ */
+export function requirementAlternatives(requirement) {
+  if (!requirement) return [];
+  return Array.isArray(requirement.anyOf) ? requirement.anyOf : [requirement];
+}
+
 export const NAV_CAPABILITY_REQUIREMENTS = {
-  crm: { module: "contacts", capability: "view" },
+  // The section opens for any of its three live domains; the children below
+  // stay strict, so a membership-only profile sees the roster and nothing else.
+  crm: {
+    anyOf: [
+      { module: "crm", capability: "view" },
+      { module: "contacts", capability: "view" },
+      { module: "org_membership", capability: "view" },
+    ],
+  },
+  crm_dashboard: {
+    anyOf: [
+      { module: "crm", capability: "view" },
+      { module: "contacts", capability: "view" },
+    ],
+  },
+  // People and their history belong to the contacts module.
+  all_contacts: { module: "contacts", capability: "view" },
+  crm_timeline: { module: "contacts", capability: "view" },
+  // The records layer is the CRM module's own surface.
+  crm_organizations: { module: "crm", capability: "view" },
+  crm_leads: { module: "crm", capability: "view" },
+  crm_opportunities: { module: "crm", capability: "view" },
+  crm_pipelines: { module: "crm", capability: "view" },
+  crm_activities: { module: "crm", capability: "view" },
+  crm_segments: { module: "crm", capability: "view" },
+  crm_automations: { module: "crm", capability: "view" },
   // Membership lives under the CRM section but is backed by its own module
   // (GET /api/org-membership requires org_membership.view) — so it only appears
   // when that capability is actually held, not merely because CRM is granted.
   crm_membership: { module: "org_membership", capability: "view" },
+  // The queue and the import are administration doors, kept in the CRM section
+  // by decision; each follows the capability its endpoint actually checks.
+  crm_duplicates: { module: "duplicates", capability: "view" },
+  pending_users: { module: "permissions", capability: "view_matrix" },
+  bulk_upload: { module: "bulk_upload", capability: "execute" },
   finance: { module: "finance", capability: "view" },
   security: { module: "settings", capability: "view" },
   programs: { module: "programs", capability: "view" },
@@ -144,6 +205,13 @@ export const NON_ADMIN_HREF_FALLBACKS = {
   finance: "/finance",
   crm_dashboard: "/crm",
   all_contacts: "/crm/contacts",
+  crm_organizations: "/crm/organizations",
+  crm_leads: "/crm/leads",
+  crm_opportunities: "/crm/opportunities",
+  crm_pipelines: "/crm/pipelines",
+  crm_activities: "/crm/activities",
+  crm_segments: "/crm/segments",
+  crm_automations: "/crm/automations",
   crm_membership: "/crm/membership",
   crm_timeline: "/crm/timeline",
   forms: "/platform",
