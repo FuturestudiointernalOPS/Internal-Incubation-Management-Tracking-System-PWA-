@@ -278,6 +278,9 @@
       "result": "Result document"
     },
     "modules": {
+      "crm": "CRM",
+      "contacts": "Account",
+      "groups": "Groups",
       "forms": "Forms",
       "programs": "Programs",
       "ventures": "Ventures",
@@ -334,6 +337,7 @@
       "panelVentures": "Ventures",
       "panelInvestors": "Investors",
       "panelComms": "Comms",
+      "panelCrm": "CRM",
       "all": "All",
       "attached": "Attached:",
       "noEvents": "No events yet",

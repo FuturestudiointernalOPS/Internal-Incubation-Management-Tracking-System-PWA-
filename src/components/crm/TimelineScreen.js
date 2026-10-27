@@ -19,6 +19,8 @@ import { useSafeBack } from "@/lib/useSafeBack";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 
 const MODULE_COLORS = {
+  contacts: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+  groups: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
   programs: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   ventures: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -40,6 +42,9 @@ const ROLE_LABELS = {
 };
 
 const MODULE_LABELS = {
+  crm: "crm.modules.crm",
+  contacts: "crm.modules.contacts",
+  groups: "crm.modules.groups",
   forms: "crm.modules.forms",
   programs: "crm.modules.programs",
   ventures: "crm.modules.ventures",
@@ -197,6 +202,7 @@ function TimelinePageContent({ basePath }) {
         <div className="flex flex-wrap gap-2">
           {[
             { key: "", label: t("crm.timeline.filterAll") },
+            { key: "crm", label: t("crm.modules.crm") },
             { key: "forms", label: t("crm.timeline.filterForms") },
             { key: "programs", label: t("crm.timeline.filterPrograms") },
             { key: "ventures", label: t("crm.timeline.filterVentures") },

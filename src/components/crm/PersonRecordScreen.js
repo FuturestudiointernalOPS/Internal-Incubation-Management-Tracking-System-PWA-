@@ -57,6 +57,12 @@ export default function PersonRecordScreen({ cid, basePath = "/admin/crm" }) {
   const canEditPeople = holds("contacts", "edit");
   const canInvitePeople = holds("contacts", "create");
   const canSeeMembership = holds("org_membership", "view");
+  // Notes, meetings and documents are CRM-authored events, so they follow the
+  // CRM right; programme and learning data follow their own domains. This is the
+  // same rule the timeline applies to its events.
+  const canSeeCrm = holds("crm", "view");
+  const canSeePrograms = holds("programs", "view");
+  const canSeeLearning = holds("lms", "view");
 
   const [moduleFilter, setModuleFilter] = useState("");
   const [tab, setTab] = useState("timeline");
@@ -127,17 +133,17 @@ export default function PersonRecordScreen({ cid, basePath = "/admin/crm" }) {
   const currentRoles = roles.filter(roleAssignment => roleAssignment.is_current);
   const pastRoles = roles.filter(roleAssignment => !roleAssignment.is_current);
 
-  // Tab list. "All tabs" for anyone who may read the person; membership keeps
-  // its own module's floor because its endpoint already requires it.
+  // Tab list. A tab whose domain right is missing is not shown: the record is
+  // the person's, but each block of it belongs to the module that protects it.
   const tabs = [
     { key: "timeline", label: t("crm.people.tabTimeline"), icon: Clock, visible: canReadPeople },
     { key: "emails", label: t("crm.people.tabEmails"), icon: Mail, visible: canReadPeople },
-    { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket, visible: canReadPeople },
-    { key: "learning", label: t("crm.people.tabLearning"), icon: GraduationCap, visible: canReadPeople },
+    { key: "programs", label: t("crm.people.tabPrograms"), icon: Rocket, visible: canSeePrograms },
+    { key: "learning", label: t("crm.people.tabLearning"), icon: GraduationCap, visible: canSeeLearning },
     { key: "membership", label: t("crm.people.tabMembership"), icon: Building2, visible: canSeeMembership },
-    { key: "notes", label: t("crm.people.tabNotes"), icon: FileText, visible: canReadPeople },
-    { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase, visible: canReadPeople },
-    { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload, visible: canReadPeople },
+    { key: "notes", label: t("crm.people.tabNotes"), icon: FileText, visible: canSeeCrm },
+    { key: "meetings", label: t("crm.people.tabMeetings"), icon: Briefcase, visible: canSeeCrm },
+    { key: "documents", label: t("crm.people.tabDocuments"), icon: Upload, visible: canSeeCrm },
   ].filter(tabItem => tabItem.visible);
 
   const visibleTabKeys = tabs.map(tabItem => tabItem.key);
@@ -157,6 +163,7 @@ export default function PersonRecordScreen({ cid, basePath = "/admin/crm" }) {
 
   // Quick panel counts
   const panelCounts = {
+    crm: events.filter(event => event.context_module === "crm").length,
     forms: events.filter(event => event.context_module === "forms").length,
     programs: events.filter(event => event.context_module === "programs").length,
     ventures: events.filter(event => event.context_module === "ventures").length,

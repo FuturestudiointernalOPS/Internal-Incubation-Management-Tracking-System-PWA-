@@ -278,6 +278,9 @@
       "result": "Document de résultat"
     },
     "modules": {
+      "crm": "CRM",
+      "contacts": "Compte",
+      "groups": "Groupes",
       "forms": "Formulaires",
       "programs": "Programmes",
       "ventures": "Entreprises",
@@ -334,6 +337,7 @@
       "panelVentures": "Entreprises",
       "panelInvestors": "Investisseurs",
       "panelComms": "Communications",
+      "panelCrm": "CRM",
       "all": "Tout",
       "attached": "Pièce jointe :",
       "noEvents": "Aucun événement pour l'instant",

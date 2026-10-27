@@ -20,21 +20,38 @@ import db from "@/lib/db";
  */
 export async function getContactTimelineEvents(
   cid,
-  moduleFilter,
-  typeFilter,
-  pmProgramIds,
-  limit,
-  offset,
-  includeCrm = true,
+  {
+    moduleFilter,
+    typeFilter,
+    pmProgramIds,
+    limit,
+    offset,
+    includeCrm = true,
+    visibleModules = null,
+  } = {},
 ) {
   let sql = "SELECT * FROM contact_timeline WHERE contact_cid = ?";
   const args = [cid];
 
   // CRM events share this timeline, but they belong to the CRM: a reader
-  // without CRM access must never receive them. The rule is applied here so
-  // every caller inherits it.
+  // without CRM access must never receive them. Legacy rows with no module at
+  // all are not CRM events and stay visible.
   if (!includeCrm) {
-    sql += " AND context_module != 'crm'";
+    sql += " AND (context_module IS NULL OR context_module != 'crm')";
+  }
+
+  // Per-domain visibility: an event is only handed to a reader who holds the
+  // right of the domain it came from. `null` means "no restriction" (a personal
+  // identity reading its own record) and is deliberately distinct from an
+  // empty list, which means "nothing from a named domain".
+  if (Array.isArray(visibleModules)) {
+    if (visibleModules.length > 0) {
+      const placeholders = visibleModules.map(() => "?").join(",");
+      sql += ` AND (context_module IS NULL OR context_module IN (${placeholders}))`;
+      args.push(...visibleModules);
+    } else {
+      sql += " AND context_module IS NULL";
+    }
   }
 
   if (moduleFilter) {
