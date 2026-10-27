@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Target, Plus, Search, FileText } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
 import AppButton from "@/components/ui/AppButton";
@@ -22,10 +22,21 @@ export default function CrmLeadsPage() {
   const [error, setError]         = useState("");
   const [search, setSearch]       = useState("");
   const [showModal, setShowModal] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterQualification, setFilterQualification] = useState("");
+  const [filterOwner, setFilterOwner] = useState("");
+  const [owners, setOwners] = useState([]);
 
-  async function fetchLeads() {
+  const fetchLeads = useCallback(async () => {
+    setLoading(true);
     try {
-      const res  = await fetch("/api/crm/leads");
+      const params = new URLSearchParams();
+      if (filterStatus)        params.set("status", filterStatus);
+      if (filterQualification) params.set("qualification", filterQualification);
+      if (filterOwner)         params.set("owner_cid", filterOwner);
+
+      const query = params.toString();
+      const res  = await fetch(`/api/crm/leads${query ? `?${query}` : ""}`);
       const data = await res.json();
       if (data.success) setLeads(data.leads ?? []);
       else setError(t(data.error || "errors.somethingWrong"));
@@ -34,9 +45,27 @@ export default function CrmLeadsPage() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filterStatus, filterQualification, filterOwner, t]);
 
-  useEffect(() => { fetchLeads(); }, []);
+  useEffect(() => { fetchLeads(); }, [fetchLeads]);
+
+  // The owner options come from the unfiltered set, so choosing a filter never
+  // removes the other owners from the list.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/crm/leads")
+      .then((response) => response.json())
+      .then((data) => {
+        if (!alive || !data.success) return;
+        const byOwner = new Map();
+        for (const lead of data.leads ?? []) {
+          if (lead.owner_cid) byOwner.set(lead.owner_cid, lead.owner_name || lead.owner_cid);
+        }
+        setOwners([...byOwner.entries()].map(([value, label]) => ({ value, label })));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -112,15 +141,50 @@ export default function CrmLeadsPage() {
           )}
         </div>
 
-        <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("common.search")}
-            className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-orange)]/40"
-          />
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative max-w-sm flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder={t("common.search")}
+              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:outline-none focus:ring-2 focus:ring-[var(--brand-orange)]/40"
+            />
+          </div>
+
+          <select
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            className="text-sm rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[var(--text-primary)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-orange)]/40"
+          >
+            <option value="">{t("crm.leads.allStatuses")}</option>
+            {["new", "contacted", "engaged", "qualified", "unqualified", "nurturing", "converted", "lost"].map((status) => (
+              <option key={status} value={status}>{t(`crm.leads.statuses.${status}`)}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterQualification}
+            onChange={(e) => setFilterQualification(e.target.value)}
+            className="text-sm rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[var(--text-primary)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-orange)]/40"
+          >
+            <option value="">{t("crm.leads.allQualifications")}</option>
+            {["not_assessed", "in_review", "needs_review", "qualified", "unqualified"].map((state) => (
+              <option key={state} value={state}>{t(`crm.leads.qualifications.${state}`)}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterOwner}
+            onChange={(e) => setFilterOwner(e.target.value)}
+            className="text-sm rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[var(--text-primary)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-orange)]/40"
+          >
+            <option value="">{t("crm.leads.allOwners")}</option>
+            {owners.map((owner) => (
+              <option key={owner.value} value={owner.value}>{owner.label}</option>
+            ))}
+          </select>
         </div>
 
         {error && <p className="text-sm text-red-500">{error}</p>}
@@ -132,8 +196,8 @@ export default function CrmLeadsPage() {
         ) : filtered.length === 0 ? (
           <AppEmptyState
             icon={FileText}
-            title={search ? t("common.noResults") : t("crm.leads.noLeads")}
-            description={!search ? t("crm.leads.noLeadsHint") : undefined}
+            title={search || filterStatus || filterQualification || filterOwner ? t("common.noResults") : t("crm.leads.noLeads")}
+            description={!search && !filterStatus && !filterQualification && !filterOwner ? t("crm.leads.noLeadsHint") : undefined}
           />
         ) : (
           <AppTable columns={columns} data={filtered} />

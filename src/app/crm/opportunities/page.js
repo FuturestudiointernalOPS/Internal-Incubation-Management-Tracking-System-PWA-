@@ -35,12 +35,15 @@ export default function CrmOpportunitiesPage() {
   const [search, setSearch]     = useState("");
   const [filterPipeline, setFilterPipeline] = useState("");
   const [filterStatus, setFilterStatus]     = useState("");
+  const [filterOwner, setFilterOwner]       = useState("");
+  const [owners, setOwners]                 = useState([]);
 
   async function fetchAll() {
     try {
       const params = new URLSearchParams();
       if (filterPipeline) params.set("pipeline_id", filterPipeline);
       if (filterStatus)   params.set("status", filterStatus);
+      if (filterOwner)    params.set("owner_cid", filterOwner);
 
       const [oppsRes, plRes] = await Promise.all([
         fetch(`/api/crm/opportunities?${params}`),
@@ -62,7 +65,27 @@ export default function CrmOpportunitiesPage() {
     }
   }
 
-  useEffect(() => { fetchAll(); }, [filterPipeline, filterStatus]);
+  useEffect(() => { fetchAll(); }, [filterPipeline, filterStatus, filterOwner]);
+
+  // The owner options come from the unfiltered set, so choosing a filter never
+  // removes the other owners from the list.
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/crm/opportunities")
+      .then((response) => response.json())
+      .then((data) => {
+        if (!alive || !data.success) return;
+        const byOwner = new Map();
+        for (const opportunity of data.opportunities ?? []) {
+          if (opportunity.owner_cid) {
+            byOwner.set(opportunity.owner_cid, opportunity.owner_name || opportunity.owner_cid);
+          }
+        }
+        setOwners([...byOwner.entries()].map(([value, label]) => ({ value, label })));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -205,6 +228,16 @@ export default function CrmOpportunitiesPage() {
             <option key={s} value={s}>{t(`crm.opportunities.statuses.${s}`)}</option>
           ))}
         </select>
+        <select
+          value={filterOwner}
+          onChange={(e) => setFilterOwner(e.target.value)}
+          className="text-sm rounded-lg bg-[var(--surface-2)] border border-[var(--border-primary)] text-[var(--text-primary)] px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--brand-orange)]/40"
+        >
+          <option value="">{t("crm.leads.allOwners")}</option>
+          {owners.map((owner) => (
+            <option key={owner.value} value={owner.value}>{owner.label}</option>
+          ))}
+        </select>
       </div>
 
       {error && <p className="text-sm text-red-500">{error}</p>}
@@ -216,8 +249,8 @@ export default function CrmOpportunitiesPage() {
       ) : filtered.length === 0 ? (
         <AppEmptyState
           icon={Target}
-          title={search || filterPipeline || filterStatus ? t("common.noResults") : t("crm.opportunities.noOpportunities")}
-          description={!search && !filterPipeline && !filterStatus ? t("crm.opportunities.noOpportunitiesHint") : undefined}
+          title={search || filterPipeline || filterStatus || filterOwner ? t("common.noResults") : t("crm.opportunities.noOpportunities")}
+          description={!search && !filterPipeline && !filterStatus && !filterOwner ? t("crm.opportunities.noOpportunitiesHint") : undefined}
         />
       ) : (
         <AppTable columns={columns} data={filtered} />
