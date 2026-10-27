@@ -20,7 +20,13 @@
       "attentionRequired": "Prochaines actions en retard",
       "dormant": "Dormants depuis {days} jours et plus",
       "lastActivity": "Dernière activité {date}",
-      "pipelineTitle": "Valeur du pipeline"
+      "pipelineTitle": "Valeur du pipeline",
+      "performanceTitle": "Performance",
+      "won": "Gagnées",
+      "lost": "Perdues",
+      "avgStage": "Temps moyen par étape",
+      "avgStageValue": "{days} j",
+      "noValue": "—"
     },
     "backToPrevious": "Retour au menu précédent",
     "backToCrm": "Retour au CRM",

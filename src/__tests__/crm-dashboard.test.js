@@ -10,6 +10,7 @@ jest.mock("@/models/crm/dashboard", () => ({
   getCrmOverdueNextActions: jest.fn(),
   getCrmStaleOpportunities: jest.fn(),
   getCrmPipelineValueByCurrency: jest.fn(),
+  getCrmPerformance: jest.fn(),
 }));
 
 const {
@@ -17,6 +18,7 @@ const {
   getCrmOverdueNextActions,
   getCrmStaleOpportunities,
   getCrmPipelineValueByCurrency,
+  getCrmPerformance,
 } = require("@/models/crm/dashboard");
 const { getCrmDashboard, STALE_AFTER_DAYS } = require("@/services/crm/dashboard");
 
@@ -25,6 +27,7 @@ beforeEach(() => {
   getCrmOverdueNextActions.mockResolvedValue({ rows: [] });
   getCrmStaleOpportunities.mockResolvedValue({ rows: [] });
   getCrmPipelineValueByCurrency.mockResolvedValue({ rows: [] });
+  getCrmPerformance.mockResolvedValue({ rows: [] });
 });
 
 test("the dormant window is fourteen days, in one named place", () => {
@@ -103,4 +106,31 @@ test("the overdue and dormant lists are returned as read", async () => {
 
   expect(result.overdue).toEqual(overdue);
   expect(result.stale).toEqual(stale);
+});
+
+test("performance counts won and lost, and rounds the average stage duration", async () => {
+  getCrmDashboardCounts.mockResolvedValue({ rows: [{}] });
+  getCrmPerformance.mockResolvedValue({
+    rows: [{ won: "4", lost: 2, avg_stage_days: "7.26", completed_transitions: "12" }],
+  });
+
+  const result = await getCrmDashboard();
+
+  expect(result.performance).toEqual({
+    won: 4,
+    lost: 2,
+    averageStageDays: 7.3,
+    completedTransitions: 12,
+  });
+});
+
+test("no completed stage visit reads as no average, not zero", async () => {
+  getCrmDashboardCounts.mockResolvedValue({ rows: [{}] });
+  getCrmPerformance.mockResolvedValue({
+    rows: [{ won: 0, lost: 0, avg_stage_days: null, completed_transitions: 0 }],
+  });
+
+  const result = await getCrmDashboard();
+
+  expect(result.performance.averageStageDays).toBeNull();
 });

@@ -20,7 +20,13 @@
       "attentionRequired": "Overdue next actions",
       "dormant": "Dormant for {days}+ days",
       "lastActivity": "Last activity {date}",
-      "pipelineTitle": "Pipeline value"
+      "pipelineTitle": "Pipeline value",
+      "performanceTitle": "Performance",
+      "won": "Won",
+      "lost": "Lost",
+      "avgStage": "Average time per stage",
+      "avgStageValue": "{days} days",
+      "noValue": "—"
     },
     "backToPrevious": "Back to previous menu",
     "backToCrm": "Back to CRM",

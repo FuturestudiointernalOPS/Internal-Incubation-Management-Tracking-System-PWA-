@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, Filter, Moon } from "lucide-react";
+import { AlertTriangle, Award, CalendarClock, Filter, Moon, Timer, XCircle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
 
@@ -75,7 +75,7 @@ export default function CrmActionDashboard() {
 
   if (!data) return null;
 
-  const { counts, overdue = [], stale = [], pipelines = [], staleAfterDays = 14 } = data;
+  const { counts, overdue = [], stale = [], pipelines = [], performance = { won: 0, lost: 0, averageStageDays: null }, staleAfterDays = 14 } = data;
 
   return (
     <section className="space-y-4">
@@ -197,6 +197,25 @@ export default function CrmActionDashboard() {
           </ul>
         </div>
       )}
+
+      <div className="space-y-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+          {t("crm.dashboard.performanceTitle")}
+        </h3>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <Stat icon={Award} label={t("crm.dashboard.won")} value={performance.won} />
+          <Stat icon={XCircle} label={t("crm.dashboard.lost")} value={performance.lost} />
+          <Stat
+            icon={Timer}
+            label={t("crm.dashboard.avgStage")}
+            value={
+              performance.averageStageDays == null
+                ? t("crm.dashboard.noValue")
+                : t("crm.dashboard.avgStageValue", { days: performance.averageStageDays })
+            }
+          />
+        </div>
+      </div>
     </section>
   );
 }

@@ -164,3 +164,41 @@ export async function getCrmPipelineValueByCurrency() {
     `,
   });
 }
+
+/**
+ * Won / lost counts and the average time an opportunity actually spends in a
+ * stage.
+ *
+ * The dwell time comes from the append-only stage history: each row is a stage
+ * entry, and the next row is the moment it was left. Only completed visits
+ * count (an opportunity still sitting in a stage has not finished it), and
+ * creation writes the first row, so the initial stage is measured too.
+ */
+export async function getCrmPerformance() {
+  return db.execute({
+    sql: `
+      WITH transitions AS (
+        SELECT
+          opportunity_id,
+          to_stage_id,
+          changed_at,
+          LEAD(changed_at) OVER (
+            PARTITION BY opportunity_id ORDER BY changed_at ASC
+          ) AS left_at
+        FROM crm_opportunity_stage_history
+      )
+      SELECT
+        (SELECT COUNT(*) FROM crm_opportunities
+          WHERE deleted_at IS NULL AND status = 'won') AS won,
+        (SELECT COUNT(*) FROM crm_opportunities
+          WHERE deleted_at IS NULL AND status = 'lost') AS lost,
+        (SELECT AVG(EXTRACT(EPOCH FROM (left_at - changed_at)) / 86400.0)
+           FROM transitions
+          WHERE left_at IS NOT NULL AND left_at > changed_at
+        ) AS avg_stage_days,
+        (SELECT COUNT(*) FROM transitions
+          WHERE left_at IS NOT NULL AND left_at > changed_at
+        ) AS completed_transitions
+    `,
+  });
+}

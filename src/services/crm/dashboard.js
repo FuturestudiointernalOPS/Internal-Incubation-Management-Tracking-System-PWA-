@@ -3,6 +3,7 @@ import {
   getCrmOverdueNextActions,
   getCrmStaleOpportunities,
   getCrmPipelineValueByCurrency,
+  getCrmPerformance,
 } from "@/models/crm/dashboard";
 
 /**
@@ -13,7 +14,8 @@ import {
  *  - four counts (overdue, next 7 days, awaiting qualification, dormant);
  *  - the most overdue next actions, soonest first;
  *  - the most dormant opportunities;
- *  - active pipeline value, one line per pipeline AND currency.
+ *  - active pipeline value, one line per pipeline AND currency;
+ *  - performance: won, lost, and the average completed dwell time per stage.
  *
  * `STALE_AFTER_DAYS` is the single place the dormant window is defined. It is
  * 14 days, the figure the product specification uses in its own examples.
@@ -46,14 +48,19 @@ function groupPipelineValues(rows = []) {
 }
 
 export async function getCrmDashboard() {
-  const [countsResult, overdueResult, staleResult, pipelineResult] = await Promise.all([
-    getCrmDashboardCounts(),
-    getCrmOverdueNextActions(5),
-    getCrmStaleOpportunities(5),
-    getCrmPipelineValueByCurrency(),
-  ]);
+  const [countsResult, overdueResult, staleResult, pipelineResult, performanceResult] =
+    await Promise.all([
+      getCrmDashboardCounts(),
+      getCrmOverdueNextActions(5),
+      getCrmStaleOpportunities(5),
+      getCrmPipelineValueByCurrency(),
+      getCrmPerformance(),
+    ]);
 
   const counts = countsResult.rows?.[0] ?? {};
+  const performance = performanceResult.rows?.[0] ?? {};
+  const averageStageDays =
+    performance.avg_stage_days == null ? null : Number(performance.avg_stage_days);
 
   return {
     staleAfterDays: STALE_AFTER_DAYS,
@@ -66,5 +73,15 @@ export async function getCrmDashboard() {
     overdue: overdueResult.rows ?? [],
     stale: staleResult.rows ?? [],
     pipelines: groupPipelineValues(pipelineResult.rows ?? []),
+    performance: {
+      won: toCount(performance.won),
+      lost: toCount(performance.lost),
+      // One decimal is enough to read a trend; null means "no completed visit yet".
+      averageStageDays:
+        averageStageDays == null || Number.isNaN(averageStageDays)
+          ? null
+          : Math.round(averageStageDays * 10) / 10,
+      completedTransitions: toCount(performance.completed_transitions),
+    },
   };
 }
