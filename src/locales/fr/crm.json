@@ -281,6 +281,7 @@
     "duplicates": {
       "crm": "CRM",
       "title": "Doublons",
+      "subtitle": "Personnes soupçonnées d'être en double, à examiner et à fusionner.",
       "refresh": "Actualiser",
       "loading": "Chargement...",
       "failedToLoad": "Impossible de charger les doublons.",
@@ -345,6 +346,9 @@
       "thisMonth": "Ce mois-ci",
       "allPeople": "Toutes les personnes",
       "bulkImport": "Import en masse",
+      "administration": "Administration des personnes",
+      "pendingApprovalsHint": "Examiner les comptes en attente d'approbation.",
+      "bulkImportHint": "Importer des personnes depuis un fichier CSV.",
       "groups": "Groupes",
       "recentContacts": "Contacts récents",
       "loading": "Chargement...",

@@ -281,6 +281,7 @@
     "duplicates": {
       "crm": "CRM",
       "title": "Duplicates",
+      "subtitle": "Suspected duplicate people, ready to review and merge.",
       "refresh": "Refresh",
       "loading": "Loading...",
       "failedToLoad": "Failed to load duplicates.",
@@ -345,6 +346,9 @@
       "thisMonth": "This Month",
       "allPeople": "All People",
       "bulkImport": "Bulk Import",
+      "administration": "People administration",
+      "pendingApprovalsHint": "Review the accounts waiting for approval.",
+      "bulkImportHint": "Import people from a CSV file.",
       "groups": "Groups",
       "recentContacts": "Recent Contacts",
       "loading": "Loading...",

@@ -283,7 +283,7 @@ Chaque phase est livrable et testable seule. Les estimations sont indicatives.
 - Les fixtures de navigation sont mises à jour avec approbation explicite.
 - `npm run lint` et `npm test` verts.
 
-### Phase 2 — Un seul tableau de bord (1 j)
+### Phase 2 — Un seul tableau de bord (1 j) — **faite le 2026-10-27**
 
 **Tâches**
 - Fusionner les KPI du `/admin/crm` historique (contacts, approbations,
@@ -531,3 +531,35 @@ navigation `en`/`fr`, et les tests de navigation / équivalence UI-serveur.
 
 Le garde-fou de taille signale une violation **préexistante** sur un fichier
 Ventures non touché (`ventureDataRoomStore.js`), sans rapport avec cette fusion.
+
+### Relevé de la phase 2 (2026-10-27)
+
+**Ce qui a changé**
+
+- Le hub `/crm` porte désormais les quatre figures de l'ancien tableau de bord
+  (contacts, approbations en attente, programmes actifs, ajouts du mois), les
+  contacts récents et les trois portes d'administration.
+- Les figures suivent `contacts.view` ; les portes d'administration (approbations,
+  import, doublons) ne sont rendues que pour le Super Admin, car leurs écrans
+  vivent encore sous `/admin` — les déplacer est le travail des phases 3 et 4.
+- `/admin/crm` n'est plus un écran : c'est une **redirection serveur** vers
+  `/crm`, conservée une release pour les signets et les liens retour.
+- Le nœud de navigation « Dashboard » pointe maintenant sur `/crm`.
+- Le composant `CrmOverview` réutilise les briques partagées (`KpiCard`,
+  `SectionHead`, `LinkCard`) et le cache de lecture commun.
+
+**Fichiers modifiés** : `src/components/crm/CrmOverview.js` (nouveau),
+`src/app/crm/page.js`, `src/app/admin/crm/page.js`, `src/lib/masterNavigation/nodes.js`,
+`src/__tests__/navigation.test.js`,
+`src/__tests__/helpers/roleGateExceptionsExtended.js` (entrée périmée retirée),
+et les deux fichiers `crm.json`.
+
+**Validation**
+
+| Vérification | Résultat |
+|---|---|
+| Tests ciblés (navigation, équivalence, ratchet, écrans CRM) | 59/59 |
+| Suite complète | même baseline : 22 suites / 90 tests déjà rouges, aucune nouvelle suite |
+| Build | succès |
+| Parité i18n | Missing 0 |
+| Lint des fichiers touchés | 0 erreur |

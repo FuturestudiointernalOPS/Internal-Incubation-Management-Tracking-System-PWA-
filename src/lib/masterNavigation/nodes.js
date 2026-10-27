@@ -21,7 +21,7 @@ export const MASTER_NAVIGATION = [
     name: "CRM",
     icon: "users",
     children: [
-      { id: "crm_dashboard", name: "DASHBOARD", icon: "users", href: "/admin/crm" },
+      { id: "crm_dashboard", name: "DASHBOARD", icon: "users", href: "/crm" },
       { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
       { id: "crm_organizations", name: "ORGANIZATIONS", icon: "building", href: "/crm/organizations" },
       { id: "crm_leads", name: "LEADS", icon: "target", href: "/crm/leads" },

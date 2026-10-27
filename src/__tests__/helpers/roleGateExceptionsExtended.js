@@ -14,7 +14,7 @@
  *   - display  : role constants / navigation masks — reviewed as NOT access
  *                decisions; ratcheted so a NEW one still surfaces for review.
  *
- * Counts measured 2026-10-19: decision 25, display 25.
+ * Counts measured 2026-10-27: decision 25, display 24.
  */
 module.exports = {
   generatedAt: "2026-10-10",
@@ -22,7 +22,6 @@ module.exports = {
 
   ],
   display: [
-    "src/app/admin/crm/page.js#M5",
     "src/app/admin/ventures/[id]/founders/page.js#M5",
     "src/app/api/kpis/route.js#M5",
 

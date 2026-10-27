@@ -11,6 +11,7 @@ import {
 } from "@/lib/identity";
 import CrmActionDashboard from "@/components/crm/CrmActionDashboard";
 import CrmGlobalSearch from "@/components/crm/CrmGlobalSearch";
+import CrmOverview from "@/components/crm/CrmOverview";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default function CrmWorkspace() {
   const { t } = useI18n();
   const [messagesHref, setMessagesHref] = useState("/staff/messages");
   const [effective, setEffective] = useState(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
   // One read answers both questions. The messages door belongs to the person's
   // SECTION: the platform owner has the administration inbox, a program manager
@@ -42,6 +44,7 @@ export default function CrmWorkspace() {
       .then((permissionData) => {
         if (!alive || !permissionData.success) return;
         setEffective(permissionData.effective || null);
+        setIsSuperAdmin(Boolean(permissionData.isSuperAdmin));
         const managesPrograms =
           isLegacyProgramManagerRole(permissionData.role) ||
           holdsProfile(permissionData.profiles, PROGRAM_MANAGER_PROFILE);
@@ -184,6 +187,8 @@ export default function CrmWorkspace() {
             </p>
           </div>
         </header>
+
+        <CrmOverview canSeePeople={canSeePeople} isSuperAdmin={isSuperAdmin} />
 
         {canSeeCrm && <CrmGlobalSearch />}
         {canSeeCrm && <CrmActionDashboard />}
