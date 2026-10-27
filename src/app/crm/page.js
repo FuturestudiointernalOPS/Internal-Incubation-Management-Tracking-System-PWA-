@@ -10,6 +10,7 @@ import {
   PROGRAM_MANAGER_PROFILE,
 } from "@/lib/identity";
 import CrmActionDashboard from "@/components/crm/CrmActionDashboard";
+import CrmGlobalSearch from "@/components/crm/CrmGlobalSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -170,6 +171,7 @@ export default function CrmWorkspace() {
           </div>
         </header>
 
+        {has("crm", "view") && <CrmGlobalSearch />}
         {has("crm", "view") && <CrmActionDashboard />}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

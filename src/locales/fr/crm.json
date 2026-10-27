@@ -26,7 +26,20 @@
       "lost": "Perdues",
       "avgStage": "Temps moyen par étape",
       "avgStageValue": "{days} j",
+      "conversion": "Conversion ({days} jours)",
+      "conversionValue": "{percent} %",
       "noValue": "—"
+    },
+    "search": {
+      "placeholder": "Rechercher des personnes, organisations, pistes et opportunités…",
+      "hint": "Saisissez au moins 2 caractères.",
+      "searching": "Recherche…",
+      "noResults": "Aucun résultat.",
+      "people": "Personnes",
+      "organizations": "Organisations",
+      "leads": "Pistes",
+      "opportunities": "Opportunités",
+      "clear": "Effacer"
     },
     "backToPrevious": "Retour au menu précédent",
     "backToCrm": "Retour au CRM",

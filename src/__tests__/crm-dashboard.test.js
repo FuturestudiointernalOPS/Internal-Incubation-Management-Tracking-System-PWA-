@@ -20,7 +20,7 @@ const {
   getCrmPipelineValueByCurrency,
   getCrmPerformance,
 } = require("@/models/crm/dashboard");
-const { getCrmDashboard, STALE_AFTER_DAYS } = require("@/services/crm/dashboard");
+const { getCrmDashboard, STALE_AFTER_DAYS, CONVERSION_WINDOW_DAYS } = require("@/services/crm/dashboard");
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -32,6 +32,7 @@ beforeEach(() => {
 
 test("the dormant window is fourteen days, in one named place", () => {
   expect(STALE_AFTER_DAYS).toBe(14);
+  expect(CONVERSION_WINDOW_DAYS).toBe(90);
 });
 
 test("counts add leads and opportunities, and read text numbers as numbers", async () => {
@@ -108,10 +109,17 @@ test("the overdue and dormant lists are returned as read", async () => {
   expect(result.stale).toEqual(stale);
 });
 
-test("performance counts won and lost, and rounds the average stage duration", async () => {
+test("performance counts won and lost, rounds the stage duration, and turns the window into a rate", async () => {
   getCrmDashboardCounts.mockResolvedValue({ rows: [{}] });
   getCrmPerformance.mockResolvedValue({
-    rows: [{ won: "4", lost: 2, avg_stage_days: "7.26", completed_transitions: "12" }],
+    rows: [{
+      won: "4",
+      lost: 2,
+      avg_stage_days: "7.26",
+      completed_transitions: "12",
+      won_90: "3",
+      lost_90: "2",
+    }],
   });
 
   const result = await getCrmDashboard();
@@ -121,16 +129,18 @@ test("performance counts won and lost, and rounds the average stage duration", a
     lost: 2,
     averageStageDays: 7.3,
     completedTransitions: 12,
+    conversion: { windowDays: 90, won: 3, lost: 2, rate: 0.6 },
   });
 });
 
-test("no completed stage visit reads as no average, not zero", async () => {
+test("no completed stage visit and no decision read as no average and no rate", async () => {
   getCrmDashboardCounts.mockResolvedValue({ rows: [{}] });
   getCrmPerformance.mockResolvedValue({
-    rows: [{ won: 0, lost: 0, avg_stage_days: null, completed_transitions: 0 }],
+    rows: [{ won: 0, lost: 0, avg_stage_days: null, completed_transitions: 0, won_90: 0, lost_90: 0 }],
   });
 
   const result = await getCrmDashboard();
 
   expect(result.performance.averageStageDays).toBeNull();
+  expect(result.performance.conversion.rate).toBeNull();
 });

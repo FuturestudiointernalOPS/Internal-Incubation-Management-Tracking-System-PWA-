@@ -186,6 +186,25 @@ export async function getCrmPerformance() {
             PARTITION BY opportunity_id ORDER BY changed_at ASC
           ) AS left_at
         FROM crm_opportunity_stage_history
+      ),
+      latest AS (
+        SELECT
+          opportunity_id,
+          to_stage_id,
+          changed_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY opportunity_id ORDER BY changed_at DESC
+          ) AS rn
+        FROM crm_opportunity_stage_history
+      ),
+      closed AS (
+        SELECT o.id, s.outcome, latest.changed_at
+        FROM crm_opportunities o
+        JOIN latest ON latest.opportunity_id = o.id AND latest.rn = 1
+        JOIN crm_pipeline_stages s ON s.id = latest.to_stage_id
+        WHERE o.deleted_at IS NULL
+          AND o.status IN ('won', 'lost')
+          AND s.outcome IN ('won', 'lost')
       )
       SELECT
         (SELECT COUNT(*) FROM crm_opportunities
@@ -198,7 +217,14 @@ export async function getCrmPerformance() {
         ) AS avg_stage_days,
         (SELECT COUNT(*) FROM transitions
           WHERE left_at IS NOT NULL AND left_at > changed_at
-        ) AS completed_transitions
+        ) AS completed_transitions,
+        -- The closing moment is when the record entered its terminal stage,
+        -- read from the append-only history, not the row's updated_at (which
+        -- any later edit would move).
+        (SELECT COUNT(*) FROM closed
+          WHERE outcome = 'won' AND changed_at >= NOW() - INTERVAL '90 days') AS won_90,
+        (SELECT COUNT(*) FROM closed
+          WHERE outcome = 'lost' AND changed_at >= NOW() - INTERVAL '90 days') AS lost_90
     `,
   });
 }

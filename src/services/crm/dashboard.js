@@ -23,6 +23,13 @@ import {
 
 export const STALE_AFTER_DAYS = 14;
 
+/**
+ * The conversion window. Decided default: the last 90 days, on the moment each
+ * opportunity entered its terminal stage. The rate is won ÷ (won + lost) — a
+ * denied opportunity is a decision too, so it belongs in the denominator.
+ */
+export const CONVERSION_WINDOW_DAYS = 90;
+
 const toCount = (value) => Number(value ?? 0) || 0;
 
 /** Group the flat pipeline × currency rows into one entry per pipeline. */
@@ -62,6 +69,10 @@ export async function getCrmDashboard() {
   const averageStageDays =
     performance.avg_stage_days == null ? null : Number(performance.avg_stage_days);
 
+  const wonRecently = toCount(performance.won_90);
+  const lostRecently = toCount(performance.lost_90);
+  const decided = wonRecently + lostRecently;
+
   return {
     staleAfterDays: STALE_AFTER_DAYS,
     counts: {
@@ -82,6 +93,13 @@ export async function getCrmDashboard() {
           ? null
           : Math.round(averageStageDays * 10) / 10,
       completedTransitions: toCount(performance.completed_transitions),
+      conversion: {
+        windowDays: CONVERSION_WINDOW_DAYS,
+        won: wonRecently,
+        lost: lostRecently,
+        // 0..1, or null when nothing was decided inside the window.
+        rate: decided === 0 ? null : Math.round((wonRecently / decided) * 1000) / 1000,
+      },
     },
   };
 }

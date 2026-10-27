@@ -26,7 +26,20 @@
       "lost": "Lost",
       "avgStage": "Average time per stage",
       "avgStageValue": "{days} days",
+      "conversion": "Conversion ({days} days)",
+      "conversionValue": "{percent}%",
       "noValue": "—"
+    },
+    "search": {
+      "placeholder": "Search people, organizations, leads and opportunities…",
+      "hint": "Type at least 2 characters.",
+      "searching": "Searching…",
+      "noResults": "No match.",
+      "people": "People",
+      "organizations": "Organizations",
+      "leads": "Leads",
+      "opportunities": "Opportunities",
+      "clear": "Clear"
     },
     "backToPrevious": "Back to previous menu",
     "backToCrm": "Back to CRM",
