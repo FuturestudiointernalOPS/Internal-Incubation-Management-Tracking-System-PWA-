@@ -10,6 +10,18 @@
       "timelineSubtitle": "Every event for one person, in a single view.",
       "adminOnlyNote": "Duplicates, pending approvals and bulk import stay in the Super Admin CRM."
     },
+    "dashboard": {
+      "title": "Action dashboard",
+      "subtitle": "What needs attention now, across the whole CRM.",
+      "overdue": "Overdue",
+      "dueSoon": "Next 7 days",
+      "awaitingQualification": "Awaiting qualification",
+      "stale": "No activity for {days} days",
+      "attentionRequired": "Overdue next actions",
+      "dormant": "Dormant for {days}+ days",
+      "lastActivity": "Last activity {date}",
+      "pipelineTitle": "Pipeline value"
+    },
     "backToPrevious": "Back to previous menu",
     "backToCrm": "Back to CRM",
     "directory": {

@@ -10,6 +10,18 @@
       "timelineSubtitle": "Tous les événements d'une personne, en une seule vue.",
       "adminOnlyNote": "Les doublons, les approbations en attente et l'import en masse restent dans le CRM Super Admin."
     },
+    "dashboard": {
+      "title": "Tableau de bord d'action",
+      "subtitle": "Ce qui demande votre attention maintenant, sur tout le CRM.",
+      "overdue": "En retard",
+      "dueSoon": "7 prochains jours",
+      "awaitingQualification": "À qualifier",
+      "stale": "Sans activité depuis {days} jours",
+      "attentionRequired": "Prochaines actions en retard",
+      "dormant": "Dormants depuis {days} jours et plus",
+      "lastActivity": "Dernière activité {date}",
+      "pipelineTitle": "Valeur du pipeline"
+    },
     "backToPrevious": "Retour au menu précédent",
     "backToCrm": "Retour au CRM",
     "directory": {

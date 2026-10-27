@@ -9,6 +9,7 @@ import {
   isPlatformOwnerRole,
   PROGRAM_MANAGER_PROFILE,
 } from "@/lib/identity";
+import CrmActionDashboard from "@/components/crm/CrmActionDashboard";
 
 export const dynamic = "force-dynamic";
 
@@ -168,6 +169,8 @@ export default function CrmWorkspace() {
             </p>
           </div>
         </header>
+
+        {has("crm", "view") && <CrmActionDashboard />}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {cards.map((card) => {
