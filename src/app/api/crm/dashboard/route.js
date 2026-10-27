@@ -4,6 +4,7 @@ import { requireAuthorization } from "@/models/authorization/index";
 import { ensureCrmStageTargetColumn } from "@/models/crm/schema";
 import { getCrmDashboard } from "@/services/crm/dashboard";
 import { sweepCrmNotifications } from "@/services/crm/notifications";
+import { sweepCrmTimeTriggers } from "@/services/crm/timeTriggers";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,13 @@ export const GET = createHandler(async () => {
     await sweepCrmNotifications();
   } catch (error) {
     console.warn("[crm/dashboard] notification sweep skipped:", error.message);
+  }
+
+  // Same clock for the time-based automation rules; same failure isolation.
+  try {
+    await sweepCrmTimeTriggers();
+  } catch (error) {
+    console.warn("[crm/dashboard] time-trigger sweep skipped:", error.message);
   }
 
   const dashboard = await getCrmDashboard();

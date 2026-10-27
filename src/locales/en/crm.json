@@ -873,6 +873,8 @@
         "triggerOpportunityStageChanged": "Opportunity Stage Changed",
         "triggerOpportunityWon": "Opportunity Won",
         "triggerOpportunityLost": "Opportunity Lost",
+        "triggerOpportunityStale": "No activity for 14 days",
+        "triggerOpportunityStuck": "Past the stage target duration",
         "executions": "Execution log",
         "noExecutions": "This rule has not run yet.",
         "executionStatus": {
@@ -896,6 +898,7 @@
         "triggerLeadDisqualified": "Lead Disqualified",
         "triggerLeadScoreChanged": "Lead Score Changed",
         "triggerLeadAssigned": "Lead Assigned",
+        "triggerLeadStale": "No activity for 14 days",
         "inactive": "Inactive",
         "enable": "Enable",
         "disable": "Disable",

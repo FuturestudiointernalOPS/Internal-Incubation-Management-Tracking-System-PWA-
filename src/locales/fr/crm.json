@@ -873,6 +873,8 @@
         "triggerOpportunityStageChanged": "Étape de l'opportunité modifiée",
         "triggerOpportunityWon": "Opportunité gagnée",
         "triggerOpportunityLost": "Opportunité perdue",
+        "triggerOpportunityStale": "Aucune activité depuis 14 jours",
+        "triggerOpportunityStuck": "Au-delà de la durée cible de l'étape",
         "executions": "Journal d'exécution",
         "noExecutions": "Cette règle ne s'est pas encore exécutée.",
         "executionStatus": {
@@ -896,6 +898,7 @@
         "triggerLeadDisqualified": "Piste disqualifiée",
         "triggerLeadScoreChanged": "Score de la piste modifié",
         "triggerLeadAssigned": "Piste assignée",
+        "triggerLeadStale": "Aucune activité depuis 14 jours",
         "inactive": "Inactif",
         "enable": "Activer",
         "disable": "Désactiver",
