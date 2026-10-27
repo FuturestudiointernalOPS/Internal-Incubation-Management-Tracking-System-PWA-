@@ -48,7 +48,11 @@ function monthCount(contacts) {
   }).length;
 }
 
-export default function CrmOverview({ canSeePeople = false, isSuperAdmin = false }) {
+export default function CrmOverview({
+  canSeePeople = false,
+  isSuperAdmin = false,
+  canSeeDuplicates = false,
+}) {
   const { t } = useI18n();
 
   const { data, loading } = useApiMulti([
@@ -73,7 +77,7 @@ export default function CrmOverview({ canSeePeople = false, isSuperAdmin = false
   const pending = data.pending || [];
   const programs = data.programs;
 
-  if (!canSeePeople && !isSuperAdmin) return null;
+  if (!canSeePeople && !isSuperAdmin && !canSeeDuplicates) return null;
 
   const recent = [...contacts]
     .sort(
@@ -115,7 +119,7 @@ export default function CrmOverview({ canSeePeople = false, isSuperAdmin = false
         </div>
       )}
 
-      {isSuperAdmin && (
+      {(isSuperAdmin || canSeeDuplicates) && (
         <div className="space-y-3">
           <SectionHead
             letter="A"
@@ -123,24 +127,30 @@ export default function CrmOverview({ canSeePeople = false, isSuperAdmin = false
             title={t("crm.overview.administration")}
           />
           <div className="stf-grid">
-            <LinkCard
-              href="/admin/pending-users"
-              icon={UserPlus}
-              title={t("crm.overview.pendingApprovals")}
-              text={t("crm.overview.pendingApprovalsHint")}
-            />
-            <LinkCard
-              href="/admin/bulk-upload"
-              icon={Upload}
-              title={t("crm.overview.bulkImport")}
-              text={t("crm.overview.bulkImportHint")}
-            />
-            <LinkCard
-              href="/admin/crm/duplicates"
-              icon={AlertTriangle}
-              title={t("crm.duplicates.title")}
-              text={t("crm.duplicates.subtitle")}
-            />
+            {isSuperAdmin && (
+              <LinkCard
+                href="/admin/pending-users"
+                icon={UserPlus}
+                title={t("crm.overview.pendingApprovals")}
+                text={t("crm.overview.pendingApprovalsHint")}
+              />
+            )}
+            {isSuperAdmin && (
+              <LinkCard
+                href="/admin/bulk-upload"
+                icon={Upload}
+                title={t("crm.overview.bulkImport")}
+                text={t("crm.overview.bulkImportHint")}
+              />
+            )}
+            {canSeeDuplicates && (
+              <LinkCard
+                href="/crm/duplicates"
+                icon={AlertTriangle}
+                title={t("crm.duplicates.title")}
+                text={t("crm.duplicates.subtitle")}
+              />
+            )}
           </div>
         </div>
       )}

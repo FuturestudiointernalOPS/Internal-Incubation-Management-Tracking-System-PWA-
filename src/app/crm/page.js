@@ -71,6 +71,7 @@ export default function CrmWorkspace() {
   // would refuse — and a records-only profile still gets the hub.
   const canSeeCrm = has("crm", "view");
   const canSeePeople = has("contacts", "view");
+  const canSeeDuplicates = has("duplicates", "view");
 
   const cards = [
     {
@@ -188,7 +189,11 @@ export default function CrmWorkspace() {
           </div>
         </header>
 
-        <CrmOverview canSeePeople={canSeePeople} isSuperAdmin={isSuperAdmin} />
+        <CrmOverview
+          canSeePeople={canSeePeople}
+          isSuperAdmin={isSuperAdmin}
+          canSeeDuplicates={canSeeDuplicates}
+        />
 
         {canSeeCrm && <CrmGlobalSearch />}
         {canSeeCrm && <CrmActionDashboard />}

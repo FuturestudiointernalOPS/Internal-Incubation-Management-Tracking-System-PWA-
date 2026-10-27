@@ -323,7 +323,7 @@ Chaque phase est livrable et testable seule. Les estimations sont indicatives.
 - Les flux de communication restent atteignables et inchangés.
 - Aucune occurrence fonctionnelle de `/admin/communications/contacts`.
 
-### Phase 4 — Modules d'administration sous `/crm` (1–2 j)
+### Phase 4 — Modules d'administration sous `/crm` (1–2 j) — **faite le 2026-10-27**
 
 **Tâches**
 - Déplacer les doublons vers `/crm/duplicates` et aligner leur API sur le
@@ -596,6 +596,44 @@ suivi à faire si l'on veut ouvrir l'écriture aux profils CRM.
 `src/components/layout/DashboardLayout.js`,
 `src/components/layout/shell/ShellHeader.js`, `src/app/admin/page.js`,
 `src/lib/masterNavigation/nodes.js` et `src/__tests__/navigation.test.js`.
+
+**Validation**
+
+| Vérification | Résultat |
+|---|---|
+| Tests ciblés (navigation, équivalence, ratchet, gardes statiques, écrans CRM) | 62/62 |
+| Suite complète | même baseline : 22 suites / 90 tests déjà rouges, aucune nouvelle suite |
+| Build | succès |
+| Parité i18n | Missing 0 |
+| Lint des fichiers touchés | 0 erreur |
+
+### Relevé de la phase 4 (2026-10-27)
+
+**Ce qui a changé**
+
+- **Doublons** : l'écran vit à `/crm/duplicates`. La lecture suit
+  `duplicates.view` ; les boutons d'action suivent `duplicates.resolve` et
+  disparaissent sinon. L'ancienne route redirige.
+- **API des doublons alignée sur le module `duplicates`** : lecture/preview
+  acceptent `duplicates.view` **ou** `contacts.view` ; dismissal et fusion
+  acceptent `duplicates.resolve` **ou** `contacts.edit` / `contacts.delete`.
+  La tolérance est temporaire et sera retirée en phase 5.
+- **Membership** : une seule route `/crm/membership`. L'écran dérive lui-même
+  son mode lecture/écriture de `org_membership.manage` (Super Admin bypasse)
+  et n'affiche plus le lien « accès effectif » aux non-admins. L'ancienne route
+  redirige.
+- Le hub propose la carte Doublons à tout profil qui porte `duplicates.view` ;
+  les approbations et l'import restent des portes du Super Admin.
+- La navigation Membership et Doublons pointe maintenant sur `/crm/*`.
+
+**Fichiers principaux** : `src/components/crm/DuplicatesScreen.js` (nouveau),
+`src/app/crm/duplicates/page.js` (nouveau), `src/app/admin/crm/duplicates/page.js`,
+`src/components/crm/MembershipScreen.js`, `src/app/crm/membership/page.js`,
+`src/app/admin/crm/membership/page.js`, `src/server/authz/responses.js`,
+`src/models/authorization/index.js`, les trois routes de doublons/fusion,
+`src/components/crm/CrmOverview.js`, `src/app/crm/page.js`,
+`src/lib/masterNavigation/nodes.js`, `src/lib/masterNavigation/access.js`,
+`src/__tests__/navigation.test.js` et le lien de revue d'import.
 
 **Validation**
 

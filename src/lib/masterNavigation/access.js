@@ -101,7 +101,7 @@ export const ROLE_ACCESS = {
       crm: [
         "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
         "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
-        "crm_automations", "crm_timeline", "crm_membership",
+        "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
       ],
     },
     hrefs: {
@@ -109,6 +109,7 @@ export const ROLE_ACCESS = {
       all_contacts: "/crm/contacts",
       crm_timeline: "/crm/timeline",
       crm_membership: "/crm/membership",
+      crm_duplicates: "/crm/duplicates",
     },
     icons: {},
   },
@@ -149,6 +150,7 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
       { module: "crm", capability: "view" },
       { module: "contacts", capability: "view" },
       { module: "org_membership", capability: "view" },
+      { module: "duplicates", capability: "view" },
     ],
   },
   crm_dashboard: {
@@ -213,6 +215,7 @@ export const NON_ADMIN_HREF_FALLBACKS = {
   crm_segments: "/crm/segments",
   crm_automations: "/crm/automations",
   crm_membership: "/crm/membership",
+  crm_duplicates: "/crm/duplicates",
   crm_timeline: "/crm/timeline",
   forms: "/platform",
   lms_courses: "/pm/lms/courses",
