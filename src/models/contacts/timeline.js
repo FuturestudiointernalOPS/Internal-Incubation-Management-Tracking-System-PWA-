@@ -25,9 +25,17 @@ export async function getContactTimelineEvents(
   pmProgramIds,
   limit,
   offset,
+  includeCrm = true,
 ) {
   let sql = "SELECT * FROM contact_timeline WHERE contact_cid = ?";
   const args = [cid];
+
+  // CRM events share this timeline, but they belong to the CRM: a reader
+  // without CRM access must never receive them. The rule is applied here so
+  // every caller inherits it.
+  if (!includeCrm) {
+    sql += " AND context_module != 'crm'";
+  }
 
   if (moduleFilter) {
     sql += " AND context_module = ?";

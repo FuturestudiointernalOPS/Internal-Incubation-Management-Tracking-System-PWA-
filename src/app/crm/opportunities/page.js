@@ -8,6 +8,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import CrmOpportunityCreateModal from "@/components/crm/CrmOpportunityCreateModal";
+import CrmNextActionCell from "@/components/crm/CrmNextActionCell";
 import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
@@ -123,6 +124,11 @@ export default function CrmOpportunitiesPage() {
           {t(`crm.opportunities.statuses.${row.status}`)}
         </span>
       ),
+    },
+    {
+      key: "next_action_due",
+      label: t("crm.activities.nextAction"),
+      render: (_value, row) => <CrmNextActionCell record={row} />,
     },
     {
       key: "owner_name",

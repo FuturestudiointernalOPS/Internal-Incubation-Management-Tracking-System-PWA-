@@ -15,6 +15,7 @@ import {
   getProgramIdsForPm,
 } from "@/models/contacts/programMembership";
 import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
+import { can } from "@/services/authorization/context";
 import {
   getContactTimelineEvents,
   getTimelineContactIdentity,
@@ -40,6 +41,12 @@ export async function listContactTimeline(session, cid, { moduleFilter, typeFilt
     pmProgramIds = programsResult.rows.map((row) => row.id);
   }
 
+  // The CRM events on this shared timeline are CRM data: a reader without
+  // `crm.view` never sees them. Every other module keeps its existing rules —
+  // widening the filter to each module's own right is a separate decision
+  // (it changes what founders and program managers see of their own history).
+  const includeCrm = await can(session, "crm", "view");
+
   const result = await getContactTimelineEvents(
     cid,
     moduleFilter,
@@ -47,6 +54,7 @@ export async function listContactTimeline(session, cid, { moduleFilter, typeFilt
     pmProgramIds,
     limit,
     offset,
+    includeCrm,
   );
   const contactResult = await getTimelineContactIdentity(cid);
 

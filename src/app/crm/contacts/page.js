@@ -83,7 +83,18 @@ export default function CrmContactsPage() {
   };
 
   const columns = [
-    { key: "name", label: t("crm.directory.columnName") },
+    {
+      key: "name",
+      label: t("crm.directory.columnName"),
+      render: (_value, row) => (
+        <a
+          href={`/crm/people/${row.cid}`}
+          className="font-semibold text-[var(--brand-orange)] hover:underline"
+        >
+          {row.name}
+        </a>
+      ),
+    },
     { key: "email", label: t("crm.directory.columnEmail") },
     {
       key: "role",
@@ -115,7 +126,7 @@ export default function CrmContactsPage() {
         <Users className="w-6 h-6 text-[var(--brand-orange)]" />
         <div>
           <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
-            {t("crm.contacts.contactsTitle")}
+            {t("crm.directory.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
             {t("crm.directory.subtitle")}
