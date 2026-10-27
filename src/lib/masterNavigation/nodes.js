@@ -22,7 +22,7 @@ export const MASTER_NAVIGATION = [
     icon: "users",
     children: [
       { id: "crm_dashboard", name: "DASHBOARD", icon: "users", href: "/crm" },
-      { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
+      { id: "all_contacts", name: "PEOPLE", href: "/crm/contacts" },
       { id: "crm_organizations", name: "ORGANIZATIONS", icon: "building", href: "/crm/organizations" },
       { id: "crm_leads", name: "LEADS", icon: "target", href: "/crm/leads" },
       { id: "crm_opportunities", name: "OPPORTUNITIES", icon: "trendingUp", href: "/crm/opportunities" },

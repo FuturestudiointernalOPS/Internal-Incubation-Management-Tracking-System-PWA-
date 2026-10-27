@@ -299,7 +299,7 @@ Chaque phase est livrable et testable seule. Les estimations sont indicatives.
 - Aucun doublon de KPI.
 - `/admin/crm` répond par une redirection, sans boucle.
 
-### Phase 3 — Un seul annuaire de personnes (2–3 j)
+### Phase 3 — Un seul annuaire de personnes (2–3 j) — **faite le 2026-10-27**
 
 **Tâches**
 - Faire de `/crm/contacts` l'annuaire canonique.
@@ -559,6 +559,49 @@ et les deux fichiers `crm.json`.
 | Vérification | Résultat |
 |---|---|
 | Tests ciblés (navigation, équivalence, ratchet, écrans CRM) | 59/59 |
+| Suite complète | même baseline : 22 suites / 90 tests déjà rouges, aucune nouvelle suite |
+| Build | succès |
+| Parité i18n | Missing 0 |
+| Lint des fichiers touchés | 0 erreur |
+
+### Relevé de la phase 3 (2026-10-27)
+
+**Ce qui a changé**
+
+- `/crm/contacts` est le seul annuaire. Il choisit par droit, pas par URL :
+  - le Super Admin voit l'écran complet (création, édition, invitation,
+    groupes, assignation en masse), exactement ce que l'ancienne route rendait ;
+  - les autres profils gardent la liste en lecture seule, car les affordances
+    d'écriture de cet écran ne sont pas encore gatées individuellement.
+- `/admin/communications/contacts` est une **redirection serveur** vers
+  `/crm/contacts`.
+- La navigation « People » pointe sur `/crm/contacts`.
+- Les liens retour de l'écran, du tableau de bord admin, du centre de
+  notifications et la largeur pleine du shell suivent la nouvelle route.
+- L'écran partagé vit dans `src/components/contacts/ContactsScreen.js` ; ses
+  sous-composants restent encore dans l'ancien dossier, importés explicitement.
+  **Les déplacer est le nettoyage de la phase 5**, pas un changement de
+  comportement.
+
+**Limite assumée :** le plein écran n'est rendu que pour le Super Admin. Un
+profil non-admin disposant de droits d'écriture verrait encore la lecture seule.
+Ce n'est pas une régression (l'ancienne route était admin-only), mais c'est un
+suivi à faire si l'on veut ouvrir l'écriture aux profils CRM.
+
+**Fichiers modifiés** : `src/components/contacts/ContactsScreen.js` (nouveau),
+`src/app/crm/contacts/page.js`,
+`src/app/admin/communications/contacts/page.js`,
+`src/app/admin/communications/contacts/ContactsHeader.js`,
+`src/app/admin/communications/contacts/useContactsState.js`,
+`src/components/layout/DashboardLayout.js`,
+`src/components/layout/shell/ShellHeader.js`, `src/app/admin/page.js`,
+`src/lib/masterNavigation/nodes.js` et `src/__tests__/navigation.test.js`.
+
+**Validation**
+
+| Vérification | Résultat |
+|---|---|
+| Tests ciblés (navigation, équivalence, ratchet, gardes statiques, écrans CRM) | 62/62 |
 | Suite complète | même baseline : 22 suites / 90 tests déjà rouges, aucune nouvelle suite |
 | Build | succès |
 | Parité i18n | Missing 0 |

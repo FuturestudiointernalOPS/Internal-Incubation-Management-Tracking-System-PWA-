@@ -181,7 +181,7 @@ export default function ShellHeader({
                                 notification.type === "verification" ||
                                 notification.title.includes("ACCESS")
                               ) {
-                                router.push("/admin/communications/contacts");
+                                router.push("/crm/contacts");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {

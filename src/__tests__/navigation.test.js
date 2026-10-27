@@ -25,7 +25,7 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "crm_dashboard", href: "/crm", subItems: null },
-        { id: "all_contacts", href: "/admin/communications/contacts", subItems: null },
+        { id: "all_contacts", href: "/crm/contacts", subItems: null },
         { id: "crm_organizations", href: "/crm/organizations", subItems: null },
         { id: "crm_leads", href: "/crm/leads", subItems: null },
         { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },

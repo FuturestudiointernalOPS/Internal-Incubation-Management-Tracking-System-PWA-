@@ -163,7 +163,7 @@ export default function AdminDashboard() {
               value={dashboardData.stats.participants}
               icon={Users}
               color="text-blue-500"
-              onClick={() => router.push("/admin/communications/contacts")}
+              onClick={() => router.push("/crm/contacts")}
               loading={dashboardData.loading}
             />
             <StatCard
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
               icon={Rocket}
               color="text-emerald-500"
               subtitle={t("admin.sectionSubtitles.adminsAndStaff")}
-              onClick={() => router.push("/admin/communications/contacts")}
+              onClick={() => router.push("/crm/contacts")}
               loading={dashboardData.loading}
             />
             <StatCard
