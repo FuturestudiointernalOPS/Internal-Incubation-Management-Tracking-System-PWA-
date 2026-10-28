@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { User, Clock, Send, Mail, ArrowLeft, Pencil } from "lucide-react";
+import WhatsAppAction from "@/components/crm/WhatsAppAction";
 import { ROLE_LABELS, INVITATION_STATUS_LABELS } from "./constants";
 
 /**
@@ -116,6 +117,9 @@ export default function PersonHeader({
                 {inviteMessage.text}
               </p>
             )}
+
+            {/* WhatsApp is offered only when the shared rule allows it. */}
+            <WhatsAppAction contact={contact} />
           </div>
         </div>
       </div>

@@ -8,6 +8,7 @@ import ContactsScreen from "@/components/contacts/ContactsScreen";
 import RecentContacts from "@/components/contacts/RecentContacts";
 import ContactStats from "@/components/contacts/ContactStats";
 import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
+import WhatsAppAction from "@/components/crm/WhatsAppAction";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
@@ -124,6 +125,12 @@ function ReadOnlyContacts() {
           </span>
         );
       },
+    },
+    {
+      key: "whatsapp",
+      label: t("crm.whatsapp.title"),
+      align: "right",
+      render: (_value, row) => <WhatsAppAction contact={row} compact />,
     },
   ];
 

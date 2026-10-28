@@ -1,7 +1,7 @@
 {
   "crm": {
     "hub": {
-      "title": "CRM Workspace",
+      "title": "CRM Dashboard",
       "subtitle": "Your CRM at a glance.",
       "formsTitle": "Forms",
       "formsSubtitle": "Create and manage collection forms and runs",
@@ -375,6 +375,15 @@
       "loading": "Loading...",
       "noContacts": "No contacts yet. People will appear here as they join the platform.",
       "foundationNote": "CRM Foundation — Phase 1. Timeline, roles, and 360° profiles coming in future phases."
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "open": "Message on WhatsApp",
+      "defaultMessage": "Hello {name}, I'm reaching out from ImpactOS.",
+      "consentRequired": "This person has not agreed to receive WhatsApp messages.",
+      "invalidPhone": "No valid WhatsApp number is on file for this person.",
+      "inactive": "This contact is archived or deleted.",
+      "unavailable": "WhatsApp is not available for this contact."
     },
     "people": {
       "loading": "Loading...",

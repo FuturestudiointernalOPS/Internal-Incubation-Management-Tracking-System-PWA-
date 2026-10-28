@@ -92,7 +92,7 @@ function freshCheckoutPayload(paidContext, registration) {
  * A PAID one, and an unpaid one claimed by a stranger who knows only the email,
  * are answered NEUTRALLY — the reference is never handed back.
  */
-async function preparePaidCheckout({ paidContext, submissionId, fullName, email, phone, language, browserToken }) {
+async function preparePaidCheckout({ paidContext, submissionId, fullName, email, phone, language, browserToken, whatsappOptIn }) {
   try {
     const started = await startCheckoutForSubmission({
       run: paidContext.run,
@@ -103,6 +103,7 @@ async function preparePaidCheckout({ paidContext, submissionId, fullName, email,
       phone,
       language: language || "fr",
       consent: true,
+      whatsappOptIn: whatsappOptIn === true,
       browserToken,
     });
     if (started.registration) {
@@ -198,13 +199,14 @@ async function resolveSubmitterIdentity(runId, data) {
  * @param {Object} params.data         the answered form data
  * @param {string} params.slug         the run's public slug
  * @param {*} params.consent           the paid-run consent flag
+ * @param {boolean} [params.whatsappOptIn] the optional WhatsApp marketing consent
  * @param {string} [params.language]
  * @param {string} params.ip           the resolved client IP (HTTP read done by the caller)
  * @param {string|null} params.browserToken the capture cookie presented (or null)
  * @param {(task: Function) => void} params.after the deferred-task hook (HTTP boundary)
  * @returns {Promise<{status: number, body: Object, browserToken: string|null}>}
  */
-export async function submitPublicResponse({ data, slug, consent, language, ip, browserToken, after }) {
+export async function submitPublicResponse({ data, slug, consent, language, ip, browserToken, after, whatsappOptIn = false }) {
   if (!slug || !data || typeof data !== "object") {
     return { status: 400, body: { success: false, error: "slug and data required" }, browserToken: null };
   }
@@ -305,6 +307,7 @@ export async function submitPublicResponse({ data, slug, consent, language, ip, 
           phone: submitterPhone,
           language,
           browserToken,
+          whatsappOptIn,
         });
       }
       return {
@@ -386,6 +389,7 @@ export async function submitPublicResponse({ data, slug, consent, language, ip, 
       phone: submitterPhone,
       language,
       browserToken,
+      whatsappOptIn,
     });
     checkout = prepared.checkout;
     mintedBrowserToken = prepared.browserToken;

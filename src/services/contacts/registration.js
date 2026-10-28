@@ -25,7 +25,12 @@ import {
   upsertContact,
   createAccessRequestNotification,
   findContactCidByPhone,
+  findContactCidByEmailAny,
 } from "@/models/contacts/contactStore";
+import {
+  setWhatsappConsent,
+  WHATSAPP_CONSENT_SOURCES,
+} from "@/services/communications/whatsappConsent";
 import {
   assignContactToProgram,
   createParticipantProgramAudit,
@@ -154,6 +159,9 @@ export async function registerContacts({ contacts, session, canAssignRole }) {
       deleted: 0,
       gender: contact.gender || null,
       mother_name: contact.mother_name || null,
+      // Consent is only ever what the person explicitly ticked. Anything else
+      // (missing, "yes", 1 from a CSV) is not treated as an agreement here.
+      whatsapp_opt_in: contact.whatsapp_opt_in === true,
     });
   }
 
@@ -162,7 +170,27 @@ export async function registerContacts({ contacts, session, canAssignRole }) {
     try {
       console.log(`Saving contact: ${validContact.email} as ${validContact.status}`);
 
+      // A public form must not change an existing account's consent: only a
+      // contact this submission genuinely creates may record the choice.
+      const existingContact = await findContactCidByEmailAny(validContact.email).catch(() => ({
+        rows: [],
+      }));
+      const isNewContact = (existingContact.rows?.length || 0) === 0;
+
       await upsertContact(validContact);
+
+      if (isNewContact && validContact.whatsapp_opt_in === true) {
+        try {
+          await setWhatsappConsent({
+            cid: validContact.cid,
+            accepted: true,
+            source: WHATSAPP_CONSENT_SOURCES.STAFF_REGISTRATION,
+            phone: validContact.phone,
+          });
+        } catch (_) {
+          // Best-effort: never block the registration on the consent record.
+        }
+      }
 
       if (validContact.status === "pending") {
         console.log("Triggering Admin Notification for:", validContact.name);

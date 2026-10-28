@@ -1,7 +1,7 @@
 {
   "crm": {
     "hub": {
-      "title": "Espace CRM",
+      "title": "Tableau de bord CRM",
       "subtitle": "Votre CRM en un coup d'œil.",
       "formsTitle": "Formulaires",
       "formsSubtitle": "Créer et gérer des formulaires de collecte et des exécutions",
@@ -375,6 +375,15 @@
       "loading": "Chargement...",
       "noContacts": "Aucun contact pour l'instant. Les personnes apparaîtront ici lorsqu'elles rejoindront la plateforme.",
       "foundationNote": "Base CRM — Phase 1. La frise chronologique, les rôles et les profils 360° arriveront dans les prochaines phases."
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "open": "Envoyer un message WhatsApp",
+      "defaultMessage": "Bonjour {name}, je vous contacte de la part d'ImpactOS.",
+      "consentRequired": "Cette personne n'a pas accepté de recevoir des messages WhatsApp.",
+      "invalidPhone": "Aucun numéro WhatsApp valide n'est enregistré pour cette personne.",
+      "inactive": "Ce contact est archivé ou supprimé.",
+      "unavailable": "WhatsApp n'est pas disponible pour ce contact."
     },
     "people": {
       "loading": "Chargement...",
