@@ -197,7 +197,7 @@
         "section": {
           "verified": "Compté maintenant — approuvé",
           "awaiting": "En attente d'approbation — comptera une fois approuvé",
-          "rejected": "Rejeté — compte pour moitié jusqu'au nouveau dépôt",
+          "rejected": "Rejeté — ne compte pas tant qu'il n'est pas redéposé et approuvé",
           "missing": "Manquant — aucun document utilisable déposé"
         },
         "verdict": {
@@ -399,6 +399,7 @@
       "reviewAndSubmit": "Révision et soumission",
       "staff": "Personnel",
       "staffTitle": "Qui gère/coache cette entreprise et à quelle portée",
+      "navigation": "Navigation de la venture",
       "stageEarlyTraction": "Première traction",
       "stageGrowth": "Croissance",
       "stageIdea": "Idée",
@@ -746,6 +747,7 @@
       "searchPlaceholder": "Rechercher des entreprises par nom, ID ou secteur...",
       "noSearchResults": "Aucune entreprise ne correspond à votre recherche",
       "noVentures": "Aucune entreprise pour le moment",
+      "loadFailed": "Impossible de charger les entreprises",
       "tryDifferentSearch": "Essayez un autre terme de recherche",
       "noVenturesDesc": "Enregistrez votre première startup dans Venture OS",
       "venture": "Entreprise",

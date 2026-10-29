@@ -1,8 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { useI18n } from "@/lib/i18n";
+import { useParams } from "next/navigation";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 
 /**
@@ -16,18 +14,9 @@ import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
  */
 export default function AdminVentureDataRoomPage() {
   const { id } = useParams();
-  const router = useRouter();
-  const { t } = useI18n();
 
   return (
     <div className="space-y-5 pb-16">
-      <button
-        type="button"
-        onClick={() => router.push(`/admin/ventures/${id}`)}
-        className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-      >
-        <ArrowLeft size={13} /> {t("common.back")}
-      </button>
       <VentureDataRoom ventureId={id} />
     </div>
   );

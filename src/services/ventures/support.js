@@ -31,9 +31,12 @@
  */
 
 import { listAssignments } from "@/services/ventures/permissions";
-import { sendStandaloneEmail } from "@/lib/email";
-import { resolveReplyToAddress } from "@/lib/email/addresses";
 import { normalizeEmail } from "@/services/reminders/recipients";
+import {
+  createMessage,
+  ensureMessagesIsReadColumn,
+  insertDirectMessageNotification,
+} from "@/models/communications";
 
 /** The responsibility whose holder is the Venture's day-to-day contact. */
 export const LEAD_RESPONSIBILITY = "lead_manager";
@@ -85,6 +88,9 @@ function shapePerson(row) {
     email,
     // A leader with no usable address is reported, never dropped silently.
     reachable: Boolean(email),
+    // A lead with an ImpactOS account has an inbox: that is where a founder's
+    // message is written (see sendFounderMessageToLeads).
+    has_account: Boolean(row.staff_contact_id),
     scope_type: row.scope_type || "venture_wide",
     assigned_at: row.created_at || null,
     removed_at: row.removed_at || null,
@@ -138,93 +144,67 @@ export async function readVentureSupport(ventureId) {
   return shapeVentureSupport(assignments);
 }
 
-/** HTML-escape a value that came from a person. */
-function escapeHtml(value) {
-  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  }[character]));
-}
-
-/** A plain, branded email body — every line escaped and newlines preserved. */
-function renderHtml(lines) {
-  const paragraphs = lines
-    .filter((line) => line !== null && line !== undefined)
-    .map((line) => `<p style="margin:8px 0;color:#334155;font-size:15px;line-height:1.5">${line}</p>`)
-    .join("");
-  return `<div style="font-family:Arial,Helvetica,sans-serif;max-width:560px;margin:0 auto;padding:24px">
-      ${paragraphs}
-      <p style="margin:22px 0 0;color:#94a3b8;font-size:12px">ImpactOS · Future Studio</p>
-    </div>`;
-}
-
 /**
- * Send a founder's message to their Venture Leads.
+ * Write a founder's message to their Venture Leads — in the platform's own
+ * MESSAGE SPACE, not by email.
  *
- * The recipients are passed IN (already resolved from the assignment rows) so this
- * function cannot be made to mail an address that came from a request body.
- * Each recipient is isolated: one unusable address never stops the others, and
- * the caller is told exactly who was reached and why anyone was not.
+ * Each chosen lead receives a direct message in their ImpactOS inbox (the same
+ * one the Messages screen reads), from the founder, plus the usual "new message"
+ * notification, and the conversation is then visible to the founder too. The
+ * recipients are passed IN, already resolved from the assignment rows, so this
+ * cannot be made to message anyone a request body named. A lead with no account
+ * has no inbox: they are reported back, never dropped, and never block the rest.
  *
- * @returns {Promise<{sent:number, failed:{name:string|null, reason:string}[], reply_to_used:boolean}>}
+ * @returns {Promise<{sent:number, failed:{name:string|null, reason:string}[]}>}
  */
 export async function sendFounderMessageToLeads({
   ventureName,
+  founderCid,
   founderName,
-  founderEmail,
   message,
   leads = [],
 }) {
-  const replyTo = resolveReplyToAddress(founderEmail);
-  const senderName = String(founderName || "").trim() || "A founder of this Venture";
-  const senderEmail = String(founderEmail || "").trim() || null;
+  const sender = String(founderName || "").trim() || "A founder";
   const venture = String(ventureName || "").trim() || "your Venture";
+  const subject = `${venture} — message from ${sender}`;
+  const body = String(message || "").trim();
 
-  const subject = `Message from ${senderName} · ${venture}`;
-  const bodyLines = [
-    `${escapeHtml(senderName)} sent you a message from ImpactOS.`,
-    `Venture: <strong>${escapeHtml(venture)}</strong>`,
-    `<span style="display:block;padding:12px 14px;background:#f1f5f9;border-radius:10px">${escapeHtml(message).replace(/\r?\n/g, "<br>")}</span>`,
-    replyTo ? "Reply to this email to answer them directly." : null,
-    !replyTo && senderEmail ? `You can reach them at ${escapeHtml(senderEmail)}.` : null,
-  ];
-  const html = renderHtml(bodyLines);
+  try {
+    await ensureMessagesIsReadColumn();
+  } catch (_) {
+    /* the column is added on first use; an existing one is fine */
+  }
 
   const failed = [];
   let sent = 0;
-
   for (const lead of leads) {
-    if (!lead?.email) {
-      failed.push({ name: lead?.name || null, reason: "no_email" });
+    if (!lead?.contact_cid) {
+      failed.push({ name: lead?.name || null, reason: "no_account" });
       continue;
     }
     try {
-      const result = await sendStandaloneEmail({
-        to: lead.email,
+      await createMessage({
+        senderId: founderCid,
+        recipientId: String(lead.contact_cid),
+        targetType: "individual",
         subject,
-        html,
-        contact_cid: lead.contact_cid || undefined,
-        email_type: "venture_contact",
-        // Gmail first, explicitly: it is the studio's own voice and the only
-        // transport whose raw message carries a Reply-To header.
-        provider: "gmail",
-        replyTo,
+        body,
+        priority: "normal",
       });
-      if (result && result.success !== false) {
-        sent += 1;
-      } else {
-        failed.push({
-          name: lead.name || null,
-          reason: typeof result?.error === "string" ? result.error : "send_failed",
-        });
+      sent += 1;
+      try {
+        await insertDirectMessageNotification(
+          String(lead.contact_cid),
+          "New Message",
+          `You have 1 new message from ${sender}`,
+        );
+      } catch (_) {
+        /* the message is in the inbox either way */
       }
     } catch (error) {
       failed.push({ name: lead.name || null, reason: error?.message || "send_failed" });
     }
   }
 
-  return { sent, failed, reply_to_used: Boolean(replyTo) };
+  return { sent, failed };
 }

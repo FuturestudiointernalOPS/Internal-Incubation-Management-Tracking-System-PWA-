@@ -31,8 +31,10 @@ export function InvestmentTab() {
 
   return (
     <div className="space-y-4">
-      <RoadmapReadinessCard />
-      <DataRoomReadinessCard />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <RoadmapReadinessCard />
+        <DataRoomReadinessCard />
+      </div>
       <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
         {t("venture.dataRoomReadiness.hint")}
       </p>

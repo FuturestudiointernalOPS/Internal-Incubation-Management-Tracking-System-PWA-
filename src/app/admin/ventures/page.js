@@ -55,7 +55,12 @@ export default function VenturesPage() {
   // response, the background refresh — belongs to the hook, so the screen keeps
   // no list state of its own and never sets state from an effect. Adding a
   // venture calls refresh(), which bypasses the cache.
-  const { data: ventures, loading, refresh } = useApi("/api/ventures", {
+  const {
+    data: ventures,
+    loading,
+    error: loadError,
+    refresh,
+  } = useApi("/api/ventures", {
     defaultValue: [],
     transform: pickVentures,
   });
@@ -65,6 +70,7 @@ export default function VenturesPage() {
     const normalizedQuery = searchQuery.toLowerCase();
     return (
       venture.company_name?.toLowerCase().includes(normalizedQuery) ||
+      venture.name?.toLowerCase().includes(normalizedQuery) ||
       venture.venture_id?.toLowerCase().includes(normalizedQuery) ||
       venture.industry?.toLowerCase().includes(normalizedQuery)
     );
@@ -195,6 +201,19 @@ export default function VenturesPage() {
         {loading ? (
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
+          </div>
+        ) : loadError ? (
+          <div className="text-center py-20">
+            <Rocket className="w-16 h-16 text-rose-400/60 mx-auto mb-4" />
+            <h3 className="text-lg font-bold text-[var(--text-primary)] mb-2">
+              {t("vadmin.list.loadFailed")}
+            </h3>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              {t(loadError) || t("errors.somethingWrong")}
+            </p>
+            <button type="button" onClick={refresh} className="btn btn-primary gap-2">
+              {t("common.retry")}
+            </button>
           </div>
         ) : filteredVentures.length === 0 ? (
           <div className="text-center py-20">

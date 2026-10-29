@@ -13,7 +13,6 @@
 import { deliverableStatusWord } from "@/lib/ventureStatuses";
 import {
   
-  RotateCcw,
   Pencil,
   Upload,
 } from "lucide-react";
@@ -282,9 +281,7 @@ export function deliverableWrites({
 
   const deliverableMenuItems = (deliverable) => [
     { key: "edit", label: t("venture.manager.editDeliverable"), icon: Pencil, onSelect: () => startDeliverableEdit(deliverable) },
-    { key: "submit", label: t("venture.manager.submitEvidence"), icon: Upload, onSelect: () => { setDeliverableAction({ id: deliverable.id, mode: "submit" }); setDeliverableText(/^https?:\/\//i.test(deliverable.attachment_url || "") ? deliverable.attachment_url : ""); } },
-    { separator: true },
-    { key: "changes", label: t("venture.manager.requestChanges"), icon: RotateCcw, onSelect: () => { setDeliverableAction({ id: deliverable.id, mode: "review" }); setDeliverableText(""); } },
+    { key: "submit", label: t("venture.manager.submitDeliverable"), icon: Upload, onSelect: () => { setDeliverableAction({ id: deliverable.id, mode: "submit" }); setDeliverableText(/^https?:\/\//i.test(deliverable.attachment_url || "") ? deliverable.attachment_url : ""); } },
   ];
 
   return {

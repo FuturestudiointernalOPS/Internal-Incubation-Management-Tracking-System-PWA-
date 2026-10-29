@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, FileCheck2, Loader2, Rocket, TrendingUp } from "lucide-react";
+import { FileCheck2, Loader2, Rocket, TrendingUp } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 
@@ -51,7 +51,7 @@ export default function VentureInvestmentPage() {
 
   const loading = ventureLoading || readinessLoading;
 
-  const progressBar = (pct, color) => (
+  const progressBar = (pct) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
       <div
         className={`h-full rounded-full transition-all bg-[var(--progress-fill)]`}
@@ -106,12 +106,6 @@ export default function VentureInvestmentPage() {
     <div className="space-y-8 pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <button
-            onClick={() => router.push(`/admin/ventures/${id}`)}
-            className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2"
-          >
-            <ArrowLeft className="w-3 h-3" /> {t("vadmin.investment.backToDashboard")}
-          </button>
           <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
             <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> {t("vadmin.investment.investmentReadiness")}
           </h1>

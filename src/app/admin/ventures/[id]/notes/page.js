@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, StickyNote } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Loader2, StickyNote } from "lucide-react";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 
 /**
@@ -13,7 +13,6 @@ import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
  */
 export default function VentureNotesPage() {
   const { id } = useParams();
-  const router = useRouter();
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -41,12 +40,6 @@ export default function VentureNotesPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-4xl mx-auto">
-      <button
-        onClick={() => router.push(`/admin/ventures/${id}`)}
-        className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all"
-      >
-        <ArrowLeft className="w-3 h-3" /> Back to {venture?.company_name || "Venture"}
-      </button>
 
       <div className="card">
         <div className="flex items-center gap-4">

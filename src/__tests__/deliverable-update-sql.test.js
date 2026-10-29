@@ -119,7 +119,7 @@ describe("a deliverable review", () => {
     expect(reviewRows[0].args).toEqual(["dv-1", "USR-lead", "Lead Manager", "approved", null]);
   });
 
-  test("asking for changes leaves the status alone and keeps the reason", async () => {
+  test("asking for changes takes the deliverable out of `completed` and keeps the reason", async () => {
     await updateDeliverable(
       "dv-1",
       {
@@ -139,8 +139,9 @@ describe("a deliverable review", () => {
       approval_status: "rejected",
       rejection_reason: "Please attach the signed version.",
       reviewed_at: "NOW()",
+      // an earlier approval must not keep reading as approved
+      status: "changes_requested",
     });
-    expect("status" in values).toBe(false);
   });
 
   test("the reviewer falls back to whoever acted when none is named", async () => {

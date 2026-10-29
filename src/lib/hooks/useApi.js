@@ -71,6 +71,13 @@ export function cacheGet(url) {
     responseCache.delete(url);
     return null;
   }
+  // Never paint from a cached failure: a 404/500 body with success:false used
+  // to be stored and re-served for the whole TTL, which made screens like
+  // Venture detail keep showing "Not Found" after the underlying fault was gone.
+  if (entry.data && entry.data.success === false) {
+    responseCache.delete(url);
+    return null;
+  }
   return entry.data;
 }
 
@@ -299,7 +306,14 @@ export function useApi(url, options = {}) {
           ? previous
           : { url, status: httpStatus },
       );
-      if (cacheEnabled) cacheSet(url, json);
+
+      // Only cache successful payloads. Caching `{ success: false }` turned a
+      // one-shot server fault into a sticky empty screen for up to CACHE_TTL.
+      const isAppFailure = json && typeof json === "object" && json.success === false;
+      if (!isAppFailure && httpStatus >= 200 && httpStatus < 400) {
+        if (cacheEnabled) cacheSet(url, json);
+        setError(null);
+      }
 
       const transformFn = transformRef.current;
       const result = transformFn ? transformFn(json) : json;

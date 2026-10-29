@@ -42,9 +42,9 @@ function Initial({ name }) {
   );
 }
 
-function PersonRow({ person, primary, onContact }) {
+function PersonRow({ person, showUnassigned = false }) {
   const { t } = useI18n();
-  const unassigned = primary && !person.active;
+  const unassigned = showUnassigned && !person.active;
 
   return (
     <div className="flex items-start gap-3 py-2.5 border-b last:border-0" style={{ borderColor: "var(--border-primary)" }}>
@@ -52,9 +52,6 @@ function PersonRow({ person, primary, onContact }) {
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-semibold">{person.name || t("venture.support.unnamed")}</span>
-          {primary && person.is_primary && (
-            <span className="stf-tag o">{t("venture.support.primary")}</span>
-          )}
           {unassigned && <span className="stf-tag r">{t("venture.support.noLongerAssigned")}</span>}
           {person.responsibility_label && <span className="stf-tag">{person.responsibility_label}</span>}
         </div>
@@ -72,11 +69,6 @@ function PersonRow({ person, primary, onContact }) {
           </p>
         )}
       </div>
-      {primary && onContact && person.active && (
-        <button type="button" className="stf-btn" onClick={onContact}>
-          <MessageSquare size={13} /> {t("venture.support.contact")}
-        </button>
-      )}
     </div>
   );
 }
@@ -92,14 +84,15 @@ export default function VentureSupportCard({ ventureId }) {
   );
 
   const failed = Boolean(error) || (status !== null && status >= 400);
+  // ONLY the Venture's Lead Managers: the people a founder writes to. Other
+  // supporting staff are not listed here.
+  const isLead = (person) => person.responsibility_code === "lead_manager";
   const primary = data?.primary || null;
-  const others = (data?.current || []).filter(
-    (person) => !primary || String(person.id) !== String(primary.id),
-  );
-  const former = data?.former || [];
-  const canContact = Boolean(
-    primary?.active && (data?.current || []).some((person) => person.reachable),
-  );
+  const leads = (data?.current || []).filter(isLead);
+  // A lead who was removed stays visible, labelled, until a replacement exists.
+  const shownLeads = leads.length > 0 ? leads : primary && isLead(primary) ? [primary] : [];
+  const former = (data?.former || []).filter(isLead);
+  const canContact = leads.some((person) => person.has_account);
 
   return (
     <section className="stf-card">
@@ -107,6 +100,14 @@ export default function VentureSupportCard({ ventureId }) {
         icon={UserRound}
         title={t("venture.support.title")}
         subtitle={t("venture.support.subtitle")}
+        // "Write to them" sits beside the title, not down in the list.
+        action={
+          canContact ? (
+            <button type="button" className="stf-btn" onClick={() => setContacting(true)}>
+              <MessageSquare size={13} /> {t("venture.support.contact")}
+            </button>
+          ) : null
+        }
       />
 
       {failed ? (
@@ -120,7 +121,7 @@ export default function VentureSupportCard({ ventureId }) {
         </div>
       ) : loading && !data ? (
         <p className="stf-empty">{t("common.loading")}</p>
-      ) : !primary && others.length === 0 ? (
+      ) : shownLeads.length === 0 ? (
         <div className="stf-empty">
           <UserRound size={22} />
           <p className="font-semibold">{t("venture.support.empty")}</p>
@@ -128,28 +129,13 @@ export default function VentureSupportCard({ ventureId }) {
         </div>
       ) : (
         <div>
-          {primary && (
+          {shownLeads.map((person) => (
             <PersonRow
-              person={primary}
-              primary
-              onContact={canContact ? () => setContacting(true) : null}
+              key={person.id}
+              person={person}
+              showUnassigned
             />
-          )}
-
-          {!primary && (
-            <p className="text-xs py-2" style={{ color: "var(--text-secondary)" }}>
-              {t("venture.support.noLead")}
-            </p>
-          )}
-
-          {others.length > 0 && (
-            <>
-              <p className="stf-k mt-3 mb-1">{t("venture.support.alsoSupporting")}</p>
-              {others.map((person) => (
-                <PersonRow key={person.id} person={person} />
-              ))}
-            </>
-          )}
+          ))}
 
           {former.length > 0 && (
             <div className="mt-3">
@@ -177,7 +163,7 @@ export default function VentureSupportCard({ ventureId }) {
       {contacting && (
         <ContactLeadModal
           ventureId={ventureId}
-          leadName={primary?.name || null}
+          leads={leads}
           onClose={() => setContacting(false)}
         />
       )}

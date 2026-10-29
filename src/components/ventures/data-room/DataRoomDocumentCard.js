@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Download, Eye, FileSearch, XCircle, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
+import { CalendarPlus, CheckCircle2, Download, Eye, FileSearch, XCircle, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
 import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
 import { formatBytes, formatDate, STATUS_ACCENT, STATUS_CLASS, documentTitle } from "./dataRoomUi";
 
@@ -23,10 +23,15 @@ export default function DataRoomDocumentCard({
   onEdit,
   onReview,
   onDecide,
+  onSession,
   onAccess,
   onDelete,
 }) {
   const status = documentEntry.status || "uploaded";
+  // A decision is final for the version it was taken on (the server enforces it).
+  const decided =
+    (status === "verified" || status === "rejected") &&
+    Number(documentEntry.reviewed_version || 0) === Number(documentEntry.current_version || 1);
   const category = dataRoomCategory(documentEntry.category);
   const isLegacy = isLegacyDocumentCategory(documentEntry.category);
   const href = documentEntry.file_url_signed;
@@ -106,7 +111,7 @@ export default function DataRoomDocumentCard({
             <button
               type="button"
               onClick={() => onDecide(documentEntry, "verified")}
-              disabled={status === "verified"}
+              disabled={decided}
               className="stf-btn sm pr disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <CheckCircle2 size={11} /> {t("dataRoom.preview.approve")}
@@ -114,14 +119,17 @@ export default function DataRoomDocumentCard({
             <button
               type="button"
               onClick={() => onDecide(documentEntry, "rejected")}
-              disabled={status === "rejected"}
+              disabled={decided}
               className="stf-btn sm rj disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <XCircle size={11} /> {t("dataRoom.preview.reject")}
             </button>
           </>
         ) : null}
-        {canReview ? (
+        {canReview && status === "rejected" ? (
+          <ActionButton icon={CalendarPlus} label={t("dataRoom.session.button")} onClick={() => onSession(documentEntry)} />
+        ) : null}
+        {canReview && !decided ? (
           <ActionButton icon={ShieldCheck} label={t("dataRoom.review")} onClick={() => onReview(documentEntry)} />
         ) : null}
       </div>

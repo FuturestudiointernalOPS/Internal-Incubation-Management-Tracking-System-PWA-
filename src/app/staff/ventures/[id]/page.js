@@ -15,6 +15,7 @@ import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
+import VentureTimelineView from "@/components/ventures/timeline/VentureTimelineView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
 import { useApi } from "@/lib/hooks/useApi";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
@@ -102,6 +103,14 @@ export default function StaffVentureWorkspace() {
     activeTab === "investment" ? `/api/ventures/${id}/investment-readiness` : null,
     { defaultValue: null, transform: pickInvestmentReadiness, deps: [id, activeTab] },
   );
+
+  const projectsView = searchParams?.get("view") === "timeline" ? "timeline" : "work";
+  const selectProjectsView = (next) => {
+    const params = new URLSearchParams(searchParams?.toString?.() || "");
+    if (next === "work") params.delete("view");
+    else params.set("view", next);
+    router.replace(`/staff/ventures/${id}?${params.toString()}`, { scroll: false });
+  };
 
   const selectTab = (tabId) => {
     const params = new URLSearchParams(searchParams?.toString?.() || "");
@@ -227,7 +236,7 @@ export default function StaffVentureWorkspace() {
   const displayName = venture.company_name || venture.name || t("venture.label");
 
   return (
-    <div className={`p-6 space-y-6 mx-auto ${activeTab === "projects" ? "max-w-7xl" : "max-w-5xl"}`}>
+    <div className="p-6 space-y-6 w-full max-w-none">
       <VenturePageHeader
         displayName={displayName}
         brandColor={venture.branding?.color}
@@ -430,13 +439,34 @@ export default function StaffVentureWorkspace() {
           The server gate is `ventures.view` + venture scope, which already admits
           the Venture's own Lead Manager; this is the surface that was missing. */}
       {activeTab === "projects" && isLeadManager && (
+        <div className="flex gap-2 mb-5" role="tablist">
+          {["work", "timeline"].map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="tab"
+              aria-selected={projectsView === option}
+              onClick={() => selectProjectsView(option)}
+              className={`stf-btn ${projectsView === option ? "pr" : ""}`}
+            >
+              {t(option === "work" ? "venture.projects.viewWork" : "venture.projects.viewTimeline")}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {activeTab === "projects" && isLeadManager && projectsView === "timeline" && (
+        <VentureTimelineView id={id} embedded />
+      )}
+
+      {activeTab === "projects" && isLeadManager && projectsView === "work" && (
         <ProjectsWorkItemsView ventureId={id} emailsHref={`/staff/ventures/${id}/emails`} />
       )}
 
       {/* WHO the work stands on: the same linking the Super Admin's Project page
           offers, so a Lead Manager can name the people their Venture's work
           mentions and their reminders reach them. */}
-      {activeTab === "projects" && isLeadManager && (
+      {activeTab === "projects" && isLeadManager && projectsView === "work" && (
         <div className="pt-2">
           <VenturePeoplePanel ventureId={id} />
         </div>

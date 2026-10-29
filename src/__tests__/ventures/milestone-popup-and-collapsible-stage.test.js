@@ -100,4 +100,25 @@ describe("the journey card folds down to its header", () => {
     fireEvent.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
   });
+
+  test("a click anywhere on the header bar folds and unfolds it — not only on the arrow", () => {
+    card();
+    // on the title (not a button)
+    fireEvent.click(screen.getByText("Foundation to Investment Readiness"));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+    // on the status chip
+    fireEvent.click(screen.getByText("In Progress"));
+    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+    // on the progress line
+    fireEvent.click(screen.getByText(/0%/));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+  });
+
+  test("the arrow still works on its own, once (the bar does not double-toggle it)", () => {
+    card();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+  });
 });

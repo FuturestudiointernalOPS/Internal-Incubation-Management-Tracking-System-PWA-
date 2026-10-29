@@ -115,20 +115,15 @@ const FIXTURE = {
       ],
     },
     {
-      id: "security",
-      href: null,
-      subItems: [
-        { id: "security", href: "/admin/security", subItems: null },
-        { id: "audit_logs", href: "/admin/audit-logs", subItems: null },
-        { id: "access_summary", href: "/admin/access", subItems: null },
-        { id: "permissions", href: "/admin/security/permissions", subItems: null },
-      ],
-    },
-    {
       id: "settings",
       href: null,
       subItems: [
         { id: "system", href: "/admin/system", subItems: null },
+        // Security & compliance live under Settings, not as a section of their own.
+        { id: "security", href: "/admin/security", subItems: null },
+        { id: "audit_logs", href: "/admin/audit-logs", subItems: null },
+        { id: "access_summary", href: "/admin/access", subItems: null },
+        { id: "permissions", href: "/admin/security/permissions", subItems: null },
       ],
     },
   ],
@@ -257,22 +252,18 @@ describe("Master navigation — role projections", () => {
         const entry = ids.get(item.id);
         if (entry) {
           entry.count += 1;
-          if (item.id !== "security") {
-            // Same concept referenced from multiple parents must be the SAME
-            // node object (shared reference) — never a duplicated definition.
-            expect(entry.node).toBe(item);
-          }
+          // Same concept referenced from multiple parents must be the SAME
+          // node object (shared reference) — never a duplicated definition.
+          expect(entry.node).toBe(item);
         } else {
           ids.set(item.id, { node: item, count: 1 });
         }
         if (item.children) visit(item.children);
       });
     visit(MASTER_NAVIGATION);
-    // KNOWN LEGACY EXCEPTION (documented, not fixed in this phase): the
-    // SECURITY section and its first child share the id "security". The
-    // projection keeps them distinct via the parent-children lookup. Any
-    // other duplicate id is a copy and fails above.
-    expect(ids.get("security").count).toBe(2);
+    // The former exception (a SECURITY section whose first child shared its id) is
+    // gone: security is now a plain page under Settings, defined once.
+    expect(ids.get("security").count).toBe(1);
 
     // Same master node consumed by multiple roles (no per-role copies):
     // "messages" is a communication child for super_admin/pm and top-level
@@ -429,5 +420,16 @@ describe("capability projection — buildAccessNav contract", () => {
     const nav = buildAccessNav("staff", { contacts: { view: 1 }, messaging: { view: 1 } });
     const rendered = ids(nav);
     expect(new Set(rendered).size).toBe(rendered.length);
+  });
+});
+
+describe("Security lives under Settings", () => {
+  it("Super Admin has no Security section: its pages are children of Settings", () => {
+    const { MASTER_NAVIGATION } = require("@/lib/masterNavigation");
+    const settings = MASTER_NAVIGATION.find((node) => node.id === "settings");
+    expect(settings.children.map((child) => child.id)).toEqual(
+      expect.arrayContaining(["system", "security", "audit_logs", "access_summary", "permissions"]),
+    );
+    expect(MASTER_NAVIGATION.some((node) => node.id === "security" && Array.isArray(node.children))).toBe(false);
   });
 });

@@ -422,3 +422,27 @@
 .jy-act-body { display: grid; gap: 0; }
 .jy-act-body > * + * { margin-top: 14px; padding-top: 14px; border-top: 2px solid var(--jy-line); }
 .jy-act-body > .jy-facts.in { border-top: 0; padding-top: 0; margin-top: 12px; }
+
+/* ── Data Room activity timeline ───────────────────────────────────────────── */
+.dr-act { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 16px; overflow: hidden; }
+.dr-act-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: none; border: 0; text-align: left; color: var(--text-secondary); cursor: pointer; }
+.dr-act-head:hover { background: color-mix(in srgb, var(--surface-2) 55%, transparent); }
+.dr-act-title { flex: 1; font-size: 13px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-primary); }
+.dr-act-list { list-style: none; margin: 0; padding: 4px 18px 6px; position: relative; }
+.dr-act-list.is-scroll { max-height: 420px; overflow-y: auto; }
+.dr-act-item { position: relative; display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; }
+.dr-act-item + .dr-act-item { border-top: 1px dashed var(--border-primary); }
+.dr-ico { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--text-secondary); }
+.dr-ico.g { background: color-mix(in srgb, var(--stf-done) 18%, transparent); color: var(--stf-done); }
+.dr-ico.r { background: color-mix(in srgb, var(--stf-crit) 18%, transparent); color: var(--stf-crit); }
+.dr-ico.o { background: color-mix(in srgb, var(--brand-orange) 18%, transparent); color: var(--brand-orange); }
+.dr-ico.w { background: color-mix(in srgb, var(--stf-warn) 20%, transparent); color: var(--stf-warn); }
+.dr-ico.b { background: color-mix(in srgb, var(--stf-act) 18%, transparent); color: var(--stf-act); }
+.dr-act-body { flex: 1; min-width: 0; }
+.dr-act-line { margin: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 14px; color: var(--text-primary); }
+.dr-act-line b { font-weight: 700; }
+.dr-act-meta { margin: 3px 0 0; font-size: 12.5px; color: var(--text-secondary); }
+.dr-act-when { flex: none; text-align: right; display: grid; gap: 1px; font-size: 12px; color: var(--text-secondary); font-style: normal; }
+.dr-act-when b { font-weight: 700; color: var(--text-primary); }
+.dr-act-when i { font-style: normal; }
+.dr-act-more { margin: 2px 18px 14px; }
