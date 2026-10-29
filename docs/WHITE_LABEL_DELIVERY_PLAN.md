@@ -97,9 +97,14 @@ tous.
 
 - **Staging** pour les migrations, les tests et le pilote fictif.
 - **Production** uniquement pour la promotion finale.
-- Sur ce poste, `.env.local` pointe sur la production : ne jamais l’utiliser pour
-  appliquer la migration. Utiliser l’environnement de staging et les scripts
-  read-only documentés dans `AGENTS.md`.
+- Sur ce poste, le propriétaire a confirmé que `.env.local` pointe sur staging.
+  Le contrôle read-only du 29 octobre 2026 a relevé 11 contacts et 3 ventures,
+  mais aucune table d’organisation white-label. `.env.audit-staging` est absent.
+  Vérifier la référence du projet Supabase avant toute écriture : le nom d’un
+  fichier d’environnement ne prouve pas sa cible.
+- L’activation client reste bloquée dans les migrations de préparation jusqu’à
+  validation de l’isolation. Ne pas créer de fixture cliente ni contourner ce
+  garde avant cette validation.
 - Sauvegarde et point de restauration avant toute migration.
 
 ### 3.3 Produit

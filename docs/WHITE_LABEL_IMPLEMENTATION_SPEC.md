@@ -623,10 +623,17 @@ l’organisation de session.
 ### 7.4 Environnements
 
 - La migration et les tests se font sur **staging**.
-- Sur ce poste, `.env.local` pointe sur la **production** : ne pas exécuter la
-  migration avec cet environnement.
-- Les vérifications read-only utilisent
-  `node scripts/db-audit/run-readonly.mjs <sql-file> .env.audit-staging`.
+- Le propriétaire a confirmé que `.env.local` pointe sur **staging** sur ce
+  poste. Le contrôle read-only du 29 octobre 2026 y a trouvé 11 contacts,
+  3 ventures et aucune table d’organisation white-label. `.env.audit-staging`
+  est absent.
+- Vérifier la référence du projet Supabase avant toute écriture ; les noms des
+  fichiers d’environnement ne prouvent pas leur cible. Le runner
+  `node scripts/db-audit/run-readonly.mjs <sql-file> <env-file>` n’exécute que
+  les requêtes read-only autorisées.
+- Les migrations de préparation gardent l’activation client bloquée jusqu’à
+  l’approbation de l’isolation. Aucun compte client de test ne peut ouvrir le
+  portail avant cette gate ; ne pas désactiver manuellement ce verrou.
 - La promotion vers la production suit `docs/PRODUCTION_TEST.md`.
 
 ---
@@ -1222,11 +1229,14 @@ de rouvrir une fuite silencieusement.
 
 ### 14.2 Production
 
-- Ne pas exécuter la migration avec `.env.local` sur ce poste : il pointe sur la
-  production.
-- Utiliser l’environnement de staging pour les essais.
+- `.env.local` pointe vers staging sur ce poste ; ne pas l’utiliser comme cible
+  de production. Vérifier la référence du projet avant toute opération.
+- Utiliser staging pour les essais et garder la production distincte.
 - Vérifier que la supervision et l’isolation bidirectionnelle sont vertes avant
   d’activer la première organisation cliente.
+- Le compte de test MTN ne peut être provisionné qu’après l’approbation de
+  l’isolation et l’ajout d’un parcours de provisionnement contrôlé ; voir
+  [`Accès de test white-label sur staging`](./white-label-phase0/STAGING_TEST_ACCESS.md).
 - La promotion vers `main` suit le **test de production**
   (`docs/PRODUCTION_TEST.md`), item par item.
 

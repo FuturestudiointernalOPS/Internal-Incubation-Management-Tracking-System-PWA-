@@ -86,7 +86,11 @@ application database. Client activation remains blocked.
 
 PostgreSQL checks run one disposable container at a time, without network or host
 data mounts, limited to **one CPU and 384 MiB**. Containers are stopped afterwards.
-No migration or fixture write targets `.env.local`, which is identified as production.
+The owner confirmed `.env.local` is staging on this workstation. A read-only
+probe on 29 October 2026 returned 11 contacts and 3 ventures, but found no
+white-label organisation tables. No migration or fixture was written to that
+database. The preparation migrations intentionally block client activation
+until isolation is approved.
 
 The merge of `origin/interns` into `white_label_os` was committed as
 `26524454`. White-label changes remain uncommitted in the worktree and are not

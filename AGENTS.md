@@ -330,22 +330,26 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/ventures/VNT-
 `405` instead of `401`/`404` means the path resolved but that HTTP method is not
 exported.
 
-### `.env.local` points at PRODUCTION (corrected 2026-10-11)
+### `.env.local` is STAGING on this workstation (confirmed 2026-10-29)
 
-The local dev server reads `DATABASE_URL` from `.env.local`, and on this
-workstation that is the **production** Supabase project — **not staging**, as
-this file previously and wrongly claimed. Verified read-only on 2026-10-11:
-`.env.local` holds **588 contacts / 530 form submissions / 5 ventures**, while
-`.env.audit-staging` is the near-empty staging project (**10 contacts /
-1 venture**).
+The owner confirmed that this workstation's `.env.local` points to **staging**.
+A read-only probe on 2026-10-29 returned **11 contacts / 3 ventures** and found
+no white-label organisation tables. `.env.audit-staging` is not present here.
+Environment filenames are local configuration, not proof of database identity:
+verify the Supabase project reference before any write, and never assume that
+`.env.local` selects the same environment on another machine.
 
-So: **browsing admin screens writes to PRODUCTION.** Schema is *not* an
-exception — see the runtime migration note in `src/lib/db.js`: unless
-`SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies its own
-`CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` on first use.
+The local dev server reads `DATABASE_URL` from `.env.local`; browsing admin
+screens can write to the database that file selects. Runtime schema maintenance
+is also active unless `SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set. Keep production
+separate and use the explicit production-promotion process.
 
-Build and test on **staging**; production is the promotion target only. To tell
-the two apart before pointing any tool at them, count, read-only:
-`node scripts/db-audit/run-readonly.mjs <sql-file> .env.local` — that runner
+For a read-only target check, use
+`node scripts/db-audit/run-readonly.mjs <sql-file> .env.local`. The runner
 executes only `SELECT / WITH / SET / SHOW / EXPLAIN / VALUES` statements and
-skips (never runs) anything else.
+skips anything else. Confirm the printed host and database before relying on
+the results.
+
+The white-label schema is not installed on this staging database. Its
+preparation migration deliberately blocks client activation until isolation is
+approved; do not bypass the guard or create client fixtures before that gate.
