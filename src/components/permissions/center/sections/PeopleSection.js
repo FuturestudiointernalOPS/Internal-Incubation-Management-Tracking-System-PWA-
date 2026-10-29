@@ -45,7 +45,7 @@ export default function PeopleSection({ data, tab, openDrawer, onOpenPerson }) {
 
 function PeopleTab({ data, onOpenPerson, openDrawer }) {
   const { t } = useI18n();
-  const { contacts = [], roleDefaults = {} } = data;
+  const { contacts = [], roleDefaults = {}, profiles = [], activeProfileKeys = {} } = data;
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [counts, setCounts] = useState(null);
@@ -65,7 +65,14 @@ function PeopleTab({ data, onOpenPerson, openDrawer }) {
 
   const profileName = (person) => {
     const role = person.role || "";
-    return roleDefaults[role]?.profileName || t("engineering.permissions.center.emptyValue");
+    const names = new Map(profiles.map((profile) => [profile.key, profile.name]));
+    // The contextual profiles come first (a founder reads "Founder", not just
+    // the baseline member default), the role default completes the line.
+    const labels = (activeProfileKeys[person.cid] || []).map((key) => names.get(key) || key);
+    const baseline = roleDefaults[role]?.profileName;
+    if (baseline) labels.push(baseline);
+    const distinct = [...new Set(labels)];
+    return distinct.length ? distinct.join(" · ") : t("engineering.permissions.center.emptyValue");
   };
 
   const loadRights = async () => {

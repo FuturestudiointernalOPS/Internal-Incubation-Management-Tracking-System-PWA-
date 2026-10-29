@@ -30,6 +30,8 @@ const EMPTY = {
   profiles: [],
   profileCapsById: {},
   roleDefaults: {},
+  // cid → keys of the contextual profiles the person holds right now.
+  activeProfileKeys: {},
   // The profile catalogue's own vocabularies (create-form context + baseline roles).
   contexts: [],
   baselineRoles: [],
@@ -84,6 +86,15 @@ export default function useCenterData() {
         );
       }
       if (part === "all" || part === "profiles") {
+        reads.push(
+          getJson("/api/engineering/permissions/profile-assignments?active=all").then((result) => {
+            const activeProfileKeys = {};
+            for (const row of result?.assignments || []) {
+              (activeProfileKeys[row.contact_cid] ||= []).push(row.profile_key);
+            }
+            patch({ activeProfileKeys });
+          }),
+        );
         reads.push(
           getJson("/api/engineering/permissions/profiles").then(async (result) => {
             const profiles = (result?.profiles || []).map((profile) => ({
