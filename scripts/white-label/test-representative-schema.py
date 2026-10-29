@@ -55,9 +55,9 @@ INSERT INTO user_sessions(token,user_cid,role,expires_at) VALUES ('synthetic-rep
 CREATE TABLE wl_representative_baseline AS SELECT 'program' AS kind,to_jsonb(p) AS snapshot FROM v2_programs p UNION ALL SELECT 'session',to_jsonb(s) FROM user_sessions s;
 """)
 root=Path(__file__).resolve().parents[2]
-migrations=sorted((root/'supabase/migrations').glob('20261023_white_label_programs_*.sql'))
+migrations=sorted((root/'supabase/migrations').glob('*_white_label_*.sql'))
 # Explicit dependency order.
-migrations=sorted(migrations,key=lambda f:['foundation','history','supervision'].index(f.stem.rsplit('_',1)[1]))
+migrations=sorted(migrations,key=lambda f:['foundation','history','supervision','management','sessions','branding'].index(f.stem.rsplit('_',1)[1]))
 for _ in range(2):
  for migration in migrations: sql(migration.read_text())
 sql("""DO $$ BEGIN

@@ -87,11 +87,11 @@ export async function getParticipantProgramFollowups(programId) {
   });
 }
 
-/** Non-archived knowledge-bank resources, newest first. */
-export async function getParticipantKnowledgeBankItems() {
+/** The non-archived knowledge-bank resource explicitly linked to a program. */
+export async function getParticipantKnowledgeBankItemById(noteId) {
   return db.execute({
-    sql: "SELECT * FROM v2_knowledge_bank WHERE is_archived = 0 ORDER BY created_at DESC",
-    args: [],
+    sql: "SELECT * FROM v2_knowledge_bank WHERE id::text = ? AND is_archived = 0",
+    args: [noteId],
   });
 }
 

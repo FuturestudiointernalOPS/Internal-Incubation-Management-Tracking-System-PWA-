@@ -3,7 +3,7 @@ import { readProgramAccessSnapshot } from "./programReads";
 
 export async function withOrganizationSession(credentials, callback, { readOnly = false } = {}) {
   return db.transaction(async (query) => {
-    if (readOnly) await query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY");
+    await query(readOnly ? "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY" : "SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
     const args = [credentials.cid, credentials.tokenHash, credentials.token];
     return callback({
       async session() {

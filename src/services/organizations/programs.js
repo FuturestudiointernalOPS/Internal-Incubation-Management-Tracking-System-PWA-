@@ -1,6 +1,6 @@
 import { hashToken } from "@/lib/token-hashing";
 import { withOrganizationProgramRead } from "@/models/organizations/programReads";
-import { evaluateProgramReadAccess } from "./programAccess";
+import { evaluateProgramReadAccess, evaluateProgramOperationAccess } from "./programAccess";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const FIELDS = ["id", "name", "description", "status", "start_date", "end_date",
@@ -24,7 +24,7 @@ async function readAsClient(session, read, expectedOrganizationId) {
     if (expectedOrganizationId && decision.scope.organizationId.toLowerCase() !== expectedOrganizationId.toLowerCase()) {
       return refused("context-changed", "errors.organizationContextChanged");
     }
-    return read(reader, decision.scope);
+    return read(reader, decision.scope, snapshot);
   });
 }
 
@@ -34,11 +34,12 @@ export async function listOrganizationPrograms({ session, page = 1, pageSize = 2
     || typeof search !== "string" || search.length > 100) {
     return refused("invalid-query", "errors.invalidRequest");
   }
-  return readAsClient(session, async (reader, scope) => {
+  return readAsClient(session, async (reader, scope, snapshot) => {
     const rows = await reader.listPrograms({
       scope, search: search.trim(), offset: (page - 1) * pageSize, limit: pageSize + 1,
     });
     return { success: true, organizationId: scope.organizationId, programs: rows.slice(0, pageSize).map(projectProgram),
+      permissions: { create: evaluateProgramOperationAccess(snapshot, "create").allowed },
       pagination: { page, pageSize, hasMore: rows.length > pageSize } };
   }, expectedOrganizationId);
 }

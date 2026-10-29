@@ -48,3 +48,22 @@ test("bounded transaction, restart-safe object creation and read-only role seeds
   expect(sql).toContain("'programs', 'view', 1");
   expect(sql).not.toContain("'programs', 'edit'");
 });
+
+test.each(["20261029_white_label_programs_management.sql", "20261029_white_label_programs_sessions.sql"])("%s is additive and leaves the activation lock intact", (name) => {
+  const migration = fs.readFileSync(path.join(__dirname, "../../supabase/migrations", name), "utf8").replace(/--[^\n]*/g, "");
+  expect(migration).not.toMatch(/\bDROP\b|\bDELETE\s+FROM\b|\bTRUNCATE\s+TABLE\b|\bRENAME\b/i);
+  expect(migration).not.toMatch(/\bUPDATE\s+(?:public\.)?(?:v2_programs|v2_sessions|contacts|user_sessions)\s+SET\b/i);
+  expect(migration).not.toMatch(/DISABLE\s+TRIGGER|session_replication_role|CREATE OR REPLACE FUNCTION wl_programs_preparation_guard/i);
+  expect(migration).not.toMatch(/\('org_admin'|\('program_manager'/);
+});
+
+test("branding migration is additive, permission-gated, and keeps activation locked", () => {
+  const migration = fs.readFileSync(path.join(__dirname, "../../supabase/migrations/20261029_white_label_branding.sql"), "utf8").replace(/--[^\n]*/g, "");
+  expect(migration).not.toMatch(/\bDROP\b|\bDELETE\s+FROM\b|\bTRUNCATE\s+TABLE\b|\bRENAME\b/i);
+  expect(migration).toMatch(/'org_admin',\s*'organization_admin',\s*'branding\.edit',\s*3/);
+  expect(migration).toMatch(/CREATE TABLE IF NOT EXISTS organization_branding/);
+  expect(migration).toMatch(/ALTER TABLE organization_branding ENABLE ROW LEVEL SECURITY/);
+  expect(migration).toMatch(/wl_audit_branding_change/);
+  expect(migration).not.toMatch(/DISABLE\s+TRIGGER|session_replication_role|DROP TRIGGER/i);
+  expect(migration).not.toMatch(/CREATE OR REPLACE FUNCTION wl_programs_preparation_guard/i);
+});

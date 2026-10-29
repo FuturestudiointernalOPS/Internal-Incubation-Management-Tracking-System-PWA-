@@ -148,6 +148,9 @@
     "ventureLifecycleDenied": "Seul le personnel assigné à la venture peut changer son cycle de vie.",
     "startupProfileAccessDenied": "Vous n'êtes pas autorisé à accéder à ce profil de startup.",
     "featureRetired": "Cette fonctionnalité a été retirée et n'est plus accessible.",
-    "organizationContextChanged": "Votre organisation a changé. Sélectionnez à nouveau votre espace."
+    "organizationContextChanged": "Votre organisation a changé. Sélectionnez à nouveau votre espace.",
+    "organizationProgramConflict": "Cet élément a été modifié ou existe déjà. Actualisez avant de réessayer.",
+    "organizationProgramClosed": "Cet élément est clôturé. Créez une nouvelle cohorte pour continuer.",
+    "organizationProgramOpenEnrollments": "Terminez les inscriptions actives, clôturez les sessions planifiées et les cohortes ouvertes avant de terminer ou archiver cet élément."
   }
 }

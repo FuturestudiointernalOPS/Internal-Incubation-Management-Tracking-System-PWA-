@@ -9,7 +9,8 @@ let current = null;
 let batchIndex = null;
 const query = async (sql, args = []) => {
   if (current) queries[batchIndex === null ? current : `${current}.${batchIndex++}`] = { sql, args };
-  return { rows: [] };
+  return { rows: /INSERT INTO organization_program_revisions/.test(sql) ? [{ revision: 1 }]
+    : /SELECT count\(\*\)/.test(sql) ? [{ count: 0 }] : [] };
 };
 const db = { execute: (q) => query(typeof q === 'string' ? q : q.sql, q.args || []), transaction: (cb) => cb(query) };
 function load(file) {
@@ -91,6 +92,36 @@ async function main() {
   for (const fn of ['countSessionsByProgram','countActiveParticipantsByProgram','countDocumentRequirementsByProgram','countReportWeeksByProgram','getAssignedFamiliesByProgram','countSubmissionsByProgram']) {
     await capture(`metrics.${fn}`, () => metrics[fn]());
   }
+  const management = load('src/models/organizations/programManagement.js');
+  const managementCredentials = { cid: 'SYNTH-PERSON', token: 'synthetic-token', tokenHash: 'synthetic-client-hash', requestId: 'synthetic-management' };
+  const managementScope = { organizationId: credentials.organizationId, allPrograms: true, programIds: [], deniedProgramIds: [] };
+  await management.withOrganizationProgramManagement(managementCredentials, false, async (r) => {
+    await capture('management.access', () => r.accessSnapshot());
+    await capture('management.program', () => r.program(managementScope, clientId));
+    await capture('management.foreignProgram', () => r.program(managementScope, '55555555-5555-4555-8555-555555555555'));
+    await capture('management.cohorts', () => r.cohorts(credentials.organizationId, clientId, 21, 0));
+    await capture('management.members', () => r.members(credentials.organizationId, '', 21, 0));
+    await capture('management.enrollments', () => r.enrollments(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222', 21, 0));
+  });
+  await management.withOrganizationProgramManagement(managementCredentials, true, async (r) => {
+    await capture('management.parentLock', () => r.program(managementScope, clientId));
+    await capture('management.create', () => r.createProgram(credentials.organizationId, '99999999-9999-4999-8999-999999999999', { name: 'Synthetic created', description: null, status: 'planned', start_date: null, end_date: null, duration_weeks: 13, duration_days: 0 }));
+    await capture('management.update', () => r.updateProgram(credentials.organizationId, clientId, { name: 'Synthetic updated', description: null, status: 'active', start_date: null, end_date: null, duration_weeks: 13, duration_days: 0 }));
+    await capture('management.revision', () => r.revision(credentials.organizationId, clientId));
+    await capture('management.cohortCreate', () => r.createCohort(credentials.organizationId, clientId, { name: 'Cohort 2028', year: 2028, start_date: null, end_date: null }));
+    await capture('management.cohort', () => r.cohort(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222'));
+    await capture('management.enroll', () => r.enroll(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222', '88888888-8888-4888-8888-888888888888'));
+    await capture('management.end', () => r.endEnrollment(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333', 'completed'));
+    batchIndex=0;
+    await capture('management.sessionCreate', () => r.createSession(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222', 'aaaaaaaa-1111-4111-8111-111111111111', { title: 'Synthetic session', description: null, week_number: 1, start_at: '2027-01-11T08:00:00.000Z', duration_minutes: 60 }));
+    batchIndex=null;
+    await capture('management.sessions', () => r.sessions(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222', 21, 0));
+    await capture('management.foreignSessions', () => r.sessions('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', clientId, '22222222-2222-4222-8222-222222222222', 21, 0));
+    batchIndex=0;
+    await capture('management.sessionUpdate', () => r.updateSession(credentials.organizationId, clientId, '22222222-2222-4222-8222-222222222222', 'aaaaaaaa-1111-4111-8111-111111111111', { title: 'Synthetic completed session', description: null, week_number: 1, start_at: '2027-01-11T08:00:00.000Z', duration_minutes: 90, status: 'completed' }));
+    batchIndex=null;
+    await capture('management.audit', () => r.audit(credentials.organizationId, 'member', 'program.update', clientId, null, { name: 'Synthetic updated' }));
+  });
   process.stdout.write(JSON.stringify(queries));
 }
 main().catch((error) => { process.stderr.write(error.stack); process.exitCode = 1; });

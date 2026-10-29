@@ -1,10 +1,12 @@
+jest.mock("@/server/auth/cookies", () => ({ readSessionToken: jest.fn(async () => "opaque") }));
+jest.mock("@/services/organizations/session", () => ({ getOrganizationSession: jest.fn() }));
 jest.mock("@/lib/db", () => ({ initDb: jest.fn(async () => {}) }));
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn() }));
 jest.mock("@/server/auth/guards", () => ({ requireAuth: jest.fn(async () => null) }));
 jest.mock("@/lib/logger", () => ({ logger: { debug: jest.fn(), error: jest.fn(), warn: jest.fn() } }));
 jest.mock("@/services/organizations/supervisionPrograms", () => ({ listSupervisedPrograms: jest.fn(), getSupervisedProgram: jest.fn() }));
 import { NextResponse } from "next/server";
-import { getSession } from "@/server/auth/session";
+import { getOrganizationSession as getSession } from "@/services/organizations/session";
 import { requireAuth } from "@/server/auth/guards";
 import { listSupervisedPrograms, getSupervisedProgram } from "@/services/organizations/supervisionPrograms";
 import { GET as list } from "@/app/api/platform/organizations/[organizationId]/programs/route";

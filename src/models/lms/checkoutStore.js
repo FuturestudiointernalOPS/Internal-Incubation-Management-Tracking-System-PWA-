@@ -16,6 +16,9 @@
  */
 
 import db from "@/lib/db";
+import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
+
+const PLATFORM_ORGANIZATION = `'${PLATFORM_ORGANIZATION_ID}'::uuid`;
 
 // ─── The run <-> course link ────────────────────────────────────────────────
 
@@ -24,7 +27,7 @@ export function selectCheckoutCourse(courseId) {
   return db.execute({
     sql: `SELECT id, title, description, thumbnail_url, status, visibility, is_free, price,
                  payment_currency, payment_amount_unit, payment_consent_text
-          FROM lms_courses WHERE id = ?`,
+          FROM lms_courses WHERE id = ? AND owner_organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [courseId],
   });
 }
@@ -69,7 +72,7 @@ export function insertPurchaseEnrollmentRow(courseId, userCid) {
   return db.execute({
     sql: `INSERT INTO lms_enrollments (course_id, user_cid, source)
           VALUES (?, ?, 'purchase')
-          ON CONFLICT (course_id, user_cid) DO NOTHING`,
+          ON CONFLICT (organization_id, course_id, user_cid) DO NOTHING`,
     args: [courseId, userCid],
   });
 }
@@ -77,7 +80,8 @@ export function insertPurchaseEnrollmentRow(courseId, userCid) {
 /** The purchase enrollment this checkout created for a course + user (or none). */
 export function selectPurchaseEnrollment(courseId, userCid) {
   return db.execute({
-    sql: "SELECT id FROM lms_enrollments WHERE course_id = ? AND user_cid = ? AND source = 'purchase'",
+    sql: `SELECT id FROM lms_enrollments WHERE course_id = ? AND user_cid = ?
+          AND organization_id = ${PLATFORM_ORGANIZATION} AND source = 'purchase'`,
     args: [courseId, userCid],
   });
 }
@@ -85,7 +89,8 @@ export function selectPurchaseEnrollment(courseId, userCid) {
 /** Suspend one enrollment (the platform's "no access" state). */
 export function suspendEnrollment(enrollmentId) {
   return db.execute({
-    sql: "UPDATE lms_enrollments SET status = 'suspended' WHERE id = ?",
+    sql: `UPDATE lms_enrollments SET status = 'suspended'
+          WHERE id = ? AND organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [enrollmentId],
   });
 }

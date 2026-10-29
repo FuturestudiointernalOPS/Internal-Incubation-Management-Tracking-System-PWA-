@@ -8,8 +8,6 @@ CREATE TABLE participant_programs (participant_id TEXT, program_id UUID,
   screening_status TEXT, accepted_at TIMESTAMPTZ, assigned_at TIMESTAMPTZ);
 CREATE TABLE v2_program_staff (id UUID, program_id UUID, staff_id TEXT, role TEXT);
 CREATE TABLE v2_teams (id UUID, program_id UUID, name TEXT, handler_name TEXT);
-CREATE TABLE v2_sessions (id UUID, program_id UUID, title TEXT, description TEXT,
-  status TEXT, scheduled_date DATE, start_time TEXT, end_time TEXT, timezone TEXT, handler_id TEXT);
 CREATE TABLE v2_events (id UUID, program_id UUID);
 CREATE TABLE v2_kpis (id UUID, program_id UUID);
 CREATE TABLE v2_document_requirements (id UUID, program_id UUID, title TEXT, week_number INTEGER, is_completed INTEGER DEFAULT 0);

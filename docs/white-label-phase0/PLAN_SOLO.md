@@ -1,139 +1,149 @@
 # ImpactOS White-Label OS — Solo Work Plan and Progress Report
 
-**Prepared by:** Christelle FAGBEHOURO  
-**Updated:** 26 October 2026  
-**Working branch:** `white_label_os`  
-**Confirmed scope:** Programmes, LMS and Venture  
+**Prepared by:** Christelle FAGBEHOURO
+
+**Updated:** 29 October 2026
+
+**Working branch:** `white_label_os`
+
+**Confirmed offer:** Programmes, LMS and Venture
+
 **Delivery capacity:** Christelle working alone
 
 ## Executive overview
 
-The first Programmes backend foundations are implemented locally. They prepare
-client organisations, access rules, preserved history and controlled Future Studio
-supervision while reusing existing programme records and sessions.
+The core client **Programme management journey is implemented locally**: programme
+creation/editing, separate annual cohorts, enrollments, session scheduling and
+closure with retained history. It reuses existing programme records, session
+records, contacts, authentication cookies and shared interface components.
 
-**No client portal is released. Client activation remains blocked.** This protects
-Future Studio while the remaining access paths and client experience are completed.
-No migration has been applied to production or staging. Three additive migrations
-have passed repeated application on an isolated database containing fictional data.
+**Client activation remains blocked. This is not a production release.** The work
+has not applied migrations to the real application database. Some Programme
+operational features and the complete isolation/browser validation remain pending.
+Initial read-only LMS and assigned-Venture organisation surfaces are implemented
+locally but are not open to clients; the Venture schema and complete data boundary
+still need validation.
 
 ## Completed locally
 
-| Work | What it provides | Evidence and limits |
+| Work | Result | Limit |
 |---|---|---|
-| Scope and operating rules | Only Programmes, LMS and Venture; suspended clients are denied access; solo delivery. | Recorded decisions guide implementation. |
-| Initial review and baseline | Existing code, routes and database structure reviewed to identify reuse and isolation gaps. | Earlier schema assessment was read-only; production is not a test environment. |
-| Organisation foundation | Client organisations, memberships, contracts, enabled modules, roles and permissions. | First additive migration; existing business records are preserved. |
-| Initial Programmes read services | Authorised list and detail with pagination, search and a limited set of fields. | Guarded client list/detail endpoints and a translated portal are implemented locally; client activation remains blocked. |
-| History protection | Preserve ended access, audit changes and enforce references within the same organisation. | Second additive migration; synthetic PostgreSQL checks passed. |
-| Controlled supervision | Future Studio can consult one client's programmes only with an explicit temporary read mandate; every permitted consultation is recorded. | Third additive migration and two read-only API routes. No mandate management screen or export access yet. |
-| Client access experience | Separate `/o/select` entry, organisation selection, server-controlled session changes and translated programme list/detail. | Private responses, stale-context rejection and tab invalidation are tested; no client activation or browser pilot yet. |
-| First internal boundaries | Canonical programme queries plus the PM workspace, KPI reads, schedule, submission lists and five programme export types exclude client programmes. | Actual repository SQL tested with fictional data; other indirect and child-object paths still require review. |
-| Synthetic verification | Three migrations applied twice each; legacy compatibility, ownership, history, audit and mandate expiry checked. | Temporary local PostgreSQL only; not a full staging clone or an end-to-end client pilot. |
-| Management preview | Standalone French/English interactive preview with fictional organisations, programme cards, suspension and simulated supervision. | Offline demonstration only; no backend connection. See [HTML preview](../presentations/white-label-demo/ImpactOS_White_Label_Demo.html). |
-| Selected regression checks | Three separate runs passed: 13 suites / 3,113 tests in total. | Targeted checks, not the entire test suite; the latest workspace checks are reported separately below. |
+| Scope and operating rules | Programmes, LMS and Venture only; suspended clients have no access; solo delivery. | Team estimates are not solo commitments. |
+| Organisation foundation | Organisations, memberships, contracts, modules and bounded roles. | Configuration/provisioning is not yet self-service. |
+| History and supervision | Preserved access history, audit and explicit temporary Future Studio read mandates. | Existing supervision covers programme list/detail, not the new full workspace. |
+| Client entry and home | Organisation selection, server-controlled context changes, client home and module cards; private reads and old-tab checks. | Browser pilot still required; no client LMS or Venture access is enabled. |
+| Organisation branding | Display name, HTTPS logo and accessible primary colour with safe fallbacks; explicit editor capability and private update route. | Synthetic tests only; staging review and deployment remain pending. |
+| Programme management | Search, pagination, create/edit and protection against overwriting another person's changes. | New management roles must be assigned explicitly; old read-only roles stay read-only. |
+| Annual cohorts | Separate cohorts per year, dates and closure. | Earlier cohorts are retained, not reset for a new year. |
+| Enrollments | Search eligible existing organisation members, enroll, complete or withdraw. | Account creation/invitations and participant-specific journeys remain separate work. |
+| Scheduled sessions | Reuse existing sessions, linked to a cohort; title, description, week, UTC start and duration. | Facilitator assignment, attendance, assignments, meeting links, reminders and communications are not included yet. |
+| LMS organisation reads | Course ownership, explicit cross-organisation licences, separate enrollment/attempt/certificate scopes, role capabilities, and a private read-only catalogue/own-learning endpoint and portal. | Client role provisioning, course-content playback, staging migration and browser proof are not complete; no client LMS access is enabled. |
+| Venture assigned reads | Platform backfill for legacy ownership, explicit `assigned.read` capability and a private read-only list of the member's active assignments in the current organisation. | The schema varies between deployments; verify the real staging schema, assignment semantics, migration and full data graph before enabling access. No detail, write or client provisioning flow is included. |
+| Closure safeguards | End enrollments and sessions before closing a cohort; close cohorts before closing a programme. Closed history remains readable. | No portal deletion or reopening of closed records. |
+| Client authentication | Client and supervision Programme handlers avoid general schema initialisation and token backfill. | Other legacy application paths still require review. |
+| Initial internal boundaries | Platform-only programme reads, selected dashboards/workspace reads and five internal export types. | Not an exhaustive review of all indirect APIs and jobs. |
+| Management preview | Standalone bilingual HTML demonstration remains available. | Offline simulation; it does not demonstrate all new management forms or prove backend isolation. |
 
-The latest internal workspace increment passed **37 tests in four suites**.
-The actual repository queries were also exercised on a temporary PostgreSQL 16
-fixture: all fourteen workspace blocks and five programme export types excluded
-client programmes, while equivalent Future Studio reads retained their output.
-Calendars, submission lists, assigned programmes and KPI reads passed the same
-checks. Missing or excluded programmes stop before automatic KPI updates.
+The detailed local scope, rights matrix, migration order and remaining gaps are in
+[Programme delivery handover](PROGRAMMES_DELIVERY_2026-10-29.md).
 
-Global lint passed with **zero errors and 264 warnings**. Full compilation
-remains **unvalidated**. The first attempt reached the configured 1,280 MiB Node
-heap limit. A final attempt at 2,048 MiB did not finish within the 180-second
-limit and was terminated by the monitoring runner. Both attempts used an
-unavailable local database address with runtime schema maintenance disabled;
-neither targeted production. No higher-memory retry was launched.
+The organisation branding editor and branded client header are implemented
+locally. The organisation home presents module cards and opens only modules that
+the server reports as permitted. LMS and assigned-Venture reads are implemented
+locally behind explicit role capabilities. The Venture endpoint returns only
+ventures owned by the active organisation where the member has an active
+membership or staff assignment; legacy records default to Future Studio.
+The feature adds an explicit `organization_admin.branding.edit` capability, a
+private update route and an additive migration. Branding and portal changes have
+passed focused automated tests and the six-migration synthetic PostgreSQL run.
+They still need staging browser testing and have not been applied to a live
+application database. Client activation remains blocked.
 
-Evidence can be reproduced using the
-[workspace regression suite](../../src/__tests__/organization-programs-workspace.test.js)
-and the [isolated migration runner](../../scripts/white-label/test-programs-migrations.py).
-The latter must only run against its dedicated fictional-data container.
-These results are not a complete staging validation or a real-client pilot.
+## Latest verification — 29 October, after merge
 
-## Latest implementation and verification
+- White-label and organisation suites: **142 tests passed across 11 suites**.
+- Isolation/internal-boundary suites: **150 tests passed across 9 suites**;
+  authorization route/scope census: **47 tests passed across 5 suites**.
+- Venture conflict-resolution suites: **11 tests passed across 2 suites**.
+- `useApi` behavior suite: **21 tests passed**.
+- Six additive migrations applied twice in an offline, synthetic PostgreSQL 16
+  database. Programme management, supervision, workspace, client-context and
+  branding audit/capability checks passed.
+- LMS regression and client portal: **527 tests passed across 42 suites**.
+- Ten white-label/LMS/Venture migrations applied twice in isolated PostgreSQL 16;
+  legacy LMS backfill, licensed enrollment, separate assessment attempts,
+  certificate scope, immutable course ownership, Venture backfill and assigned
+  member/staff read checks passed.
+- Initial Venture access, service, repository, context and portal checks:
+  **55 tests passed across 5 suites**. Venture migration acceptance passed in
+  the isolated synthetic PostgreSQL runner.
+- `npm run i18n:parity` completed successfully.
+- Targeted ESLint: **zero errors, five warnings**. This is not a full-repository
+  lint result; the warnings include existing hook diagnostics and the deliberate
+  full-page navigation when the active organisation changes.
+- Full `npm run lint`, `npm run build`, full staging-schema validation and the
+  browser pilot remain unvalidated after the merge.
 
-The client entry and its APIs are now implemented locally. Organisation selection
-is checked against current server-side memberships and permissions. A stale tab
-cannot select an organisation through its URL or reuse programme responses from
-the shared browser cache. Suspended organisations and revoked access are denied.
-Internal programme guards check ownership before privileged-role shortcuts.
+PostgreSQL checks run one disposable container at a time, without network or host
+data mounts, limited to **one CPU and 384 MiB**. Containers are stopped afterwards.
+No migration or fixture write targets `.env.local`, which is identified as production.
 
-Two recent regression runs passed: **16 suites / 258 tests** and **10 suites /
-3,091 tests**. Native PostgreSQL fixtures also exercised context changes, stale
-sessions, audit, supervision, programme workspace queries and aggregate reads.
-These are targeted checks, not an exhaustive security certification.
+The merge of `origin/interns` into `white_label_os` was committed as
+`26524454`. White-label changes remain uncommitted in the worktree and are not
+included in that merge commit. The pre-merge stash remains as `stash@{0}` because
+repository checks show five missing stash blobs and six zero-byte loose objects.
+The current locale/helper files were restored, and one missing branding test was
+reconstructed as a focused test; the exact original blob versions cannot be
+verified from available packs. Keep the stash; do not apply it again or drop it.
+Full repository recovery needs a known-good copy of those blobs or a verified
+backup/clone.
 
-With authorisation, database metadata was read from `.env.local` inside a
-read-only transaction. No business records were exported or modified. An isolated
-reconstruction of **308 tables, 3,472 columns and 793 constraints** accepted all
-three migrations twice while preserving fictional legacy records. It excludes
-source triggers, functions, RLS policies and non-constraint indexes: it is not a
-complete staging clone or a real-client validation.
+## Work in progress and remaining work
 
-The earlier lint and compilation results above are historical.
-
-### Pre-push verification — 26 October 2026
-
-- Targeted regression run: **15 suites / 203 tests passed**, including organisation
-  access, client context, portal rendering, workspace, curriculum and team scope.
-- Global `npm run lint`: **zero errors, 267 warnings**.
-- Full compilation remains unvalidated. The last attempt was interrupted when
-  the user requested pushing without compilation. It used an unavailable local
-  database address with runtime schema maintenance disabled. Production readiness
-  is not claimed. Future push requests must not trigger compilation.
-- Only White-Label source, tests, verification tooling and documentation are
-  included. Unrelated local changes are excluded from these commits.
-
-## Work in progress
-
-| Activity | Remaining work |
-|---|---|
-| Programmes isolation | Review child objects, indirect queries, dashboards, exports, files and background operations; close gaps before activating clients. |
-| Verification | Complete compilation, full isolated-environment validation and an end-to-end browser pilot; representative table/constraint compatibility has passed. |
-| Access experience | Chooser and server-controlled session changes are implemented and covered by targeted tests; complete the browser pilot and deployment review. |
-| Progress reporting | Keep completed evidence distinct from planned work; re-estimate delivery after the first usable client journey. |
-
-## Remaining delivery sequence
-
-| Stage | Status | Completion condition |
+| Area | Current status | Completion requirement |
 |---|---|---|
-| Complete isolated environment and representative fixtures | Partly complete | Temporary synthetic database works; representative staging validation and restoration checks remain. |
-| Organisation and access foundation | Implemented locally; not deployed | Migration, identity and permissions reviewed against the representative target. |
-| Supervision and internal separation | In progress | All relevant Programmes access paths reviewed; mandate administration procedure defined. |
-| First client Programmes experience | Implemented locally; not deployed | Organisation selection, guarded list/detail endpoints and translated screens exist; browser pilot and launch review remain. |
-| Invitations and delegated administration | Pending | Bounded roles, acceptance, removal and revocation verified. |
-| Controlled programme changes | Pending | Each new write checked for ownership, history and legacy compatibility. |
-| LMS, then Venture | Pending | Reuse existing modules with separately verified ownership, shared content and client results. |
-| Files, exports and communications | Pending | Documents, download links, recipients and jobs remain within the authorised client. |
-| Full fictional-client pilot | Pending | Two clients plus Future Studio; annual history, suspension, offboarding, performance and restoration evidence. |
-| Real-client onboarding | Pending | Authorised review of evidence and remaining risks, launch decision and monitored deployment. |
+| Organisation home and branding | Implemented locally | Validate brand editing, safe fallbacks, switching and enabled-module routing in the staging browser. |
+| Core Programme management | Implemented locally | Final review and a complete browser journey on isolated staging. |
+| Internal/client isolation | In progress | Check all relevant indirect APIs, existing DB policies/triggers, exports, files and jobs before activation. |
+| Local isolation review | Partial | Dedicated client Programme/branding boundary and selected platform-only Programme surfaces reviewed and tested. Participant Knowledge Bank reads are now limited to `program.note_id` with focused tests; legacy APIs, files/links, invitations, jobs and staging verification remain. |
+| Programme operational features | Pending | Review facilitator allocation, attendance, assignments and other operations before exposing them to clients. |
+| Organisation/member onboarding | Pending | Controlled provisioning, invitations, delegated roles and removal/revocation journeys. |
+| Supervision administration | Pending | Mandate administration procedure/UI and an agreed boundary for the new workspace. |
+| Global verification | Incomplete | Complete lint, build and staging-schema checks on a suitable environment; no green-build claim yet. |
+| Full fictional-client pilot | Pending | Two clients plus Future Studio; browser flows, expiry, revocation, annual history, performance and recovery. |
+| LMS | Initial read-only slice implemented locally | Assign roles through an approved provisioning path, apply migrations to verified staging, exercise both role journeys in a browser, and finish the indirect-access review. |
+| Venture | Initial assigned-read slice implemented locally | Validate migration and schema compatibility on isolated staging; inventory related data and legacy routes; then run a two-organisation browser pilot before any client enablement. |
+| Real-client opening | Blocked by preparation safeguards | Authorised review of complete evidence, launch decision and monitored deployment. |
+| Repository recovery | Blocked on a verified source copy | Five stash blobs are missing and cannot be reconstructed byte-for-byte from current packs; preserve the stash until a backup/clone can be checked. |
 
-## Requirements before client activation
+## Next solo sequence
 
-- A representative isolated environment; `.env.local` is identified as production
-  and must not be used for migration or fixture writes.
-- Complete internal/client separation on the paths exposed by the pilot.
-- A working client journey with server-controlled organisation context.
-- Tests for two fictional clients, suspension, expired contracts, removed access
-  and older browser tabs.
-- A documented support-mandate procedure and deployment/recovery arrangements.
-- An authorised launch review. Solo implementation and testing do not provide an
-  independent security review.
+1. Preserve the stash and resolve repository object-integrity concerns; keep the
+   restored white-label changes out of the merge commit until reviewed.
+2. Agree the first pilot's functional boundary and finish the full internal/client
+   isolation review, including the original database behavior not represented by
+   the synthetic reconstruction.
+3. Validate the client home, branding, Programme management and recovery flows
+   in a browser against isolated staging with two fictional client organisations.
+4. Complete lint, compilation, staging-schema and deployment/recovery checks on a
+   machine or runner that can support them safely.
+5. Implement only the onboarding and Programme operations selected for the pilot;
+   open no client access until all activation gates are reviewed and cleared.
+6. Validate LMS and Venture migrations, roles and read journeys on isolated
+   staging; keep both client modules closed until the complete isolation review.
 
-Annual cohort history, shared LMS courses across organisations and their separate
-results still need implementation-specific validation before those features open.
-No delivery date or percentage is claimed without an approved solo baseline.
+Annual cohort/enrollment/session history and initial LMS/Venture tenant
+boundaries are locally tested. LMS course-content playback, client role
+provisioning, Venture schema validation and related data isolation, client file
+access, offboarding and restoration still need implementation or validation. No
+delivery percentage or launch date is claimed without a reviewed solo baseline.
 
 ## Solo working method
 
-Work in small increments, reuse existing modules and preserve existing data.
-Run one heavy verification at a time to reduce local memory pressure. Record the
-tests and environment actually used before marking work complete. LMS and Venture
-follow Programmes. When a team is assigned, reassess capacity and use the team plan
-as a reference; its original staffing and calendar are not solo commitments.
+Reuse existing modules, preserve data and work in reviewable increments. Run one
+heavy check at a time. Record the environment and results actually observed.
+Christelle's implementation and tests do not replace an independent security
+review. If a team is assigned, reassess capacity before using the team calendar.
 
-The management PDF dated 22 October, if circulated, remains a historical snapshot.
-This Markdown report records subsequent implementation progress.
+The management PDF dated 22 October remains a historical snapshot. This Markdown
+report and the dated handover describe subsequent local progress.

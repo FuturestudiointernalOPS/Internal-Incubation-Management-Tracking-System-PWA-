@@ -1,10 +1,9 @@
-import { createHandler } from "@/lib/api/createHandler";
 import { listSupervisedPrograms } from "@/services/organizations/supervisionPrograms";
-import { organizationProgramResponse, privateOrganizationHandler } from "@/server/http/organizationPrograms";
+import { organizationProgramResponse, privateOrganizationHandler, organizationHandler } from "@/server/http/organizationPrograms";
 
 export const dynamic = "force-dynamic";
 
-export const GET = privateOrganizationHandler(createHandler(async (req, { params }) => {
+export const GET = privateOrganizationHandler(organizationHandler(async (req, { params }) => {
   const { organizationId } = await params;
   const { searchParams } = new URL(req.url);
   return organizationProgramResponse(await listSupervisedPrograms({

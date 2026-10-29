@@ -1,3 +1,5 @@
+jest.mock("@/server/auth/cookies", () => ({ readSessionToken: jest.fn(async () => "opaque") }));
+jest.mock("@/services/organizations/session", () => ({ getOrganizationSession: jest.fn() }));
 jest.mock("@/lib/token-hashing", () => ({ hashToken: (token) => `hash-${token}` }));
 jest.mock("@/models/organizations/context", () => ({ withOrganizationSession: jest.fn() }));
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn(), invalidateSessionCache: jest.fn() }));
@@ -5,7 +7,8 @@ jest.mock("@/lib/db", () => ({ initDb: jest.fn(async () => {}) }));
 jest.mock("@/server/auth/guards", () => ({ requireAuth: jest.fn(async () => null) }));
 jest.mock("@/lib/logger", () => ({ logger: { debug: jest.fn(), error: jest.fn() } }));
 import { withOrganizationSession } from "@/models/organizations/context";
-import { getSession, invalidateSessionCache } from "@/server/auth/session";
+import { invalidateSessionCache } from "@/server/auth/session";
+import { getOrganizationSession as getSession } from "@/services/organizations/session";
 import { getOrganizationContext, switchOrganizationContext } from "@/services/organizations/context";
 import { GET, POST } from "@/app/api/org/context/route";
 
@@ -15,6 +18,7 @@ let reader, active, snapshot;
 beforeEach(() => {
   jest.clearAllMocks(); active = A;
   snapshot = { organization_id: B, code: "beta", name: "Synthetic Beta", actor_role: "member", is_platform: false,
+    brand_display_name: null, brand_logo_url: null, brand_primary_color: null, branding_editable: false,
     organization_status: "active", membership_id: "member", contract_active: true, module_enabled: true,
     assignments: [{ id: "role", scopeType: "organization", templateScope: "organization", viewLevel: 1 }], grants: [] };
   reader = { session: jest.fn(async () => ({ active_organization_id: active, actor_role: "member" })),
@@ -59,12 +63,50 @@ test("audit failure propagates and prevents cache invalidation", async () => {
 });
 test("GET uses a read-only transaction and exposes no token", async () => {
   const result = await getOrganizationContext({ session });
-  expect(result.organizations).toEqual([{ id: B, code: "beta", name: "Synthetic Beta", modules: ["programs"] }]);
+  expect(result.organizations).toEqual([{
+    id: B, code: "beta", name: "Synthetic Beta", modules: ["programs"],
+    branding: { displayName: "Synthetic Beta", logoUrl: null, primaryColor: null },
+    brandingEditable: false,
+  }]);
   expect(JSON.stringify(result)).not.toContain("opaque"); expect(withOrganizationSession.mock.calls[0][2]).toEqual({ readOnly: true });
 });
 test("GET does not mutate the selected organisation", async () => {
   const response = await GET(new Request("http://localhost/api/org/context"));
   expect(response.status).toBe(200); expect(response.headers.get("cache-control")).toBe("private, no-store"); expect(reader.switchTo).not.toHaveBeenCalled();
+});
+test("LMS-only memberships can select and load an organisation context", async () => {
+  snapshot.module_enabled = false;
+  snapshot.assignments = [];
+  snapshot.lms_module_enabled = true;
+  snapshot.lms_assignments = [{
+    scopeType: "organization",
+    scopeId: null,
+    templateScope: "organization",
+    capabilities: { "learning.read": 1 },
+  }];
+  const context = await getOrganizationContext({ session });
+  expect(context.organizations[0].modules).toEqual(["lms"]);
+  expect(context.organization.modules).toEqual(["lms"]);
+  const switched = await change();
+  expect(switched.success).toBe(true);
+  expect(switched.organization.modules).toEqual(["lms"]);
+});
+test("venture-only memberships can select and load an organisation context", async () => {
+  snapshot.module_enabled = false;
+  snapshot.assignments = [];
+  snapshot.venture_module_enabled = true;
+  snapshot.venture_assignments = [{
+    scopeType: "organization",
+    scopeId: null,
+    templateScope: "organization",
+    capabilities: { "assigned.read": 1 },
+  }];
+  const context = await getOrganizationContext({ session });
+  expect(context.organizations[0].modules).toEqual(["venture"]);
+  expect(context.organization.modules).toEqual(["venture"]);
+  const switched = await change();
+  expect(switched.success).toBe(true);
+  expect(switched.organization.modules).toEqual(["venture"]);
 });
 test.each(["http://evil.test", "https://localhost", "null"])("cross-origin %s cannot change context", async (origin) => {
   expect((await POST(request({ organization_id: B, expected_organization_id: A }, origin))).status).toBe(403); expect(reader.switchTo).not.toHaveBeenCalled();
