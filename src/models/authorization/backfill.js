@@ -13,7 +13,7 @@
  */
 
 
-import { runAuthzMigration } from "./migrations";
+import { runAuthzMigration, oneTimeMigrationsEnabled } from "./migrations";
 import { ensureMembershipBootstrap } from "./membership";
 import { backfillContextRoleProfileMappings } from "./contextRoleProfiles";
 import { seedProfiles } from "./profilesStore";
@@ -26,7 +26,7 @@ import {
   ensureVentureMemberEditBackfill,
   ensureDelegatedCapabilityDefaults,
 } from "./profileCatalogueSeed";
-import { backfillProgramAssignmentProfileKeys, backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
+import { backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
 // The feature-key alignment RULE lives in the service layer (audit A1, finding
 // #8); its statements live in `./featureKeyAlignmentStore`. Importing it here is
@@ -77,8 +77,14 @@ function reportFailedMigrations(results) {
   }
 }
 
-/** Run all capability backfills once per process (idempotent, egress-safe). */
+/** Run all capability backfills once per process (idempotent, egress-safe).
+ *
+ * Does NOTHING unless `AUTHZ_RUN_MIGRATIONS=true`: these are one-time migrations,
+ * already applied on every deployed database, and the authorization gate awaits
+ * this call — so an applied migration may cost a ledger read, never a retry.
+ */
 export function ensureCapabilityBackfills() {
+  if (!oneTimeMigrationsEnabled()) return Promise.resolve();
   if (!backfillsSeeded) {
     if (!backfillPromise) {
       backfillPromise = (async () => {
@@ -171,13 +177,12 @@ export function ensureCapabilityBackfills() {
             "profile-capability-defaults-v1",
             ensureDelegatedCapabilityDefaults,
           ),
-          // The per-assignment profile override moves from an access-profile id
-          // (`v2_program_staff.access_profile_id`) to a profile KEY. Adds the
-          // column and fills it NULL-only from the legacy id.
-          runAuthzMigration(
-            "program-assignment-profile-key-v1",
-            backfillProgramAssignmentProfileKeys,
-          ),
+          // The per-assignment profile override moved from an access-profile id
+          // (`v2_program_staff.access_profile_id`) to a profile KEY. That
+          // one-time data move is RETIRED: the column it read was dropped by the
+          // takeover, so on an already-migrated database it could only fail —
+          // and retried on every boot. The keys are in place; do not re-add it.
+
           // Lot 3.4 / D-5 — give every facilitator assignment the facilitator
           // PROFILE. Inert until the checkboxes lose precedence; it removes the
           // data gap that would otherwise deny every facilitator at the switch.
@@ -190,7 +195,7 @@ export function ensureCapabilityBackfills() {
 
         // PROFILES TAKE OVER — the FINAL step: drop the retired template layer.
         // Runs strictly AFTER the batch above, which is the last thing that reads
-        // it (the per-assignment key backfill). Recorded once per database.
+        // it. Recorded once per database (2026-10-15).
         const drop = await Promise.allSettled([
           runAuthzMigration("drop-access-profiles-v1", dropAccessProfileTables),
         ]);

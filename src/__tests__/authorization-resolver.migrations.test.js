@@ -86,19 +86,39 @@ describe("runAuthzMigration (one-time policy migrations)", () => {
 });
 
 
-describe("one-time migration batch (resilience)", () => {
+describe("one-time migration batch (runs only when enabled)", () => {
+  afterEach(() => {
+    delete process.env.AUTHZ_RUN_MIGRATIONS;
+  });
+
+  test("does nothing at startup — the migrations are already applied", async () => {
+    jest.resetModules();
+    const dbMock = require("@/lib/db").default;
+    let executions = 0;
+    dbMock.execute.mockImplementation(async () => {
+      executions += 1;
+      return { rows: [] };
+    });
+
+    const { ensureCapabilityBackfills } = require("@/models/authorization/backfill");
+
+    await expect(ensureCapabilityBackfills()).resolves.toBeUndefined();
+    expect(executions).toBe(0);
+  });
+
   test("a failing migration does not reject the batch, and is not retried per call", async () => {
     jest.resetModules();
+    process.env.AUTHZ_RUN_MIGRATIONS = "true";
     const dbMock = require("@/lib/db").default;
     let executions = 0;
     dbMock.execute.mockImplementation(async ({ sql } = {}) => {
       executions += 1;
-      // The shape of the real failure: one backfill reads a column the database
+      // The shape of the real failure: one backfill writes a table the database
       // does not have. Before, this rejected the whole batch, which the
       // authorization gate awaits - so one missing column returned 500 from
       // every gated endpoint, and re-ran on every request.
-      if (String(sql || "").includes("v2_program_staff")) {
-        throw new Error('column "access_profile_id" does not exist');
+      if (String(sql || "").includes("profile_capabilities")) {
+        throw new Error('relation "profile_capabilities" does not exist');
       }
       return { rows: [] };
     });

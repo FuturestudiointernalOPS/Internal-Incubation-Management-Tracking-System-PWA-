@@ -12,11 +12,16 @@
  *     column must not turn every gated request into a 500.
  *   - The seed is still marked ATTEMPTED afterwards. Retrying a failing seed on
  *     every request would turn one broken column into a permanent per-request
- *     tax; instead it retries on the next boot, because the migration marker
- *     was left unwritten.
+ *     tax.
  *   - Every seed runs through `runAuthzMigration(marker, seed)`, so each marker
  *     is a row in the database. These marker strings are PRODUCTION DATA:
  *     renaming one re-runs that seed on every deployed database.
+ *
+ * NOT AT STARTUP. All of these are applied on every deployed database, so the
+ * boot path only ensures the TABLE exists; the one-time seeds run when
+ * `AUTHZ_RUN_MIGRATIONS=true` is set deliberately (see migrations.js). Before
+ * that gate, a single broken statement here failed at error level on every
+ * restart and could never record itself.
  *
  * The module-level flag below is the per-process memory of that decision. It is
  * shared by everything that resolves a context, which is why this state lives
@@ -25,7 +30,7 @@
  * Split out of `context.js` (560 lines). Behaviour identical.
  */
 
-import { runAuthzMigration } from "@/models/authorization/migrations";
+import { runAuthzMigration, oneTimeMigrationsEnabled } from "@/models/authorization/migrations";
 import { normalizeLegacyIdentities } from "./legacyIdentityMigration";
 import {
   ensureEligibilitySchema,
@@ -45,7 +50,10 @@ function ensureEligibilitySeeded() {
   if (!eligibilitySeeded) {
     if (!eligibilitySeedPromise) {
       eligibilitySeedPromise = (async () => {
+        // The table itself is self-healing and must exist on any database; the
+        // one-time DATA seeds below are gated (see the module note).
         await ensureEligibilitySchema();
+        if (!oneTimeMigrationsEnabled()) return;
         await runAuthzMigration(
           "eligibility-bootstrap-seed",
           seedDefaultEligibility,
@@ -101,13 +109,13 @@ function ensureEligibilitySeeded() {
           normalizeLegacyIdentities,
         );
       })()
-        // A one-time seed is DATA work, and the authorization gate awaits this
-        // call: a failure is reported and never propagated, so a single missing
-        // column cannot turn every gated request into a 500. The migration
-        // marker is still unwritten, so the seed does retry on the next boot.
+        // A one-time seed is DATA work. A failure is reported and never
+        // propagated, so a single missing column cannot turn every gated
+        // request into a 500. The marker stays unwritten, so it retries when
+        // migrations are next run.
         .catch((error) => {
           console.error(
-            "[Authz] one-time eligibility seed failed (not recorded, retried on the next boot):",
+            "[Authz] one-time eligibility seed failed (not recorded, retried when migrations are next run):",
             error.message,
           );
         })
