@@ -358,6 +358,8 @@
       "feedback": "Retour du réviseur",
       "dueOn": "Échéance {date}",
       "noDeadline": "Aucune échéance",
+      "showAll": "Tout afficher ({count})",
+      "showLess": "Afficher moins",
       "open": "Ouvrir le parcours",
       "empty": "Rien ne vous attend pour le moment.",
       "emptyHint": "Votre prochain jalon et vos prochaines sessions sont ci-dessous.",
