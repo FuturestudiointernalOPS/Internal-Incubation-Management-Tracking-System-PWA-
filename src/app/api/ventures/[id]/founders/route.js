@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { createHandler } from "@/lib/api/createHandler";
 import { logVentureActivity } from "@/services/ventures/activity";
+import { deliverVentureMemberInvitation } from "@/services/ventures/memberRoster";
 import { listFounders, inviteFounder, canManageFounders, VENTURE_ROLES } from "@/services/ventures/founders";
+import { createVentureMemberInvitation } from "@/models/ventureMemberInvitations";
+import { getVentureDisplayNameByCode } from "@/models/ventureWorkspace";
 
 /**
  * GET /api/ventures/[id]/founders
@@ -34,6 +37,11 @@ export const GET = createHandler(
  * POST /api/ventures/[id]/founders
  *
  * Invite a new founder / co-founder / executive.
+ *
+ * Two records, one act: the founder ledger keeps WHO was invited (the screen
+ * lists it), and the invitation is what actually reaches the person — emailed
+ * through the same `/venture-invite/<token>` acceptance path as every other
+ * Venture invitation. Accepting it is what creates the membership.
  */
 export const POST = createHandler(
   async (req, { params }) => {
@@ -74,13 +82,44 @@ export const POST = createHandler(
     }
 
     try {
+      // One expiry for both records, so the founder ledger and the emailed link
+      // never disagree about when the invitation dies.
+      const expiresInHours = expires_in_hours || 72;
+
       const result = await inviteFounder({
         ventureId: id,
         invitedByFounderId: permission.founderId,
         email: email.trim(),
         name: name.trim(),
         role,
-        expiresInHours: expires_in_hours || 72,
+        expiresInHours,
+      });
+
+      // The invitation the person actually receives. Re-inviting the same
+      // address reuses the pending row and mints a NEW link, so the earlier
+      // one stops working.
+      const invitation = await createVentureMemberInvitation({
+        ventureId: id,
+        email: email.trim(),
+        name: name.trim(),
+        memberType: "founder",
+        role,
+        invitedByCid: session.cid || null,
+        expiresInHours,
+      });
+
+      let ventureName = "the Venture";
+      try {
+        const nameResult = await getVentureDisplayNameByCode(id);
+        ventureName = nameResult.rows?.[0]?.venture_name || ventureName;
+      } catch (_) {}
+
+      // Email + delivery recorded; never blocks the answer on the mailer.
+      const { emailSent, emailError } = await deliverVentureMemberInvitation({
+        invitation,
+        ventureName,
+        memberType: "founder",
+        inviterName: session.name || null,
       });
 
       // Log activity
@@ -94,15 +133,19 @@ export const POST = createHandler(
           invited_name: name.trim(),
           role,
           is_resend: result.isResend,
+          email_sent: emailSent,
         },
       });
 
       return NextResponse.json({
         success: true,
         founder_id: result.id,
+        // The invitation exists either way; the screen must be able to tell
+        // "invited" from "saved, but the email did not go out".
+        email_sent: emailSent,
+        ...(emailError ? { email_error: emailError } : {}),
         invitation: {
-          token: result.token,
-          expires_at: result.expires_at,
+          expires_at: invitation.expires_at,
           is_resend: result.isResend,
         },
       });
