@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Participant home model — data access for GET /api/participant/home
@@ -14,7 +13,7 @@ export async function getHomeContactByCid(cid) {
 
 export async function getHomeProgramById(programId) {
   return db.execute({
-    sql: `SELECT * FROM v2_programs WHERE id::text = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT * FROM v2_programs WHERE id::text = ?",
     args: [programId],
   });
 }

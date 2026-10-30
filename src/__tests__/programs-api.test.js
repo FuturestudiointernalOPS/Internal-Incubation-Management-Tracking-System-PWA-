@@ -1,4 +1,3 @@
-jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * Characterisation tests for the Programs lifecycle API
  * (src/app/api/pm/programs/route.js).
