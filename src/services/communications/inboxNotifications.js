@@ -7,6 +7,7 @@ import {
   markNotificationRead,
   markNotificationUnread,
   getParticipantAnnouncementHistory,
+  getParticipantNotificationHistory,
   markNotificationsSeen,
 } from "@/models/workspace";
 /**
@@ -147,6 +148,14 @@ export async function applyInboxNotificationAction({ session, id, action }) {
 }
 
 export async function readParticipantAnnouncements(session) {
-  const result = await getParticipantAnnouncementHistory(session.cid);
-  return { success: true, recipientId: session.cid, announcements: result.rows || [] };
+  const [result, notified] = await Promise.all([
+    getParticipantAnnouncementHistory(session.cid),
+    getParticipantNotificationHistory(session.cid).catch(() => ({ rows: [] })),
+  ]);
+  return {
+    success: true,
+    recipientId: session.cid,
+    announcements: result.rows || [],
+    notifications: notified.rows || [],
+  };
 }

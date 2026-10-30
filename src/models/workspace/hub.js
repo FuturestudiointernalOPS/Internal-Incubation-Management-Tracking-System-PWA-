@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Workspace model — the neutral post-login hub data (REPOSITORY layer).
@@ -16,6 +17,7 @@ export async function getStaffAssignmentsForUser(cid, emailOrCid) {
             FROM v2_program_staff ps
             JOIN v2_programs p ON CAST(p.id AS TEXT) = CAST(ps.program_id AS TEXT)
             WHERE (ps.staff_id = ? OR LOWER(ps.staff_id) = LOWER(?))
+              AND ${platformProgramPredicate("p")}
             ORDER BY p.name ASC`,
     args: [cid, emailOrCid],
   });
@@ -49,6 +51,7 @@ export async function getActiveParticipantEnrollments(cid) {
             WHERE pp.participant_id = ?
               AND (pp.status IS NULL OR pp.status = 'active')
               AND (p.status IS NULL OR LOWER(p.status) = 'active')
+              AND ${platformProgramPredicate("p")}
             ORDER BY p.name ASC`,
     args: [cid],
   });
@@ -69,8 +72,9 @@ export async function getProgramAssignmentsFromContactRoles(cid) {
                      cr.is_current, cr.status, cr.scope, cr.started_at, cr.ended_at,
                      p.name AS program_name
               FROM contact_roles cr
-              LEFT JOIN v2_programs p ON p.id::text = cr.context_id::text
+              JOIN v2_programs p ON p.id::text = cr.context_id::text
               WHERE cr.contact_cid = ? AND cr.context_type = 'program'
+                AND ${platformProgramPredicate("p")}
               ORDER BY cr.is_current DESC, cr.started_at DESC`,
     args: [cid],
   });
@@ -95,6 +99,7 @@ export async function getParticipantProgramMemberships(cid) {
               FROM participant_programs pp
               LEFT JOIN v2_programs p ON p.id::text = pp.program_id::text
               WHERE pp.participant_id = ?
+                AND ${platformProgramPredicate("p")}
               ORDER BY pp.assigned_at DESC`,
     args: [cid],
   });

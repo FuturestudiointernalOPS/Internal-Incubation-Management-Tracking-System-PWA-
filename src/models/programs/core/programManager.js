@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * The person recorded as a program's manager — the relationship the program
@@ -11,7 +12,7 @@ export async function getProgramManager(programId) {
                  c.name AS pm_name
           FROM v2_programs p
           LEFT JOIN contacts c ON c.cid = CAST(p.assigned_pm_id AS TEXT)
-          WHERE CAST(p.id AS TEXT) = ?
+          WHERE CAST(p.id AS TEXT) = ? AND ${platformProgramPredicate("p")}
           LIMIT 1`,
     args: [String(programId)],
   });
@@ -28,7 +29,7 @@ export async function getProgramManager(programId) {
  */
 export async function setProgramManager(programId, managerCid) {
   return db.execute({
-    sql: "UPDATE v2_programs SET assigned_pm_id = ? WHERE CAST(id AS TEXT) = ?",
+    sql: `UPDATE v2_programs SET assigned_pm_id = ? WHERE CAST(id AS TEXT) = ? AND ${platformProgramPredicate()}`,
     args: [managerCid || null, String(programId)],
   });
 }
