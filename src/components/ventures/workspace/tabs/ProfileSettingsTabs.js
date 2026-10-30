@@ -6,13 +6,23 @@ import { useVenture } from "../VentureContext";
 import { STAGES, INDUSTRY_FALLBACK } from "../ventureMeta";
 import CountrySelect from "@/components/ventures/CountrySelect";
 import { countryName } from "@/lib/countries";
+import { isValidSocialLink } from "@/lib/socialLinks";
 
 /* Profile Tab */
 export function ProfileTab() {
   const { t } = useI18n();
   const { form, setForm, saving, handleSave, optionLists, inputStyle, cardStyle } = useVenture();
+  const socialInvalid = (key) => !isValidSocialLink(key, form[key]);
+  const submitProfile = (event) => {
+    // A link that does not belong to its platform is never saved.
+    if (["linkedin", "instagram", "twitter", "facebook"].some(socialInvalid)) {
+      event.preventDefault();
+      return;
+    }
+    return handleSave(event);
+  };
   return (
-    <form onSubmit={handleSave} className="space-y-6">
+    <form onSubmit={submitProfile} className="space-y-6">
       <div className="rounded-xl p-6 space-y-4 border" style={cardStyle}>
         <div>
           <label className="block text-sm font-medium mb-1">{t("venture.namePlaceholder")}</label>
@@ -97,9 +107,11 @@ export function ProfileTab() {
               { key: "twitter", label: "X", ph: "https://x.com/example" },
               { key: "facebook", label: "Facebook", ph: "https://www.facebook.com/example" },
             ].map((socialField) => (
-              <div key={socialField.key} className="flex items-center gap-2">
+              <div key={socialField.key}>
+              <div className="flex items-center gap-2">
                 <span className="w-24 shrink-0 text-xs" style={{ color: "var(--text-secondary)" }}>{socialField.label}</span>
                 <input
+                  aria-invalid={socialInvalid(socialField.key)}
                   type="url"
                   value={form[socialField.key] || ""}
                   onChange={event => setForm({ ...form, [socialField.key]: event.target.value })}
@@ -107,6 +119,10 @@ export function ProfileTab() {
                   style={inputStyle}
                   placeholder={socialField.ph}
                 />
+              </div>
+              {socialInvalid(socialField.key) && (
+                <p className="mt-1 ml-[6.5rem] text-[10px] text-rose-400">{t("venture.socialInvalid", { platform: socialField.label })}</p>
+              )}
               </div>
             ))}
             <p className="text-[9px]" style={{ color: "var(--text-tertiary)" }}>
