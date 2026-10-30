@@ -1,18 +1,23 @@
 "use client";
 
+import { useState } from "react";
+import { Search } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useRouter } from "next/navigation";
 import AppButton from "./AppButton";
 import AppCard from "./AppCard";
 import AppEmptyState from "./AppEmptyState";
+import AppInput from "./AppInput";
 import AppStatusBadge from "./AppStatusBadge";
+import CourseThumb from "@/components/lms/CourseThumb";
 import OrganizationPortalHeader from "./OrganizationPortalHeader";
 import PageHero from "./PageHero";
 
 export default function OrganizationLmsPortal({ organization, onBrandChanged }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [search, setSearch] = useState("");
   const read = {
     cache: false,
     fetchOptions: {
@@ -23,6 +28,13 @@ export default function OrganizationLmsPortal({ organization, onBrandChanged }) 
   const result = useApi("/api/org/lms", read);
   const data = result.data;
   const valid = data?.success && data.organizationId === organization.id;
+  const normalizedSearch = search.trim().toLocaleLowerCase();
+  const catalog = (data?.catalog || []).filter((course) =>
+    `${course.title || ""} ${course.description || ""}`.toLocaleLowerCase().includes(normalizedSearch),
+  );
+  const enrollments = (data?.learning?.enrollments || []).filter((enrollment) =>
+    `${enrollment.title || ""} ${enrollment.description || ""}`.toLocaleLowerCase().includes(normalizedSearch),
+  );
 
   return <div className="space-y-6">
     <OrganizationPortalHeader organization={organization} activePage="lms" onBrandChanged={onBrandChanged} />
@@ -39,10 +51,23 @@ export default function OrganizationLmsPortal({ organization, onBrandChanged }) 
       title={t(data?.error || "errors.insufficientPermissions")}
       action={<AppButton onClick={() => router.push("/o/select")}>{t("common.organizationPortal.choose")}</AppButton>}
     />}
+    {valid && (data.permissions.catalog || data.permissions.learning) && <AppInput
+      label={t("common.organizationPortal.lms.searchCourses")}
+      placeholder={t("common.organizationPortal.lms.searchPlaceholder")}
+      icon={Search}
+      value={search}
+      onChange={(event) => setSearch(event.target.value)}
+    />}
     {valid && data.permissions.catalog && <section className="space-y-4">
       <h2 className="text-xl font-black text-[var(--text-primary)]">{t("common.organizationPortal.lms.catalog")}</h2>
-      {data.catalog.length
-        ? <div className="stf-grid">{data.catalog.map((course) => <AppCard key={course.id}>
+      {catalog.length
+        ? <div className="stf-grid">{catalog.map((course) => <AppCard key={course.id}>
+          <CourseThumb
+            src={course.thumbnail_url}
+            alt=""
+            className="-mx-6 -mt-6 mb-4 h-40 w-[calc(100%+3rem)] rounded-t-[14px]"
+            iconClassName="h-10 w-10"
+          />
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-lg font-black text-[var(--text-primary)]">{course.title}</h3>
             <AppStatusBadge status={course.status} label={t(`status.${course.status}`)} />
@@ -52,12 +77,12 @@ export default function OrganizationLmsPortal({ organization, onBrandChanged }) 
             {t(`common.organizationPortal.lms.source.${course.access_source}`)}
           </p>
         </AppCard>)}</div>
-        : <AppEmptyState title={t("common.organizationPortal.lms.noCourses")} />}
+        : <AppEmptyState title={normalizedSearch ? t("common.noResults") : t("common.organizationPortal.lms.noCourses")} />}
     </section>}
     {valid && data.permissions.learning && <section className="space-y-4">
       <h2 className="text-xl font-black text-[var(--text-primary)]">{t("common.organizationPortal.lms.myLearning")}</h2>
-      {data.learning.enrollments.length
-        ? <div className="stf-grid">{data.learning.enrollments.map((enrollment) => <AppCard key={enrollment.enrollment_id}>
+      {enrollments.length
+        ? <div className="stf-grid">{enrollments.map((enrollment) => <AppCard key={enrollment.enrollment_id}>
           <div className="flex items-start justify-between gap-3">
             <h3 className="text-lg font-black text-[var(--text-primary)]">{enrollment.title}</h3>
             <AppStatusBadge status={enrollment.status} label={t(`status.${enrollment.status}`)} />
@@ -73,8 +98,14 @@ export default function OrganizationLmsPortal({ organization, onBrandChanged }) 
               date: enrollment.enrolled_at ? new Date(enrollment.enrolled_at).toLocaleDateString() : t("common.unknown"),
             })}
           </p>
+          {enrollment.course_id && <AppButton
+            className="mt-4"
+            onClick={() => router.push(`/o/${encodeURIComponent(organization.code)}/lms/${encodeURIComponent(enrollment.course_id)}`)}
+          >
+            {t("common.organizationPortal.lms.openCourse")}
+          </AppButton>}
         </AppCard>)}</div>
-        : <AppEmptyState title={t("common.organizationPortal.lms.noEnrollments")} />}
+        : <AppEmptyState title={normalizedSearch ? t("common.noResults") : t("common.organizationPortal.lms.noEnrollments")} />}
       {!!data.learning.attempts.length && <div className="space-y-3">
         <h3 className="text-lg font-bold text-[var(--text-primary)]">{t("common.organizationPortal.lms.assessmentResults")}</h3>
         <div className="stf-grid">{data.learning.attempts.map((attempt) => <AppCard key={`${attempt.assessment_id}:${attempt.completed_at}:${attempt.score}`}>

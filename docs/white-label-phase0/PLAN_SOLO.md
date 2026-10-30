@@ -2,7 +2,7 @@
 
 **Prepared by:** Christelle FAGBEHOURO
 
-**Updated:** 29 October 2026
+**Updated:** 30 October 2026
 
 **Working branch:** `white_label_os`
 
@@ -20,9 +20,9 @@ records, contacts, authentication cookies and shared interface components.
 **Client activation remains blocked. This is not a production release.** The work
 has not applied migrations to the real application database. Some Programme
 operational features and the complete isolation/browser validation remain pending.
-Initial read-only LMS and assigned-Venture organisation surfaces are implemented
-locally but are not open to clients; the Venture schema and complete data boundary
-still need validation.
+Read-only LMS catalogue, course-content playback and assigned-Venture details
+are implemented locally but are not open to clients; staging schema and complete
+data-boundary validation remain pending.
 
 ## Completed locally
 
@@ -31,14 +31,14 @@ still need validation.
 | Scope and operating rules | Programmes, LMS and Venture only; suspended clients have no access; solo delivery. | Team estimates are not solo commitments. |
 | Organisation foundation | Organisations, memberships, contracts, modules and bounded roles. | Configuration/provisioning is not yet self-service. |
 | History and supervision | Preserved access history, audit and explicit temporary Future Studio read mandates. | Existing supervision covers programme list/detail, not the new full workspace. |
-| Client entry and home | Organisation selection, server-controlled context changes, client home and module cards; private reads and old-tab checks. | Browser pilot still required; no client LMS or Venture access is enabled. |
+| Client entry and home | Organisation selection, server-controlled context changes, client home and module cards; private reads and old-tab checks. | Browser pilot still required; client activation is blocked pending isolation approval. |
 | Organisation branding | Display name, HTTPS logo and accessible primary colour with safe fallbacks; explicit editor capability and private update route. | Synthetic tests only; staging review and deployment remain pending. |
 | Programme management | Search, pagination, create/edit and protection against overwriting another person's changes. | New management roles must be assigned explicitly; old read-only roles stay read-only. |
 | Annual cohorts | Separate cohorts per year, dates and closure. | Earlier cohorts are retained, not reset for a new year. |
 | Enrollments | Search eligible existing organisation members, enroll, complete or withdraw. | Account creation/invitations and participant-specific journeys remain separate work. |
 | Scheduled sessions | Reuse existing sessions, linked to a cohort; title, description, week, UTC start and duration. | Facilitator assignment, attendance, assignments, meeting links, reminders and communications are not included yet. |
-| LMS organisation reads | Course ownership, explicit cross-organisation licences, separate enrollment/attempt/certificate scopes, role capabilities, and a private read-only catalogue/own-learning endpoint and portal. | Client role provisioning, course-content playback, staging migration and browser proof are not complete; no client LMS access is enabled. |
-| Venture assigned reads | Platform backfill for legacy ownership, explicit `assigned.read` capability and a private read-only list of the member's active assignments in the current organisation. | The schema varies between deployments; verify the real staging schema, assignment semantics, migration and full data graph before enabling access. No detail, write or client provisioning flow is included. |
+| LMS organisation reads | Tenant-scoped catalogue and own-learning summary, plus a private course-content endpoint and frontend for enrolled learners (sections, lesson text/video, status and lesson progress). | Read-only: lesson completion, assessments and course provisioning are not exposed in the client portal. Client roles, migration, isolation review and browser validation remain pending. |
+| Venture assigned reads | Private assigned-venture list with search and read-only details (description, industry, stage and safe HTTPS website/logo); ownership and `assigned.read` checks remain server-side. | The schema varies between deployments; staging migration, full related-data isolation and browser proof remain pending. No create/edit/client provisioning flow is included. |
 | Closure safeguards | End enrollments and sessions before closing a cohort; close cohorts before closing a programme. Closed history remains readable. | No portal deletion or reopening of closed records. |
 | Client authentication | Client and supervision Programme handlers avoid general schema initialisation and token backfill. | Other legacy application paths still require review. |
 | Initial internal boundaries | Platform-only programme reads, selected dashboards/workspace reads and five internal export types. | Not an exhaustive review of all indirect APIs and jobs. |
@@ -49,8 +49,10 @@ The detailed local scope, rights matrix, migration order and remaining gaps are 
 
 The organisation branding editor and branded client header are implemented
 locally. The organisation home presents module cards and opens only modules that
-the server reports as permitted. LMS and assigned-Venture reads are implemented
-locally behind explicit role capabilities. The Venture endpoint returns only
+the server reports as permitted. LMS catalogue, own-learning and enrolled
+course-content reads are implemented locally behind explicit role capabilities.
+Venture list/search/details are implemented on the assigned-Venture read surface.
+The Venture endpoint returns only
 ventures owned by the active organisation where the member has an active
 membership or staff assignment; legacy records default to Future Studio.
 The feature adds an explicit `organization_admin.branding.edit` capability, a
@@ -84,6 +86,25 @@ application database. Client activation remains blocked.
 - Full `npm run lint`, `npm run build`, full staging-schema validation and the
   browser pilot remain unvalidated after the merge.
 
+## Latest increment — 30 October 2026
+
+- Added the tenant-scoped LMS enrolled-course reader and frontend: course
+  description/thumbnail, sections, lesson text/video, enrollment state and
+  read-only lesson progress. The server requires current organization access,
+  `learning.read`, an active enrollment, a published course, and ownership or
+  an active licence.
+- Added LMS catalogue search/course thumbnails and learner navigation, plus
+  Venture search and a read-only assigned-venture details dialog.
+- Targeted LMS service/repository and LMS/Venture portal tests: **30 passed
+  across 3 suites**.
+- Locale parity: **0 missing / 0 obsolete**. Targeted ESLint: **0 errors**,
+  one existing navigation warning. `npm`-based commands were unavailable
+  because the workstation's snap confinement refused execution; local Node
+  binaries were used directly.
+- Staging browser validation remains blocked: the 29 October read-only probe
+  found no white-label organisation tables, and client activation remains
+  intentionally guarded.
+
 PostgreSQL checks run one disposable container at a time, without network or host
 data mounts, limited to **one CPU and 384 MiB**. Containers are stopped afterwards.
 The owner confirmed `.env.local` is staging on this workstation. A read-only
@@ -115,8 +136,8 @@ backup/clone.
 | Supervision administration | Pending | Mandate administration procedure/UI and an agreed boundary for the new workspace. |
 | Global verification | Incomplete | Complete lint, build and staging-schema checks on a suitable environment; no green-build claim yet. |
 | Full fictional-client pilot | Pending | Two clients plus Future Studio; browser flows, expiry, revocation, annual history, performance and recovery. |
-| LMS | Initial read-only slice implemented locally | Assign roles through an approved provisioning path, apply migrations to verified staging, exercise both role journeys in a browser, and finish the indirect-access review. |
-| Venture | Initial assigned-read slice implemented locally | Validate migration and schema compatibility on isolated staging; inventory related data and legacy routes; then run a two-organisation browser pilot before any client enablement. |
+| LMS | Read-only catalogue, own-learning and enrolled course reader implemented locally | Add reviewed client completion/assessment journeys only if selected; provision roles, validate migrations and isolation on staging, then run learner/content-manager journeys in a browser. |
+| Venture | Assigned list/search/details implemented locally | Validate migration/schema compatibility on isolated staging; inventory Venture-related data and legacy routes; then run a two-organisation browser pilot before any client enablement. |
 | Real-client opening | Blocked by preparation safeguards | Authorised review of complete evidence, launch decision and monitored deployment. |
 | Repository recovery | Blocked on a verified source copy | Five stash blobs are missing and cannot be reconstructed byte-for-byte from current packs; preserve the stash until a backup/clone can be checked. |
 
@@ -137,8 +158,8 @@ backup/clone.
    staging; keep both client modules closed until the complete isolation review.
 
 Annual cohort/enrollment/session history and initial LMS/Venture tenant
-boundaries are locally tested. LMS course-content playback, client role
-provisioning, Venture schema validation and related data isolation, client file
+boundaries are locally tested. Client role provisioning, staging schema and
+related-data isolation, learner completion/assessment actions, client file
 access, offboarding and restoration still need implementation or validation. No
 delivery percentage or launch date is claimed without a reviewed solo baseline.
 

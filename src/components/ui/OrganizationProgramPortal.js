@@ -15,6 +15,7 @@ import OrganizationProgramEditor from "./OrganizationProgramEditor";
 import OrganizationProgramWorkspace from "./OrganizationProgramWorkspace";
 import OrganizationPortalHeader from "./OrganizationPortalHeader";
 import OrganizationLmsPortal from "./OrganizationLmsPortal";
+import OrganizationLmsCoursePortal from "./OrganizationLmsCoursePortal";
 import OrganizationVenturePortal from "./OrganizationVenturePortal";
 import { resolveOrganizationPortalBranding } from "./organizationPortalBranding";
 
@@ -62,11 +63,13 @@ function OrganizationContextView({ organizationCode, programId, view }) {
   if (organizationCode && organization?.code === organizationCode) {
     return view === "home"
       ? <OrganizationPortalHome key={organization.id} organization={organization} onBrandChanged={refresh} />
-      : view === "lms"
-        ? <OrganizationLmsPortal key={organization.id} organization={organization} onBrandChanged={refresh} />
-        : view === "venture"
-          ? <OrganizationVenturePortal key={organization.id} organization={organization} onBrandChanged={refresh} />
-          : <OrganizationPrograms key={organization.id} organization={organization} programId={programId} onBrandChanged={refresh} />;
+      : view === "lms-course"
+        ? <OrganizationLmsCoursePortal key={organization.id} organization={organization} courseId={programId} onBrandChanged={refresh} />
+        : view === "lms"
+          ? <OrganizationLmsPortal key={organization.id} organization={organization} onBrandChanged={refresh} />
+          : view === "venture"
+            ? <OrganizationVenturePortal key={organization.id} organization={organization} onBrandChanged={refresh} />
+            : <OrganizationPrograms key={organization.id} organization={organization} programId={programId} onBrandChanged={refresh} />;
   }
   return <div className="space-y-6">
     <PageHero kicker={t("common.organizationPortal.brand")} title={t("common.organizationPortal.choose")} subtitle={t("common.organizationPortal.chooseHint")} />

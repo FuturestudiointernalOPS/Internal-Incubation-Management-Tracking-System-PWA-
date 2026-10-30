@@ -9,6 +9,15 @@ organisation reloads the portal; other tabs invalidate their view on the storage
 signal, window focus or restored browser pages. Organisation IDs in request
 headers are freshness preconditions only, never access authority.
 
+The client LMS catalogue and own-learning view include search and course
+thumbnails. An enrolled learner can open `/o/[organizationCode]/lms/[courseId]`
+to view course sections, lesson content/video and read-only progress; the
+course-content endpoint independently verifies the current organisation,
+learner capability, active enrollment and course ownership or licence. The
+client Venture view searches only the server-returned assigned ventures and
+opens a read-only details dialog. Both remain disabled until client activation
+and staging isolation validation are approved.
+
 The client Programme workspace also uses `OrganizationProgramWorkspace`,
 `OrganizationProgramEditor`, `OrganizationProgramEnrollments` and
 `OrganizationProgramSessions` from `components/ui/`. They reuse the shared modal,
