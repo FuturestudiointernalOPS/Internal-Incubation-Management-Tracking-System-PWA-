@@ -341,7 +341,57 @@
       "noSessions": "No sessions in this cohort",
       "sessionHistory": "Completed and archived sessions remain in the cohort history.",
       "closeRecordConfirm": "Close this record? Its history will remain visible, but it cannot be edited or reopened.",
-      "signIn": "Sign in"
+      "signIn": "Sign in",
+      "preview": {
+        "banner": "Local preview only. All sample content is fictitious; no client account or live organisation data is used.",
+        "workspace": "MTN Innovation Hub · Demo",
+        "programsDescription": "Illustrative programme cards only; this view is not connected to a live organisation.",
+        "course": {
+          "leadership": {
+            "title": "Inclusive Leadership Essentials",
+            "description": "Build practical leadership habits for collaborative, high-performing teams."
+          },
+          "digital": {
+            "title": "Digital Product Foundations",
+            "description": "Learn how to turn a user need into a focused product roadmap."
+          },
+          "impact": {
+            "title": "Measuring Social Impact",
+            "description": "Choose useful indicators and communicate outcomes with confidence."
+          }
+        },
+        "lesson": {
+          "1": "Welcome and learning goals",
+          "2": "Core concepts and practical tools",
+          "3": "Apply the learning to your work"
+        },
+        "venture": {
+          "greenloop": {
+            "name": "GreenLoop Demo",
+            "code": "DEMO-01",
+            "description": "A fictional circular-economy venture exploring reusable packaging for urban retailers.",
+            "industry": "Circular economy",
+            "stage": "Early stage"
+          },
+          "kawa": {
+            "name": "Kawa Connect Demo",
+            "code": "DEMO-02",
+            "description": "A fictional platform helping smallholder farmers coordinate access to local markets.",
+            "industry": "AgriTech",
+            "stage": "Growth"
+          }
+        },
+        "program": {
+          "1": {
+            "title": "Future Founders · Demo cohort",
+            "description": "A sample programme for early-stage founders, with mentoring and practical workshops."
+          },
+          "2": {
+            "title": "Impact Leaders · Demo cohort",
+            "description": "A sample programme focused on sustainable growth and measurable outcomes."
+          }
+        }
+      }
     }
   },
   "dashboard": {

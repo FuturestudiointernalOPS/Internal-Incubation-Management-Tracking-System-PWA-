@@ -341,7 +341,57 @@
       "noSessions": "Aucune session dans cette cohorte",
       "sessionHistory": "Les sessions terminées et archivées restent dans l’historique de la cohorte.",
       "closeRecordConfirm": "Clôturer cet élément ? Son historique restera visible, mais il ne pourra plus être modifié ou réactivé.",
-      "signIn": "Se connecter"
+      "signIn": "Se connecter",
+      "preview": {
+        "banner": "Aperçu local uniquement. Les exemples sont fictifs ; aucun compte client ni aucune donnée réelle d’organisation ne sont utilisés.",
+        "workspace": "MTN Innovation Hub · Démo",
+        "programsDescription": "Exemples de programmes uniquement ; cette page n’est pas reliée à une organisation réelle.",
+        "course": {
+          "leadership": {
+            "title": "Les bases du leadership inclusif",
+            "description": "Développez des pratiques de leadership concrètes pour des équipes collaboratives et performantes."
+          },
+          "digital": {
+            "title": "Fondamentaux du produit numérique",
+            "description": "Apprenez à transformer un besoin utilisateur en feuille de route produit ciblée."
+          },
+          "impact": {
+            "title": "Mesurer l’impact social",
+            "description": "Choisissez des indicateurs utiles et communiquez vos résultats avec confiance."
+          }
+        },
+        "lesson": {
+          "1": "Bienvenue et objectifs de formation",
+          "2": "Concepts clés et outils pratiques",
+          "3": "Appliquer les acquis à votre travail"
+        },
+        "venture": {
+          "greenloop": {
+            "name": "GreenLoop Démo",
+            "code": "DÉMO-01",
+            "description": "Une venture fictive d’économie circulaire qui explore les emballages réutilisables pour les commerces urbains.",
+            "industry": "Économie circulaire",
+            "stage": "Démarrage"
+          },
+          "kawa": {
+            "name": "Kawa Connect Démo",
+            "code": "DÉMO-02",
+            "description": "Une plateforme fictive qui aide les petits exploitants agricoles à accéder aux marchés locaux.",
+            "industry": "AgriTech",
+            "stage": "Croissance"
+          }
+        },
+        "program": {
+          "1": {
+            "title": "Future Founders · Cohorte démo",
+            "description": "Un programme fictif pour les entrepreneurs en démarrage, avec mentorat et ateliers pratiques."
+          },
+          "2": {
+            "title": "Impact Leaders · Cohorte démo",
+            "description": "Un programme fictif axé sur la croissance durable et les résultats mesurables."
+          }
+        }
+      }
     }
   },
   "dashboard": {

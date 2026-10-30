@@ -194,9 +194,20 @@ function privateOrganizationResponse(response, pathname) {
   return response;
 }
 
+function isLocalOrganizationPreview(request) {
+  if (process.env.NODE_ENV !== "development"
+    || request.nextUrl.searchParams?.get("preview") !== "1") return false;
+  return /^\/o\/(?!select(?:\/|$))[^/]+(?:\/(?:lms(?:\/[^/]+)?|venture|programs))?$/.test(request.nextUrl.pathname);
+}
+
 export function proxy(request) {
   const { pathname } = request.nextUrl;
   const requestId = correlationId(request);
+
+  // The explicitly requested mock portal is available only in local development.
+  if (isLocalOrganizationPreview(request)) {
+    return nextWithId(request, requestId);
+  }
 
   // Static assets never require a session.
   if (STATIC_ASSET_RE.test(pathname)) {

@@ -8,7 +8,7 @@ import AppButton from "./AppButton";
 import OrganizationBrandingEditor from "./OrganizationBrandingEditor";
 import { resolveOrganizationPortalBranding } from "./organizationPortalBranding";
 
-export default function OrganizationPortalHeader({ organization, activePage, onBrandChanged }) {
+export default function OrganizationPortalHeader({ organization, activePage, onBrandChanged, previewMode = false }) {
   const { t } = useI18n();
   const router = useRouter();
   const [editingBranding, setEditingBranding] = useState(false);
@@ -20,6 +20,7 @@ export default function OrganizationPortalHeader({ organization, activePage, onB
     "--brand-gradient": branding.primaryColor,
   } : undefined;
   const base = `/o/${encodeURIComponent(organization.code)}`;
+  const route = (path) => previewMode ? `${path}?preview=1` : path;
 
   return <>
     <header className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-[var(--border-primary)] bg-surface-1 p-4" style={brandStyle}>
@@ -33,24 +34,24 @@ export default function OrganizationPortalHeader({ organization, activePage, onB
         </div>
       </div>
       <nav aria-label={t("common.organizationPortal.navigation")} className="flex flex-wrap items-center gap-2">
-        <AppButton variant={activePage === "home" ? "primary" : "secondary"} onClick={() => router.push(base)}>
+        <AppButton variant={activePage === "home" ? "primary" : "secondary"} onClick={() => router.push(route(base))}>
           {t("common.organizationPortal.home")}
         </AppButton>
-        {organization.modules?.includes("programs") && <AppButton variant={activePage === "programs" ? "primary" : "secondary"} onClick={() => router.push(`${base}/programs`)}>
+        {organization.modules?.includes("programs") && <AppButton variant={activePage === "programs" ? "primary" : "secondary"} onClick={() => router.push(route(`${base}/programs`))}>
           {t("common.organizationPortal.programmes")}
         </AppButton>}
-        {organization.modules?.includes("lms") && <AppButton variant={activePage === "lms" ? "primary" : "secondary"} onClick={() => router.push(`${base}/lms`)}>
+        {organization.modules?.includes("lms") && <AppButton variant={activePage === "lms" ? "primary" : "secondary"} onClick={() => router.push(route(`${base}/lms`))}>
           {t("common.organizationPortal.module.lms")}
         </AppButton>}
-        {organization.modules?.includes("venture") && <AppButton variant={activePage === "venture" ? "primary" : "secondary"} onClick={() => router.push(`${base}/venture`)}>
+        {organization.modules?.includes("venture") && <AppButton variant={activePage === "venture" ? "primary" : "secondary"} onClick={() => router.push(route(`${base}/venture`))}>
           {t("common.organizationPortal.module.venture")}
         </AppButton>}
         {organization.brandingEditable && <AppButton variant="secondary" onClick={() => setEditingBranding(true)}>
           {t("common.organizationPortal.brandingSettings")}
         </AppButton>}
-        <AppButton variant="secondary" onClick={() => router.push("/o/select")}>
+        {!previewMode && <AppButton variant="secondary" onClick={() => router.push("/o/select")}>
           {t("common.organizationPortal.change")}
-        </AppButton>
+        </AppButton>}
       </nav>
     </header>
     {editingBranding && <OrganizationBrandingEditor organization={organization} onClose={() => setEditingBranding(false)}

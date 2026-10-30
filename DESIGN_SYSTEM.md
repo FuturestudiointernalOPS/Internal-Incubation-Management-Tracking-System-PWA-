@@ -18,6 +18,13 @@ client Venture view searches only the server-returned assigned ventures and
 opens a read-only details dialog. Both remain disabled until client activation
 and staging isolation validation are approved.
 
+For visual review without staging credentials, local development supports
+`?preview=1` on the client portal pages (for example
+`/o/alpha/lms?preview=1` and `/o/alpha/venture?preview=1`). This renders
+translated, fictitious sample content without calling client APIs. The preview
+is explicitly enabled only in development; it does not provision an account or
+enable access in staging or production.
+
 The client Programme workspace also uses `OrganizationProgramWorkspace`,
 `OrganizationProgramEditor`, `OrganizationProgramEnrollments` and
 `OrganizationProgramSessions` from `components/ui/`. They reuse the shared modal,

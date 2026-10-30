@@ -1,5 +1,7 @@
-import OrganizationProgramPortal from "@/components/ui/OrganizationProgramPortal";
+import OrganizationPortalRoute from "@/components/ui/OrganizationPortalRoute";
 export const dynamic = "force-dynamic";
-export default async function OrganizationPage({ params }) {
-  return <OrganizationProgramPortal organizationCode={(await params).organizationCode} view="home" />;
+export default async function OrganizationPage({ params, searchParams }) {
+  const { organizationCode } = await params;
+  const { preview } = await searchParams;
+  return <OrganizationPortalRoute organizationCode={organizationCode} view="home" preview={preview} />;
 }
