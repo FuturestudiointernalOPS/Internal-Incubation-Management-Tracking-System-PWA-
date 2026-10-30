@@ -145,6 +145,7 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/tasks/notify-deadlines/route.js", kind: "cron", reason: "Notifications d'échéance planifiées (secret)." },
   { file: "src/app/api/webhooks/kkiapay/route.js", kind: "webhook", reason: "Webhook de paiement signé par le fournisseur ; 401 si la signature est invalide." },
   { file: "src/app/api/integrations/google-calendar/webhook/route.js", kind: "webhook", reason: "Notification push Google ; jeton de canal vérifié." },
+  { file: "src/app/api/integrations/whatsapp/webhook/route.js", kind: "webhook", reason: "Webhook WhatsApp Cloud API ; HMAC `x-hub-signature-256` vérifiée sur le corps brut, 401 si la signature est invalide, refus 503 si aucun secret n'est configuré." },
   { file: "src/app/api/health/route.js", kind: "probe", reason: "Sonde de santé publique ; n'expose aucune donnée métier." },
   { file: "src/app/api/ready/route.js", kind: "probe", reason: "Sonde de disponibilité." },
 ];

@@ -178,9 +178,13 @@ describe("GET /api/contacts/full-state", () => {
     expect(res.status).toBe(200);
     // The reconciliation wrote on every load before; now it is once per window,
     // so a repeat load issues the registry reads and nothing else. The three
-    // registry reads are independent (one wave) and the invitation + activation
-    // reads are independent (a second wave).
-    expect(report.statements).toBeLessThanOrEqual(5);
-    expect(report.waves).toBeLessThanOrEqual(2);
+    // registry reads are independent (one wave), the invitation + activation
+    // reads are independent (a second wave), and the WhatsApp consent read is a
+    // third sequential wave: `attachWhatsappStatus` is awaited after the
+    // invitation enrichment, so it cannot join either earlier wave. Parallelising
+    // it would need the consent fields merged by cid; the extra round-trip is
+    // accepted until that is done.
+    expect(report.statements).toBeLessThanOrEqual(6);
+    expect(report.waves).toBeLessThanOrEqual(3);
   });
 });
