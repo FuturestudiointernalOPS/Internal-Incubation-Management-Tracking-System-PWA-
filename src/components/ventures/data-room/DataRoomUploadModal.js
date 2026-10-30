@@ -40,6 +40,10 @@ export default function DataRoomUploadModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
+  // Local day, not UTC: a date is "past" by the clock of the person typing it.
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const originalExpiry = documentEntry?.expires_at ? String(documentEntry.expires_at).slice(0, 10) : "";
+
   const message = (value) => (String(value || "").startsWith("dataRoom.") ? t(value) : value);
 
   const submit = async (event) => {
@@ -48,6 +52,11 @@ export default function DataRoomUploadModal({
 
     if (!title.trim()) {
       setError(t("dataRoom.errors.titleRequired"));
+      return;
+    }
+    // An expiry already on file may be past (the document did expire); a NEW one may not be.
+    if (expiry && expiry < today && expiry !== originalExpiry) {
+      setError(t("dataRoom.errors.pastExpiry"));
       return;
     }
     if (!editing && !file && !externalUrl.trim()) {
@@ -174,6 +183,7 @@ export default function DataRoomUploadModal({
             <Field label={t("dataRoom.fields.expiry")}>
               <input
                 type="date"
+                min={today}
                 value={expiry}
                 onChange={(event) => setExpiry(event.target.value)}
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[11px] text-[var(--text-primary)] outline-none"
@@ -184,6 +194,7 @@ export default function DataRoomUploadModal({
           <Field label={t("dataRoom.fields.expiry")}>
             <input
               type="date"
+              min={today}
               value={expiry}
               onChange={(event) => setExpiry(event.target.value)}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[11px] text-[var(--text-primary)] outline-none"

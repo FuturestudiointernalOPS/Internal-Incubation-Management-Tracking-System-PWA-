@@ -28,7 +28,7 @@ export default function VentureWizardTab({ t, venture, id, router, lang, wizardS
             </div>
           </div>
           <button
-            onClick={() => router.push(`/ventures/${id}/wizard`)}
+            onClick={() => router.push(`/admin/ventures/${id}/edit`)}
             className="px-5 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest hover:brightness-110 transition-all flex items-center gap-2"
           >
             <Layers className="w-3.5 h-3.5" /> {t("vadmin.detail.openWizard")}

@@ -279,8 +279,9 @@ export default function StaffVentureWorkspace() {
 
       {activeTab === "overview" && (
       <>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
       {/* My responsibilities on this Venture */}
-      <div className="card">
+      <div className="card h-full">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
           <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.myRole")}
         </h3>
@@ -299,7 +300,7 @@ export default function StaffVentureWorkspace() {
       </div>
 
       {/* Attention — submissions awaiting review (Coach / Venture Support) */}
-      <div className="card">
+      <div className="card h-full">
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
           <Inbox className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.needsAttention", { count: reviewQueue.length })}
         </h3>
@@ -335,6 +336,35 @@ export default function StaffVentureWorkspace() {
             ))}
           </div>
         )}
+      </div>
+
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        <div className="card h-full">
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.foundersAndMembers", { count: members.length })}
+          </h3>
+          {members.length === 0 ? (
+            <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noMembers")}</p>
+          ) : (
+            <div className="space-y-2">
+              {members.slice(0, 6).map((member) => (
+                <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
+                  <p className="text-xs font-medium text-[var(--text-primary)]">{member.contact_name || member.contact_id}</p>
+                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{member.member_type || "member"}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      {venture.description && (
+        <div className="card h-full">
+          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("staff.ventureWorkspace.about")}</h3>
+          <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
+        </div>
+      )}
+
       </div>
 
       {/* Read panes */}
@@ -375,31 +405,7 @@ export default function StaffVentureWorkspace() {
           )}
         </div>
 
-        <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.foundersAndMembers", { count: members.length })}
-          </h3>
-          {members.length === 0 ? (
-            <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noMembers")}</p>
-          ) : (
-            <div className="space-y-2">
-              {members.slice(0, 6).map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)]">{member.contact_name || member.contact_id}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{member.member_type || "member"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
-
-      {venture.description && (
-        <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("staff.ventureWorkspace.about")}</h3>
-          <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
-        </div>
-      )}
 
       <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
         <FileText className="w-3 h-3" /> {t("staff.ventureWorkspace.readPanesNote")}

@@ -125,19 +125,15 @@ export default function ShellHeader({
               <div className="relative">
                 <button
                   onClick={() => {
-                    // The panel always opens as a SHORT glance, and always on
-                    // current rows: opening it re-asks, so the list and the
-                    // badge can never disagree with the server.
-                    setShowAllNotifications(false);
-                    if (!showNotifications) fetchNotifications();
-                    setShowNotifications((previousValue) => !previousValue);
+                    // The bell leads to the Announcements page, where the
+                    // notifications are read in full.
+                    router.push(isMemberSurfaceRole(user?.role) ? "/participant/announcements" : "/admin/announcements");
                   }}
                   aria-label={
                     unreadCount > 0
                       ? `${t("navigation.notifications")} (${unreadCount})`
                       : t("navigation.notifications")
                   }
-                  aria-expanded={showNotifications}
                   className={pathname?.startsWith("/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
                 >
                   <Bell className="w-4 h-4" aria-hidden="true" />
