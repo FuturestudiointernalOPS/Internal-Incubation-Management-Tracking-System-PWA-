@@ -134,6 +134,10 @@ Only then run `migrations/drop_role_capabilities.sql`.
 SELECT name FROM authz_migrations WHERE name = 'feature-key-alignment-v1';
 SELECT name FROM authz_migrations WHERE name = 'profile-catalogue-seed-v1';
 SELECT name FROM authz_migrations WHERE name = 'drop-access-profiles-v1';
+-- Delegated record creation: the investor feature's ceiling gains `member`, so
+-- `investor.create` (like programs.create and ventures.create) can be granted
+-- to any person from the Permission Center.
+SELECT name FROM authz_migrations WHERE name = 'creation-delegation-investor-v1';
 ```
 
 The first request after deploy renames feature keys (`program_management→programs`,
@@ -142,6 +146,13 @@ The first request after deploy renames feature keys (`program_management→progr
 `knowledge_base`/`intelligence→knowledge`, `messaging`/`internal_comms→communication`)
 and merges responsibilities. **Until it completes, every non-Super-Admin is denied
 on ~10 of 12 features.**
+
+`creation-delegation-investor-v1` belongs to the one-time batch, which is applied
+only while `AUTHZ_RUN_MIGRATIONS=true` is set for the deploy (see
+`src/models/authorization/migrations.js`). If that run is skipped, the same
+ceiling can be set from **Rules → Eligibility** (`investors` → `member`);
+without it, `investor.create` cannot be granted to a personal account even
+though the capability exists.
 
 The profile catalogue is seeded directly (`profile-catalogue-seed-v1`), and the
 retired access-profile tables are dropped (`drop-access-profiles-v1`) — the last

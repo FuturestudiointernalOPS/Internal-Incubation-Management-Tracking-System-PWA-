@@ -43,6 +43,7 @@ import {
   ensureProgramsBackfill,
   ensureVenturesBackfill,
   ensureInvestorBackfill,
+  ensureInvestorCreationDelegation,
 } from "./backfill/moduleBackfills";
 import {
   ensureLmsViewBackfill,
@@ -111,6 +112,13 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration("cap-backfill-programs", ensureProgramsBackfill),
           runAuthzMigration("cap-backfill-ventures", ensureVenturesBackfill),
           runAuthzMigration("cap-backfill-investor", ensureInvestorBackfill),
+          // Delegate record creation to any identity the administrator chooses:
+          // the investor feature's ceiling gains `member` (programs and ventures
+          // already have it). Insert-only, so an admin's removal wins.
+          runAuthzMigration(
+            "creation-delegation-investor-v1",
+            ensureInvestorCreationDelegation,
+          ),
           // LMS became a capability-grantable feature behind `lms.view` with a
           // Program Manager surface — existing DBs need the PM grant (the seed
           // only applies to profiles created after the change).

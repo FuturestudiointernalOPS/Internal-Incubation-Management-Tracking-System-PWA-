@@ -155,6 +155,10 @@ const SELF_SCOPED_PREFIXES = ["src/app/api/me/", "src/app/api/profile/"];
 /** Mechanisms that ARE a permission decision (exclude a route from "open"). */
 const DECISION_MECHANISMS = [
   "requireAuthorization(",
+  // The "any of these rights" variant of the same gate. A route that accepts
+  // two rights (e.g. program vocabulary readable with programs.view OR
+  // programs.create) is decided, not open.
+  "requireAnyAuthorization(",
   "requireScopedAccess(",
   "requireVenture",
   "requireProgramScope",
