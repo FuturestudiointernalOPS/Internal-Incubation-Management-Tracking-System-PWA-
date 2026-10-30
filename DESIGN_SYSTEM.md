@@ -1,5 +1,26 @@
 # ImpactOS Design System — Developer Guide
 
+The separate client entry at `/o/select` and `/o/[organizationCode]` uses
+`OrganizationProgramPortal` from `components/ui/`. Its `OrganizationLmsPortal`
+and `OrganizationVenturePortal` views reuse the shared cards, inputs, selects,
+hero and status components without the internal dashboard shell. Requests use
+`useApi(..., { cache: false })` to avoid the shared SWR cache. Changing
+organisation reloads the portal; other tabs invalidate their view on the storage
+signal, window focus or restored browser pages. Organisation IDs in request
+headers are freshness preconditions only, never access authority.
+
+The client Programme workspace also uses `OrganizationProgramWorkspace`,
+`OrganizationProgramEditor`, `OrganizationProgramEnrollments` and
+`OrganizationProgramSessions` from `components/ui/`. They reuse the shared modal,
+form, card, badge and button kit, with translated labels and no internal shell.
+Buttons reflect server-provided capabilities; the server independently authorises
+all operations. Mutation bodies include current record revisions. Closing records
+uses `useDialogs()` and explains that history becomes read-only. Session form
+inputs explicitly use UTC; displayed timestamps use the viewer's browser timezone.
+All client reads bypass shared response caches. Errors remain inline and cannot
+fall back to an internal API. Account provisioning and full browser validation
+remain outside this local Programme increment.
+
 ## 1. Theme Architecture
 
 ImpactOS uses a **CSS custom property (variable) system** with a `data-theme` attribute on `<html>`.
@@ -438,7 +459,7 @@ src/
 - [ ] Tables use `AppTable`
 - [ ] Modals use `AppModal`
 - [ ] Theme toggle uses `useTheme()` hook
-- [ ] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
+- [x] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
 - [ ] Chart colors use `var(--chart-*)` tokens
 
 ### Blocs internes de la coquille et de la messagerie

@@ -62,6 +62,9 @@ permissions déjà en place.
 5. **Le refus est la valeur par défaut.**
    Une appartenance absente, une organisation suspendue, un module désactivé, un
    périmètre vide ou une erreur de lecture refusent l’accès.
+   Décision confirmée par Christelle le 22 octobre 2026 : une organisation
+   suspendue n’a aucun accès client, y compris en lecture ; aucune période de
+   grâce en lecture seule. Les données restent conservées.
 6. **La migration est additive.**
    Les données existantes rejoignent l’organisation plateforme. Aucune colonne
    existante n’est supprimée, aucun rôle n’est renommé, aucun droit n’est retiré.
@@ -465,8 +468,9 @@ installe des déclencheurs et des privilèges sur les tables critiques.
   nécessaire parce que la portée est polymorphe et ne peut pas être une clé
   étrangère simple.
 - `audit_lifecycle_change()` : écrit un événement minimal dans le journal pour
-  les tables critiques, même si le service a oublié de le faire. Le service peut
-  enrichir l’événement ensuite.
+  les tables critiques, même si le service a oublié de le faire. Les compléments
+  du service sont de nouveaux événements ; aucun événement existant n'est
+  enrichi par UPDATE, puisque le journal est en ajout seul.
 
 **Privilèges :**
 
@@ -530,6 +534,29 @@ filtrées.
 ---
 
 ## 7. Migration
+
+**Décision confirmée par Christelle le 23 octobre 2026 : migrations additives,
+non destructives.** Ajouter les structures nécessaires sans supprimer ni
+renommer les tables/colonnes existantes, sans effacer les données et sans
+remplacer les contraintes d'unicité existantes dans la première tranche.
+Les nouvelles colonnes des tables existantes restent facultatives au départ.
+Le repli conserve les ajouts et ferme le portail ; il ne lance pas de migration
+de suppression. Le DDL proposé dans les annexes reste une cible à découper et
+à tester, pas une migration à appliquer intégralement.
+
+La première migration préparée est
+`supabase/migrations/20261023_white_label_programs_foundation.sql`.
+Elle n'est pas exécutée automatiquement par l'application. Elle prépare
+Programmes uniquement et bloque encore l'activation des clients et l'ajout
+de programmes clients, tant que les lectures internes et la supervision ne
+sont pas protégées. Les lignes existantes ne sont ni reprises ni modifiées.
+
+La suite `20261023_white_label_programs_history.sql` ajoute les protections
+d'historique, le journal et les références typées de cette première tranche.
+Les deux fichiers ont été appliqués deux fois sur PostgreSQL 16 dans un
+conteneur sans réseau avec schéma minimal et données fictives. Ce résultat
+ne remplace pas la validation du schéma complet ni l'isolation du portail.
+Voir `docs/white-label-phase0/PLAN_SOLO.md` pour le bilan et les limites de validation.
 
 ### 7.1 Ordre
 
@@ -596,10 +623,17 @@ l’organisation de session.
 ### 7.4 Environnements
 
 - La migration et les tests se font sur **staging**.
-- Sur ce poste, `.env.local` pointe sur la **production** : ne pas exécuter la
-  migration avec cet environnement.
-- Les vérifications read-only utilisent
-  `node scripts/db-audit/run-readonly.mjs <sql-file> .env.audit-staging`.
+- Le propriétaire a confirmé que `.env.local` pointe sur **staging** sur ce
+  poste. Le contrôle read-only du 29 octobre 2026 y a trouvé 11 contacts,
+  3 ventures et aucune table d’organisation white-label. `.env.audit-staging`
+  est absent.
+- Vérifier la référence du projet Supabase avant toute écriture ; les noms des
+  fichiers d’environnement ne prouvent pas leur cible. Le runner
+  `node scripts/db-audit/run-readonly.mjs <sql-file> <env-file>` n’exécute que
+  les requêtes read-only autorisées.
+- Les migrations de préparation gardent l’activation client bloquée jusqu’à
+  l’approbation de l’isolation. Aucun compte client de test ne peut ouvrir le
+  portail avant cette gate ; ne pas désactiver manuellement ce verrou.
 - La promotion vers la production suit `docs/PRODUCTION_TEST.md`.
 
 ---
@@ -1195,11 +1229,14 @@ de rouvrir une fuite silencieusement.
 
 ### 14.2 Production
 
-- Ne pas exécuter la migration avec `.env.local` sur ce poste : il pointe sur la
-  production.
-- Utiliser l’environnement de staging pour les essais.
+- `.env.local` pointe vers staging sur ce poste ; ne pas l’utiliser comme cible
+  de production. Vérifier la référence du projet avant toute opération.
+- Utiliser staging pour les essais et garder la production distincte.
 - Vérifier que la supervision et l’isolation bidirectionnelle sont vertes avant
   d’activer la première organisation cliente.
+- Le compte de test MTN ne peut être provisionné qu’après l’approbation de
+  l’isolation et l’ajout d’un parcours de provisionnement contrôlé ; voir
+  [`Accès de test white-label sur staging`](./white-label-phase0/STAGING_TEST_ACCESS.md).
 - La promotion vers `main` suit le **test de production**
   (`docs/PRODUCTION_TEST.md`), item par item.
 
@@ -2070,6 +2107,7 @@ testé après son installation.
 
 | Date | Décision | Statut |
 |---|---|---|
+| 2026-10-22 | Organisation suspendue : refus de tout accès client, sans lecture seule ni période de grâce ; données conservées | Confirmé par Christelle dans la conversation |
 | 2026-10-22 | Portail client séparé de la console interne | À valider |
 | 2026-10-22 | Moteur de permissions existant non modifié en Phase 1 | À valider |
 | 2026-10-22 | Organisation active dans la session, jamais dans l’URL | À valider |

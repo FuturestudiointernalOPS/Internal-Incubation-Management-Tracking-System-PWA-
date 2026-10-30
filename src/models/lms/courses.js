@@ -3,6 +3,7 @@ import { LmsError } from "./errors";
 import { groupBy } from "./helpers";
 import { validateCourseForPublish } from "./validation";
 import { listSectionResourcesByCourse } from "./sectionResources";
+import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 
 /**
  * Course lifecycle + structure assembly.
@@ -12,7 +13,7 @@ import { listSectionResourcesByCourse } from "./sectionResources";
 const COURSE_SELECT = `SELECT id, title, description, thumbnail_url, status,
                               visibility, is_free, price, payment_currency,
                               payment_amount_unit, payment_consent_text,
-                              created_by, created_at, updated_at
+                              created_by, owner_organization_id, created_at, updated_at
                        FROM lms_courses`;
 
 function parseCourse(row) {
@@ -21,8 +22,8 @@ function parseCourse(row) {
 }
 
 export async function listCourses({ search, status } = {}) {
-  const clauses = [];
-  const args = [];
+  const clauses = ["owner_organization_id = ?"];
+  const args = [PLATFORM_ORGANIZATION_ID];
   if (status) {
     clauses.push("status = ?");
     args.push(status);
@@ -42,8 +43,8 @@ export async function listCourses({ search, status } = {}) {
 
 export async function getCourse(courseId) {
   const res = await db.execute({
-    sql: `${COURSE_SELECT} WHERE id = ?`,
-    args: [courseId],
+    sql: `${COURSE_SELECT} WHERE id = ? AND owner_organization_id = ?`,
+    args: [courseId, PLATFORM_ORGANIZATION_ID],
   });
   return parseCourse(res.rows[0]);
 }
@@ -225,8 +226,8 @@ export async function updateCourse(courseId, fields = {}) {
   sets.push("updated_at = NOW()");
   args.push(courseId);
   await db.execute({
-    sql: `UPDATE lms_courses SET ${sets.join(", ")} WHERE id = ?`,
-    args,
+    sql: `UPDATE lms_courses SET ${sets.join(", ")} WHERE id = ? AND owner_organization_id = ?`,
+    args: [...args, PLATFORM_ORGANIZATION_ID],
   });
   return getCourse(courseId);
 }
@@ -238,13 +239,16 @@ export async function deleteCourse(courseId) {
     throw new LmsError("lms.errors.cannotDeleteCourse", 409);
   }
   const enrollments = await db.execute({
-    sql: "SELECT 1 FROM lms_enrollments WHERE course_id = ? LIMIT 1",
-    args: [courseId],
+    sql: "SELECT 1 FROM lms_enrollments WHERE course_id = ? AND organization_id = ? LIMIT 1",
+    args: [courseId, PLATFORM_ORGANIZATION_ID],
   });
   if (enrollments.rows.length > 0) {
     throw new LmsError("lms.errors.cannotDeleteCourse", 409);
   }
-  await db.execute({ sql: "DELETE FROM lms_courses WHERE id = ?", args: [courseId] });
+  await db.execute({
+    sql: "DELETE FROM lms_courses WHERE id = ? AND owner_organization_id = ?",
+    args: [courseId, PLATFORM_ORGANIZATION_ID],
+  });
   return { success: true };
 }
 
@@ -261,8 +265,8 @@ export async function publishCourse(courseId) {
   }
 
   await db.execute({
-    sql: "UPDATE lms_courses SET status = 'published', updated_at = NOW() WHERE id = ?",
-    args: [courseId],
+    sql: "UPDATE lms_courses SET status = 'published', updated_at = NOW() WHERE id = ? AND owner_organization_id = ?",
+    args: [courseId, PLATFORM_ORGANIZATION_ID],
   });
   return { success: true };
 }
@@ -276,8 +280,8 @@ export async function archiveCourse(courseId) {
   // Archiving never deletes enrollments/progress/attempts — schema cascades
   // only on explicit DELETE. Status transition only.
   await db.execute({
-    sql: "UPDATE lms_courses SET status = 'archived', updated_at = NOW() WHERE id = ?",
-    args: [courseId],
+    sql: "UPDATE lms_courses SET status = 'archived', updated_at = NOW() WHERE id = ? AND owner_organization_id = ?",
+    args: [courseId, PLATFORM_ORGANIZATION_ID],
   });
   return { success: true };
 }
@@ -291,8 +295,8 @@ export async function unarchiveCourse(courseId) {
   // Only a published course can be archived, so restoring returns it to
   // published: open to new enrollment again. Learner records were never touched.
   await db.execute({
-    sql: "UPDATE lms_courses SET status = 'published', updated_at = NOW() WHERE id = ?",
-    args: [courseId],
+    sql: "UPDATE lms_courses SET status = 'published', updated_at = NOW() WHERE id = ? AND owner_organization_id = ?",
+    args: [courseId, PLATFORM_ORGANIZATION_ID],
   });
   return { success: true };
 }

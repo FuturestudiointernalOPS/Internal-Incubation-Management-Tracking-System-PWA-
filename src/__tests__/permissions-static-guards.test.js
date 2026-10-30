@@ -238,6 +238,9 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/ventures/verification/categories.js#M3",
   "src/services/workspace/calendar.js#M4",
   "src/services/workspace/navigation.js#M3",
+  // White-label boundary: client actor kinds are admitted only by the
+  // organisation-scoped policy, never as a role-based internal bypass.
+  "src/services/organizations/programAccess.js#M4",
   // Relevé lors du nettoyage des écrans (2026-10-19). Les trois entrées du
   // centre actif sont de l'affichage/validation (liste des rôles d'un profil),
   // jamais une décision d'accès. Les sept autres préexistaient à ce lot et
@@ -297,6 +300,12 @@ const API_ROOT = path.join(SRC, "app", "api");
  *   - `requireInvestorSelfServiceAuthorization(` — le seam investisseur qui
  *     enveloppe `requireAuthorization("investor", …)` (déjà compté comme usage
  *     littéral par `route-catalog-contract.test.js`).
+ *   - `organizationHandler(` — the private organisation boundary authenticates
+ *     through its dedicated session lookup; the called service must still
+ *     enforce active membership, organisation scope and capability.
+ *   - `organizationProgramManagementRoute(` — a route factory that applies the
+ *     same private session boundary and delegates each action to the
+ *     organisation-scoped management service.
  */
 const ROUTE_MECHANISMS = [
   "requireAuthorization(",
@@ -313,6 +322,8 @@ const ROUTE_MECHANISMS = [
   "getSession(",
   "createHandler(",
   "requireInvestorSelfServiceAuthorization(",
+  "organizationHandler(",
+  "organizationProgramManagementRoute(",
 ];
 
 /**

@@ -413,3 +413,15 @@ describe("useApiMulti — the endpoints are read, not a render dependency", () =
     );
   });
 });
+
+describe("private organisation reads", () => {
+  it("cache:false ignores an existing shared response and does not publish private data", async () => {
+    const url = "/api/org/context-private-test";
+    cacheSet(url, { success: true, organization: "old-shared-copy" });
+    global.fetch.mockImplementation(() => jsonResponse({ success: true, organization: "fresh-private-copy" }));
+    const { result } = renderHook(() => useApi(url, { cache: false }));
+    await waitFor(() => expect(result.current.data?.organization).toBe("fresh-private-copy"));
+    expect(global.fetch).toHaveBeenCalledWith(url, { cache: "no-store" });
+    expect(cacheGet(url).organization).toBe("old-shared-copy");
+  });
+});
