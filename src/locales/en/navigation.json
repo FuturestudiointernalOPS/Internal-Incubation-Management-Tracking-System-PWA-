@@ -1,6 +1,9 @@
 {
   "navigation": {
     "dashboard": "Dashboard",
+    "create": "Create",
+    "createVenture": "Create Venture",
+    "createInvestor": "Invite Investor",
     "programs": "Programs",
     "allPrograms": "All Programs",
     "createProgram": "Create Program",

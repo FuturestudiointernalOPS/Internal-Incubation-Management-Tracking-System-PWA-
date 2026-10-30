@@ -1,6 +1,9 @@
 {
   "navigation": {
     "dashboard": "Tableau de bord",
+    "create": "Créer",
+    "createVenture": "Créer une venture",
+    "createInvestor": "Inviter un investisseur",
     "programs": "Programmes",
     "allPrograms": "Tous les programmes",
     "createProgram": "Créer un programme",
