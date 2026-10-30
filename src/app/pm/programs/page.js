@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import CreateActions from "@/components/create/CreateActions";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -104,14 +105,17 @@ export default function PMProgramsRegistry() {
             </p>
           </div>
 
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder={t("common.search")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 font-bold transition-all"
-            />
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+            <CreateActions only={["program"]} tone="primary" />
+            <div className="relative w-full md:w-80">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder={t("common.search")}
+                className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl pl-12 pr-6 py-4 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 font-bold transition-all"
+              />
+            </div>
           </div>
         </header>
 

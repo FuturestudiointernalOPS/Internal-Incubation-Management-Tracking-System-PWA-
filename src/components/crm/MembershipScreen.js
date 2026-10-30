@@ -3,13 +3,15 @@
 /**
  * CRM — Organizational membership (shared screen).
  *
- * Rendered by BOTH the admin route (/admin/crm/membership) and the non-admin
- * CRM workspace route (/crm/membership).
+ * Rendered by the single CRM route (/crm/membership); the legacy admin route
+ * redirects here.
  *
- * `readOnly` hides every write affordance (add member, renew, deactivate, end,
- * reactivate) and the admin-only "View effective access" deep link — the
- * roster, filters and history stay available. The API is the real boundary:
- * GET requires `org_membership.view`, PUT requires `org_membership.manage`.
+ * The screen chooses its own posture from the caller's rights: the roster is
+ * read-only unless the person holds `org_membership.manage` (Super Admin
+ * bypasses). The write affordances (add member, renew, deactivate, end,
+ * reactivate) and the "View effective access" deep link are hidden while that
+ * right is missing or still loading. The API remains the real boundary: GET
+ * requires `org_membership.view`, PUT requires `org_membership.manage`.
  */
 
 import { deriveMembershipStatus } from "@/lib/membership-ui";
@@ -21,16 +23,26 @@ import {
   DetailModal,
 } from "@/components/membership/MembershipModals";
 import { useMembershipState } from "./useMembershipState";
+import { useCrmCapabilities } from "./useCrmCapabilities";
 import { MembershipHeader } from "./MembershipHeader";
 import { MembershipGroupTabs } from "./MembershipGroupTabs";
 import { MembershipFilters } from "./MembershipFilters";
 import { MembershipRoster } from "./MembershipRoster";
 
 export default function MembershipScreen({
-  readOnly = false,
   effectiveAccessHref = "/admin/security/permissions/people",
 }) {
-  const s = useMembershipState({ readOnly, effectiveAccessHref });
+  const { holds, loaded, isSuperAdmin } = useCrmCapabilities();
+  const canManage = isSuperAdmin || holds("org_membership", "manage");
+  // Until the permission read answers, stay read-only: showing write buttons to
+  // someone who lacks the right is worse than a moment of caution.
+  const readOnly = !loaded || !canManage;
+  const s = useMembershipState({
+    readOnly,
+    // The deep link lands in the Super Admin shell; a non-admin manager must not
+    // be offered a door that redirects them away.
+    effectiveAccessHref: isSuperAdmin ? effectiveAccessHref : null,
+  });
 
   return (
     <>

@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 
 /**
  * Auth flows model — session-login identity searches and self-heal
@@ -47,8 +46,8 @@ export async function getParticipantProgramRecordForSessionLogin(participantId) 
 /** Existence probe — LMS enrollment for a contact (session-login). */
 export async function getLmsEnrollmentRecordForSessionLogin(userCid) {
   return db.execute({
-    sql: "SELECT 1 FROM lms_enrollments WHERE user_cid = ? AND organization_id = ? LIMIT 1",
-    args: [userCid, PLATFORM_ORGANIZATION_ID],
+    sql: "SELECT 1 FROM lms_enrollments WHERE user_cid = ? LIMIT 1",
+    args: [userCid],
   });
 }
 

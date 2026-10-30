@@ -125,6 +125,8 @@ describe("Pipelines", () => {
 
     expect(sent("/api/crm/pipelines/pipe-1/stages")[0].body).toEqual({
       name: "Lost", probability: 0, position: 3, is_terminal: true, outcome: "lost",
+      // The stage carries its expected duration: one week by default.
+      target_days: 7,
     });
   });
   test("a stage is moved earlier by sending the new order", async () => {

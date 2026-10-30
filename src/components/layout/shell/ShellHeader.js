@@ -10,6 +10,7 @@ import {
   isPlatformOwnerRole,
 } from "@/lib/identity";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
+import { notificationText } from "@/lib/notificationText";
 import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
 
@@ -180,7 +181,7 @@ export default function ShellHeader({
                                 notification.type === "verification" ||
                                 notification.title.includes("ACCESS")
                               ) {
-                                router.push("/admin/communications/contacts");
+                                router.push("/crm/contacts");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {
@@ -224,19 +225,27 @@ export default function ShellHeader({
                                 router.push(notification.link);
                                 setShowNotifications(false);
                               }
+                              if (
+                                typeof notification.type === "string" &&
+                                notification.type.startsWith("crm_") &&
+                                notification.link
+                              ) {
+                                router.push(notification.link);
+                                setShowNotifications(false);
+                              }
                             }}
                             className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!notification.is_read ? "bg-brand-orange/5" : ""}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
-                                {notification.title}
+                                {notificationText(notification, t).title}
                               </p>
                               {!notification.is_read && (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
                               )}
                             </div>
                             <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">
-                              {notification.message}
+                              {notificationText(notification, t).message}
                             </p>
                             {/* Accept/Decline buttons for project invitations */}
                             {notification.type === "project_invite" && (

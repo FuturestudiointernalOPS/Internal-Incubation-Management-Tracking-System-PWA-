@@ -175,6 +175,9 @@ export async function updateCrmOpportunity(id, updates) {
     'name', 'description', 'contact_cid', 'organization_id',
     'owner_cid', 'value', 'currency', 'probability',
     'expected_close_date', 'status', 'lost_reason',
+    // Next action — a first-class attribute of the record (see
+    // migrations/phase8_crm_next_action.sql). The owner sets it; automations do not.
+    'next_action', 'next_action_due', 'next_action_set_by', 'next_action_set_at',
   ];
   const sets = [];
   const args = [];

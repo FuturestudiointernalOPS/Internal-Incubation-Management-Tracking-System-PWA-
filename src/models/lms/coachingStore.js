@@ -12,7 +12,6 @@
  */
 
 import db from "@/lib/db";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 
 // ── Course / lesson / section ────────────────────────────────────────────────
 
@@ -35,16 +34,16 @@ export function selectCourseSection(sectionId) {
 /** One course's id, title and status. */
 export function selectCourseRow(courseId) {
   return db.execute({
-    sql: "SELECT id, title, status FROM lms_courses WHERE id = ? AND owner_organization_id = ?",
-    args: [courseId, PLATFORM_ORGANIZATION_ID],
+    sql: "SELECT id, title, status FROM lms_courses WHERE id = ?",
+    args: [courseId],
   });
 }
 
 /** One course's title. */
 export function selectCourseTitleRow(courseId) {
   return db.execute({
-    sql: "SELECT title FROM lms_courses WHERE id = ? AND owner_organization_id = ? LIMIT 1",
-    args: [courseId, PLATFORM_ORGANIZATION_ID],
+    sql: "SELECT title FROM lms_courses WHERE id = ? LIMIT 1",
+    args: [courseId],
   });
 }
 
@@ -213,9 +212,8 @@ export function selectContactsByCids(cids) {
 /** The courses (id, title) for a set of ids. */
 export function selectCoursesByIds(courseIds) {
   return db.execute({
-    sql: `SELECT id, title FROM lms_courses WHERE owner_organization_id = ?
-          AND id IN (${courseIds.map(() => "?").join(",")})`,
-    args: [PLATFORM_ORGANIZATION_ID, ...courseIds],
+    sql: `SELECT id, title FROM lms_courses WHERE id IN (${courseIds.map(() => "?").join(",")})`,
+    args: courseIds,
   });
 }
 

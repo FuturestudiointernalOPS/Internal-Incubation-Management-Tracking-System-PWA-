@@ -95,6 +95,14 @@ export async function findContactCidByPhone(phone, excludeCid, excludeEmail) {
   });
 }
 
+/** Look for any contact with this email, deleted or not (newness check). */
+export async function findContactCidByEmailAny(email) {
+  return db.execute({
+    sql: "SELECT cid FROM contacts WHERE LOWER(email) = LOWER(?) LIMIT 1",
+    args: [String(email || "").trim()],
+  });
+}
+
 // ── PUT /api/contacts ─────────────────────────────────────────────────────────
 
 /**

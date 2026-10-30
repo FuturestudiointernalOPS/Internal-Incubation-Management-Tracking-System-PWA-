@@ -41,8 +41,10 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   programs: ["super_admin", "staff", "member"],
   // Ventures — incubated businesses. `member` carries the venture context.
   ventures: ["super_admin", "staff", "member"],
-  // Investors — investor relations
-  investors: ["super_admin", "staff"],
+  // Investors — investor relations. `member` is included so the Permission
+  // Center can delegate investor creation to any personal account, exactly
+  // like programs and ventures; eligibility is a CEILING, never a grant.
+  investors: ["super_admin", "staff", "member"],
   // Finance — budgets, reports
   finance: ["super_admin", "staff"],
   // Operations — projects, tasks, blockers, standups, retros. The templates that

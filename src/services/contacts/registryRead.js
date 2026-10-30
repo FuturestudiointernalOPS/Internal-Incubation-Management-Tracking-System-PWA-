@@ -24,6 +24,7 @@ import {
   getContactRoleAssignmentCids,
 } from "@/models/contacts/directory";
 import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
+import { attachWhatsappStatus } from "@/services/contacts/whatsappStatus";
 
 /**
  * The registry rows this caller may see, or `{ denied: true }` when a
@@ -85,7 +86,7 @@ async function enrichRegistryRows(rows) {
     } catch (_) {}
   }
 
-  return (await attachInvitationStatus(rows)).map(
+  const enriched = (await attachInvitationStatus(rows)).map(
     ({ password: _password, ...safeContact }) => ({
       ...safeContact,
       // Derived flag: an active participant enrollment.
@@ -93,4 +94,8 @@ async function enrichRegistryRows(rows) {
       has_assignment: assignmentCids.has(safeContact.cid),
     }),
   );
+
+  // Consent + number validity travel with the row, so every screen reading the
+  // registry decides WhatsApp the same way.
+  return attachWhatsappStatus(enriched);
 }

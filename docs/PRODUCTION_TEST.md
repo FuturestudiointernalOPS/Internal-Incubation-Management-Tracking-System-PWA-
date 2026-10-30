@@ -68,16 +68,12 @@ node scripts/audit-phase10-safety.mjs     # ineligible grants, inactive/missing 
 node scripts/dryrun-eligibility-policy.mjs
 ```
 
-**Env-file trap.** Environment files are local configuration; their names do
-not prove their target. On this workstation, the owner confirmed `.env.local`
-points at **staging** (read-only probe: 11 contacts / 3 ventures, 29 October
-2026). `.env.audit-staging` is absent. Some scripts still assume `.env.local`
-is production or read it first; do not use those scripts as production
-verification here until their target is explicitly configured and verified.
-Before any database write, verify the Supabase project reference independently.
-Some scripts are staging-only by design (`scripts/phase1-bulk-upload.mjs`
-exits unless a staging URL is present) — those must be reimplemented as SQL
-for production, never "repointed" by hand.
+**Env-file trap.** `.env.local` and `.env.prod-verify` point at **production**;
+`.env.staging` and `.env.audit-staging` point at **staging**. Several scripts read
+`.env.local` **first**, so they target production by default. Check the script's
+env preference before running it. Some scripts are staging-only by design
+(`scripts/phase1-bulk-upload.mjs` exits unless a staging URL is present) — those
+must be reimplemented as SQL for production, never "repointed" by hand.
 
 ---
 
@@ -138,6 +134,10 @@ Only then run `migrations/drop_role_capabilities.sql`.
 SELECT name FROM authz_migrations WHERE name = 'feature-key-alignment-v1';
 SELECT name FROM authz_migrations WHERE name = 'profile-catalogue-seed-v1';
 SELECT name FROM authz_migrations WHERE name = 'drop-access-profiles-v1';
+-- Delegated record creation: the investor feature's ceiling gains `member`, so
+-- `investor.create` (like programs.create and ventures.create) can be granted
+-- to any person from the Permission Center.
+SELECT name FROM authz_migrations WHERE name = 'creation-delegation-investor-v1';
 ```
 
 The first request after deploy renames feature keys (`program_management→programs`,
@@ -146,6 +146,13 @@ The first request after deploy renames feature keys (`program_management→progr
 `knowledge_base`/`intelligence→knowledge`, `messaging`/`internal_comms→communication`)
 and merges responsibilities. **Until it completes, every non-Super-Admin is denied
 on ~10 of 12 features.**
+
+`creation-delegation-investor-v1` belongs to the one-time batch, which is applied
+only while `AUTHZ_RUN_MIGRATIONS=true` is set for the deploy (see
+`src/models/authorization/migrations.js`). If that run is skipped, the same
+ceiling can be set from **Rules → Eligibility** (`investors` → `member`);
+without it, `investor.create` cannot be granted to a personal account even
+though the capability exists.
 
 The profile catalogue is seeded directly (`profile-catalogue-seed-v1`), and the
 retired access-profile tables are dropped (`drop-access-profiles-v1`) — the last
@@ -216,8 +223,7 @@ node scripts/migrate-journey-held-states.mjs .env.staging --apply    # write
 ```
 
 - The env file is passed **by name on purpose**: the script never falls back to
-`.env.local`. On this workstation `.env.local` is staging; verify the target of
-any env file before use. The example `.env.staging` must exist and be verified.
+`.env.local`, which points at **production**.
 - Dry run first, on **staging**, then the same two commands against production.
 - After the apply, re-run the dry run: it must report `0` rows that would change.
 
@@ -409,7 +415,7 @@ Walk these as real accounts. "Tests pass" does not cover any of it.
 ## 9. Post-deploy verification
 
 ```sh
-npm run verify:alignment        # inspect the script's env priority; .env.local is staging on this workstation
+npm run verify:alignment        # expects exit 0 / ALIGNED; connects to production first via .env.local
 node scripts/verify-deployment.mjs
 node scripts/authz-venture-coverage.mjs
 ```

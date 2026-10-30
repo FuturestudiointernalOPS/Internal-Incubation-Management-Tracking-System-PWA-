@@ -33,6 +33,8 @@ export default function PublicSubmitView({
   checkout,
   consent,
   setConsent,
+  whatsappConsent,
+  setWhatsappConsent,
 }) {
   // The sections that actually carry fields: an empty section is never a step.
   const validSections = sections.filter((sec) =>
@@ -97,6 +99,8 @@ export default function PublicSubmitView({
             checkout={checkout}
             consent={consent}
             onConsentChange={setConsent}
+            whatsappConsent={whatsappConsent}
+            onWhatsappConsentChange={setWhatsappConsent}
           />
         )}
 

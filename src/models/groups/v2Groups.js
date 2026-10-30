@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * V2 groups store — the legacy `v2_groups` / `v2_group_members` reads and
@@ -125,7 +124,7 @@ export async function getGroupMemberParticipants(groupId) {
 /** Program existence check before assigning a group (v2_programs by id). */
 export async function getV2ProgramById(programId) {
   return db.execute({
-    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT id FROM v2_programs WHERE id = ?",
     args: [programId],
   });
 }

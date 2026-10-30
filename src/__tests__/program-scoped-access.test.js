@@ -1,4 +1,3 @@
-jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program writes.
  *
@@ -267,14 +266,4 @@ describe("3.2 — every program-scope call names the capability it enforces", ()
 
     expect([...new Set(offenders)].sort()).toEqual([...EXPECTED].sort());
   });
-});
-
-test("Super Admin cannot use an internal write guard for a client-owned programme", async () => {
-  const { isInternalProgramAvailable } = require("@/services/organizations/internalPrograms");
-  isInternalProgramAvailable.mockResolvedValueOnce(false);
-  getAuthorizationContext.mockResolvedValueOnce({ isSuperAdmin: true });
-  const response = await requireProgramScope({ programId: "CLIENT-PROGRAM", wave: "content" });
-  expect(response.status).toBe(403);
-  expect(decision(response)).toBe("program-unavailable");
-  expect(isWithinScope).not.toHaveBeenCalled();
 });

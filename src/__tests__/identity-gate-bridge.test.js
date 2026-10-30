@@ -1,4 +1,3 @@
-jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * PHASE I5/I6A/I6B — Legacy gate-bridge contract.
  *
@@ -122,9 +121,9 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
     expect(authBlocks(file)).toHaveLength(0);
-    // Membership/assignment checks now live behind the canonical perimeter.
-    expect(src).toMatch(/requireVentureScopedAccess\(\{ ventureId: id/);
-    expect(src).toMatch(/if \(access.error\) return access.error/);
+    expect(src).toMatch(/hasActiveVentureAssignment/);
+    // The membership probe moved to the model; the route keeps the gate.
+    expect(src).toMatch(/isActiveVentureMember/);
     const model = readSurface("src/models/ventureWorkspace.js");
     expect(model).toMatch(/venture_members WHERE venture_id/);
   });
@@ -184,12 +183,18 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(src).toMatch(/requireAssignmentAccess/);
   });
 
-  test("phase 1.3: families GET — bare + management/programs.view gate", () => {
+  test("phase 1.3: families GET — bare + management/programs.view-or-create gate", () => {
     const file = "src/app/api/families/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
-    expect(bareAuthCount(file)).toBe(1);
+    // GET + POST are bare (capability gates decide); the remaining writes keep
+    // their role lists.
+    expect(bareAuthCount(file)).toBe(2);
     for (const list of authBlocks(file)) expect(containsContextual(list)).toBe(false);
-    expect(src).toMatch(/requireAuthorization\("programs", "view"\)/);
+    // The directory opens for a program reader OR a delegated creator (the
+    // new-program wizard offers an existing group as the cohort target).
+    expect(src).toMatch(/requireAnyAuthorization\(/);
+    expect(src).toMatch(/capability: "view"/);
+    expect(src).toMatch(/capability: "create"/);
     expect(src).toMatch(/isProgramManagerSession/);
   });
 
@@ -340,22 +345,20 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     expect(authBlocks("src/app/api/pm/full-state/route.js")).toHaveLength(0);
   });
 
-  test("pm/programs: GET + PUT bare (model scope / programs.edit decide); POST stays global-only", () => {
-    expect(bareAuthCount("src/app/api/pm/programs/route.js")).toBe(2);
+  test("pm/programs: GET + POST + PUT bare (capabilities decide)", () => {
+    expect(bareAuthCount("src/app/api/pm/programs/route.js")).toBe(3);
     const lists = authBlocks("src/app/api/pm/programs/route.js");
-    expect(lists).toHaveLength(1); // POST [staff, super_admin]
-    expect(lists[0]).toMatch(/staff/);
-    expect(containsContextual(lists[0])).toBe(false);
+    expect(lists).toHaveLength(0); // no role list remains: programs.create decides
   });
 });
 
 describe("I6A converted handlers — bare requireAuth + downstream membership machinery", () => {
-  test("ventures/[id]/members: GET/POST/PATCH bare; canonical read and mutation gates present", () => {
+  test("ventures/[id]/members: GET/POST/PATCH bare; checkAccess/checkMutateAccess present", () => {
     const file = "src/app/api/ventures/[id]/members/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(3);
     expect(authBlocks(file)).toHaveLength(0); // no role list remains anywhere
-    expect(src).toMatch(/requireVentureScopedAccess\(/);
+    expect(src).toMatch(/checkAccess\(/);
     expect(src).toMatch(/checkMutateAccess\(/);
     expect(src).toMatch(/requireOperationalVentureAccess/);
   });
