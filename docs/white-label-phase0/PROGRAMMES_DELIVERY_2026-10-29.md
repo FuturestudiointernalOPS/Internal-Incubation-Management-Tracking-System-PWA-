@@ -1,6 +1,6 @@
 # White-Label Programmes — Local implementation handover
 
-Prepared by Christelle FAGBEHOURO · Updated 29 October 2026 · Branch `white_label_os`
+Prepared by Christelle FAGBEHOURO · Updated 30 October 2026 · Branch `white_label_os`
 
 ## Delivery scope
 
@@ -20,8 +20,11 @@ that lock to demonstrate this increment on production.
 
 1. Open `/o/select`, authenticate through the existing login and choose an
    organisation they are currently authorised to access. The organisation home
-   shows module cards; only modules enabled by the server are open. In the
-   current delivery, LMS and Venture are not available to client organisations.
+   shows module cards; only modules enabled by the server are open. The LMS
+   catalogue, own-learning summary, enrolled course reader, and assigned-Venture
+   list/details frontend are implemented behind private organization APIs.
+   Client activation and staging browser validation remain blocked pending the
+   isolation review; neither module is currently open to client organisations.
    Programmes use
    `/o/[organisation-code]/programs` and `/o/[organisation-code]/programs/[programme-id]`,
    including direct links and browser navigation. The URL cannot select
@@ -49,8 +52,13 @@ that lock to demonstrate this increment on production.
 
 An existing membership and an explicit programme role are prerequisites. Merely
 being enrolled in a cohort does not grant internal platform roles, LMS access or
-Venture access. Client invitations and participant-specific learning journeys are
-separate delivery work.
+Venture access. The LMS course reader is read-only and requires the learner's
+active organization enrollment and `learning.read` capability. It does not yet
+provide lesson completion, assessment-taking or client course-enrollment
+management. Venture details are limited to an assigned venture's overview; no
+client venture editing, creation or related-file access is included. Client
+invitations and participant-specific learning journeys are separate delivery
+work.
 
 ## Access rights
 

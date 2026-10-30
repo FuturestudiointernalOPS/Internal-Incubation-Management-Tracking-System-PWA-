@@ -86,6 +86,84 @@ export async function withOrganizationLmsRead(credentials, callback) {
           certificates: certificates.rows,
         };
       },
+      async getEnrolledCourse(organizationId, personId, courseId) {
+        const enrollmentResult = await query(
+          `SELECT course.id, course.title, course.description, course.thumbnail_url,
+                  course.status AS course_status, enrollment.id AS enrollment_id,
+                  enrollment.status AS enrollment_status, enrollment.enrolled_at,
+                  enrollment.completed_at
+           FROM lms_enrollments enrollment
+           JOIN lms_courses course ON course.id = enrollment.course_id
+           WHERE course.id = ? AND enrollment.organization_id = ?
+             AND enrollment.user_cid = ? AND enrollment.status <> 'suspended'
+             AND course.status = 'published'
+             AND (
+               course.owner_organization_id = ?
+               OR EXISTS (
+                 SELECT 1 FROM organization_content_licenses license
+                 WHERE license.content_type = 'course'
+                   AND license.content_id = course.id::text
+                   AND license.owner_organization_id = course.owner_organization_id
+                   AND license.licensee_organization_id = ?
+                   AND license.status = 'active'
+                   AND (license.starts_at IS NULL OR license.starts_at <= NOW())
+                   AND (license.ends_at IS NULL OR license.ends_at > NOW())
+               )
+             )
+           LIMIT 1`,
+          [courseId, organizationId, personId, organizationId, organizationId],
+        );
+        const enrollment = enrollmentResult.rows[0];
+        if (!enrollment) return null;
+
+        const sectionsResult = await query(
+          `SELECT id, title, description, position
+           FROM lms_course_sections
+           WHERE course_id = ?
+           ORDER BY position, created_at`,
+          [courseId],
+        );
+        const lessonsResult = sectionsResult.rows.length
+          ? await query(
+            `SELECT lesson.id, lesson.section_id, lesson.title, lesson.description,
+                    lesson.position, lesson.is_required, lesson.duration_minutes,
+                    lesson.youtube_video_id, progress.status AS progress_status
+             FROM lms_lessons lesson
+             JOIN lms_course_sections section ON section.id = lesson.section_id
+             LEFT JOIN lms_lesson_progress progress
+               ON progress.lesson_id = lesson.id AND progress.enrollment_id = ?
+             WHERE section.course_id = ?
+             ORDER BY section.position, lesson.position, lesson.created_at`,
+            [enrollment.enrollment_id, courseId],
+          )
+          : { rows: [] };
+        const lessonsBySection = new Map();
+        for (const lesson of lessonsResult.rows) {
+          const sectionId = String(lesson.section_id);
+          const sectionLessons = lessonsBySection.get(sectionId) || [];
+          sectionLessons.push(lesson);
+          lessonsBySection.set(sectionId, sectionLessons);
+        }
+        return {
+          course: {
+            id: enrollment.id,
+            title: enrollment.title,
+            description: enrollment.description,
+            thumbnail_url: enrollment.thumbnail_url,
+            status: enrollment.course_status,
+          },
+          enrollment: {
+            id: enrollment.enrollment_id,
+            status: enrollment.enrollment_status,
+            enrolled_at: enrollment.enrolled_at,
+            completed_at: enrollment.completed_at,
+          },
+          sections: sectionsResult.rows.map((section) => ({
+            ...section,
+            lessons: lessonsBySection.get(String(section.id)) || [],
+          })),
+        };
+      },
     });
   });
 }

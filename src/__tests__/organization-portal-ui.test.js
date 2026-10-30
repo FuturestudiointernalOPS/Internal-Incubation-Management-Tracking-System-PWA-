@@ -7,7 +7,7 @@ import { useApi } from "@/lib/hooks/useApi";
 jest.mock("@/lib/i18n", () => ({ useI18n: () => ({ t: (key) => key, lang: "en" }) }));
 jest.mock("@/lib/hooks/useApi", () => ({ useApi: jest.fn() }));
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-let context, programmes, lms, ventures;
+let context, programmes, lms, lmsCourse, ventures;
 beforeEach(() => {
   useApi.mockClear();
   useRouter.mockReturnValue({ push: jest.fn() });
@@ -15,14 +15,26 @@ beforeEach(() => {
   programmes = { success: true, organizationId: id, programs: [{ id: "program", name: "Synthetic private programme", status: "planned" }], pagination: { hasMore: false } };
   lms = { success: true, organizationId: id, permissions: { catalog: true, learning: true },
     catalog: [{ id: "course-1", title: "Synthetic Course", status: "published", access_source: "licensed" }],
-    learning: { enrollments: [{ enrollment_id: "enrollment-1", title: "My Course", status: "active",
+    learning: { enrollments: [{ enrollment_id: "enrollment-1", course_id: "course-1", title: "My Course", description: "My course description", status: "active",
       required_lessons: 2, completed_required_lessons: 1, enrolled_at: "2026-10-29T00:00:00.000Z" }],
     attempts: [], certificates: [] } };
+  lmsCourse = { success: true, organizationId: id, course: { id: "course-1", title: "My Course", description: "Course overview" },
+    enrollment: { id: "enrollment-1", status: "active" },
+    progress: { percent: 50, completedRequired: 1, totalRequired: 2, completedLessons: 1, totalLessons: 2 },
+    sections: [{ id: "section-1", title: "Section one", lessons: [
+      { id: "lesson-1", title: "Lesson one", is_required: true, progress_status: "completed", description: "Lesson text" },
+      { id: "lesson-2", title: "Lesson two", is_required: true, progress_status: "not_started", description: "Next lesson" },
+    ] }] };
   ventures = { success: true, organizationId: id, permissions: { readAssigned: true },
     ventures: [{ id: "venture-1", code: "VNT-1", company_name: "Synthetic Venture",
-      status: "active", assignment_type: "member", industry: "Climate technology" }] };
+      status: "active", assignment_type: "member", industry: "Climate technology",
+      business_stage: "Seed", description: "Synthetic venture description",
+      website: "https://venture.example.test", logo_url: "https://assets.example.test/venture.png" }] };
   useApi.mockImplementation((url) => ({
-    data: url === "/api/org/context" ? context : url === "/api/org/lms" ? lms : url === "/api/org/ventures" ? ventures : programmes,
+    data: url === "/api/org/context" ? context
+      : url === "/api/org/lms" ? lms
+        : url.startsWith("/api/org/lms/") ? lmsCourse
+          : url === "/api/org/ventures" ? ventures : programmes,
     loading: false, error: null, refresh: jest.fn(),
   }));
 });
@@ -115,6 +127,38 @@ test("the LMS portal is private, shows catalogue and only the active member's le
   }));
 });
 
+test("a learner without catalogue rights can still search their own enrollments", () => {
+  context.organization.modules = ["lms"];
+  lms.permissions = { catalog: false, learning: true };
+  render(<OrganizationProgramPortal organizationCode="alpha" view="lms" />);
+  const search = screen.getByLabelText("common.organizationPortal.lms.searchCourses");
+  fireEvent.change(search, { target: { value: "not found" } });
+  expect(screen.getByText("common.noResults")).toBeTruthy();
+  expect(screen.queryByText("Synthetic Course")).toBeNull();
+});
+
+test("an enrolled client can open its organisation-scoped course reader", () => {
+  context.organization.modules = ["lms"];
+  render(<OrganizationProgramPortal organizationCode="alpha" view="lms" />);
+  fireEvent.click(screen.getByText("common.organizationPortal.lms.openCourse"));
+  expect(useRouter().push).toHaveBeenCalledWith("/o/alpha/lms/course-1");
+});
+
+test("the LMS course frontend shows enrolled content and lets learners select lessons", () => {
+  context.organization.modules = ["lms"];
+  render(<OrganizationProgramPortal organizationCode="alpha" view="lms-course" programId="course-1" />);
+  expect(screen.getByText("Course overview")).toBeTruthy();
+  expect(screen.getByText("Lesson text")).toBeTruthy();
+  const secondLesson = screen.getByRole("button", { name: /Lesson two/ });
+  fireEvent.click(secondLesson);
+  expect(secondLesson.getAttribute("aria-pressed")).toBe("true");
+  expect(screen.getByText("Next lesson")).toBeTruthy();
+  expect(useApi).toHaveBeenCalledWith("/api/org/lms/course-1", expect.objectContaining({
+    cache: false,
+    fetchOptions: { cache: "no-store", headers: { "X-Organization-Id": id } },
+  }));
+});
+
 test("the active LMS module opens its organisation-scoped route", () => {
   context.organization.modules = ["lms"];
   render(<OrganizationProgramPortal organizationCode="alpha" view="home" />);
@@ -132,6 +176,29 @@ test("the Venture portal is private and renders only assigned ventures", () => {
     cache: false,
     fetchOptions: { cache: "no-store", headers: { "X-Organization-Id": id } },
   }));
+});
+
+test("the Venture frontend searches assigned ventures and opens their details", () => {
+  context.organization.modules = ["venture"];
+  render(<OrganizationProgramPortal organizationCode="alpha" view="venture" />);
+  fireEvent.change(screen.getByLabelText("common.organizationPortal.venture.search"), {
+    target: { value: "Climate" },
+  });
+  expect(screen.getByText("Synthetic Venture")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("common.organizationPortal.venture.search"), {
+    target: { value: "not found" },
+  });
+  expect(screen.getByText("common.noResults")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("common.organizationPortal.venture.search"), {
+    target: { value: "Climate" },
+  });
+  fireEvent.click(screen.getByText("common.organizationPortal.venture.details"));
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  expect(screen.getByText("Synthetic venture description")).toBeTruthy();
+  expect(screen.getByRole("dialog").querySelector("img").getAttribute("src"))
+    .toBe("https://assets.example.test/venture.png");
+  expect(screen.getByRole("link", { name: "common.organizationPortal.venture.website" }).getAttribute("href"))
+    .toBe("https://venture.example.test/");
 });
 
 test("the active Venture module opens its organisation-scoped route", () => {
