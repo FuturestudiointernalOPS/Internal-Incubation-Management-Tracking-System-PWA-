@@ -138,6 +138,9 @@ SELECT name FROM authz_migrations WHERE name = 'drop-access-profiles-v1';
 -- `investor.create` (like programs.create and ventures.create) can be granted
 -- to any person from the Permission Center.
 SELECT name FROM authz_migrations WHERE name = 'creation-delegation-investor-v1';
+-- Delegated course authoring: the LMS feature's ceiling gains `staff`, so
+-- `lms.create` (and its siblings) can be granted to a chosen staff member.
+SELECT name FROM authz_migrations WHERE name = 'lms-authoring-delegation-v1';
 ```
 
 The first request after deploy renames feature keys (`program_management→programs`,
@@ -153,6 +156,11 @@ only while `AUTHZ_RUN_MIGRATIONS=true` is set for the deploy (see
 ceiling can be set from **Rules → Eligibility** (`investors` → `member`);
 without it, `investor.create` cannot be granted to a personal account even
 though the capability exists.
+
+`lms-authoring-delegation-v1` is the same kind of row for course authoring:
+without it, `lms.create` can only be held by the platform owner, and the
+Permission Center refuses to grant it to a staff member. Its equivalent in
+**Rules → Eligibility** is `lms` → `staff`.
 
 The profile catalogue is seeded directly (`profile-catalogue-seed-v1`), and the
 retired access-profile tables are dropped (`drop-access-profiles-v1`) — the last

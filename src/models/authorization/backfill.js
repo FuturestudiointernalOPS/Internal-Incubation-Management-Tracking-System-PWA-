@@ -48,6 +48,7 @@ import {
 import {
   ensureLmsViewBackfill,
   ensureLmsCapabilityRetirement,
+  ensureLmsAuthoringDelegation,
   ensureMessagingPolicyBackfill,
   ensureFinalPolicyBackfill,
   ensureCommunicationFeatureBackfill,
@@ -123,6 +124,13 @@ export function ensureCapabilityBackfills() {
           // Program Manager surface — existing DBs need the PM grant (the seed
           // only applies to profiles created after the change).
           runAuthzMigration("cap-backfill-lms-view", ensureLmsViewBackfill),
+          // Delegated course authoring: the LMS feature's ceiling gains `staff`
+          // so `lms.create` (and its siblings) can be granted to a chosen staff
+          // member. Insert-only, so an admin's removal wins.
+          runAuthzMigration(
+            "lms-authoring-delegation-v1",
+            ensureLmsAuthoringDelegation,
+          ),
           runAuthzMigration("lms-capability-retirement-v1", ensureLmsCapabilityRetirement),
           // One-time policy migrations — run once per database, then the
           // Permissions UI owns eligibility configuration (see migrations.js).

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAuthorization, requireAnyAuthorization } from "@/models/authorization/index";
 import { getSession } from "@/server/auth/session";
 import { listCourses, createCourse } from "@/models/lms/courses";
 import { lmsErrorResponse } from "@/models/lms/errors";
@@ -9,12 +9,17 @@ export const dynamic = "force-dynamic";
 
 /**
  * GET /api/lms/courses?search=&status=
- * List courses (authoring view). Requires lms.view.
+ * List courses (authoring view). Every authoring right opens it: a delegated
+ * creator or editor must see the list the workspace is built around.
  */
 export async function GET(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "view");
+    const capError = await requireAnyAuthorization([
+      { module: "lms", capability: "view" },
+      { module: "lms", capability: "create" },
+      { module: "lms", capability: "edit" },
+    ]);
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
