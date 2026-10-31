@@ -26,6 +26,7 @@ import {
 import { buildMeetingPayload, buildTaskPayload, dateKey, isoWeek, normalizeEvents } from "./calendarModel";
 import { operationTotals, recentWeeks, regularity, todayTasks, uniquePrograms, weekRecord } from "./dashboardModel";
 import { notify } from "./notify";
+import CreateActions from "@/components/create/CreateActions";
 
 // Module scope: the data hook keys its read on these, so inline arrows would
 // refetch on every render.
@@ -221,9 +222,12 @@ export default function StaffDashboard() {
         }
         subtitle={t("staffMisc.front.dashboard.heroSub", { programs: activePrograms, meetings: meetings.length })}
         action={
-          <button type="button" className="stf-btn pr" onClick={() => ask()}>
-            {t("staffMisc.front.dashboard.newItem")}
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <CreateActions />
+            <button type="button" className="stf-btn pr" onClick={() => ask()}>
+              {t("staffMisc.front.dashboard.newItem")}
+            </button>
+          </div>
         }
       />
 

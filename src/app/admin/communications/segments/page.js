@@ -28,7 +28,7 @@ const SEGMENT_VALUE_LABELS = {
 export default function SegmentsPage() {
   const { t } = useI18n();
   const router = useRouter();
-  const goBack = useSafeBack('/admin/crm');
+  const goBack = useSafeBack('/crm');
   // Three reads, each carrying its own loading flag so the screen leaves the
   // spinner only once all three have settled, exactly as the old combined loader
   // did. Their cache-first paint and stale-response handling belong to the hook,
@@ -185,7 +185,7 @@ export default function SegmentsPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('crm.backToPrevious')}
           </button>
-          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('crm.backToCrm')}
           </Link>

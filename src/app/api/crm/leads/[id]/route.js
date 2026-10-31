@@ -3,7 +3,13 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getCrmLeadById, updateCrmLead, softDeleteCrmLead } from "@/models/crm/leads";
+import { ensureCrmNextActionColumns } from "@/models/crm/schema";
 import { addContactTimelineEvent } from "@/services/contacts/timeline";
+import {
+  touchesNextAction,
+  planNextActionWrite,
+  nextActionTimelineEvent,
+} from "@/services/crm/nextAction";
 
 export const dynamic = "force-dynamic";
 
@@ -54,8 +60,33 @@ export const PATCH = createHandler(
       );
     }
 
-    const result = await updateCrmLead(id, body);
+    // Next action — the owner (or a platform owner) alone may set it. The
+    // decision and its validation live in the service, like every other rule.
+    const plan = touchesNextAction(body)
+      ? planNextActionWrite({ body, existing: existingLead, session })
+      : null;
+    if (plan?.error) {
+      return NextResponse.json(
+        { success: false, error: plan.error },
+        { status: plan.status },
+      );
+    }
+    const updates = plan ? { ...body, ...plan.updates } : body;
+
+    if (plan) await ensureCrmNextActionColumns();
+
+    const result = await updateCrmLead(id, updates);
     const updatedLead = result.rows?.[0];
+
+    if (plan && updatedLead?.contact_cid) {
+      await addContactTimelineEvent({
+        cid: updatedLead.contact_cid,
+        eventType: "next_action_set",
+        description: nextActionTimelineEvent(plan),
+        actorCid: session?.cid ?? null,
+        metadata: { lead_id: id, due: plan.updates.next_action_due ?? null },
+      });
+    }
 
     // Log meaningful changes to the timeline if attached to a person
     if (updatedLead) {

@@ -40,6 +40,8 @@ const ROLE_MOTIFS = {
 
 const CAPABILITY_MECHANISMS = [
   "requireAuthorization(",
+  // The "any of these rights" variant of the same gate.
+  "requireAnyAuthorization(",
   "requireScopedAccess(",
   "requireVentureScopedAccess(",
   "requireInvestorSelfServiceAuthorization(",
@@ -182,7 +184,7 @@ function routeEntries() {
       hasRequireAuth: /requireAuth\s*\(/.test(text),
       hasCreateHandler: /createHandler\s*\(/.test(text),
       hasGetSession: /getSession\s*\(/.test(text),
-      hasAuthorization: /requireAuthorization\s*\(/.test(text),
+      hasAuthorization: /require(?:Any)?Authorization\s*\(/.test(text),
       hasCapability: hasCapabilityGate(text),
       hasScoped: hasScopedGate(text),
     };
@@ -609,7 +611,7 @@ function collectMetrics() {
   // figure (147), because they answer different questions.
   const apiFiles = walk(API, (name) => name.endsWith(".js"));
   const centralCapabilityFiles = apiFiles.filter((file) =>
-    /requireAuthorization\s*\(/.test(read(file)),
+    /require(?:Any)?Authorization\s*\(/.test(read(file)),
   ).length;
   const capabilityFiles = apiFiles.filter((file) => hasCapabilityGate(read(file))).length;
   const both = entries.filter(

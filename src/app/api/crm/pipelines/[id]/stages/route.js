@@ -6,6 +6,7 @@ import {
   createCrmPipelineStage,
   reorderCrmPipelineStages,
 } from "@/models/crm/pipelines";
+import { ensureCrmStageTargetColumn } from "@/models/crm/schema";
 
 export const dynamic = "force-dynamic";
 
@@ -45,6 +46,18 @@ export const POST = createHandler(
       );
     }
 
+    // The target duration is set at creation and defaults to one week. It is
+    // what decides that a deal is stuck in the stage later.
+    const targetDays = body.target_days === undefined ? 7 : Number(body.target_days);
+    if (!Number.isInteger(targetDays) || targetDays < 0 || targetDays > 365) {
+      return NextResponse.json(
+        { success: false, error: "crm.pipelines.stageTargetRange" },
+        { status: 400 },
+      );
+    }
+
+    await ensureCrmStageTargetColumn();
+
     const result = await createCrmPipelineStage({
       pipeline_id:  id,
       name,
@@ -53,6 +66,7 @@ export const POST = createHandler(
       probability:  body.probability ?? 0,
       is_terminal:  body.is_terminal ?? false,
       outcome:      body.outcome ?? null,
+      target_days:  targetDays,
     });
 
     return NextResponse.json(

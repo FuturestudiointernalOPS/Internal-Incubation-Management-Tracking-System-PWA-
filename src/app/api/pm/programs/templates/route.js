@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAuthorization, requireAnyAuthorization } from "@/models/authorization/index";
 import { v4 as uuidv4 } from "uuid";
 import {
   createFacilitatorsGroupForNewProgram,
@@ -21,8 +21,15 @@ import {
 export async function GET(_req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    // Reference data for the creation wizard: a reader of programs or a holder
+    // of the creation right may list the templates, whichever role they carry.
+    const authError = await requireAuth();
     if (authError) return authError;
+    const capError = await requireAnyAuthorization([
+      { module: "programs", capability: "view" },
+      { module: "programs", capability: "create" },
+    ]);
+    if (capError) return capError;
 
     const result = await listProgramTemplates();
 
@@ -38,10 +45,10 @@ export async function GET(_req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    const authError = await requireAuth();
     if (authError) return authError;
-    // Phase 2 (legacy cleanup): no staff compatibility bypass — templates
-    // require the programs.create capability through the resolver.
+    // Templates require the programs.create capability through the resolver;
+    // the former staff/super-admin allowlist no longer stands in front of it.
     const capError = await requireAuthorization("programs", "create");
     if (capError) return capError;
 

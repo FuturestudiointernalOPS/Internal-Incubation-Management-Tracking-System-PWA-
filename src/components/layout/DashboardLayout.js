@@ -442,7 +442,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const isFullWidth =
     fullWidth ||
     (typeof pathname === "string" &&
-      pathname.startsWith("/admin/communications/contacts"));
+      (pathname.startsWith("/admin/communications/contacts") ||
+        pathname.startsWith("/crm/contacts")));
 
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;

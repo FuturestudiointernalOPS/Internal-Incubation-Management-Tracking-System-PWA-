@@ -1,6 +1,6 @@
 "use client";
 
-import { Users, BarChart3, Clock, CheckCircle2, Target, ListTodo, Flag } from "lucide-react";
+import { Users, BarChart3, Clock, Bell, CheckCircle2, Target, ListTodo, Flag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import KpiCard from "@/components/ui/KpiCard";
@@ -26,6 +26,8 @@ export function DashboardTab({ onSection }) {
   const {
     dashboardData,
     dashboardLoading,
+    calendarEvents,
+    calendarLoading,
     journeyStages,
     progressData,
     progressLoading,
@@ -37,7 +39,7 @@ export function DashboardTab({ onSection }) {
     params,
   } = useVenture();
 
-  // Overview helpers: current/next Journey stage.
+  // Overview helpers: current/next Journey stage + upcoming Venture events.
   const journeyList = journeyStages || [];
   const activeStage =
     journeyList.find((stage) => stage.status === "active") ||
@@ -45,6 +47,24 @@ export function DashboardTab({ onSection }) {
   const nextStage = journeyList.find(
     (stage) => stage.status === "upcoming" && stage.stage_order > (activeStage?.stage_order || 0),
   );
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const upcomingEvents = (calendarEvents || [])
+    .filter((event) => event.date && String(event.date) >= todayISO)
+    .sort(
+      (eventA, eventB) =>
+        String(eventA.date).localeCompare(String(eventB.date)) ||
+        String(eventA.start_time || "").localeCompare(String(eventB.start_time || "")),
+    )
+    .slice(0, 6);
+  const EVENT_TYPE_KEYS = {
+    milestone: "milestones",
+    task: "tasks",
+    action: "actionPlans",
+    coaching: "coaching",
+    followup: "followUpDate",
+    meeting: "calendar",
+    session: "coaching",
+  };
 
   // The Founders tile read `dashboardData.founders`, a key the dashboard
   // aggregate never returned — so it was 0 for every Venture. The people are
@@ -68,6 +88,7 @@ export function DashboardTab({ onSection }) {
   // "—". Neither is zero, and neither is an empty section.
   const overviewPending = dashboardLoading && !dashboardData;
   const milestonePending = progressLoading && !progressData;
+  const eventsPending = calendarLoading && !(calendarEvents || []).length;
 
   return (
     <div className="space-y-4">
@@ -102,6 +123,15 @@ export function DashboardTab({ onSection }) {
           loading={overviewPending}
         />
       </div>
+
+      {/* ── What needs the founder ───────────────────────────────────────── */}
+      <DashboardWorkQueue
+        myWork={myWork}
+        loading={myWorkLoading}
+        failed={myWorkFailed}
+        onOpen={onSection ? () => onSection("journey") : null}
+        onRetry={fetchMyWork}
+      />
 
       {/* ── Progress overview ────────────────────────────────────────────── */}
       <div className="stf-grid c4">
@@ -156,9 +186,11 @@ export function DashboardTab({ onSection }) {
         />
       </div>
 
-      <div className="stf-grid g3" style={{ alignItems: "start" }}>
+      {/* ── Who supports the Venture ─────────────────────────────────────── */}
+      {params?.id && <VentureSupportCard ventureId={params.id} />}
+
       {/* ── Journey position + next milestone ────────────────────────────── */}
-      
+      <div className="stf-grid c2">
         <div className="stf-card">
           <h3>
             <BarChart3 size={16} />
@@ -199,18 +231,57 @@ export function DashboardTab({ onSection }) {
           )}
         </div>
 
-      {/* ── What needs the founder ───────────────────────────────────────── */}
-      <DashboardWorkQueue
-        myWork={myWork}
-        loading={myWorkLoading}
-        failed={myWorkFailed}
-        onOpen={onSection ? () => onSection("journey") : null}
-        onRetry={fetchMyWork}
-      />
-
-      {/* ── Who supports the Venture ─────────────────────────────────────── */}
-      {params?.id && <VentureSupportCard ventureId={params.id} />}
-
+        {/* ── Upcoming sessions and events ───────────────────────────────── */}
+        <div className="stf-card">
+          <h3>
+            <Clock size={16} />
+            {t("venture.upcoming")}
+          </h3>
+          {eventsPending ? (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              {t("common.loading")}
+            </p>
+          ) : upcomingEvents.length === 0 ? (
+            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+              {t("venture.noEvents")}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {upcomingEvents.map((event, index) => (
+                <div
+                  key={`${event.date}-${index}`}
+                  className="flex items-center gap-3 text-sm py-1.5 border-b last:border-0"
+                  style={{ borderColor: "var(--border-primary)" }}
+                >
+                  <div className="shrink-0 w-14 text-center">
+                    <p className="text-[10px] font-black leading-tight">
+                      {event.date
+                        ? new Date(`${event.date}T00:00:00`).toLocaleDateString(undefined, {
+                            weekday: "short",
+                          })
+                        : ""}
+                    </p>
+                    <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                      {event.date
+                        ? new Date(`${event.date}T00:00:00`).toLocaleDateString(undefined, {
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : ""}
+                    </p>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium truncate">{event.title}</p>
+                    <p className="text-[11px] capitalize" style={{ color: "var(--text-secondary)" }}>
+                      {event.start_time ? `${event.start_time} · ` : ""}
+                      {t(`venture.${EVENT_TYPE_KEYS[event.type] || "calendar"}`)}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Recent activity ──────────────────────────────────────────────── */}
@@ -238,6 +309,43 @@ export function DashboardTab({ onSection }) {
               <span style={{ color: "var(--text-secondary)" }}>
                 • {new Date(activity.created_at).toLocaleDateString()}
               </span>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ── Notifications ────────────────────────────────────────────────── */}
+      <div className="stf-card">
+        <h3>
+          <Bell size={16} />
+          {t("venture.recentNotifications")}
+          {dashboardData?.notifications?.unread > 0 && (
+            <span className="stf-tag b">
+              {dashboardData.notifications.unread} {t("venture.unread")}
+            </span>
+          )}
+        </h3>
+        {!dashboardData?.notifications?.recent?.length ? (
+          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+            {overviewPending ? t("common.loading") : t("venture.noNotifications")}
+          </p>
+        ) : (
+          dashboardData.notifications.recent.map((notification, index) => (
+            <div
+              key={notification.id || index}
+              className="py-2 border-b last:border-0"
+              style={{ borderColor: "var(--border-primary)" }}
+            >
+              <div className="flex items-center gap-2">
+                {!notification.is_read && <span className="w-2 h-2 rounded-full bg-blue-400" />}
+                <p className="text-sm font-medium">{notification.title}</p>
+              </div>
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                {notification.message}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--text-secondary)" }}>
+                {new Date(notification.created_at).toLocaleDateString()}
+              </p>
             </div>
           ))
         )}

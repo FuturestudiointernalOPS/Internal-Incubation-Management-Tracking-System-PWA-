@@ -10,6 +10,13 @@ import {
   updateContactCoreFields,
   updateContactSecondaryFields,
 } from "@/models/workspace";
+import { getContactWhatsappFields } from "@/models/contacts/whatsapp";
+import {
+  readWhatsappConsent,
+  setWhatsappConsent,
+  WHATSAPP_CONSENT_SOURCES,
+} from "@/services/communications/whatsappConsent";
+import { normalizeWhatsappPhone } from "@/lib/integrations/whatsapp/phone";
 import { deleteUserSessionsExcept } from "@/models/authFlows";
 
 /**
@@ -64,6 +71,19 @@ export async function GET() {
       loginActivity = {};
     }
 
+    // WhatsApp consent is its own record and must never break the profile read.
+    let whatsappConsent = {
+      opted_in: false,
+      source: null,
+      opted_in_at: null,
+      opted_out_at: null,
+    };
+    try {
+      whatsappConsent = await readWhatsappConsent(session.cid);
+    } catch (_) {
+      whatsappConsent = { opted_in: false, source: null, opted_in_at: null, opted_out_at: null };
+    }
+
     // Determine if the required profile information is complete.
     const hasName = !!(user.name && user.name.trim().length > 0);
     const hasEmail = !!(user.email && user.email.trim().length > 0);
@@ -100,6 +120,9 @@ export async function GET() {
         country_code: extras.country_code || null,
         last_login_at: loginActivity.last_login_at || null,
         login_count: loginActivity.login_count || 0,
+        whatsapp_opt_in: whatsappConsent.opted_in,
+        whatsapp_opted_in_at: whatsappConsent.opted_in_at,
+        whatsapp_consent_source: whatsappConsent.source,
       },
       mandatory,
       isComplete,
@@ -136,7 +159,37 @@ export async function PUT(req) {
       alternative_phone,
       country,
       country_code,
+      whatsapp_opt_in,
     } = body;
+
+    // A person may agree to WhatsApp only on a number that actually resolves:
+    // storing consent against an unusable number would make every later send
+    // fail silently. Decided BEFORE any write, so a refusal changes nothing.
+    let whatsappConsentChoice;
+    if (whatsapp_opt_in !== undefined && whatsapp_opt_in !== null) {
+      whatsappConsentChoice =
+        whatsapp_opt_in === true || whatsapp_opt_in === 1 || whatsapp_opt_in === "1";
+
+      if (whatsappConsentChoice) {
+        let consentPhone = phone;
+        let consentCountry = country_code;
+        if (consentPhone === undefined || consentCountry === undefined) {
+          const stored = await getContactWhatsappFields(session.cid);
+          const row = stored.rows?.[0] || {};
+          if (consentPhone === undefined) consentPhone = row.phone;
+          if (consentCountry === undefined) consentCountry = row.country_code;
+        }
+        if (!normalizeWhatsappPhone(consentPhone, consentCountry)) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "adminMisc.profile.whatsappConsentNeedsPhone",
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
 
     // Build core update fields
     const updates = [];
@@ -196,7 +249,7 @@ export async function PUT(req) {
       extArgs.push(country_code || null);
     }
 
-    if (updates.length === 0 && extUpdates.length === 0) {
+    if (updates.length === 0 && extUpdates.length === 0 && whatsappConsentChoice === undefined) {
       return NextResponse.json(
         { success: false, error: "No fields to update" },
         { status: 400 },
@@ -221,10 +274,21 @@ export async function PUT(req) {
       }
     }
 
+    if (whatsappConsentChoice !== undefined) {
+      await setWhatsappConsent({
+        cid: session.cid,
+        accepted: whatsappConsentChoice,
+        source: WHATSAPP_CONSENT_SOURCES.PROFILE,
+        phone,
+        countryCode: country_code,
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: "Profile updated",
       profile_completed: name !== undefined && name.trim().length > 0,
+      whatsapp_opt_in: whatsappConsentChoice,
     });
   } catch (err) {
     console.error("[Profile] PUT error:", err);

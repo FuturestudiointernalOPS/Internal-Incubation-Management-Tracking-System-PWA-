@@ -23,6 +23,10 @@ import {
   insertPurchaseContact,
   insertPurchaseEnrollment,
 } from "./identity";
+import {
+  setWhatsappConsent,
+  WHATSAPP_CONSENT_SOURCES,
+} from "@/services/communications/whatsappConsent";
 import { issueAccessToken, accessWindowOpen, accessWindowMinutes, loginUrl, setupPasswordUrl } from "./accessToken";
 
 /**
@@ -53,6 +57,23 @@ export async function fulfillRegistration(registrationId) {
     }
 
     await insertPurchaseEnrollment(registration.course_id, contact.cid);
+
+    // The consent ticked on the checkout form becomes the person's own consent
+    // only once a NEW account exists for them. An existing account keeps the
+    // choice made from its profile: a buyer's email is not proof they are the
+    // account holder. A failure here never blocks the course access.
+    if (createdAccount && registration.whatsapp_opt_in === true) {
+      try {
+        await setWhatsappConsent({
+          cid: contact.cid,
+          accepted: true,
+          source: WHATSAPP_CONSENT_SOURCES.LMS_REGISTRATION,
+          phone: registration.phone,
+        });
+      } catch (_) {
+        // Best-effort: the paid access is what matters most.
+      }
+    }
 
     let accessToken = null;
     if (createdAccount || !contact.password) {

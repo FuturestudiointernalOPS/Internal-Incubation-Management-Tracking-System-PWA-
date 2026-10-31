@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import {
   Phone, Mail, Users, FileText, Repeat, SquareCheck,
-  ChevronDown, ChevronUp, Plus, Pencil, Trash2, Clock,
+  ChevronDown, ChevronUp, Plus, Clock, Pencil, AlertTriangle,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import AppModal from "@/components/ui/AppModal";
@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
+import { isOverdue, toDateInputValue } from "@/components/crm/nextActionState";
 
 const ACTIVITY_ICONS = {
   call:       <Phone className="w-4 h-4" />,
@@ -64,6 +65,18 @@ function activityOutcomeLabel(activity, t) {
   return t(`crm.activities.outcomes.${activity.outcome}`);
 }
 
+/** Open task or meeting — the fallback source of the next action. */
+function isOpenCommitment(activity) {
+  if (!activity.activity_date) return false;
+  if (activity.activity_type === "task") {
+    return !["completed", "cancelled", "archived"].includes(activity.outcome);
+  }
+  if (activity.activity_type === "meeting") {
+    return !["completed", "cancelled"].includes(activity.outcome);
+  }
+  return false;
+}
+
 const EMPTY_FORM = {
   type: "note",
   title: "",
@@ -75,28 +88,51 @@ const EMPTY_FORM = {
 /**
  * CrmActivityPanel
  *
- * Unified Activities + Next Action panel.
+ * The relationship's execution stream plus its next action.
  * Accepts: leadId | opportunityId | contactCid | organizationId
  *
- * Reads crm_activities AND tasks (via the model union query) from
- * GET /api/crm/activities?lead_id=...
+ * NEXT ACTION — two sources, one display:
+ *   1. the record's own next action (label + due date), set by its OWNER —
+ *      `record` / `canSetNextAction` / `onNextActionSaved`;
+ *   2. when that field is empty, the earliest open task or meeting already
+ *      recorded in the activity stream.
+ * Overdue is computed on whichever source is shown, and shown here so it can
+ * also be rendered in the lists and on the dashboard.
  *
- * Creating a task routes to POST /api/crm/leads/[leadId]/tasks
- * or POST /api/crm/opportunities/[opportunityId]/tasks.
- * Other activity types route to POST /api/crm/activities.
+ * HISTORY IS APPEND-ONLY (product decision, Lot 1): an activity is never edited
+ * or deleted after it is recorded. A correction is a new entry.
  */
-export default function CrmActivityPanel({ leadId, opportunityId, contactCid, organizationId }) {
+export default function CrmActivityPanel({
+  leadId,
+  opportunityId,
+  contactCid,
+  organizationId,
+  record = null,
+  canSetNextAction = false,
+  onNextActionSaved,
+}) {
   const { t } = useI18n();
-  const { confirm, alert } = useDialogs();
+  const { alert } = useDialogs();
 
   const [activities, setActivities] = useState([]);
-  const [nextAction, setNextAction] = useState(null);
   const [loading, setLoading]       = useState(true);
   const [showModal, setShowModal]   = useState(false);
-  const [editing, setEditing]       = useState(null);   // existing activity or null
   const [form, setForm]             = useState(EMPTY_FORM);
   const [saving, setSaving]         = useState(false);
   const [showAll, setShowAll]       = useState(false);
+
+  // The record's own next action. A local override (after a save) is scoped to
+  // the record it belongs to, so a different record can never inherit it.
+  const [localAction, setLocalAction] = useState({ recordId: null, value: null });
+  const recordAction =
+    localAction.recordId === record?.id
+      ? localAction.value
+      : record?.next_action
+        ? { label: record.next_action, due: record.next_action_due }
+        : null;
+  const [showNextModal, setShowNextModal] = useState(false);
+  const [nextForm, setNextForm] = useState({ label: "", due: "" });
+  const [savingNext, setSavingNext] = useState(false);
 
   const buildQuery = useCallback(() => {
     const params = new URLSearchParams();
@@ -112,21 +148,7 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
     try {
       const res  = await fetch(`/api/crm/activities?${buildQuery()}`);
       const data = await res.json();
-      const list = data.activities ?? [];
-      setActivities(list);
-
-      // Derive Next Action: earliest upcoming, non-completed task or meeting
-      const now = Date.now();
-      const upcoming = list
-        .filter(a => {
-          if (!a.activity_date) return false;
-          if (new Date(a.activity_date).getTime() < now) return false;
-          if (a.activity_type === "task" && (a.outcome === "completed" || a.outcome === "cancelled")) return false;
-          if (a.activity_type === "meeting" && (a.outcome === "completed" || a.outcome === "cancelled")) return false;
-          return true;
-        })
-        .sort((a, b) => new Date(a.activity_date) - new Date(b.activity_date));
-      setNextAction(upcoming[0] ?? null);
+      setActivities(data.activities ?? []);
     } catch {
       // silently degrade — panel is non-critical
     } finally {
@@ -136,24 +158,96 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
 
   useEffect(() => { load(); }, [load]);
 
-  function openCreate() {
-    setEditing(null);
+  // The fallback: the earliest open commitment, INCLUDING overdue ones, so a
+  // missed task is surfaced rather than hidden behind the next future one.
+  const derived = activities
+    .filter(isOpenCommitment)
+    .sort((a, b) => new Date(a.activity_date) - new Date(b.activity_date))[0] ?? null;
+
+  const nextAction = recordAction
+    ? {
+        label: recordAction.label,
+        due: recordAction.due,
+        owner: record?.owner_name ?? null,
+        fromRecord: true,
+      }
+    : derived
+      ? {
+          label: derived.title,
+          due: derived.activity_date,
+          owner: derived.owner_name ?? null,
+          type: derived.activity_type,
+          fromRecord: false,
+        }
+      : null;
+
+  const nextActionTarget = leadId
+    ? `/api/crm/leads/${leadId}`
+    : opportunityId
+      ? `/api/crm/opportunities/${opportunityId}`
+      : null;
+
+  const canEditNextAction = Boolean(canSetNextAction && nextActionTarget);
+
+  function openActivity() {
     setForm(EMPTY_FORM);
     setShowModal(true);
   }
 
-  function openEdit(activity) {
-    // Tasks are read-only from CRM (edit via native tasks)
-    if (activity.activity_type === "task") return;
-    setEditing(activity);
-    setForm({
-      type:          activity.activity_type,
-      title:         activity.title ?? "",
-      description:   activity.description ?? "",
-      outcome:       activity.outcome ?? "",
-      activity_date: activity.activity_date ? activity.activity_date.slice(0, 10) : "",
+  function openNextAction() {
+    setNextForm({
+      label: recordAction?.label ?? "",
+      due: toDateInputValue(recordAction?.due),
     });
-    setShowModal(true);
+    setShowNextModal(true);
+  }
+
+  async function sendNextAction(payload) {
+    if (!nextActionTarget) return null;
+    setSavingNext(true);
+    try {
+      const res = await fetch(nextActionTarget, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        await alert({ message: t(data.error || "errors.somethingWrong") });
+        return null;
+      }
+      const updated = data.lead ?? data.opportunity ?? null;
+      const saved = updated?.next_action
+        ? { label: updated.next_action, due: updated.next_action_due }
+        : null;
+      setLocalAction({ recordId: record?.id ?? null, value: saved });
+      onNextActionSaved?.(updated);
+      return updated;
+    } catch {
+      await alert({ message: t("errors.somethingWrong") });
+      return null;
+    } finally {
+      setSavingNext(false);
+    }
+  }
+
+  async function saveNextAction() {
+    const label = nextForm.label.trim();
+    if (label && !nextForm.due) {
+      await alert({ message: t("crm.activities.nextActionDateRequired") });
+      return;
+    }
+    const updated = await sendNextAction(
+      label
+        ? { next_action: label, next_action_due: nextForm.due }
+        : { next_action: null, next_action_due: null },
+    );
+    if (updated) setShowNextModal(false);
+  }
+
+  async function clearNextAction() {
+    const updated = await sendNextAction({ next_action: null, next_action_due: null });
+    if (updated) setShowNextModal(false);
   }
 
   async function handleSave() {
@@ -164,18 +258,7 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
     setSaving(true);
     try {
       let res;
-      if (editing) {
-        res = await fetch(`/api/crm/activities/${editing.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title:         form.title,
-            description:   form.description,
-            outcome:       form.outcome,
-            activity_date: form.activity_date || null,
-          }),
-        });
-      } else if (form.type === "task") {
+      if (form.type === "task") {
         // Route to the appropriate task creation sub-endpoint
         const taskUrl = leadId
           ? `/api/crm/leads/${leadId}/tasks`
@@ -220,17 +303,6 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
     }
   }
 
-  async function handleDelete(activity) {
-    if (activity.activity_type === "task") return; // Tasks deleted via native UI
-    const ok = await confirm({
-      message: t("crm.activities.confirmDelete"),
-      tone: "danger",
-    });
-    if (!ok) return;
-    await fetch(`/api/crm/activities/${activity.id}`, { method: "DELETE" });
-    await load();
-  }
-
   const displayed = showAll ? activities : activities.slice(0, 5);
 
   // Tasks are created through the native task system and need a lead or
@@ -240,35 +312,58 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
   const typeOptions = ACTIVITY_TYPE_OPTIONS.filter(
     (option) => option.value !== "task" || canCreateTask
   );
+  const overdue = nextAction ? isOverdue(nextAction.due) : false;
 
   return (
     <div className="space-y-6">
       {/* ── NEXT ACTION ── */}
       <div className="bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl p-5">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)] mb-3">
-          {t("crm.activities.nextAction")}
-        </h2>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
+            {t("crm.activities.nextAction")}
+          </h2>
+          {canEditNextAction && (
+            <button
+              onClick={openNextAction}
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+            >
+              <Pencil className="w-3 h-3" />
+              {nextAction ? t("crm.activities.editNextAction") : t("crm.activities.setNextAction")}
+            </button>
+          )}
+        </div>
+
         {loading ? (
           <Skeleton className="h-6 w-48" />
         ) : nextAction ? (
           <div className="flex items-start gap-3">
-            <span className="mt-0.5 text-[var(--brand-orange)]">
-              {ACTIVITY_ICONS[nextAction.activity_type] ?? ACTIVITY_ICONS.other}
+            <span className={`mt-0.5 ${overdue ? "text-red-500" : "text-[var(--brand-orange)]"}`}>
+              {ACTIVITY_ICONS[nextAction.type] ?? <Clock className="w-4 h-4" />}
             </span>
-            <div>
-              <p className="text-sm font-medium text-[var(--text-primary)]">{nextAction.title}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-[var(--text-primary)]">{nextAction.label}</p>
               <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                {nextAction.activity_date
-                  ? formatDate(new Date(nextAction.activity_date))
-                  : "—"}{" "}
-                {nextAction.owner_name ? `· ${nextAction.owner_name}` : ""}
+                {nextAction.due ? formatDate(new Date(nextAction.due)) : "—"}{" "}
+                {nextAction.owner ? `· ${nextAction.owner}` : ""}
+                {!nextAction.fromRecord ? ` · ${t("crm.activities.nextActionDerived")}` : ""}
               </p>
+              {overdue && (
+                <span className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">
+                  <AlertTriangle className="w-3 h-3" />
+                  {t("crm.activities.nextActionOverdue")}
+                </span>
+              )}
             </div>
           </div>
         ) : (
-          <p className="text-sm text-[var(--text-secondary)] italic">
-            {t("crm.activities.noNextAction")}
-          </p>
+          <div>
+            <p className="text-sm text-[var(--text-secondary)] italic">
+              {t("crm.activities.noNextAction")}
+            </p>
+            <p className="text-xs text-[var(--text-secondary)] mt-1">
+              {t("crm.activities.nextActionHint")}
+            </p>
+          </div>
         )}
       </div>
 
@@ -278,7 +373,7 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
           <h2 className="text-xs font-semibold uppercase tracking-wide text-[var(--text-secondary)]">
             {t("crm.activities.title")}
           </h2>
-          <AppButton size="sm" icon={Plus} onClick={openCreate}>
+          <AppButton size="sm" icon={Plus} onClick={openActivity}>
             {t("crm.activities.addActivity")}
           </AppButton>
         </div>
@@ -300,7 +395,7 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
               {displayed.map((a) => (
                 <li
                   key={a.id}
-                  className="flex items-start gap-3 group"
+                  className="flex items-start gap-3"
                 >
                   <span className="mt-0.5 shrink-0 text-[var(--text-secondary)]">
                     {ACTIVITY_ICONS[a.activity_type] ?? ACTIVITY_ICONS.other}
@@ -319,24 +414,6 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
                       </p>
                     )}
                   </div>
-                  {a.activity_type !== "task" && (
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button
-                        onClick={() => openEdit(a)}
-                        className="p-1 rounded hover:bg-[var(--surface-3)] text-[var(--text-secondary)]"
-                        title={t("common.edit")}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(a)}
-                        className="p-1 rounded hover:bg-[var(--surface-3)] text-red-500"
-                        title={t("common.delete")}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  )}
                 </li>
               ))}
             </ol>
@@ -357,24 +434,61 @@ export default function CrmActivityPanel({ leadId, opportunityId, contactCid, or
         )}
       </div>
 
-      {/* ── ADD / EDIT MODAL ── */}
+      {/* ── NEXT ACTION MODAL ── */}
+      <AppModal
+        isOpen={showNextModal}
+        onClose={() => setShowNextModal(false)}
+        title={t("crm.activities.editNextAction")}
+      >
+        <div className="space-y-4">
+          <AppInput
+            label={t("crm.activities.nextActionLabel")}
+            value={nextForm.label}
+            onChange={e => setNextForm(f => ({ ...f, label: e.target.value }))}
+            placeholder={t("crm.activities.nextActionPlaceholder")}
+          />
+          <AppInput
+            label={t("crm.activities.nextActionDateLabel")}
+            type="date"
+            value={nextForm.due}
+            onChange={e => setNextForm(f => ({ ...f, due: e.target.value }))}
+          />
+          <div className="flex justify-between gap-3 pt-2">
+            <AppButton
+              variant="ghost"
+              onClick={clearNextAction}
+              disabled={savingNext || !recordAction}
+            >
+              {t("crm.activities.nextActionClear")}
+            </AppButton>
+            <div className="flex gap-3">
+              <AppButton variant="ghost" onClick={() => setShowNextModal(false)} disabled={savingNext}>
+                {t("common.cancel")}
+              </AppButton>
+              <AppButton onClick={saveNextAction} loading={savingNext}>
+                {t("common.save")}
+              </AppButton>
+            </div>
+          </div>
+        </div>
+      </AppModal>
+
+      {/* ── ADD ACTIVITY MODAL ── */}
       <AppModal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title={editing ? t("crm.activities.editActivity") : t("crm.activities.addActivity")}
+        title={t("crm.activities.addActivity")}
       >
         <div className="space-y-4">
-          {!editing && (
-            <AppSelect
-              label={t("crm.activities.typeLabel")}
-              value={form.type}
-              onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              options={typeOptions.map(o => ({
-                value: o.value,
-                label: t(o.label),
-              }))}
-            />
-          )}
+          <AppSelect
+            label={t("crm.activities.typeLabel")}
+            value={form.type}
+            onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
+            options={typeOptions.map(o => ({
+              value: o.value,
+              label: t(o.label),
+            }))}
+          />
 
           <AppInput
             label={t("crm.activities.titleLabel")}

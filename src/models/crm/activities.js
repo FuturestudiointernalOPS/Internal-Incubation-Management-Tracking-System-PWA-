@@ -125,44 +125,6 @@ export async function createCrmActivity({
   });
 }
 
-/** Update an existing CRM activity */
-export async function updateCrmActivity(id, updates) {
-  const allowed = ['title', 'description', 'outcome', 'activity_date', 'owner_cid'];
-  const sets = [];
-  const args = [];
-  for (const f of allowed) {
-    if (updates[f] !== undefined) {
-      sets.push(`${f} = ?`);
-      args.push(updates[f]);
-    }
-  }
-  if (!sets.length) return { rows: [] };
-  
-  sets.push("updated_at = NOW()");
-  args.push(id);
-
-  return db.execute({
-    sql: `UPDATE crm_activities SET ${sets.join(", ")} WHERE id = ? RETURNING *`,
-    args,
-  });
-}
-
-/** Single activity by id (existence check the PATCH/DELETE routes share). */
-export async function getCrmActivityById(id) {
-  return db.execute({
-    sql: "SELECT id, type FROM crm_activities WHERE id = ?",
-    args: [id],
-  });
-}
-
-/** Hard delete a manual activity (the table has no soft-delete column). */
-export async function deleteCrmActivity(id) {
-  return db.execute({
-    sql: "DELETE FROM crm_activities WHERE id = ?",
-    args: [id],
-  });
-}
-
 /** Find the Next Action (closest upcoming task or meeting) */
 export async function getCrmNextAction({ leadId, opportunityId }) {
   const result = await getCrmActivities({ leadId, opportunityId });
