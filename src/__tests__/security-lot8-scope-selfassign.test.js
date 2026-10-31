@@ -1,3 +1,4 @@
+jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * SECURITY — Lot 8 (program scope on curriculum/reports/export + separation of
  * duties on capability assignment).

@@ -358,6 +358,8 @@
       "feedback": "Reviewer feedback",
       "dueOn": "Due {date}",
       "noDeadline": "No deadline",
+      "showAll": "Show all ({count})",
+      "showLess": "Show less",
       "open": "Open Journey",
       "empty": "Nothing needs you right now.",
       "emptyHint": "Your next milestone and upcoming sessions are below.",

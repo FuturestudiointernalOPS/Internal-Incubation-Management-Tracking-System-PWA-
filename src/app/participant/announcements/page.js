@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
-import { Megaphone, Pin, PinOff, Check, Mail } from "lucide-react";
+import { Bell, Megaphone, Pin, PinOff, Check, Mail } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { formatLocaleDate } from "@/lib/constants";
@@ -78,5 +78,13 @@ export default function ParticipantAnnouncementsPage() {
       <article className="space-y-4"><div className="flex items-start justify-between gap-3"><div><div className="mb-2 flex flex-wrap items-center gap-2 text-xs"><span className="rounded-full bg-brand-orange/10 px-3 py-1 font-bold text-[var(--brand-orange)]">{t(`participant.announcementHub.categories.${row.category}`)}</span><span className={row.read ? "text-[var(--text-secondary)]" : "font-bold text-[var(--brand-orange)]"}>{t(row.read ? "participant.announcementHub.read" : "participant.announcementHub.unread")}</span>{row.pinned && <span className="flex items-center gap-1 text-[var(--brand-orange)]"><Pin className="h-3 w-3" />{t("participant.announcementHub.pinned")}</span>}</div><h2 className="text-lg font-bold text-[var(--text-primary)]">{row.title}</h2><p className="mt-1 text-xs text-[var(--text-secondary)]">{formatLocaleDate(row.created_at, { day: "numeric", month: "long", year: "numeric" }, lang)}</p></div><AppButton variant="ghost" icon={row.pinned ? PinOff : Pin} aria-label={t(row.pinned ? "participant.announcementHub.unpin" : "participant.announcementHub.pin")} title={t(row.pinned ? "participant.announcementHub.unpin" : "participant.announcementHub.pin")} onClick={() => savePreference(row.id, { pinned: !row.pinned })} /></div>
       <p className="whitespace-pre-wrap text-sm leading-relaxed text-[var(--text-secondary)]">{row.message}</p><div className="flex flex-wrap items-end justify-between gap-4"><div className="w-full sm:w-48"><AppSelect placeholder={t("common.select")} label={t("participant.announcementHub.category")} aria-label={t("participant.announcementHub.categoryFor", { title: row.title })} value={row.category} options={categoryOptions} onChange={event => savePreference(row.id, { category: event.target.value })} /></div><AppButton variant="secondary" icon={row.read ? Mail : Check} loading={busy === row.id} disabled={busy !== null} onClick={() => updateRead(row)}>{t(row.read ? "participant.announcementHub.markUnread" : "participant.announcementHub.markRead")}</AppButton></div></article>
     </AppCard>)}</div>}
+    <section className="space-y-3">
+      <h2 className="flex items-center gap-2 text-lg font-bold text-[var(--text-primary)]"><Bell className="h-5 w-5 text-[var(--brand-orange)]" />{t("venture.recentNotifications")}</h2>
+      {(data?.notifications || []).length === 0 ? <AppCard><p className="py-4 text-center text-sm text-[var(--text-secondary)]">{loading && !data ? t("common.loading") : t("venture.noNotifications")}</p></AppCard> : data.notifications.map(item => <AppCard key={item.id}>
+        <div className="flex items-center gap-2">{!isRead(item) && <span className="h-2 w-2 rounded-full bg-blue-400" />}<p className="text-sm font-medium text-[var(--text-primary)]">{item.title}</p></div>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">{item.message}</p>
+        <p className="mt-1 text-xs text-[var(--text-secondary)]">{formatLocaleDate(item.created_at, { day: "numeric", month: "long", year: "numeric" }, lang)}</p>
+      </AppCard>)}
+    </section>
   </div>;
 }
