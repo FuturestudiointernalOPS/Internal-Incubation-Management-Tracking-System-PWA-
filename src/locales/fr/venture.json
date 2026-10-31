@@ -528,6 +528,7 @@
     "cancelled": "Annulé",
     "statusManagedByStaff": "Le statut est géré par le personnel de Future Studio.",
     "facebook": "Facebook",
+    "socialInvalid": "Ce n'est pas un lien {platform} valide.",
     "socialPasteUrl": "Collez le lien complet vers votre page — pas besoin de @username.",
     "memberRoleInVenture": "Rôle dans la Venture",
     "addAsFounder": "Fondateur",
