@@ -1,0 +1,51 @@
+#!/bin/sh
+# Local half of the branch guard. See docs/BRANCH_PROTECTION.md.
+#
+# Refuses:
+#   - any push to main that is not a commit reachable from the local G branch;
+#   - any push to interns whose history contains white_label_os.
+#
+# Install it with: sh scripts/git-hooks/install.sh
+
+set -eu
+
+zero="0000000000000000000000000000000000000000"
+
+block() {
+  printf '\npre-push: %s\n' "$1" >&2
+  printf 'pre-push: push refused. See docs/BRANCH_PROTECTION.md.\n\n' >&2
+  exit 1
+}
+
+resolve_ref() {
+  for candidate in "$@"; do
+    if git show-ref --verify --quiet "$candidate"; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+g_ref="$(resolve_ref refs/heads/G refs/remotes/origin/G || true)"
+white_ref="$(resolve_ref refs/heads/white_label_os refs/remotes/origin/white_label_os || true)"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # Branch deletion: the server decides.
+  [ "$local_sha" = "$zero" ] && continue
+
+  if [ "$remote_ref" = "refs/heads/main" ]; then
+    if [ -z "$g_ref" ]; then
+      block "main only receives G, but no local G branch exists. Fetch it first: git fetch origin G:G"
+    fi
+    if ! git merge-base --is-ancestor "$local_sha" "$g_ref"; then
+      block "main only receives G. The pushed commit is not reachable from $g_ref."
+    fi
+  fi
+
+  if [ "$remote_ref" = "refs/heads/interns" ] && [ -n "$white_ref" ]; then
+    if git merge-base --is-ancestor "$white_ref" "$local_sha"; then
+      block "white_label_os is an ancestor of the history being pushed to interns."
+    fi
+  fi
+done
