@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Forms & submissions model — submission status reads (REPOSITORY layer).
@@ -14,7 +13,7 @@ import { platformProgramPredicate } from "@/models/organizations/programScope";
 /** Program status lookup used to gate participant/team submissions. */
 export async function getSubmissionProgramStatus(programId) {
   return db.execute({
-    sql: `SELECT status FROM v2_programs WHERE id::text = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT status FROM v2_programs WHERE id::text = ?",
     args: [String(programId)],
   });
 }

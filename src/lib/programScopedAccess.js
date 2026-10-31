@@ -2,7 +2,6 @@ import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope } from "@/services/authorization/scope";
-import { isInternalProgramAvailable } from "@/services/organizations/internalPrograms";
 
 /**
  * PROGRAM SCOPED ACCESS — the record-scope layer for program WRITES.
@@ -84,16 +83,7 @@ export async function requireProgramScope({
       );
     }
 
-    // Internal authority, including Super Admin, is platform-only. Client
-    // programmes are reachable through the separate scoped/supervised APIs.
-    if (!(await isInternalProgramAvailable(programId))) {
-      if (programId === null || programId === undefined || String(programId).trim() === "") {
-        return denied({ error: "errors.insufficientPermissions", missing: { scope: "program_managed", wave, reason: "program-unresolvable" } }, 403, "unresolvable");
-      }
-      return denied({ error: "errors.insufficientPermissions", missing: { scope: "platform-program", wave } }, 403, "program-unavailable");
-    }
-
-    // Super Admin — unscoped authority within Future Studio only.
+    // Super Admin — resolver semantics (unscoped authority).
     const authContext = await getAuthorizationContext(session);
     if (authContext?.isSuperAdmin) return null;
 

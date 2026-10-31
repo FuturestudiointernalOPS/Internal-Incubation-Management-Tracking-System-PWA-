@@ -13,7 +13,6 @@
  */
 
 import db from "@/lib/db";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 
 /** Ventures the person owns or is delegated to (the `venture_own` policy). */
 export async function getVentureOwnScopeIds(userCid) {
@@ -91,8 +90,7 @@ export async function getLearningOwnScopeIds(userCid) {
   const result = await db.execute({
     sql: `SELECT DISTINCT CAST(course_id AS TEXT) AS id
                 FROM lms_enrollments
-                WHERE user_cid = ? AND status <> 'suspended'
-                  AND organization_id = '${PLATFORM_ORGANIZATION_ID}'::uuid`,
+                WHERE user_cid = ? AND status <> 'suspended'`,
     args: [userCid],
   });
   return result.rows.map((row) => String(row.id));

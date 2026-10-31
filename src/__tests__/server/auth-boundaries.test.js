@@ -28,7 +28,6 @@ jest.mock("@/lib/token-hashing", () => ({
   ensureTokenHashColumns: jest.fn(async () => {}),
 }));
 jest.mock("@/lib/identity", () => ({
-  ...jest.requireActual("@/lib/identity"),
   deriveLegacyRoleEnabled: () => false,
   deriveLegacyRole: ({ storedRole }) => storedRole,
 }));

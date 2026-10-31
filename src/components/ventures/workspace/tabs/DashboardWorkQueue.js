@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { AlertTriangle, Inbox, ListChecks, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { statusLabel } from "@/lib/ventureStatuses";
@@ -37,17 +36,6 @@ const TAG_TONE = {
   in_progress: "b",
   completed: "g",
   approved: "g",
-};
-
-/** Rows shown before "Show all" — the queue is a prompt, not a dump. */
-const VISIBLE_ROWS = 5;
-
-/** Most urgent first: earliest due date; work with no deadline last. */
-const byDueDate = (a, b) => {
-  if (!a.due_date && !b.due_date) return 0;
-  if (!a.due_date) return 1;
-  if (!b.due_date) return -1;
-  return String(a.due_date).localeCompare(String(b.due_date));
 };
 
 function formatDay(value) {
@@ -121,7 +109,6 @@ function Head({ subtitle }) {
 
 export default function DashboardWorkQueue({ myWork, loading, failed, onOpen, onRetry }) {
   const { t } = useI18n();
-  const [showAll, setShowAll] = useState(false);
 
   if (failed) {
     return (
@@ -158,20 +145,7 @@ export default function DashboardWorkQueue({ myWork, loading, failed, onOpen, on
 
   // One row per record — the first group that claims it wins (pure, and pinned
   // by src/__tests__/venture-my-work-queue.test.js).
-  const allGroups = groupWork(myWork).map((group) => ({
-    ...group,
-    items: [...group.items].sort(byDueDate),
-  }));
-  const total = allGroups.reduce((n, group) => n + group.items.length, 0);
-  // Cap the printed rows (group order is kept), unless "Show all" is on.
-  const limit = showAll ? Infinity : VISIBLE_ROWS;
-  let printedBefore = 0;
-  const groups = [];
-  for (const group of allGroups) {
-    const items = group.items.slice(0, Math.max(limit - printedBefore, 0));
-    printedBefore += items.length;
-    if (items.length > 0) groups.push({ ...group, items, total: group.items.length });
-  }
+  const groups = groupWork(myWork);
 
   const partial = myWork?.source?.complete === false;
 
@@ -198,7 +172,7 @@ export default function DashboardWorkQueue({ myWork, loading, failed, onOpen, on
         groups.map((group) => (
           <div key={group.key} className="mt-4 first:mt-0">
             <p className="stf-k mb-1">
-              {t(`venture.myWork.group.${group.key}`)} · {group.total}
+              {t(`venture.myWork.group.${group.key}`)} · {group.items.length}
             </p>
             <ul className="list-none p-0 m-0">
               {group.items.map((item) => (
@@ -207,18 +181,6 @@ export default function DashboardWorkQueue({ myWork, loading, failed, onOpen, on
             </ul>
           </div>
         ))
-      )}
-
-      {total > VISIBLE_ROWS && (
-        <button
-          type="button"
-          className="stf-link-btn mt-3"
-          onClick={() => setShowAll((value) => !value)}
-        >
-          {showAll
-            ? t("venture.myWork.showLess")
-            : t("venture.myWork.showAll", { count: total })}
-        </button>
       )}
     </section>
   );
