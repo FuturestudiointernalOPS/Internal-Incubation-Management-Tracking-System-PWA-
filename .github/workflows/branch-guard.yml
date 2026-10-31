@@ -1,0 +1,119 @@
+name: branch-guard
+
+# Refuses pull requests that move work in the wrong direction:
+#   - anything other than `G` into `main`
+#   - `white_label_os` into `interns`
+#
+# This is the shared, server-side half of the guard described in
+# docs/BRANCH_PROTECTION.md. The rules below mirror that document; change
+# MAIN_SOURCE_BRANCH / BLOCKED_INTO_INTERNS here if the promotion paths change.
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: branch-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: guard
+    runs-on: ubuntu-latest
+    env:
+      MAIN_SOURCE_BRANCH: G
+      BLOCKED_INTO_INTERNS: white_label_os
+    outputs:
+      forbidden: ${{ steps.rules.outputs.forbidden }}
+      reason: ${{ steps.rules.outputs.reason }}
+    steps:
+      - name: Apply the merge-direction rules
+        id: rules
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+          HEAD: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -eu
+          reason=""
+
+          if [ "$BASE" = "main" ] && [ "$HEAD" != "$MAIN_SOURCE_BRANCH" ]; then
+            reason="Only '$MAIN_SOURCE_BRANCH' can be merged into 'main'; this pull request comes from '$HEAD'."
+          fi
+
+          if [ "$BASE" = "interns" ] && [ "$HEAD" = "$BLOCKED_INTO_INTERNS" ]; then
+            reason="'$BLOCKED_INTO_INTERNS' can never be merged into 'interns'."
+          fi
+
+          if [ -n "$reason" ]; then
+            echo "forbidden=true" >> "$GITHUB_OUTPUT"
+            echo "reason=$reason" >> "$GITHUB_OUTPUT"
+            echo "::error::$reason"
+          else
+            echo "forbidden=false" >> "$GITHUB_OUTPUT"
+            echo "Allowed: $HEAD -> $BASE"
+          fi
+
+      - name: Fail the required check
+        if: steps.rules.outputs.forbidden == 'true'
+        run: |
+          echo "::error::Forbidden merge direction."
+          exit 1
+
+  refuse:
+    name: refuse
+    needs: guard
+    if: always() && needs.guard.outputs.forbidden == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment on and close the pull request
+        uses: actions/github-script@v7
+        env:
+          REASON: ${{ needs.guard.outputs.reason }}
+        with:
+          script: |
+            const reason = process.env.REASON;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const pull_number = context.payload.pull_request.number;
+
+            if (context.payload.pull_request.state !== "open") {
+              core.info("Pull request is already closed; nothing to do.");
+              return;
+            }
+
+            const body = [
+              "⛔ **Closed automatically by `branch-guard`.**",
+              "",
+              reason,
+              "",
+              "- `main` only receives the `G` branch.",
+              "- `interns` never receives `white_label_os`.",
+              "",
+              "See `docs/BRANCH_PROTECTION.md`.",
+            ].join("\n");
+
+            try {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pull_number,
+                body,
+              });
+            } catch (error) {
+              core.warning(`Could not comment on the pull request: ${error.message}`);
+            }
+
+            try {
+              await github.rest.pulls.update({
+                owner,
+                repo,
+                pull_number,
+                state: "closed",
+              });
+            } catch (error) {
+              core.warning(`Could not close the pull request: ${error.message}`);
+            }
