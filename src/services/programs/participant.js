@@ -1,6 +1,6 @@
 import {
   getKnowledgeBankAttachmentsByNoteIds,
-  getParticipantKnowledgeBankItems,
+  getParticipantKnowledgeBankItemById,
   getParticipantProgramDetailAttendance,
   getParticipantProgramDetailById,
   getParticipantProgramDetailDeliverables,
@@ -56,7 +56,9 @@ export async function getParticipantProgramDetailService({ cid, email, programId
       getParticipantProgramDetailKpis(programId),
       getParticipantProgramDetailStaff(programId),
       getParticipantProgramFollowups(programId),
-      getParticipantKnowledgeBankItems(),
+      program.note_id
+        ? getParticipantKnowledgeBankItemById(program.note_id)
+        : Promise.resolve({ rows: [] }),
     ]);
 
   const sessions = sessionsResult.rows || [];
@@ -73,17 +75,15 @@ export async function getParticipantProgramDetailService({ cid, email, programId
   const knowledgeItems = knowledgeResult.rows || [];
 
   // Fetch actual file URLs from knowledge_attachments
-  let attachmentsByNote = {};
+  const attachmentsByNote = {};
   if (knowledgeItems.length > 0) {
-    try {
-      const attachmentsResult = await getKnowledgeBankAttachmentsByNoteIds(
-        knowledgeItems.map((knowledgeItem) => knowledgeItem.id),
-      );
-      for (const attachment of attachmentsResult.rows || []) {
-        if (!attachmentsByNote[attachment.note_id]) attachmentsByNote[attachment.note_id] = [];
-        attachmentsByNote[attachment.note_id].push({ name: attachment.name, url: attachment.url });
-      }
-    } catch (_) {}
+    const attachmentsResult = await getKnowledgeBankAttachmentsByNoteIds(
+      knowledgeItems.map((knowledgeItem) => knowledgeItem.id),
+    );
+    for (const attachment of attachmentsResult.rows || []) {
+      if (!attachmentsByNote[attachment.note_id]) attachmentsByNote[attachment.note_id] = [];
+      attachmentsByNote[attachment.note_id].push({ name: attachment.name, url: attachment.url });
+    }
   }
 
   let pmName = null;

@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 import { getActiveCheckoutRunSlugForCourse } from "./public";
 import { resolveCheckoutCourse } from "@/services/lms/checkout";
 
@@ -68,8 +69,9 @@ export async function findCourseMatch(name) {
   if (!query) return { match: null, checkout: null };
 
   const res = await db.execute({
-    sql: "SELECT id, title, updated_at FROM lms_courses WHERE status = ? AND visibility = ?",
-    args: ["published", "public"],
+    sql: `SELECT id, title, updated_at FROM lms_courses
+          WHERE status = ? AND visibility = ? AND owner_organization_id = ?`,
+    args: ["published", "public", PLATFORM_ORGANIZATION_ID],
   });
 
   const candidates = res.rows

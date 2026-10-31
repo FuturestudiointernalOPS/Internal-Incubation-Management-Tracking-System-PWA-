@@ -40,6 +40,9 @@ jest.mock("@/models/authorization/index", () => ({
 jest.mock("@/services/authorization/scope", () => ({
   isWithinScope: jest.fn(async () => true),
 }));
+jest.mock("@/services/organizations/internalPrograms", () => ({
+  isInternalProgramAvailable: jest.fn(async () => true),
+}));
 
 jest.mock("@/models/platformConfig", () => ({
   insertKpi: jest.fn(async () => ({ rows: [{ id: 1 }] })),
@@ -49,6 +52,7 @@ jest.mock("@/models/platformConfig", () => ({
 }));
 
 const { isWithinScope } = require("@/services/authorization/scope");
+const { isInternalProgramAvailable } = require("@/services/organizations/internalPrograms");
 const { insertKpi, deleteKpi, getV2KpiProgramId } = require("@/models/platformConfig");
 const kpis = require("@/app/api/kpis/route");
 
@@ -68,6 +72,7 @@ const del = (body) =>
 beforeEach(() => {
   jest.clearAllMocks();
   isWithinScope.mockResolvedValue(true);
+  isInternalProgramAvailable.mockResolvedValue(true);
   getV2KpiProgramId.mockResolvedValue({ rows: [{ program_id: "P1" }] });
 });
 

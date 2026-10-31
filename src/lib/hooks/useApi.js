@@ -200,6 +200,7 @@ export function useApi(url, options = {}) {
     transform,
     fetchOptions,
     refetchInterval,
+    cache: cacheEnabled = true,
   } = options;
 
   const [readData, setData] = useState(defaultValue);
@@ -279,7 +280,7 @@ export function useApi(url, options = {}) {
     setError(null);
 
     // Stale-while-revalidate: show cached data instantly, refresh in background.
-    const cached = bypassCache ? null : cacheGet(url);
+    const cached = bypassCache || !cacheEnabled ? null : cacheGet(url);
     if (cached !== null) {
       const transformFn = transformRef.current;
       setData(transformFn ? transformFn(cached) : cached);
@@ -291,7 +292,7 @@ export function useApi(url, options = {}) {
     try {
       const { body: json, status: httpStatus } = await fetchJsonEnvelope(
         url,
-        fetchOptionsRef.current,
+        cacheEnabled ? fetchOptionsRef.current : { ...fetchOptionsRef.current, cache: "no-store" },
       );
 
       // Discard stale responses
@@ -310,13 +311,8 @@ export function useApi(url, options = {}) {
       // one-shot server fault into a sticky empty screen for up to CACHE_TTL.
       const isAppFailure = json && typeof json === "object" && json.success === false;
       if (!isAppFailure && httpStatus >= 200 && httpStatus < 400) {
-        cacheSet(url, json);
+        if (cacheEnabled) cacheSet(url, json);
         setError(null);
-      } else if (isAppFailure || httpStatus >= 400) {
-        setError(
-          (json && typeof json === "object" && json.error) ||
-            `Request failed (${httpStatus})`,
-        );
       }
 
       const transformFn = transformRef.current;
@@ -338,7 +334,7 @@ export function useApi(url, options = {}) {
         setLoading(false);
       }
     }
-  }, [url]);
+  }, [url, cacheEnabled]);
 
   // Fetch on mount / dependency change. The caller's `deps` are spread into the
   // list, so the read is re-issued when any of them changes. The two reports this

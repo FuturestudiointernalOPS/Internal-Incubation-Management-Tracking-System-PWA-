@@ -187,9 +187,33 @@ function nextWithId(request, requestId) {
   }
 }
 
+function isOrganizationApi(pathname) {
+  return pathname === "/api/org" || pathname.startsWith("/api/org/")
+    || pathname === "/api/platform/organizations" || pathname.startsWith("/api/platform/organizations/");
+}
+
+function privateOrganizationResponse(response, pathname) {
+  if (isOrganizationApi(pathname)) {
+    response.headers.set("Cache-Control", "private, no-store");
+    response.headers.append("Vary", "Cookie");
+  }
+  return response;
+}
+
+function isLocalOrganizationPreview(request) {
+  if (process.env.NODE_ENV !== "development"
+    || request.nextUrl.searchParams?.get("preview") !== "1") return false;
+  return /^\/o\/(?!select(?:\/|$))[^/]+(?:\/(?:lms(?:\/[^/]+)?|venture|programs))?$/.test(request.nextUrl.pathname);
+}
+
 export function proxy(request) {
   const { pathname } = request.nextUrl;
   const requestId = correlationId(request);
+
+  // The explicitly requested mock portal is available only in local development.
+  if (isLocalOrganizationPreview(request)) {
+    return nextWithId(request, requestId);
+  }
 
   // Static assets never require a session.
   if (STATIC_ASSET_RE.test(pathname)) {
@@ -224,11 +248,11 @@ export function proxy(request) {
     // For API routes, return 401
     if (pathname.startsWith("/api/")) {
       const response = NextResponse.json(
-        { success: false, error: "Authentication required." },
+        { success: false, error: isOrganizationApi(pathname) ? "errors.authRequired" : "Authentication required." },
         { status: 401 },
       );
       response.headers.set("x-request-id", requestId);
-      return response;
+      return privateOrganizationResponse(response, pathname);
     }
 
     // For page routes, redirect to login
@@ -237,7 +261,7 @@ export function proxy(request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return nextWithId(request, requestId);
+  return privateOrganizationResponse(nextWithId(request, requestId), pathname);
 }
 
 export const config = {
