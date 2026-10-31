@@ -156,6 +156,26 @@ async function applyFounderPromotion({ ventureId, contactCid }) {
   await ensureVentureLead(ventureId, contactCid);
 }
 
+/**
+ * Close the founder LEDGER row that this invitation came from, when there is one.
+ *
+ * `venture_founders` is the list the administration's founder screen reads; an
+ * invitation sent from there leaves a pending row behind. Accepting must flip
+ * it, otherwise the screen keeps claiming the person is pending after they
+ * joined. Best-effort: the ledger is a view of the relationship, never the
+ * source of access.
+ */
+async function markFounderLedgerAccepted(ventureId, email) {
+  const normalized = String(email || "").trim().toLowerCase();
+  if (!ventureId || !normalized) return;
+  await safe(
+    `UPDATE venture_founders
+        SET status = 'accepted', invitation_accepted_at = NOW(), updated_at = NOW()
+      WHERE venture_id = ? AND LOWER(email) = ? AND status = 'pending'`,
+    [ventureId, normalized],
+  );
+}
+
 /** A person already recorded under this email, if any (display + linking only). */
 async function findContactByEmail(email) {
   const result = await safe(
@@ -419,6 +439,7 @@ export async function completeVentureMemberInvitation({
       await applyFounderPromotion({ ventureId: invitation.venture_id, contactCid });
       await applyVentureContextGrants(contactCid);
     }
+    await markFounderLedgerAccepted(invitation.venture_id, invitation.email);
     await markAccepted(invitation.id, contactCid);
     return { ok: true, already_member: true, venture_id: invitation.venture_id, contact_cid: contactCid };
   }
@@ -464,6 +485,7 @@ export async function completeVentureMemberInvitation({
     await applyVentureContextGrants(contactCid);
   }
 
+  await markFounderLedgerAccepted(invitation.venture_id, invitation.email);
   await markAccepted(invitation.id, contactCid);
 
   return {

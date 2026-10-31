@@ -22,13 +22,14 @@ export default function TimelineTab({
   return (
     <div className="space-y-4">
       {/* Quick panels */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
         {[
           { key: "forms", label: t("crm.people.panelForms"), count: panelCounts.forms, color: "border-purple-500/30" },
           { key: "programs", label: t("crm.people.panelPrograms"), count: panelCounts.programs, color: "border-blue-500/30" },
           { key: "ventures", label: t("crm.people.panelVentures"), count: panelCounts.ventures, color: "border-emerald-500/30" },
           { key: "investors", label: t("crm.people.panelInvestors"), count: panelCounts.investors, color: "border-amber-500/30" },
           { key: "communications", label: t("crm.people.panelComms"), count: panelCounts.comms, color: "border-cyan-500/30" },
+          { key: "crm", label: t("crm.people.panelCrm"), count: panelCounts.crm, color: "border-orange-500/30" },
         ].map(panel => (
           <button
             key={panel.key}
@@ -47,7 +48,7 @@ export default function TimelineTab({
 
       {/* Filter pills */}
       <div className="flex flex-wrap gap-1.5">
-        {["", "forms", "programs", "ventures", "investors", "communications", "system"].map(module => (
+        {["", "crm", "forms", "programs", "ventures", "investors", "communications", "system"].map(module => (
           <button
             key={module}
             onClick={() => onModuleFilter(module)}

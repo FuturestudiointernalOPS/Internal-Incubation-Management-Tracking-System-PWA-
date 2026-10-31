@@ -120,9 +120,12 @@ export default function CrmOrganizationPeopleModal({ organization, can, onClose 
               <li key={link.id} className="py-2 flex items-center gap-3">
                 <User className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[var(--text-primary)] truncate">
+                  <a
+                    href={`/crm/people/${link.contact_cid}`}
+                    className="block text-sm font-semibold text-[var(--brand-orange)] hover:underline truncate"
+                  >
                     {link.contact_name || link.contact_email || link.contact_cid}
-                  </p>
+                  </a>
                   <p className="text-xs text-[var(--text-secondary)] truncate">
                     {t(`crm.relationships.types.${link.relationship_type}`)}
                     {link.title ? ` · ${link.title}` : ""}

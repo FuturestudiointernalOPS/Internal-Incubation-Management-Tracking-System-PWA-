@@ -7,7 +7,14 @@ import { CreditCard } from "lucide-react";
  * Extracted from the public submit page; the decision on whether the capture goes
  * through stays with the screen, which also enforces it.
  */
-export default function ConsentCard({ t, checkout, consent, onConsentChange }) {
+export default function ConsentCard({
+  t,
+  checkout,
+  consent,
+  onConsentChange,
+  whatsappConsent = false,
+  onWhatsappConsentChange,
+}) {
   return (
     <div className="p-6 rounded-2xl bg-slate-900 border border-orange-500/30 space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -33,6 +40,23 @@ export default function ConsentCard({ t, checkout, consent, onConsentChange }) {
       {checkout?.misconfigured && (
         <p className="text-[11px] font-bold text-rose-400">{t("forms.paymentMisconfigured")}</p>
       )}
+
+      {/* Optional and separate from the capture consent above: ticking it is not
+          a condition of buying, and the server records it on its own. */}
+      <label className="flex items-start gap-3 cursor-pointer border-t border-slate-800 pt-4">
+        <input
+          type="checkbox"
+          checked={whatsappConsent}
+          onChange={(event) => onWhatsappConsentChange?.(event.target.checked)}
+          className="mt-0.5 w-4 h-4 shrink-0 accent-orange-500"
+        />
+        <span className="text-[11px] leading-relaxed text-slate-400">
+          {t("forms.whatsappConsent")}
+          <span className="mt-1 block text-[10px] text-slate-500">
+            {t("forms.whatsappConsentHint")}
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

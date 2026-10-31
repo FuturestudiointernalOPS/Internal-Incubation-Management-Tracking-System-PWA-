@@ -1,0 +1,31 @@
+{
+  "creation": {
+    "kicker": "Nouvel enregistrement",
+    "title": "Créer",
+    "subtitle": "Commencez quelque chose de nouveau. Seuls les éléments que vous êtes autorisé à créer apparaissent ici.",
+    "backToCreate": "Retour à Créer",
+    "section": {
+      "title": "Que souhaitez-vous créer ?",
+      "subtitle": "Chaque porte ci-dessous est ouverte par une permission que vous détenez."
+    },
+    "program": {
+      "title": "Programme",
+      "createAction": "Créer un programme",
+      "description": "Configurez un nouveau programme : dates, personnel, groupes, indicateurs et supports."
+    },
+    "venture": {
+      "title": "Venture",
+      "createAction": "Ajouter une venture",
+      "description": "Enregistrez une venture et invitez son fondateur par e-mail.",
+      "heading": "Ajouter une venture",
+      "subtitle": "Enregistrez la venture et envoyez à son fondateur une invitation pour créer son compte et accéder à son espace de travail."
+    },
+    "investor": {
+      "title": "Investisseur",
+      "createAction": "Inviter un investisseur",
+      "description": "Générez le lien de candidature à remettre à un investisseur potentiel.",
+      "heading": "Inviter un investisseur",
+      "subtitle": "Partagez le lien avec l'investisseur. Sa candidature est examinée dans la gestion des investisseurs, et son approbation crée son compte."
+    }
+  }
+}

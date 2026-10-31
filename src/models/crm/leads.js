@@ -109,7 +109,10 @@ export async function updateCrmLead(id, updates) {
     'title', 'contact_cid', 'organization_id', 'owner_cid', 'lead_type', 
     'status', 'qualification_state', 'qualification_date', 'qualification_reason', 
     'qualification_notes', 'score', 'source', 'description', 'notes', 
-    'is_converted', 'converted_at'
+    'is_converted', 'converted_at',
+    // Next action — a first-class attribute of the record (see
+    // migrations/phase8_crm_next_action.sql). The owner sets it; automations do not.
+    'next_action', 'next_action_due', 'next_action_set_by', 'next_action_set_at'
   ];
   
   const sets = [];

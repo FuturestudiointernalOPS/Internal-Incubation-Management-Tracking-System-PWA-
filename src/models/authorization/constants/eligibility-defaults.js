@@ -41,8 +41,10 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   programs: ["super_admin", "staff", "member"],
   // Ventures — incubated businesses. `member` carries the venture context.
   ventures: ["super_admin", "staff", "member"],
-  // Investors — investor relations
-  investors: ["super_admin", "staff"],
+  // Investors — investor relations. `member` is included so the Permission
+  // Center can delegate investor creation to any personal account, exactly
+  // like programs and ventures; eligibility is a CEILING, never a grant.
+  investors: ["super_admin", "staff", "member"],
   // Finance — budgets, reports
   finance: ["super_admin", "staff"],
   // Operations — projects, tasks, blockers, standups, retros. The templates that
@@ -53,7 +55,12 @@ export const FEATURE_ELIGIBILITY_DEFAULTS = {
   // Knowledge — knowledge base
   knowledge: ["super_admin", "staff"],
   // LMS — capability-gated course authoring & learning
-  lms: ["super_admin"],
+  // LMS — course authoring. `staff` is included so an administrator can hand
+  // course creation / editing to a given staff member (the Course Manager
+  // profile already exists for the bundle); eligibility is a CEILING, never a
+  // grant. The LMS authoring surface lives in the staff-side workspace, so a
+  // personal account is deliberately not offered it.
+  lms: ["super_admin", "staff"],
   // Security — user administration + permission matrix
   security: ["super_admin", "staff"],
   // Settings — system configuration + engineering operations

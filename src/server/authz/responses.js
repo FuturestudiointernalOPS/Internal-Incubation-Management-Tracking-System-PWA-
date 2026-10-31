@@ -33,6 +33,23 @@ export async function requireAuthorization(module, capability, minLevel = 1) {
 }
 
 /**
+ * "Any of these rights" gate. Returns null when at least one alternative is
+ * allowed; otherwise the last refusal, so the caller still gets a real reason.
+ * Used while a capability moves house: the duplicates module now owns the
+ * queue, and the legacy contacts rights keep working during the transition.
+ */
+export async function requireAnyAuthorization(alternatives) {
+  let refusal = null;
+  for (const { module, capability, minLevel = 1 } of alternatives) {
+    refusal = toResponse(
+      await evaluateAuthorization(module, capability, minLevel),
+    );
+    if (!refusal) return null;
+  }
+  return refusal;
+}
+
+/**
  * Scoped gate: capability AND assignment to a specific resource. Returns null
  * when allowed, or the 401/403/500 response to return as-is.
  */

@@ -10,6 +10,7 @@ import {
   ROLE_ACCESS,
   NAV_CAPABILITY_REQUIREMENTS,
   NON_ADMIN_HREF_FALLBACKS,
+  requirementAlternatives,
 } from "./access";
 
 // Fallback access for a role absent from ROLE_ACCESS (an unknown/legacy
@@ -103,7 +104,11 @@ export function buildAccessNav(role, effective) {
   const passes = (id) => {
     const req = NAV_CAPABILITY_REQUIREMENTS[id];
     if (!req || !effective) return true;
-    return hasCapability(effective, req.module, req.capability);
+    // A requirement may offer alternatives ("crm.view OR contacts.view"); one
+    // allowed alternative is enough, and each child keeps its own requirement.
+    return requirementAlternatives(req).some((alternative) =>
+      hasCapability(effective, alternative.module, alternative.capability),
+    );
   };
 
   const resolveHref = (id, href) => {

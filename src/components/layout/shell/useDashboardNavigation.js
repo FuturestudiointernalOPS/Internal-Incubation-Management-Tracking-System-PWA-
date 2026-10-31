@@ -22,6 +22,12 @@ import {
   CheckSquare,
   Clock,
   GraduationCap,
+  Building2,
+  Target,
+  GitBranch,
+  Activity,
+  Filter,
+  Zap,
 } from "lucide-react";
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
@@ -55,6 +61,12 @@ const NAV_ICONS = {
   trendingUp: TrendingUp,
   clock: Clock,
   graduationCap: GraduationCap,
+  building: Building2,
+  target: Target,
+  gitBranch: GitBranch,
+  activity: Activity,
+  filter: Filter,
+  zap: Zap,
 };
 
 function attachIcons(items) {

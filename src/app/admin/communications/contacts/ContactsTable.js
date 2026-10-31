@@ -13,6 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/Skeleton";
+import WhatsAppAction from "@/components/crm/WhatsAppAction";
 import {
   CONTACT_STATUS_LABELS,
   INVITATION_STATUS_LABELS,
@@ -152,6 +153,7 @@ export function ContactsTable({
                     </>
                   ) : (
                     <>
+                      <WhatsAppAction contact={contact} compact />
                       <button
                         onClick={() => toggleStatus(contact.cid, contact.status, contact.group_name)}
                         title={
