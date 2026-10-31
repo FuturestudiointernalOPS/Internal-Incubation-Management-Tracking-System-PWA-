@@ -162,7 +162,6 @@ describe("getSession", () => {
       role: "staff",
       group_name: "FUTURE STUDIO",
       token: "token-shape",
-      activeOrganizationId: null,
     });
   });
 

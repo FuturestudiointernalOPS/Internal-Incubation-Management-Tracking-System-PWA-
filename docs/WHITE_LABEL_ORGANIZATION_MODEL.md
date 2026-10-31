@@ -720,7 +720,7 @@ toutes les organisations de la personne.
 |---|---|---|---|---|
 | `draft` | Non | Non | Future Studio seulement | Configurables |
 | `active` | Oui | Oui | Oui, selon les droits | Normales |
-| `suspended` | Non : accès refusé | Non | Non | Conservées |
+| `suspended` | Lecture seule, selon le contrat | Non | Non | Conservées |
 | `archived` | Non | Non | Non | Lecture Future Studio, conservation |
 | `closed` | Non | Non | Non | Export/suppression selon la politique |
 
@@ -752,7 +752,7 @@ en place et testées. Sinon, elle reste en `draft`.
 | Un refus gagne sur une autorisation | Comportement prévisible |
 | Un administrateur client ne dépasse pas le plafond de son rôle | Empêche l’escalade |
 | La fin d’appartenance conserve l’historique | Continuité et audit |
-| Une organisation suspendue refuse tout accès client, y compris lecture, invitation et écriture | Arrêt propre, données conservées |
+| Une organisation suspendue n’accepte ni invitation ni écriture | Arrêt propre |
 | La supervision exige un mandat actif | Pas d’accès implicite |
 | Le journal est en ajout seul | Preuve |
 | Une requête interne sans contexte est limitée à l’organisation plateforme | Empêche la fuite interne → client |
@@ -816,15 +816,13 @@ défini par Future Studio.
 
 ---
 
-## 12. Décisions produit et points restant à valider
+## 12. Décisions ouvertes
 
 1. **Nommage** : « Organisation » pour la frontière cliente, « Entreprise » pour
    le CRM. Validation produit.
 2. **Contenu partagé** : licence ou copie. Recommandation : licence.
-3. **Organisation suspendue — décision confirmée le 22 octobre 2026** : refus de
-   tout accès client, y compris en lecture. Aucune période de grâce en lecture
-   seule ; les données restent conservées. Cette décision ne définit pas à elle
-   seule les droits de supervision de Future Studio.
+3. **Organisation suspendue** : lecture seule ou blocage complet. Recommandation :
+   lecture seule pendant une période de grâce, puis blocage.
 4. **Rôles personnalisés** : en version 1, renommage et délégation seulement,
    pas de nouveaux droits au-delà du plafond.
 5. **Investisseur** : appartenance de type invité avec partage explicite, ou
@@ -876,7 +874,6 @@ Le modèle est considéré comme validé lorsque :
 | Date | Décision | Statut |
 |---|---|---|
 | 2026-10-22 | Création du modèle conceptuel | Proposition |
-| 2026-10-22 | Organisation suspendue : refus de tout accès client, sans lecture seule ni période de grâce ; données conservées | Confirmé par Christelle dans la conversation |
 | 2026-10-22 | Séparation Organisation / Entreprise CRM | À valider |
 | 2026-10-22 | Licence de contenu plutôt que copie | À valider |
 | 2026-10-22 | Portail client séparé de la console interne | À valider |

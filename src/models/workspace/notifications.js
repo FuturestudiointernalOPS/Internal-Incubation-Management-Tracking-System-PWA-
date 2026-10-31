@@ -177,14 +177,6 @@ export async function getParticipantAnnouncementHistory(recipientId) {
   });
 }
 
-/** Everything addressed to the recipient that is NOT an announcement (venture events, reviews, reminders…). */
-export async function getParticipantNotificationHistory(recipientId) {
-  return db.execute({
-    sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND type <> 'announcement' ORDER BY created_at DESC, id DESC LIMIT 50",
-    args: [recipientId],
-  });
-}
-
 export async function markNotificationUnread(notificationId) {
   return db.execute({
     sql: "UPDATE v2_notifications SET is_read = 0, read_at = NULL WHERE id = ?",

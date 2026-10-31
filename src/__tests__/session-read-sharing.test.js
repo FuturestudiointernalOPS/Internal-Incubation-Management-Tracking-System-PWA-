@@ -26,7 +26,7 @@ jest.mock("@/lib/token-hashing", () => ({
 }));
 
 const { cookies } = require("next/headers");
-const { getSession, invalidateSessionCache } = require("@/server/auth/session");
+const { getSession } = require("@/server/auth/session");
 
 /** Session rows keyed by the value stored in the token hash column. */
 function serveSessions(byHash) {
@@ -126,21 +126,4 @@ test("two different tokens are never served the same session", async () => {
 
   expect(first.cid).toBe("U4");
   expect(second.cid).toBe("U5");
-});
-
-test("context invalidation prevents an older in-flight read from repopulating the cache", async () => {
-  const token = "token-context-inflight";
-  cookies.mockResolvedValue({ get: () => ({ value: token }) });
-  let releaseOld, signalStarted;
-  const started = new Promise((resolve) => { signalStarted = resolve; });
-  const oldRead = new Promise((resolve) => { releaseOld = resolve; });
-  mockExecute.mockImplementationOnce(() => { signalStarted(); return oldRead; });
-  const first = getSession();
-  await started;
-  invalidateSessionCache(token);
-  serveSessions({ [`hash-${token}`]: asUser("CONTEXT-USER", token, { active_organization_id: "new-org" }) });
-  expect((await getSession()).activeOrganizationId).toBe("new-org");
-  releaseOld({ rows: [asUser("CONTEXT-USER", token, { active_organization_id: "old-org" })] });
-  await first;
-  expect((await getSession()).activeOrganizationId).toBe("new-org");
 });

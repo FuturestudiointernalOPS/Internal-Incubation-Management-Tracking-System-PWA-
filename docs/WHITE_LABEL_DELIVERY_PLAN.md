@@ -67,17 +67,7 @@ changement (§ 12.3).
 
 ### 3.1 Équipe
 
-**Situation confirmée le 22 octobre 2026 :** Christelle réalise seule le travail
-pour le moment. Le [plan solo de phase 0](white-label-phase0/PLAN_SOLO.md) est la
-référence d’exécution actuelle. Les responsabilités sont exercées
-successivement, sans présumer une revue indépendante ni un effectif disponible.
-
-Le tableau ci-dessous et le calendrier de la section 7 décrivent une **hypothèse
-d’équipe future**, à utiliser seulement lorsqu’une équipe sera effectivement
-affectée. Ses disponibilités et les estimations devront alors être recalibrées ;
-les dates et pourcentages ne constituent pas un engagement pour le travail solo.
-
-Le scénario d’équipe suppose les ressources suivantes :
+Le calendrier suppose une équipe dédiée :
 
 | Rôle | Charge indicative |
 |---|---|
@@ -97,14 +87,9 @@ tous.
 
 - **Staging** pour les migrations, les tests et le pilote fictif.
 - **Production** uniquement pour la promotion finale.
-- Sur ce poste, le propriétaire a confirmé que `.env.local` pointe sur staging.
-  Le contrôle read-only du 29 octobre 2026 a relevé 11 contacts et 3 ventures,
-  mais aucune table d’organisation white-label. `.env.audit-staging` est absent.
-  Vérifier la référence du projet Supabase avant toute écriture : le nom d’un
-  fichier d’environnement ne prouve pas sa cible.
-- L’activation client reste bloquée dans les migrations de préparation jusqu’à
-  validation de l’isolation. Ne pas créer de fixture cliente ni contourner ce
-  garde avant cette validation.
+- Sur ce poste, `.env.local` pointe sur la production : ne jamais l’utiliser pour
+  appliquer la migration. Utiliser l’environnement de staging et les scripts
+  read-only documentés dans `AGENTS.md`.
 - Sauvegarde et point de restauration avant toute migration.
 
 ### 3.3 Produit
@@ -120,10 +105,7 @@ tous.
 - Le moteur de permissions existant n’est pas modifié en Phase 1.
 - Le portail client est une entrée séparée.
 - L’organisation active vient de la session authentifiée.
-- Les migrations sont additives et non destructives (confirmation de Christelle,
-  23 octobre 2026). Le repli conserve les données et les nouvelles structures,
-  sans supprimer les tables ou colonnes. Les dates et conditions de chaque
-  application restent à valider sur une base de test isolée.
+- Les migrations sont additives et réversibles.
 
 ---
 
@@ -423,7 +405,7 @@ production selon le test de production.
 
 ---
 
-## 7. Calendrier indicatif — scénario d’équipe future
+## 7. Calendrier indicatif
 
 Hypothèse : démarrage le **2 novembre 2026**, hors congés de fin d’année. Le
 calendrier est indicatif et sera recalibré à M0.
@@ -602,7 +584,7 @@ La promotion vers la production suit `docs/PRODUCTION_TEST.md`, item par item.
 |---|---|---|---|
 | 1 | Nommage UI : Organisation / Entreprise CRM | Organisation pour la frontière, Entreprise pour le CRM | Confusion dans les écrans et le support |
 | 2 | Contenu partagé : licence ou copie | Licence, copie seulement si édition | Bloque le partage de cours |
-| 3 | Organisation suspendue | Décision confirmée : refus de tout accès client, y compris lecture ; données conservées | Règle tranchée, à implémenter et tester |
+| 3 | Organisation suspendue : lecture seule ou blocage | Lecture seule avec période de grâce | Bloque la politique d’incident |
 | 4 | Rôles personnalisés | Renommage et délégation en V1 | Bloque la gestion des membres |
 | 5 | Investisseur : invité + partage ou partage direct | Invité + partage explicite | Bloque le portail investisseur |
 | 6 | Conservation à la fin du contrat | Anonymiser par défaut, exporter avant | Bloque la clôture de contrat |
@@ -847,8 +829,6 @@ de la V1 et doit être traitée comme un chantier séparé.
 | 2026-10-22 | Modèle conceptuel créé | Proposition |
 | 2026-10-22 | Spécification d’implémentation créée | Proposition |
 | 2026-10-22 | Plan de réalisation créé | Proposition |
-| 2026-10-22 | Organisation suspendue : refus de tout accès client, sans lecture seule ni période de grâce ; données conservées | Confirmé par Christelle dans la conversation |
-| 2026-10-22 | Travail solo pour le moment ; plan d’équipe utilisable après affectation effective et recalibrage | Confirmé par Christelle dans la conversation |
 | 2026-10-22 | Portail client séparé de la console interne | À valider à M0 |
 | 2026-10-22 | Moteur de permissions existant non modifié en Phase 1 | À valider à M0 |
 | 2026-10-22 | Migration additive et organisation plateforme par défaut | À valider à M0 |

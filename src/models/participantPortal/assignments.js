@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Participant assignments model — data access for GET/POST /api/participant/assignments
@@ -22,7 +21,7 @@ export async function getAssignmentsContactByCid(cid) {
 
 export async function getAssignmentsProgramById(programId) {
   return db.execute({
-    sql: `SELECT id, name FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT id, name FROM v2_programs WHERE id = ?",
     args: [programId],
   });
 }
