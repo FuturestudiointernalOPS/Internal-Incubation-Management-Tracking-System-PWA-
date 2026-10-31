@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAnyAuthorization } from "@/models/authorization/index";
 import {
   listPendingDuplicateFlags,
   dismissPendingDuplicateFlag,
@@ -19,6 +19,9 @@ export const dynamic = "force-dynamic";
  * The page-size clamp, the flag shaping and the "only dismiss a pending flag"
  * rule live in `@/services/contacts/duplicateFlags`; this route authenticates,
  * gates on the capability and shapes the HTTP answer.
+ *
+ * The `duplicates` module now owns the queue. The legacy `contacts` rights stay
+ * accepted during the transition, then the fallback is removed.
  */
 
 export async function GET(req) {
@@ -26,7 +29,10 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const capError = await requireAuthorization("contacts", "view");
+    const capError = await requireAnyAuthorization([
+      { module: "duplicates", capability: "view" },
+      { module: "contacts", capability: "view" },
+    ]);
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);
@@ -46,7 +52,10 @@ export async function DELETE(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const capError = await requireAuthorization("contacts", "edit");
+    const capError = await requireAnyAuthorization([
+      { module: "duplicates", capability: "resolve" },
+      { module: "contacts", capability: "edit" },
+    ]);
     if (capError) return capError;
 
     const session = await getSession();

@@ -30,14 +30,22 @@ const TRIGGERS = {
     { value: "lead.disqualified", labelKey: "crm.intelligence.automations.triggerLeadDisqualified" },
     { value: "lead.score_changed", labelKey: "crm.intelligence.automations.triggerLeadScoreChanged" },
     { value: "lead.assigned", labelKey: "crm.intelligence.automations.triggerLeadAssigned" },
+    { value: "lead.stale", labelKey: "crm.intelligence.automations.triggerLeadStale" },
   ],
   opportunity: [
     { value: "opportunity.created", labelKey: "crm.intelligence.automations.triggerOpportunityCreated" },
     { value: "opportunity.stage_changed", labelKey: "crm.intelligence.automations.triggerOpportunityStageChanged" },
     { value: "opportunity.won", labelKey: "crm.intelligence.automations.triggerOpportunityWon" },
     { value: "opportunity.lost", labelKey: "crm.intelligence.automations.triggerOpportunityLost" },
+    { value: "opportunity.stale", labelKey: "crm.intelligence.automations.triggerOpportunityStale" },
+    { value: "opportunity.stuck", labelKey: "crm.intelligence.automations.triggerOpportunityStuck" },
   ],
 };
+
+/** Every trigger code → its label key, so a rule row reads in prose, not in code. */
+const TRIGGER_LABELS = Object.values(TRIGGERS)
+  .flat()
+  .reduce((labels, trigger) => ({ ...labels, [trigger.value]: trigger.labelKey }), {});
 
 export default function CrmAutomationsPage() {
   const { t } = useI18n();
@@ -187,7 +195,7 @@ export default function CrmAutomationsPage() {
                     {r.description || t("crm.intelligence.common.noDescription")}
                   </p>
                   <div className="flex gap-4 mt-2 text-xs font-mono text-[var(--text-secondary)]">
-                    <span>{t("crm.intelligence.automations.on")}: {r.trigger_event}</span>
+                    <span>{t("crm.intelligence.automations.on")}: {t(TRIGGER_LABELS[r.trigger_event] || "") || r.trigger_event}</span>
                     <span>{t("crm.intelligence.automations.entity")}: {t(ENTITY_LABEL_KEYS[r.entity_type] ?? r.entity_type)}</span>
                     <span>{t("crm.intelligence.conditions.count", { count: Array.isArray(r.conditions) ? r.conditions.length : 0 })}</span>
                     <span>{t("crm.intelligence.actions.count", { count: Array.isArray(r.actions) ? r.actions.length : 0 })}</span>

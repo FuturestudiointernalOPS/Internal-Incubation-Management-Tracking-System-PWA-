@@ -3,19 +3,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Users, Search } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import ContactsScreen from "@/components/contacts/ContactsScreen";
+import RecentContacts from "@/components/contacts/RecentContacts";
+import ContactStats from "@/components/contacts/ContactStats";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
+import WhatsAppAction from "@/components/crm/WhatsAppAction";
 import { useI18n } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
 /**
- * CRM WORKSPACE — People directory (non-admin).
+ * CRM WORKSPACE — the single people directory.
  *
- * The sidebar sub-section "Contacts" for users holding the CRM responsibility.
- * It is deliberately READ-ONLY: the admin CRM screens expose create/edit/
- * delete/invite controls, and those belong to the Super Admin workspace.
- * Visibility is double-checked server-side — GET /api/contacts requires the
- * `contacts.view` capability (resolver + CRM eligibility), and for a non-admin
- * it returns the role-appropriate subset, never the whole table.
+ * The old /admin/communications/contacts route now redirects here. The screen
+ * chooses by right, not by URL:
+ *   - Super Admin gets the full contacts screen (create, edit, invite, groups,
+ *     bulk assignment) — the same screen the legacy route rendered.
+ *   - Everyone else keeps the read-only directory, because the write
+ *     affordances on that screen are not yet individually gated.
+ * The APIs remain the authority in both cases: GET /api/contacts requires
+ * `contacts.view`, and every mutation re-checks its own capability.
  */
 
 const ROLE_LABELS = {
@@ -37,7 +45,7 @@ const STATUS_LABELS = {
   archived: "status.archived",
 };
 
-export default function CrmContactsPage() {
+function ReadOnlyContacts() {
   const { t } = useI18n();
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +91,18 @@ export default function CrmContactsPage() {
   };
 
   const columns = [
-    { key: "name", label: t("crm.directory.columnName") },
+    {
+      key: "name",
+      label: t("crm.directory.columnName"),
+      render: (_value, row) => (
+        <a
+          href={`/crm/people/${row.cid}`}
+          className="font-semibold text-[var(--brand-orange)] hover:underline"
+        >
+          {row.name}
+        </a>
+      ),
+    },
     { key: "email", label: t("crm.directory.columnEmail") },
     {
       key: "role",
@@ -107,6 +126,12 @@ export default function CrmContactsPage() {
         );
       },
     },
+    {
+      key: "whatsapp",
+      label: t("crm.whatsapp.title"),
+      align: "right",
+      render: (_value, row) => <WhatsAppAction contact={row} compact />,
+    },
   ];
 
   return (
@@ -115,13 +140,17 @@ export default function CrmContactsPage() {
         <Users className="w-6 h-6 text-[var(--brand-orange)]" />
         <div>
           <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
-            {t("crm.contacts.contactsTitle")}
+            {t("crm.directory.title")}
           </h1>
           <p className="text-sm text-[var(--text-secondary)]">
             {t("crm.directory.subtitle")}
           </p>
         </div>
       </header>
+
+      <ContactStats contacts={contacts} loading={loading} />
+
+      <RecentContacts contacts={contacts} loading={loading} />
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[240px] max-w-md">
@@ -153,4 +182,14 @@ export default function CrmContactsPage() {
       />
     </div>
   );
+}
+
+export default function CrmContactsPage() {
+  const { isSuperAdmin, loaded } = useCrmCapabilities();
+
+  // Wait for the permission read instead of flashing the wrong directory; a
+  // failed read resolves as a closed door, not a spinner forever.
+  if (!loaded) return <TableSkeleton rows={10} />;
+
+  return isSuperAdmin ? <ContactsScreen /> : <ReadOnlyContacts />;
 }

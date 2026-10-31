@@ -10,7 +10,10 @@ export const dynamic = "force-dynamic";
  *
  * CRM read surface for one person's full LMS journey: enrolled courses with
  * LMS-derived progress, certificates, and purchases (empty until a commerce
- * table ships — see docs/PHASE6_7_REPORT.md). Requires contacts.view.
+ * table ships — see docs/PHASE6_7_REPORT.md).
+ *
+ * Two rights are required: the person (contacts.view) AND learning (lms.view).
+ * The person record is the door; the learning journey is LMS data.
  *
  * All values are read from the LMS (single source of truth) — the CRM never
  * stores or recalculates learning progress.
@@ -20,6 +23,9 @@ export async function GET(req, { params }) {
     await initDb();
     const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
+
+    const learningError = await requireAuthorization("lms", "view");
+    if (learningError) return learningError;
 
     const { cid } = await params;
     if (!cid) {

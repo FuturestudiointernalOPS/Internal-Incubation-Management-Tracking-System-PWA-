@@ -530,6 +530,7 @@
     "cancelled": "Cancelled",
     "statusManagedByStaff": "Status is managed by Future Studio staff.",
     "facebook": "Facebook",
+    "socialInvalid": "This is not a valid {platform} link.",
     "socialPasteUrl": "Paste the full link to your page — no @username needed.",
     "memberRoleInVenture": "Role in Venture",
     "addAsFounder": "Founder",

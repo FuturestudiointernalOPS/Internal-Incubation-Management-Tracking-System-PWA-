@@ -1,12 +1,13 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import TimelineScreen from "@/components/crm/TimelineScreen";
+export const dynamic = "force-dynamic";
 
 /**
- * Admin route for the person timeline. The screen itself lives in
- * src/components/crm/TimelineScreen.js and is shared with the non-admin CRM
- * workspace (/crm/timeline) — only `basePath` differs.
+ * The person timeline moved into the CRM workspace.
+ * The selected person (`?cid=`) is carried across the redirect.
  */
-export default function TimelinePage() {
-  return <TimelineScreen basePath="/admin/crm" />;
+export default async function LegacyTimelineRedirect({ searchParams }) {
+  const query = await searchParams;
+  const cid = query?.cid;
+  redirect(cid ? `/crm/timeline?cid=${encodeURIComponent(cid)}` : "/crm/timeline");
 }

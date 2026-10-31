@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { LayoutGrid, LogOut, Loader2, ArrowRight, User, Building2, GraduationCap, Rocket } from "lucide-react";
+import CreateActions from "@/components/create/CreateActions";
 
 /**
  * WORKSPACES HUB — CONTEXTUAL SELECTOR (Phase 2B)
@@ -205,6 +206,11 @@ export default function WorkspacesPage() {
                 {t("common.workspaces.welcome", { name: data.user.name })}
               </p>
             )}
+
+            {/* A personal account without a program lands HERE, not on the
+                participant dashboard, so the actions it is allowed to perform
+                must appear on this neutral hub too. */}
+            <CreateActions />
 
             {hasAny ? (
               <div className="space-y-8">

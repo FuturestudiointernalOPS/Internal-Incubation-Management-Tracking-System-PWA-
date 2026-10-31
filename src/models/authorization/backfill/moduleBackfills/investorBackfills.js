@@ -30,7 +30,10 @@ import { profileKeyForAccessProfileName } from "@/models/authorization/profileTa
 // setup-password flows.
 
 const INVESTOR_BACKFILL = {
-  eligibility: { investors: ["super_admin", "staff", "investor"] },
+  // The legacy `investor` identity keeps its row (existing databases carry it);
+  // `member` is added so investor creation can be delegated to any personal
+  // account through the Permission Center.
+  eligibility: { investors: ["super_admin", "staff", "investor", "member"] },
   profiles: {
     "Staff Default": [
       ["investor", "view", 1],
@@ -75,4 +78,29 @@ async function ensureInvestorBackfill() {
   }
 }
 
-export { ensureInvestorBackfill };
+// ─── Delegated record creation (programs / ventures / investors) ──────────────
+// `programs.create` and `ventures.create` were always grantable to a baseline
+// member (both features list `member`). Investors did not: its ceiling was
+// staff-only, so an administrator could not hand `investor.create` to a
+// personal account even though the capability exists. The defaults now include
+// `member`; this one-time migration writes that ceiling row into databases whose
+// eligibility seed already ran (the seed itself never re-runs).
+//
+// Insert-only: an administrator who explicitly removed the row keeps their
+// decision.
+const INVESTOR_CREATION_DELEGATION = { feature: "investors", role: "member" };
+
+async function ensureInvestorCreationDelegation() {
+  await ensurePermissionsSchema();
+
+  await db.execute({
+    sql: `INSERT INTO feature_eligibility
+            (feature_key, identity_type, identity_value, eligible)
+          VALUES (?, 'role', ?, 1)
+          ON CONFLICT (feature_key, identity_type, identity_value)
+          DO NOTHING`,
+    args: [INVESTOR_CREATION_DELEGATION.feature, INVESTOR_CREATION_DELEGATION.role],
+  });
+}
+
+export { ensureInvestorBackfill, ensureInvestorCreationDelegation };

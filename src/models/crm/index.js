@@ -8,6 +8,7 @@
  */
 
 export * from "./organizations";
+export { ensureCrmNextActionColumns, ensureCrmStageTargetColumn } from "./schema";
 export * from "./relationships";
 export * from "./leads";
 export * from "./pipelines";

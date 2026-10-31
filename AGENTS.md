@@ -285,6 +285,9 @@ never selects a role.
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
 - [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors
 - [ ] Promoting to production (branch `G` → `main`): run the **production test** — `docs/PRODUCTION_TEST.md`
+- [ ] Never open or merge a pull request into `main` from anything other than `G`
+- [ ] Never merge `white_label_os` into `interns`
+- [ ] Branch rules and how they are enforced: `docs/BRANCH_PROTECTION.md`
 
 ---
 

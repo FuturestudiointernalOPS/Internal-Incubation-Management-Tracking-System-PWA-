@@ -97,12 +97,12 @@ export async function getFirstCrmPipelineStage(pipelineId) {
 
 export async function createCrmPipelineStage({
   pipeline_id, name, description, position, probability,
-  is_terminal, outcome,
+  is_terminal, outcome, target_days,
 }) {
   return db.execute({
     sql: `INSERT INTO crm_pipeline_stages
-            (pipeline_id, name, description, position, probability, is_terminal, outcome)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
+            (pipeline_id, name, description, position, probability, is_terminal, outcome, target_days)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
           RETURNING *`,
     args: [
       pipeline_id,
@@ -112,11 +112,12 @@ export async function createCrmPipelineStage({
       probability ?? 0,
       is_terminal ?? false,
       outcome ?? null,
+      target_days ?? 7,
     ],
   });
 }
 
-export async function updateCrmPipelineStage(id, { name, description, position, probability, is_active }) {
+export async function updateCrmPipelineStage(id, { name, description, position, probability, is_active, target_days }) {
   return db.execute({
     sql: `UPDATE crm_pipeline_stages
           SET name        = COALESCE(?, name),
@@ -124,6 +125,7 @@ export async function updateCrmPipelineStage(id, { name, description, position, 
               position    = COALESCE(?, position),
               probability = COALESCE(?, probability),
               is_active   = COALESCE(?, is_active),
+              target_days = COALESCE(?, target_days),
               updated_at  = NOW()
           WHERE id = ?
           RETURNING *`,
@@ -133,6 +135,7 @@ export async function updateCrmPipelineStage(id, { name, description, position, 
       position ?? null,
       probability ?? null,
       is_active ?? null,
+      target_days ?? null,
       id,
     ],
   });

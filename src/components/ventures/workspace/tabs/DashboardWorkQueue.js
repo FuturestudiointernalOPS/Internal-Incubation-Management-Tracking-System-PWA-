@@ -111,7 +111,6 @@ function Head({ subtitle }) {
   const { t } = useI18n();
   return (
     <SectionHead
-      letter="B"
       icon={ListChecks}
       title={t("venture.myWork.title")}
       subtitle={subtitle}

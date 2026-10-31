@@ -57,10 +57,12 @@ beforeEach(() => {
 });
 
 describe("static contract — the investor intake wiring", () => {
-  test("the seed requires settings.edit and reuses form/run idempotently", () => {
+  test("the seed accepts investor.create (delegable) or settings.edit, and reuses form/run idempotently", () => {
     // The gate stays in the route; the orchestration moved to the service.
     const src = read(SEED_ROUTE);
-    expect(src).toMatch(/requireAuthorization\("settings", "edit"\)/);
+    expect(src).toMatch(/requireAnyAuthorization\(/);
+    expect(src).toMatch(/module: "investor", capability: "create"/);
+    expect(src).toMatch(/module: "settings", capability: "edit"/);
     // The seed service is split across `seed/`; read the whole surface.
     const service = readSurface(SEED_SERVICE);
     expect(service).toMatch(/findInvestorApplicationFormByName/);

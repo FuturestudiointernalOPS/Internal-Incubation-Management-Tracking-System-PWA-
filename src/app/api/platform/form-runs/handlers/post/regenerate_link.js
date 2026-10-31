@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAnyAuthorization } from "@/models/authorization/index";
 import { regeneratePublicLink } from "@/services/platform/formRuns";
 
 export async function POST(req) {
@@ -9,7 +9,13 @@ export async function POST(req) {
     const { getSession } = await import("@/server/auth/session");
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
-    const authError = await requireAuthorization("runs", "edit");
+    // Rotating a run's public link is a run-management right. A delegated
+    // investor creator owns the link they hand out, so `investor.create` is an
+    // accepted alternative to `runs.edit` — never a replacement for it.
+    const authError = await requireAnyAuthorization([
+      { module: "runs", capability: "edit" },
+      { module: "investor", capability: "create" },
+    ]);
     if (authError) return authError;
 
     const { id } = await req.json();

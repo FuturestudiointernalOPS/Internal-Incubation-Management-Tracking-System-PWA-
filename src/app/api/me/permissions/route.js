@@ -48,6 +48,10 @@ export async function GET() {
     return NextResponse.json({
       success: true,
       role: session.role,
+      // The caller's own contact id — the screens compare it with a record's
+      // owner to show the owner-only actions (setting the next action). The
+      // server re-checks; this is visibility only.
+      cid: session.cid ?? null,
       isSuperAdmin: !!ctx?.isSuperAdmin,
       effective: effectivePermissionsFromContext(ctx),
       // Lot 7 — the contextual PROFILES the decision was resolved through. A

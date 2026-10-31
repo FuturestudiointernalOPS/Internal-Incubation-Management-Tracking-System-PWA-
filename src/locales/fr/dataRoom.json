@@ -179,6 +179,7 @@
       "titleRequired": "Un titre de document est obligatoire.",
       "categoryInvalid": "Choisissez une catégorie Data Room valide.",
       "fileRequired": "Joignez un fichier ou collez un lien externe.",
+      "pastExpiry": "La date d'expiration ne peut pas être dans le passé.",
       "invalidExpiry": "Saisissez une date d'expiration valide.",
       "saveFailed": "Le document n'a pas pu être enregistré. Rien n'a été conservé — veuillez réessayer.",
       "decisionInvalid": "Choisissez une décision de révision valide.",

@@ -17,7 +17,7 @@ export function ContactsHeader({
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("crm.backToPrevious")}
         </button>
-        <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+        <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("crm.backToCrm")}
         </Link>

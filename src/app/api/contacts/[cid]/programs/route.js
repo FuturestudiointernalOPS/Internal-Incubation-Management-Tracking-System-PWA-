@@ -12,12 +12,19 @@ export const dynamic = "force-dynamic";
  * Returns a specific contact's program engagements (participant / facilitator /
  * program manager / assistant) for the CRM Contact view. Read-only, derived
  * from existing tables.
+ *
+ * Two rights are required: the person (contacts.view) AND the programme
+ * (programs.view). The person record is the door; the programme history is
+ * programme data, and a reader without that domain must not receive it.
  */
 export async function GET(req, { params }) {
   try {
     await initDb();
     const capError = await requireAuthorization("contacts", "view");
     if (capError) return capError;
+
+    const programError = await requireAuthorization("programs", "view");
+    if (programError) return programError;
 
     const { cid } = await params;
     if (!cid) {

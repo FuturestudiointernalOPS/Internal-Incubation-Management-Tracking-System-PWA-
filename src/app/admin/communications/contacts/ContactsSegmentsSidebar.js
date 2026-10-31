@@ -36,8 +36,11 @@ export function ContactsSegmentsSidebar({
           {["All Contacts", ...families].map((family) => {
             const name = typeof family === "string" ? family : family.name;
             const isAll = name === "All Contacts";
+            // Group names are not unique (two runs can produce the same name),
+            // so the row identity is the group's own id when there is one.
+            const key = typeof family === "string" ? family : family.id ?? name;
             return (
-              <div key={name} className="flex gap-2 group items-center">
+              <div key={key} className="flex gap-2 group items-center">
                 <button
                   onClick={() => setSelectedGroup(name)}
                   className={`flex-1 flex items-center justify-between gap-2 text-left px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all ${selectedGroup === name ? "bg-[var(--brand-orange)] text-black" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-primary"}`}

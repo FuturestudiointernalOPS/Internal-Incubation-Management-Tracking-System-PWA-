@@ -100,6 +100,7 @@ export default function PublicSubmitPage() {
   const [errors, setErrors] = useState({});
 
   const [consent, setConsent] = useState(false);
+  const [whatsappConsent, setWhatsappConsent] = useState(false);
   const [payment, setPayment] = useState(null);
   const [payStage, setPayStage] = useState("idle");
   const [payEmail, setPayEmail] = useState(null);
@@ -376,6 +377,7 @@ export default function PublicSubmitPage() {
           slug: runId,
           data: formData,
           consent: paidRun ? consent : undefined,
+          whatsapp_opt_in: paidRun ? whatsappConsent : undefined,
           language: lang,
           invitation_token: new URLSearchParams(window.location.search).get("invitation") || undefined,
         }),
@@ -480,6 +482,8 @@ export default function PublicSubmitPage() {
       checkout={checkout}
       consent={consent}
       setConsent={setConsent}
+      whatsappConsent={whatsappConsent}
+      setWhatsappConsent={setWhatsappConsent}
     />
   );
 }

@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAnyAuthorization } from "@/models/authorization/index";
 import { serverError } from "@/lib/apiError";
 import {
   createProgramTypeOption,
@@ -14,7 +14,11 @@ import {
  */
 export async function GET() {
   // The list feeds the program form: reading it is reading program vocabulary.
-  const capError = await requireAuthorization("programs", "view");
+  // A creator needs it too, so the creation right is an accepted alternative.
+  const capError = await requireAnyAuthorization([
+    { module: "programs", capability: "view" },
+    { module: "programs", capability: "create" },
+  ]);
   if (capError) return capError;
   try {
     await initDb();
@@ -29,8 +33,12 @@ export async function GET() {
 
 export async function POST(req) {
   try {
-    // Extending the program vocabulary is a platform-setting operation.
-    const capError = await requireAuthorization("settings", "edit");
+    // Extending the program vocabulary is a platform-setting operation — or part
+    // of creating a program, for a delegated creator.
+    const capError = await requireAnyAuthorization([
+      { module: "settings", capability: "edit" },
+      { module: "programs", capability: "create" },
+    ]);
     if (capError) return capError;
     await initDb();
     await createProgramTypeOptionsTable();

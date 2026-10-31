@@ -6,8 +6,8 @@
 > opportunity through a pipeline → segment → automation → timeline.
 >
 > **Where:** the `/crm` workspace. From the admin sidebar, open
-> **CRM → Dashboard** (`/admin/crm`) and use the **CRM Workspace** quick link,
-> or open `/crm` directly.
+> **CRM → Dashboard** (`/crm`), or open `/crm` directly. The old
+> `/admin/crm` dashboard redirects here.
 >
 > **Status:** every step below is done from the screen. The console
 > workarounds of the first version of this case study are no longer needed.
@@ -50,8 +50,8 @@ the leads, opportunities and links that point to it are kept.
 
 ## 2. Have a person, and link them to the organization
 
-The CRM **People** page (`/crm/contacts`) is a read-only directory. Create the
-person in `/admin/communications/contacts` → **Add contact**.
+The CRM **People** page (`/crm/contacts`) is the single directory. For the
+Super Admin it is the full contacts screen: **Add Member** creates the person.
 
 Back on `/crm/organizations`, the **People** button of a row opens the people
 linked to that organization. **Link a person**: choose the person, the
@@ -218,7 +218,7 @@ stage (step 7).
 | 6 | Segment / automation buttons not capability-gated | Fixed |
 | 7 | Score was manual only | Computed score added; manual adjustment kept |
 | 8 | `needs_review` vs `in_review` | Aligned on `in_review` |
-| 9 | Super Admin had no link to `/crm` | Quick link on `/admin/crm` |
+| 9 | Super Admin had no link to `/crm` | The CRM Dashboard now opens `/crm` |
 | — | No screen to edit or delete an organization | Added |
 | — | Stages could not be reordered | Added |
 | — | Automations had no opportunity trigger | Added (created, stage changed, won, lost) |

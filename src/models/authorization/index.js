@@ -45,6 +45,7 @@ export { resolveContextAssignment } from "@/services/authorization/scopedAccess"
 // this out of the services is what keeps every service free of `next/server`.
 export {
   requireAuthorization,
+  requireAnyAuthorization,
   requireScopedAccess,
 } from "@/server/authz/responses";
 

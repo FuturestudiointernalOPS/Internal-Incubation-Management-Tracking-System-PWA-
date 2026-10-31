@@ -107,6 +107,8 @@ export default function ProfileView({ participant = false }) {
         country_code: profile.country_code || "",
         last_login_at: profile.last_login_at || "",
         login_count: profile.login_count || 0,
+        whatsapp_opt_in: profile.whatsapp_opt_in === true || profile.whatsapp_opt_in === 1,
+        whatsapp_opted_in_at: profile.whatsapp_opted_in_at || "",
       }
     : null;
 
@@ -130,6 +132,7 @@ export default function ProfileView({ participant = false }) {
   const [editedPhone, setEditedPhone] = useState(null);
   const [editedLanguage, setEditedLanguage] = useState(null);
   const [editedAlternativePhone, setEditedAlternativePhone] = useState(null);
+  const [editedWhatsappOptIn, setEditedWhatsappOptIn] = useState(null);
 
   // Multiple alternative emails (identity matching) — edits over the read above
   const [newAltEmail, setNewAltEmail] = useState("");
@@ -203,10 +206,27 @@ export default function ProfileView({ participant = false }) {
           alternative_email: contact.alternative_email,
           alternative_phone: editedAlternativePhone ?? contact.alternative_phone,
           country_code: editedCountryCode ?? storedCountryCode,
+          // Only sent when the person actually changed it, so a save that edits
+          // another field never re-stamps the consent date.
+          ...(editedWhatsappOptIn !== null ? { whatsapp_opt_in: editedWhatsappOptIn } : {}),
         }),
       });
       const data = await res.json();
       if (data.success) {
+        if (editedWhatsappOptIn !== null) {
+          setProfile((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  whatsapp_opt_in: editedWhatsappOptIn,
+                  whatsapp_opted_in_at: editedWhatsappOptIn
+                    ? new Date().toISOString()
+                    : prev.whatsapp_opted_in_at,
+                }
+              : prev,
+          );
+          setEditedWhatsappOptIn(null);
+        }
         setSaveMessage({
           type: "success",
           text: t("adminMisc.profile.saveSuccess"),
@@ -398,6 +418,8 @@ export default function ProfileView({ participant = false }) {
     deriveCurrentRole,
     editedCountryCode,
     editedLanguage,
+    editedPhone,
+    editedWhatsappOptIn,
     formatDate,
     formatDateTime,
     groupInfo,
@@ -417,6 +439,7 @@ export default function ProfileView({ participant = false }) {
     setEditedLanguage,
     setEditedName,
     setEditedPhone,
+    setEditedWhatsappOptIn,
     setNewAltEmail,
     statusLabel,
     storedCountryCode,

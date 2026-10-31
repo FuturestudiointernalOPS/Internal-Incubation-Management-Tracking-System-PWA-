@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
+import CreateActions from "@/components/create/CreateActions";
 
 const pickHome = (payload) => (payload?.success ? payload : null);
 const pickAssignments = (payload) => (payload?.success ? payload.assignments || [] : []);
@@ -111,6 +112,7 @@ export default function VenturesView() {
             <h1 className="stf-title">{t("staff.leadHome.title")}</h1>
             <p className="stf-sub">{t("staff.leadHome.subtitle")}</p>
           </div>
+          <CreateActions only={["venture"]} tone="primary" />
         </div>
 
         <section className="stf-card" style={{ marginTop: 16, padding: 0 }}>
@@ -333,6 +335,7 @@ export default function VenturesView() {
           <h1 className="stf-title">{t("venture.personal.myVentures")}</h1>
           <p className="stf-sub">{t("staff.ventureWorkspace.listSubtitle")}</p>
         </div>
+        <CreateActions only={["venture"]} tone="primary" />
       </div>
 
       <div className="stf-grid">

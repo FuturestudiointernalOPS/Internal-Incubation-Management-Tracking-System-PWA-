@@ -1,12 +1,12 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import MembershipScreen from "@/components/crm/MembershipScreen";
+export const dynamic = "force-dynamic";
 
 /**
- * Admin route for organizational membership. The screen itself lives in
- * src/components/crm/MembershipScreen.js and is shared with the non-admin CRM
- * workspace (/crm/membership) — the admin side gets the write affordances.
+ * Membership moved into the CRM workspace; the screen itself now decides
+ * between read-only and writable from `org_membership.manage`.
+ * Kept as a server redirect for one release so old links keep working.
  */
-export default function MembershipPage() {
-  return <MembershipScreen />;
+export default function LegacyMembershipRedirect() {
+  redirect("/crm/membership");
 }

@@ -1,6 +1,9 @@
 {
   "navigation": {
     "dashboard": "Dashboard",
+    "create": "Create",
+    "createVenture": "Create Venture",
+    "createInvestor": "Invite Investor",
     "programs": "Programs",
     "allPrograms": "All Programs",
     "createProgram": "Create Program",
@@ -89,6 +92,11 @@
     "crmDuplicates": "CRM Duplicates",
     "crmOrganizations": "CRM Organizations",
     "crmLeads": "CRM Leads",
+    "crmOpportunities": "CRM Opportunities",
+    "crmPipelines": "CRM Pipelines",
+    "crmActivities": "CRM Activities",
+    "crmSegments": "CRM Segments",
+    "crmAutomations": "CRM Automations",
     "pendingUsers": "Pending Approvals",
     "bulkUpload": "Bulk Import",
     "intelligence": "Intelligence",

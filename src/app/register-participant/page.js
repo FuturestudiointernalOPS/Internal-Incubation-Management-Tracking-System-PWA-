@@ -38,7 +38,7 @@ function RegisterParticipantContent() {
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '', whatsapp_opt_in: false });
 
   // The loader's work — cache-first paint, discarding a stale response, the
   // background refresh — belongs to the hook, so the screen keeps no group state
@@ -63,6 +63,8 @@ function RegisterParticipantContent() {
     (!groupId ? t('rootMisc.registerParticipant.noGroupId') : '') ||
     (fetchError ? t('rootMisc.registerParticipant.loadFailed') : '') ||
     (!loading && !group ? t('rootMisc.registerParticipant.groupNotFound') : '');
+
+  const phoneReady = String(form.phone || '').replace(/\D/g, '').length >= 8;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -142,6 +144,24 @@ function RegisterParticipantContent() {
           <input required type="email" placeholder={t('rootMisc.registerParticipant.emailPlaceholder')} name="email" value={form.email} onChange={event => setForm({...form, email: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
           <input type="text" placeholder={t('rootMisc.registerParticipant.phonePlaceholder')} name="phone" value={form.phone} onChange={event => setForm({...form, phone: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
           <input required type="password" placeholder={t('rootMisc.registerParticipant.createPasswordPlaceholder')} name="password" value={form.password} onChange={event => setForm({...form, password: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+
+          <label className="flex items-start gap-2.5 text-left cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.whatsapp_opt_in}
+              disabled={!phoneReady}
+              onChange={event => setForm({ ...form, whatsapp_opt_in: event.target.checked })}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-[#FF6600] disabled:opacity-40"
+            />
+            <span className="text-[11px] font-medium leading-snug text-slate-400">
+              {t('rootMisc.registerParticipant.whatsappConsent')}
+              <span className="mt-1 block text-[10px] text-slate-500">
+                {phoneReady
+                  ? t('rootMisc.registerParticipant.whatsappConsentHint')
+                  : t('rootMisc.registerParticipant.whatsappConsentNeedsPhone')}
+              </span>
+            </span>
+          </label>
 
           {error && <p className="text-rose-500 text-xs font-bold">{error}</p>}
 

@@ -156,20 +156,9 @@ export function DashboardTab({ onSection }) {
         />
       </div>
 
-      {/* ── What needs the founder ───────────────────────────────────────── */}
-      <DashboardWorkQueue
-        myWork={myWork}
-        loading={myWorkLoading}
-        failed={myWorkFailed}
-        onOpen={onSection ? () => onSection("journey") : null}
-        onRetry={fetchMyWork}
-      />
-
-      {/* ── Who supports the Venture ─────────────────────────────────────── */}
-      {params?.id && <VentureSupportCard ventureId={params.id} />}
-
+      <div className="stf-grid g3" style={{ alignItems: "start" }}>
       {/* ── Journey position + next milestone ────────────────────────────── */}
-      <div className="stf-grid c1">
+      
         <div className="stf-card">
           <h3>
             <BarChart3 size={16} />
@@ -209,6 +198,19 @@ export function DashboardTab({ onSection }) {
             </p>
           )}
         </div>
+
+      {/* ── What needs the founder ───────────────────────────────────────── */}
+      <DashboardWorkQueue
+        myWork={myWork}
+        loading={myWorkLoading}
+        failed={myWorkFailed}
+        onOpen={onSection ? () => onSection("journey") : null}
+        onRetry={fetchMyWork}
+      />
+
+      {/* ── Who supports the Venture ─────────────────────────────────────── */}
+      {params?.id && <VentureSupportCard ventureId={params.id} />}
+
       </div>
 
       {/* ── Recent activity ──────────────────────────────────────────────── */}

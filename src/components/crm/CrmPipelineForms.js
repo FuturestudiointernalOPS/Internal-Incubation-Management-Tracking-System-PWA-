@@ -108,12 +108,14 @@ export function CrmStageFormModal({ pipelineId, stage, nextPosition, onClose, on
   const [form, setForm] = useState({
     name: stage?.name ?? "",
     probability: String(stage?.probability ?? 0),
+    targetDays: String(stage?.target_days ?? 7),
     kind: "open",
   });
 
   async function handleSubmit(event) {
     event.preventDefault();
     const probability = Number(form.probability);
+    const targetDays = Number(form.targetDays);
     if (!form.name.trim()) {
       await alert({ message: t("crm.pipelines.stageNameRequired") });
       return;
@@ -122,16 +124,22 @@ export function CrmStageFormModal({ pipelineId, stage, nextPosition, onClose, on
       await alert({ message: t("crm.opportunities.probabilityRange") });
       return;
     }
+    if (!Number.isInteger(targetDays) || targetDays < 0 || targetDays > 365) {
+      await alert({ message: t("crm.pipelines.stageTargetRange") });
+      return;
+    }
     if (stage) {
       await submit(`/api/crm/pipelines/${pipelineId}/stages/${stage.id}`, "PATCH", {
         name: form.name.trim(),
         probability,
+        target_days: targetDays,
       });
       return;
     }
     await submit(`/api/crm/pipelines/${pipelineId}/stages`, "POST", {
       name: form.name.trim(),
       probability,
+      target_days: targetDays,
       position: nextPosition,
       is_terminal: form.kind !== "open",
       outcome: form.kind === "open" ? null : form.kind,
@@ -151,7 +159,7 @@ export function CrmStageFormModal({ pipelineId, stage, nextPosition, onClose, on
           onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
           required
         />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <AppInput
             label={t("crm.pipelines.stageProbabilityLabel")}
             type="number"
@@ -159,6 +167,14 @@ export function CrmStageFormModal({ pipelineId, stage, nextPosition, onClose, on
             max="100"
             value={form.probability}
             onChange={(event) => setForm((current) => ({ ...current, probability: event.target.value }))}
+          />
+          <AppInput
+            label={t("crm.pipelines.stageTargetLabel")}
+            type="number"
+            min="0"
+            max="365"
+            value={form.targetDays}
+            onChange={(event) => setForm((current) => ({ ...current, targetDays: event.target.value }))}
           />
           {!stage && (
             <AppSelect
@@ -169,6 +185,7 @@ export function CrmStageFormModal({ pipelineId, stage, nextPosition, onClose, on
             />
           )}
         </div>
+        <p className="text-xs text-[var(--text-secondary)]">{t("crm.pipelines.stageTargetHint")}</p>
         {!stage && (
           <p className="text-xs text-[var(--text-secondary)]">{t("crm.pipelines.stageAppendHint")}</p>
         )}

@@ -177,6 +177,11 @@ export default function CrmPipelinesPage() {
                             {s.probability > 0 && (
                               <span className="text-xs text-[var(--text-secondary)]">{s.probability}%</span>
                             )}
+                            {s.target_days != null && (
+                              <span className="text-xs text-[var(--text-secondary)]">
+                                {t("crm.pipelines.stageTargetBadge", { days: s.target_days })}
+                              </span>
+                            )}
                             {canManage && (
                               <>
                                 <button

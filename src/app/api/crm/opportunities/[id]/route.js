@@ -8,7 +8,13 @@ import {
   softDeleteCrmOpportunity,
 } from "@/models/crm/opportunities";
 import { getCrmStageHistory } from "@/models/crm/stageHistory";
+import { ensureCrmNextActionColumns } from "@/models/crm/schema";
 import { addContactTimelineEvent } from "@/services/contacts/timeline";
+import {
+  touchesNextAction,
+  planNextActionWrite,
+  nextActionTimelineEvent,
+} from "@/services/crm/nextAction";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +70,19 @@ export const PATCH = createHandler(
 
     const opp = existing.rows[0];
 
+    // Next action — the owner (or a platform owner) alone may set it.
+    const plan = touchesNextAction(body)
+      ? planNextActionWrite({ body, existing: opp, session })
+      : null;
+    if (plan?.error) {
+      return NextResponse.json(
+        { success: false, error: plan.error },
+        { status: plan.status },
+      );
+    }
+    const updates = plan ? { ...body, ...plan.updates } : body;
+    if (plan) await ensureCrmNextActionColumns();
+
     // Probability validation
     if (body.probability != null) {
       const p = parseInt(body.probability);
@@ -75,8 +94,18 @@ export const PATCH = createHandler(
       }
     }
 
-    const result = await updateCrmOpportunity(id, body);
+    const result = await updateCrmOpportunity(id, updates);
     const updated = result.rows?.[0] ?? null;
+
+    if (plan && updated?.contact_cid) {
+      await addContactTimelineEvent({
+        cid: updated.contact_cid,
+        eventType: "next_action_set",
+        description: nextActionTimelineEvent(plan),
+        actorCid,
+        metadata: { opportunity_id: id, due: plan.updates.next_action_due ?? null },
+      });
+    }
 
     // Timeline logging (person-linked only)
     if (updated && updated.contact_cid) {

@@ -8,14 +8,11 @@ import {
   Search,
   ChevronRight,
   Loader2,
-  Building2,
-  Mail,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
-import AppInput from "@/components/ui/AppInput";
-import AppButton from "@/components/ui/AppButton";
+import AddVentureForm from "@/components/create/AddVentureForm";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -48,9 +45,6 @@ export default function VenturesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ company_name: "", founder_email: "" });
-  const [addSubmitting, setAddSubmitting] = useState(false);
-  const [addError, setAddError] = useState("");
   // The loader's work — painting from the cache first, discarding a stale
   // response, the background refresh — belongs to the hook, so the screen keeps
   // no list state of its own and never sets state from an effect. Adding a
@@ -98,64 +92,8 @@ export default function VenturesPage() {
     };
   };
 
-  const notify = (type, message, duration = 4000) => {
-    window.dispatchEvent(
-      new CustomEvent("impactos:notify", { detail: { type, message, duration } }),
-    );
-  };
-
   const closeAddModal = () => {
     setShowAddModal(false);
-    setAddError("");
-  };
-
-  // "Add a Venture": record the venture by name and invite its founder, who
-  // receives a link to create their account and access the venture.
-  const handleAddVenture = async (event) => {
-    event.preventDefault();
-    const companyName = addForm.company_name.trim();
-    const founderEmail = addForm.founder_email.trim();
-    if (companyName.length < 2) {
-      setAddError(t("vadmin.list.addVentureNameRequired"));
-      return;
-    }
-    if (!founderEmail) {
-      setAddError(t("vadmin.list.addVentureEmailRequired"));
-      return;
-    }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(founderEmail)) {
-      setAddError(t("vadmin.list.addVentureEmailInvalid"));
-      return;
-    }
-
-    setAddSubmitting(true);
-    setAddError("");
-    try {
-      const response = await fetch("/api/admin/ventures/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_name: companyName, founder_email: founderEmail }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        setAddError(t(payload.error || "vadmin.list.addVentureFailed"));
-        return;
-      }
-      // The venture is created either way; a transport failure only means the
-      // invitation email did not leave, which the admin must be told explicitly.
-      notify(
-        payload.email_sent === false ? "error" : "success",
-        t(payload.email_sent === false ? "vadmin.list.addVentureEmailFailed" : "vadmin.list.addVentureSuccess"),
-        5000,
-      );
-      closeAddModal();
-      setAddForm({ company_name: "", founder_email: "" });
-      refresh();
-    } catch {
-      setAddError(t("vadmin.list.addVentureFailed"));
-    } finally {
-      setAddSubmitting(false);
-    }
   };
 
   return (
@@ -317,47 +255,13 @@ export default function VenturesPage() {
         title={t("vadmin.list.addVentureTitle")}
         size="sm"
       >
-        <form onSubmit={handleAddVenture} className="space-y-5">
-          <p className="text-xs leading-relaxed -mt-2" style={{ color: "var(--text-secondary)" }}>
-            {t("vadmin.list.addVentureSubtitle")}
-          </p>
-          <AppInput
-            autoFocus
-            icon={Building2}
-            label={t("vadmin.list.ventureNameLabel")}
-            placeholder={t("vadmin.list.ventureNamePlaceholder")}
-            value={addForm.company_name}
-            onChange={(event) => {
-              setAddForm((previous) => ({ ...previous, company_name: event.target.value }));
-              setAddError("");
-            }}
-          />
-          <AppInput
-            icon={Mail}
-            type="email"
-            label={t("vadmin.list.founderEmailLabel")}
-            placeholder={t("vadmin.list.founderEmailPlaceholder")}
-            value={addForm.founder_email}
-            onChange={(event) => {
-              setAddForm((previous) => ({ ...previous, founder_email: event.target.value }));
-              setAddError("");
-            }}
-          />
-          {addError && <p className="text-xs font-bold text-rose-500">{addError}</p>}
-          <div className="flex justify-end gap-3 pt-1">
-            <AppButton
-              type="button"
-              variant="ghost"
-              disabled={addSubmitting}
-              onClick={closeAddModal}
-            >
-              {t("vadmin.list.addVentureCancel")}
-            </AppButton>
-            <AppButton type="submit" variant="primary" icon={Plus} loading={addSubmitting}>
-              {t("vadmin.list.addVentureSubmit")}
-            </AppButton>
-          </div>
-        </form>
+        <AddVentureForm
+          onCancel={closeAddModal}
+          onCreated={() => {
+            closeAddModal();
+            refresh();
+          }}
+        />
       </AppModal>
     </>
   );

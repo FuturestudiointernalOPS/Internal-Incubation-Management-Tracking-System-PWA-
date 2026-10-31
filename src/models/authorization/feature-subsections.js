@@ -27,11 +27,19 @@ export const FEATURE_SUBSECTIONS = {
   crm: [
     { id: "crm_dashboard", labelKey: "navigation.crmDashboard" },
     { id: "all_contacts", labelKey: "navigation.contacts", module: "contacts" },
+    // The records layer is one module (`crm`); the first row is the editable one
+    // and the others are its informational aliases.
     { id: "crm_organizations", labelKey: "navigation.crmOrganizations", module: "crm" },
     { id: "crm_leads", labelKey: "navigation.crmLeads" },
+    { id: "crm_opportunities", labelKey: "navigation.crmOpportunities" },
+    { id: "crm_pipelines", labelKey: "navigation.crmPipelines" },
+    { id: "crm_activities", labelKey: "navigation.crmActivities" },
+    { id: "crm_segments", labelKey: "navigation.crmSegments" },
+    { id: "crm_automations", labelKey: "navigation.crmAutomations" },
     { id: "crm_membership", labelKey: "navigation.membership" },
     { id: "crm_timeline", labelKey: "navigation.crmTimeline" },
     { id: "crm_duplicates", labelKey: "navigation.crmDuplicates", module: "duplicates" },
+    { id: "pending_users", labelKey: "navigation.pendingUsers" },
     { id: "bulk_upload", labelKey: "navigation.bulkUpload", module: "bulk_upload" },
   ],
   communication: [

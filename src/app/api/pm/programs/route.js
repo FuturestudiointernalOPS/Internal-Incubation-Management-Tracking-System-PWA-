@@ -54,10 +54,15 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["staff", "super_admin"]);
+    // Authentication only: creation is decided by the `programs.create`
+    // capability below, so a person granted it from the Permission Center — a
+    // delegated PM, or any account the administrator chose — can use the same
+    // wizard as the platform owner. The former staff/super-admin allowlist was
+    // a role gate in front of a capability decision.
+    const authError = await requireAuth();
     if (authError) return authError;
-    // Phase 2 (legacy cleanup): no more staff compatibility bypass — program
-    // creation requires the programs.create capability through the resolver.
+    // Program creation requires the programs.create capability through the
+    // resolver (eligibility boundary included).
     const capError = await requireAuthorization("programs", "create");
     if (capError) return capError;
 
