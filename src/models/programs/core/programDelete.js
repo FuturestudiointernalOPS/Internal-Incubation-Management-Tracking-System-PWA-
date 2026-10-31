@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /** Protected-data count (participants/sessions/submissions/deliverables). Used by DELETE. */
 export async function countProtectedProgramData(programId) {
@@ -17,7 +16,7 @@ export async function countProtectedProgramData(programId) {
 /** Permanent delete of an (unprotected) program. Used by DELETE /api/pm/programs. */
 export async function deleteProgramById(id) {
   return db.execute({
-    sql: `DELETE FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "DELETE FROM v2_programs WHERE id = ?",
     args: [id],
   });
 }

@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate, platformProgramRelationPredicate } from "@/models/organizations/programScope";
 
 /**
  * Workspace model — the unified calendar sources and sessions (REPOSITORY layer).
@@ -14,9 +13,9 @@ import { platformProgramPredicate, platformProgramRelationPredicate } from "@/mo
 /** Program ids a facilitator handles (teams + facilitator staff rows). */
 export async function getFacilitatorProgramScopePids(cid) {
   return db.execute({
-    sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_teams WHERE handler_id = ? AND ${platformProgramRelationPredicate("v2_teams")}
+    sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_teams WHERE handler_id = ?
               UNION
-              SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_program_staff WHERE role = 'facilitator' AND staff_id = ? AND ${platformProgramRelationPredicate("v2_program_staff")}`,
+              SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM v2_program_staff WHERE role = 'facilitator' AND staff_id = ?`,
     args: [cid, cid],
   });
 }
@@ -24,7 +23,7 @@ export async function getFacilitatorProgramScopePids(cid) {
 /** Program ids a participant is enrolled in. */
 export async function getParticipantProgramScopePids(cid) {
   return db.execute({
-    sql: `SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM participant_programs WHERE participant_id = ? AND ${platformProgramRelationPredicate("participant_programs")}`,
+    sql: "SELECT DISTINCT CAST(program_id AS TEXT) AS pid FROM participant_programs WHERE participant_id = ?",
     args: [cid],
   });
 }
@@ -51,7 +50,7 @@ export async function getCalendarTasksWithDates(userId) {
  */
 export async function getCalendarPrograms(programTableScopeSql, programScopeArgs) {
   return db.execute({
-    sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE (start_date IS NOT NULL OR end_date IS NOT NULL) AND (is_archived IS NULL OR is_archived = 0) AND ${platformProgramPredicate()}${programTableScopeSql}`,
+    sql: `SELECT id, name, start_date, end_date, assigned_pm_id FROM v2_programs WHERE (start_date IS NOT NULL OR end_date IS NOT NULL) AND (is_archived IS NULL OR is_archived = 0)${programTableScopeSql}`,
     args: [...programScopeArgs],
   });
 }
@@ -61,8 +60,8 @@ export async function getCalendarSessions(programScopeSql, programScopeArgs) {
   return db.execute({
     sql: `SELECT s.id, s.title, s.start_at, s.start_time, s.end_time, s.type, s.teacher_id, s.program_id, p.name AS program_name
               FROM v2_sessions s
-              JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
-              WHERE s.start_at IS NOT NULL AND ${platformProgramPredicate("p")}${programScopeSql}`,
+              LEFT JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
+              WHERE s.start_at IS NOT NULL${programScopeSql}`,
     args: [...programScopeArgs],
   });
 }
@@ -72,8 +71,8 @@ export async function getCalendarDeliverables(programScopeSql, programScopeArgs)
   return db.execute({
     sql: `SELECT d.id, d.title, d.due_date, d.week_number, d.program_id, p.name AS program_name
               FROM v2_deliverables d
-              JOIN v2_programs p ON d.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
-              WHERE d.due_date IS NOT NULL AND ${platformProgramPredicate("p")}${programScopeSql}`,
+              LEFT JOIN v2_programs p ON d.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
+              WHERE d.due_date IS NOT NULL${programScopeSql}`,
     args: [...programScopeArgs],
   });
 }
@@ -92,8 +91,8 @@ export async function getCalendarFollowups(programScopeSql, programScopeArgs, vi
   const sql = `SELECT f.id, f.comment, f.scheduled_at, f.followup_type, f.team_id, f.program_id, t.name AS team_name, p.name AS program_name
               FROM v2_followups f
               LEFT JOIN v2_teams t ON f.team_id = t.id
-              JOIN v2_programs p ON f.program_id = p.id
-              WHERE f.scheduled_at IS NOT NULL AND ${platformProgramPredicate("p")}${programScopeSql}${visibilitySql}`;
+              LEFT JOIN v2_programs p ON f.program_id = p.id
+              WHERE f.scheduled_at IS NOT NULL${programScopeSql}${visibilitySql}`;
   const args = [...programScopeArgs, ...visibilityArgs];
   return db.execute({ sql, args });
 }
@@ -102,17 +101,17 @@ export async function getCalendarFollowups(programScopeSql, programScopeArgs, vi
 export async function createSession(programId, title, weekNumber, type, teacherId, startAt) {
   return db.execute({
     sql: `INSERT INTO v2_sessions (program_id, title, week_number, type, teacher_id, start_at)
-          SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM v2_programs WHERE id::text=? AND ${platformProgramPredicate()}) RETURNING id`,
-    args: [programId, title, weekNumber, type, teacherId, startAt, String(programId)],
+          VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
+    args: [programId, title, weekNumber, type, teacherId, startAt],
   });
 }
 
 /** List sessions, optionally filtered to one program, ordered by week. */
 export async function listSessions(programId) {
-  let sql = `SELECT * FROM v2_sessions WHERE ${platformProgramRelationPredicate("v2_sessions")}`;
+  let sql = "SELECT * FROM v2_sessions";
   const args = [];
   if (programId) {
-    sql += " AND program_id = ?";
+    sql += " WHERE program_id = ?";
     args.push(programId);
   }
   sql += " ORDER BY week_number ASC";

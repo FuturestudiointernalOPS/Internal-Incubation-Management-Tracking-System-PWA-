@@ -1,4 +1,3 @@
-jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * PHASE I5/I6A/I6B — Legacy gate-bridge contract.
  *
@@ -122,9 +121,9 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(1);
     expect(authBlocks(file)).toHaveLength(0);
-    // Membership/assignment checks now live behind the canonical perimeter.
-    expect(src).toMatch(/requireVentureScopedAccess\(\{ ventureId: id/);
-    expect(src).toMatch(/if \(access.error\) return access.error/);
+    expect(src).toMatch(/hasActiveVentureAssignment/);
+    // The membership probe moved to the model; the route keeps the gate.
+    expect(src).toMatch(/isActiveVentureMember/);
     const model = readSurface("src/models/ventureWorkspace.js");
     expect(model).toMatch(/venture_members WHERE venture_id/);
   });
@@ -354,12 +353,12 @@ describe("I5/I6B converted handlers — bare requireAuth + assignment machinery"
 });
 
 describe("I6A converted handlers — bare requireAuth + downstream membership machinery", () => {
-  test("ventures/[id]/members: GET/POST/PATCH bare; canonical read and mutation gates present", () => {
+  test("ventures/[id]/members: GET/POST/PATCH bare; checkAccess/checkMutateAccess present", () => {
     const file = "src/app/api/ventures/[id]/members/route.js";
     const src = fs.readFileSync(path.join(ROOT, file), "utf8");
     expect(bareAuthCount(file)).toBe(3);
     expect(authBlocks(file)).toHaveLength(0); // no role list remains anywhere
-    expect(src).toMatch(/requireVentureScopedAccess\(/);
+    expect(src).toMatch(/checkAccess\(/);
     expect(src).toMatch(/checkMutateAccess\(/);
     expect(src).toMatch(/requireOperationalVentureAccess/);
   });

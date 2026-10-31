@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/pm/programs — operational-intelligence list, full lifecycle (29 queries)
@@ -8,7 +7,7 @@ import { platformProgramPredicate } from "@/models/organizations/programScope";
 /** Auto-activate planned programs whose start_date has passed. Used by GET. */
 export async function autoActivatePlannedPrograms() {
   return db.execute({
-    sql: `UPDATE v2_programs SET status = 'Active' WHERE status = 'Planned' AND start_date IS NOT NULL AND start_date <= CURRENT_DATE AND ${platformProgramPredicate()}`,
+    sql: "UPDATE v2_programs SET status = 'Active' WHERE status = 'Planned' AND start_date IS NOT NULL AND start_date <= CURRENT_DATE",
     args: [],
   });
 }
@@ -16,7 +15,7 @@ export async function autoActivatePlannedPrograms() {
 /**
  * Basic program list scoped by archive/status filters, assigned-PM/assistant
  * membership and (for facilitators) program-staff assignment. Filter assembly
- * preserves the original filters, within the platform ownership boundary.
+ * mirrors the original controller logic, so the executed SQL is byte-identical.
  * Used by GET /api/pm/programs.
  */
 export async function listProgramsByManagementFilters({
@@ -49,8 +48,6 @@ export async function listProgramsByManagementFilters({
     baseQuery +=
       " WHERE (p.is_archived = ? OR (p.is_archived IS NULL AND ? = 0))";
   }
-
-  baseQuery += ` AND ${platformProgramPredicate("p")}`;
 
   if (status && status.toLowerCase() !== "all") {
     if (status.toLowerCase() === "active") {

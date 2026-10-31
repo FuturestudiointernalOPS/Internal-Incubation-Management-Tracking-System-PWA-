@@ -7,7 +7,6 @@ import { isProgramManagerSession } from "@/services/authorization/programManagem
 import { isAssignedPmForProgram } from "@/models/authorization/accessQueries";
 import { buildProgramFullState } from "@/services/programs/fullState";
 import { projectProgramAccess } from "@/services/authorization/programAccessProjection";
-import { refusalResponse } from "@/server/http/refusal";
 
 export const dynamic = "force-dynamic";
 
@@ -46,7 +45,6 @@ export async function GET(req) {
     if (!id) return NextResponse.json({ success: false, error: "ID required" });
 
     const body = await buildProgramFullState({ id, includeMetrics });
-    if (!body.success) return refusalResponse({ status: 404, errorKey: "errors.notFound" });
     // Lot 7.3 — the decision this screen's writes will meet, shaped for display.
     // `access` is the answer of the SAME unified decision the routes enforce; it
     // is never authority (every write re-decides).

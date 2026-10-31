@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Participant programs model — data access for GET/POST/DELETE /api/participant-programs
@@ -10,7 +9,7 @@ export async function getParticipantProgramAssignments(participantId, programId)
       SELECT pp.*, p.name AS program_name, p.status AS program_status
       FROM participant_programs pp
       LEFT JOIN v2_programs p ON pp.program_id = p.id
-      WHERE ${platformProgramPredicate("p")}
+      WHERE 1=1
     `;
   const args = [];
 
@@ -31,7 +30,7 @@ export async function getParticipantProgramAssignments(participantId, programId)
 
 export async function getProgramById(programId) {
   return db.execute({
-    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT id FROM v2_programs WHERE id = ?",
     args: [programId],
   });
 }

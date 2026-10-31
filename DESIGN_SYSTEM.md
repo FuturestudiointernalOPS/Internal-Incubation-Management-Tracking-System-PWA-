@@ -1,42 +1,5 @@
 # ImpactOS Design System — Developer Guide
 
-The separate client entry at `/o/select` and `/o/[organizationCode]` uses
-`OrganizationProgramPortal` from `components/ui/`. Its `OrganizationLmsPortal`
-and `OrganizationVenturePortal` views reuse the shared cards, inputs, selects,
-hero and status components without the internal dashboard shell. Requests use
-`useApi(..., { cache: false })` to avoid the shared SWR cache. Changing
-organisation reloads the portal; other tabs invalidate their view on the storage
-signal, window focus or restored browser pages. Organisation IDs in request
-headers are freshness preconditions only, never access authority.
-
-The client LMS catalogue and own-learning view include search and course
-thumbnails. An enrolled learner can open `/o/[organizationCode]/lms/[courseId]`
-to view course sections, lesson content/video and read-only progress; the
-course-content endpoint independently verifies the current organisation,
-learner capability, active enrollment and course ownership or licence. The
-client Venture view searches only the server-returned assigned ventures and
-opens a read-only details dialog. Both remain disabled until client activation
-and staging isolation validation are approved.
-
-For visual review without staging credentials, local development supports
-`?preview=1` on the client portal pages (for example
-`/o/alpha/lms?preview=1` and `/o/alpha/venture?preview=1`). This renders
-translated, fictitious sample content without calling client APIs. The preview
-is explicitly enabled only in development; it does not provision an account or
-enable access in staging or production.
-
-The client Programme workspace also uses `OrganizationProgramWorkspace`,
-`OrganizationProgramEditor`, `OrganizationProgramEnrollments` and
-`OrganizationProgramSessions` from `components/ui/`. They reuse the shared modal,
-form, card, badge and button kit, with translated labels and no internal shell.
-Buttons reflect server-provided capabilities; the server independently authorises
-all operations. Mutation bodies include current record revisions. Closing records
-uses `useDialogs()` and explains that history becomes read-only. Session form
-inputs explicitly use UTC; displayed timestamps use the viewer's browser timezone.
-All client reads bypass shared response caches. Errors remain inline and cannot
-fall back to an internal API. Account provisioning and full browser validation
-remain outside this local Programme increment.
-
 ## 1. Theme Architecture
 
 ImpactOS uses a **CSS custom property (variable) system** with a `data-theme` attribute on `<html>`.
@@ -475,7 +438,7 @@ src/
 - [ ] Tables use `AppTable`
 - [ ] Modals use `AppModal`
 - [ ] Theme toggle uses `useTheme()` hook
-- [x] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
+- [ ] Status colors (emerald/rose/amber/indigo) used only for semantic meaning
 - [ ] Chart colors use `var(--chart-*)` tokens
 
 ### Blocs internes de la coquille et de la messagerie

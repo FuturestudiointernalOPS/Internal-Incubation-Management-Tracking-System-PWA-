@@ -1,6 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 import { participantBatches } from "@/lib/participantBatches";
 import { LmsError } from "./errors";
 import { getCourse } from "./courses";
@@ -77,9 +75,8 @@ export async function getProgramRequirements(programId, { weekNumber, sessionId 
   const courseIds = [...new Set(requirements.map((requirement) => String(requirement.course_id)))];
   const coursesRes = await db.execute({
     sql: `SELECT id, title, description, thumbnail_url, status, visibility, is_free, price
-          FROM lms_courses WHERE owner_organization_id = ?
-            AND id IN (${courseIds.map(() => "?").join(",")})`,
-    args: [PLATFORM_ORGANIZATION_ID, ...courseIds],
+          FROM lms_courses WHERE id IN (${courseIds.map(() => "?").join(",")})`,
+    args: courseIds,
   });
   const courseById = new Map(coursesRes.rows.map((course) => [String(course.id), course]));
   return requirements.map((requirement) => ({
@@ -107,7 +104,7 @@ export async function attachCourseToProgram({
 
   // Program must exist (v2_programs; TEXT id — validated in service code, no FK).
   const progRes = await db.execute({
-    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT id FROM v2_programs WHERE id = ?",
     args: [String(programId)],
   });
   if (progRes.rows.length === 0) {
@@ -241,16 +238,16 @@ export async function ensureProgramEnrollments(programId, cids) {
   let enrolled = 0;
   for (const requirement of published) {
     for (const chunk of participantBatches(participantIds)) {
-      const values = chunk.map(() => "(?, ?, 'program', ?, '00000000-0000-4000-8000-000000000001')").join(", ");
+      const values = chunk.map(() => "(?, ?, 'program', ?)").join(", ");
       const args = chunk.flatMap((cid) => [
         requirement.course_id,
         cid,
         String(programId),
       ]);
       await db.execute({
-        sql: `INSERT INTO lms_enrollments (course_id, user_cid, source, program_id, organization_id)
+        sql: `INSERT INTO lms_enrollments (course_id, user_cid, source, program_id)
               VALUES ${values}
-              ON CONFLICT (organization_id, course_id, user_cid) DO NOTHING`,
+              ON CONFLICT (course_id, user_cid) DO NOTHING`,
         args,
       });
       // A conflict (already enrolled via admin/self/purchase) still counts as
@@ -381,8 +378,7 @@ export async function getProgramLearningSummary(programId) {
     const res = await db.execute({
       sql: `SELECT course_id, status FROM lms_enrollments
             WHERE course_id IN (${courseIds.map(() => "?").join(",")})
-              AND user_cid IN (${participantIds.map(() => "?").join(",")})
-              AND organization_id = '00000000-0000-4000-8000-000000000001'::uuid`,
+              AND user_cid IN (${participantIds.map(() => "?").join(",")})`,
       args: [...courseIds, ...participantIds],
     });
     for (const row of res.rows) {

@@ -115,9 +115,6 @@ export async function buildProgramFullState({ id, includeMetrics = false }) {
   ] = results;
 
   const program = programResult.rows[0];
-  // Missing and client-owned programmes share the same result. In particular,
-  // do not recalculate or refresh KPI caches when the parent is unavailable.
-  if (!program) return { success: false, error: "errors.notFound" };
   if (program) {
     try {
       program.materials = normalizeMaterials(program.materials);

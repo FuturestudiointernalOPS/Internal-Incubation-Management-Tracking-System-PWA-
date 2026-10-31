@@ -29,7 +29,6 @@
  */
 
 import db from "@/lib/db";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 import { profileKeyForAccessProfileName } from "./profileTakeoverBackfill";
 
 let contextRoleProfilesSchemaPromise = null;
@@ -290,8 +289,7 @@ const CONTEXT_ROLE_HOLDER_QUERIES = {
         WHERE member_type = 'founder' AND removed_at IS NULL`,
   "venture:team_member": `COUNT(DISTINCT contact_id)::int FROM venture_members
         WHERE member_type = 'team_member' AND removed_at IS NULL`,
-  "lms:learner": `COUNT(DISTINCT user_cid)::int FROM lms_enrollments
-    WHERE status <> 'suspended' AND organization_id = '${PLATFORM_ORGANIZATION_ID}'::uuid`,
+  "lms:learner": `COUNT(DISTINCT user_cid)::int FROM lms_enrollments WHERE status <> 'suspended'`,
   "investor:investor": `COUNT(*)::int FROM investor_profiles`,
   "venture:venture_manager": `COUNT(DISTINCT staff_contact_id)::int FROM venture_staff_assignments WHERE responsibility_code = 'lead_manager' AND status = 'active'`,
 };
