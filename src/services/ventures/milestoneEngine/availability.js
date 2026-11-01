@@ -45,7 +45,7 @@ export async function computeInitialMilestoneStatus({ dbId, stageId }) {
 
 /**
  * A Journey can NEVER be closed manually. It completes automatically the
- * moment every milestone in it has been marked completed (by the Lead Manager
+ * moment every milestone in it has been marked completed (by the Venture Manager
  * or a Super Admin).
  *
  * Completing a Journey does NOT activate the next one: Journeys start on
@@ -183,7 +183,7 @@ export async function getUnmetMilestoneDependencies({ dbId, milestoneId }) {
  * set by the Journey and its explicit dependencies, never by a milestone's
  * position. A `locked` milestone (its Journey has not started, or a
  * dependency is unmet), a `completed` one, and one whose Journey is finished
- * are refused. Staff (Lead Manager, coach, Super Admin) are not restricted by
+ * are refused. Staff (Venture Manager, coach, Super Admin) are not restricted by
  * this — they plan ahead.
  *
  * A refusal always carries a REASON the Venture can read, so nobody is left

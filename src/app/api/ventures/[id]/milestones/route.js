@@ -48,7 +48,7 @@ export const POST = createHandler(async (req, { params }) => {
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
 
-  // Adding a milestone is a STRUCTURE action: Lead Manager or Super Admin.
+  // Adding a milestone is a STRUCTURE action: Venture Manager or Super Admin.
   const allowed = await canManageMilestones({ id, cid: access.session?.cid, role: access.session?.role });
   if (!allowed) {
     return NextResponse.json(
@@ -143,7 +143,7 @@ export const PATCH = createHandler(async (req, { params }) => {
   const completing = status === "completed";
 
   // Completion authority (Phase 3, locked decision): ONLY the Venture's
-  // assigned Lead Manager or a Super Admin may mark a milestone completed.
+  // assigned Venture Manager or a Super Admin may mark a milestone completed.
   if (completing) {
     const ventureResult = await getVentureIdAndCode(id).catch(() => ({ rows: [] }));
     const ventureDbId = ventureResult.rows?.[0]?.id;

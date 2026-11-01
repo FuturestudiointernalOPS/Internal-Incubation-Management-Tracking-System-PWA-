@@ -1,5 +1,5 @@
 /**
- * milestoneEngine — Who may manage and complete milestones (Lead Manager / Super Admin).
+ * milestoneEngine — Who may manage and complete milestones (Venture Manager / Super Admin).
  *
  * Part of `services/ventures/milestoneEngine` (split out of the former single
  * 548-line module, lane L2; code moved verbatim). The public surface is

@@ -6,8 +6,8 @@
  * These pin both halves of that rule:
  *
  *   1. the route asks the policy for the super-admin-only action `"delete"` —
- *      NOT the softer `"manage"` a Lead Manager also holds;
- *   2. a Lead Manager the policy refuses gets a 403 that points at archive,
+ *      NOT the softer `"manage"` a Venture Manager also holds;
+ *   2. a Venture Manager the policy refuses gets a 403 that points at archive,
  *      and nothing is touched (not even the journey table self-heal);
  *   3. members keep the 404 — the plan engine stays invisible to them;
  *   4. the Super Admin's delete still deletes.
@@ -51,14 +51,14 @@ const req = (body) =>
     body: JSON.stringify(body),
   });
 
-/** A Lead Manager: manage = true, delete = false — exactly the policy's answer. */
+/** A Venture Manager: manage = true, delete = false — exactly the policy's answer. */
 const asLeadManager = () => {
   mockSession.current = { cid: "lm-1", role: "staff" };
   mockPlans.resolvePlanAccess.mockResolvedValue({
     ok: true,
     global: false,
     code: "VNT-1",
-    assignments: [{ responsibility_code: "lead_manager", scope_type: "venture_wide" }],
+    assignments: [{ responsibility_code: "venture_manager", scope_type: "venture_wide" }],
   });
   mockPlans.allowsPlanAction.mockImplementation(async (_access, action) => action !== "delete");
 };
@@ -88,7 +88,7 @@ describe("the gate", () => {
     expect(allowsPlanAction.mock.calls[0][1]).toBe("delete");
   });
 
-  test("a Lead Manager may manage — and is still refused the delete, told to archive", async () => {
+  test("a Venture Manager may manage — and is still refused the delete, told to archive", async () => {
     asLeadManager();
 
     const res = await POST(req({ ids: ["s1"] }), ctx);

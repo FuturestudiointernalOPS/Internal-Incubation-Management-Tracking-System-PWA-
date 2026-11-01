@@ -11,8 +11,8 @@ const ContactLeadModal = require("@/components/ventures/support/ContactLeadModal
 const VentureSupportCard = require("@/components/ventures/support/VentureSupportCard").default;
 const { clearResponseCache } = require("@/lib/hooks/useApi");
 
-const harry = { id: 1, name: "Harry", email: "h@x.org", reachable: true, has_account: true, active: true, responsibility_code: "lead_manager" };
-const joakh = { id: 2, name: "Joakh", email: "j@x.org", reachable: true, has_account: true, active: true, responsibility_code: "lead_manager" };
+const harry = { id: 1, name: "Harry", email: "h@x.org", reachable: true, has_account: true, active: true, responsibility_code: "venture_manager" };
+const joakh = { id: 2, name: "Joakh", email: "j@x.org", reachable: true, has_account: true, active: true, responsibility_code: "venture_manager" };
 const coach = { id: 3, name: "Coach", email: "c@x.org", reachable: true, has_account: true, active: true, responsibility_code: "coach" };
 
 let posted;
@@ -64,7 +64,7 @@ test("a single lead needs no chooser", () => {
   expect(screen.queryByRole("checkbox")).toBeNull();
 });
 
-test("the card lists the Lead Managers only: no Primary, no Also supporting, no other staff", async () => {
+test("the card lists the Venture Managers only: no Primary, no Also supporting, no other staff", async () => {
   render(<I18nProvider><VentureSupportCard ventureId="VNT-1" /></I18nProvider>);
   expect(await screen.findByText("Harry")).toBeTruthy();
   expect(screen.getByText("Joakh")).toBeTruthy();

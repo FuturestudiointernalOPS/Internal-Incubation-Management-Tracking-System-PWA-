@@ -39,11 +39,11 @@ export function selectNotifyContact(cid) {
   });
 }
 
-/** The Venture's active Lead Manager contact ids. */
+/** The Venture's active Venture Manager contact ids. */
 export function selectLeadManagerContactIds(code) {
   return db.execute({
     sql: `SELECT staff_contact_id FROM venture_staff_assignments
-            WHERE venture_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
+            WHERE venture_id = ? AND responsibility_code = 'venture_manager' AND status = 'active'`,
     args: [code],
   });
 }

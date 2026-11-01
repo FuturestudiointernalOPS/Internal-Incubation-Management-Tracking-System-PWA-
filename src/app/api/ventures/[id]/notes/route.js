@@ -20,7 +20,7 @@ import {
  *  - GLOBAL roles (super_admin): full access (staff notes).
  *  - Delegated staff: an ACTIVE assignment is required. View/create/delete
  *    are evaluated at runtime against the `internal_notes` permission area:
- *      - Lead Manager default → view/create/comment/edit (full)
+ *      - Venture Manager default → view/create/comment/edit (full)
  *      - Coach/Facilitator default → view/create within their scope
  *  - Venture members/founders: NEVER (404 — no existence leak). Internal
  *    notes are staff instruments, not founder documents.

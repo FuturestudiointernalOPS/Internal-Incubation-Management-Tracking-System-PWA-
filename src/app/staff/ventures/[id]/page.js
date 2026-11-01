@@ -44,7 +44,7 @@ const TABS = [
   { id: "overview", label: "venture.overview", icon: Rocket },
   { id: "journey", label: "venture.journey", icon: Route },
   // The Project lens on the same work: every milestone, activity and deliverable
-  // in one row each — the Super Admin's "Project" button, for the Lead Manager.
+  // in one row each — the Super Admin's "Project" button, for the Venture Manager.
   { id: "projects", label: "venture.projects.pageTitle", icon: FolderKanban, leadManagerOnly: true },
   // Investment readiness: the same two indicators the founder sees (roadmap
   // progress and Data Room completeness), between the work lens and the tasks.
@@ -55,7 +55,7 @@ const TABS = [
   // The Data Room is the venture's confidential fundraising / due-diligence
   // document set (including the material shared with granted investors).
   { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
-  // The profile the founders fill in, read-only: the Lead Manager follows the
+  // The profile the founders fill in, read-only: the Venture Manager follows the
   // Venture without owning its record.
   { id: "profile", label: "vadmin.detail.profile", icon: Building2, leadManagerOnly: true },
 ];
@@ -92,7 +92,7 @@ export default function StaffVentureWorkspace() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const tabFromUrl = String(searchParams?.get("tab") || "");
-  const isLeadManager = myRoles.some((role) => role.responsibility_code === "lead_manager");
+  const isLeadManager = myRoles.some((role) => role.responsibility_code === "venture_manager");
   // A tab the viewer is not entitled to is not a tab they can stand on: a
   // hand-typed ?tab=projects falls back to Overview instead of an empty pane.
   // (The SERVER is still the authority — this only decides what is rendered.)
@@ -443,7 +443,7 @@ export default function StaffVentureWorkspace() {
 
       {/* Projects — the same read the Super Admin's venture "Project" page shows.
           The server gate is `ventures.view` + venture scope, which already admits
-          the Venture's own Lead Manager; this is the surface that was missing. */}
+          the Venture's own Venture Manager; this is the surface that was missing. */}
       {activeTab === "projects" && isLeadManager && (
         <div className="flex gap-2 mb-5" role="tablist">
           {["work", "timeline"].map((option) => (
@@ -470,7 +470,7 @@ export default function StaffVentureWorkspace() {
       )}
 
       {/* WHO the work stands on: the same linking the Super Admin's Project page
-          offers, so a Lead Manager can name the people their Venture's work
+          offers, so a Venture Manager can name the people their Venture's work
           mentions and their reminders reach them. */}
       {activeTab === "projects" && isLeadManager && projectsView === "work" && (
         <div className="pt-2">

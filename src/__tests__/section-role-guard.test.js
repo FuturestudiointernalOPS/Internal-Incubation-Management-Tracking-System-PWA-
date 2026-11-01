@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  *
  * Personal identities are turned away from the operating sections; staff-family
- * accounts (Lead Managers included) and unknown roles are not.
+ * accounts (Venture Managers included) and unknown roles are not.
  */
 import { render, screen, waitFor } from "@testing-library/react";
 

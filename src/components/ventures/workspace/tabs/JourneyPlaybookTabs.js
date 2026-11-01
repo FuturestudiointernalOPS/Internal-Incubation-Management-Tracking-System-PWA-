@@ -47,7 +47,7 @@ export function JourneyTab() {
   const [openTaskId, setOpenTaskId] = useState(null);
   const [drafts, setDrafts] = useState({});
   // Deliverable evidence drafts per deliverable: { url, file }. Submitted by
-  // the Venture (upload or link), then reviewed by the Lead Manager / coach.
+  // the Venture (upload or link), then reviewed by the Venture Manager / coach.
   const [dvDrafts, setDvDrafts] = useState({});
   // Sessions booked on this Venture, grouped by milestone — the milestone stays
   // the home of its sessions, and each carries the documents it was booked with.

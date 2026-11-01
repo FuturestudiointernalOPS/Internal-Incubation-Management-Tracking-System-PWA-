@@ -19,10 +19,10 @@ import {
  *   GET    ?milestone_id=…   list (any Venture viewer)
  *   POST                     create  { milestone_id, title, description?,
  *                                      deliverable_type?, due_date? }
- *                            → Lead Manager / Super Admin
- *   PATCH  { id, action }    update  → Lead Manager / Super Admin
+ *                            → Venture Manager / Super Admin
+ *   PATCH  { id, action }    update  → Venture Manager / Super Admin
  *                            submit  → the Venture side (Venture access)
- *                            review  → Lead Manager / Super Admin, or a staff
+ *                            review  → Venture Manager / Super Admin, or a staff
  *                                      member scoped to that milestone
  *
  * Capability layer: the `ventures` module. There is no `milestones` capability
@@ -159,7 +159,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: true, milestone_status: milestoneSync.status || null });
   }
 
-  // ── review: Lead Manager / Super Admin, or a scoped staff member ─────────
+  // ── review: Venture Manager / Super Admin, or a scoped staff member ─────────
   if (action === "review") {
     // `ventures.view` on purpose: a scoped coach may hold view without edit, and
     // canReviewDeliverable below fails closed unless an assignment scope covers

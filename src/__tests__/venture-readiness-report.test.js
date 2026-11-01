@@ -102,7 +102,7 @@ const mockDb = {
     }
     if (sql.includes("FROM venture_staff_assignments")) {
       return { rows: [
-        { responsibility_code: "lead_manager", staff_contact_id: "u1", scope_type: "venture_wide" },
+        { responsibility_code: "venture_manager", staff_contact_id: "u1", scope_type: "venture_wide" },
         { responsibility_code: "facilitator", staff_contact_id: "u2", scope_type: "venture_wide" },
       ] };
     }
@@ -220,7 +220,7 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
     expect(journeyReport.sessions.venture_facing_scheduled).toBe(1);
     expect(journeyReport.support).toEqual({
       assignments: 2,
-      responsibilities: ["lead_manager", "facilitator"],
+      responsibilities: ["venture_manager", "facilitator"],
     });
   });
 

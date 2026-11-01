@@ -106,7 +106,7 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   // Milestones inside a journey (Phase 1): add/edit/reorder/archive. The
   // structure controls are shown only when the server says the viewer is the
-  // Lead Manager or a Super Admin (milestone_authority on the journey read).
+  // Venture Manager or a Super Admin (milestone_authority on the journey read).
   const [milestoneAddFor, setMilestoneAddFor] = useState(null);
   const [milestoneForm, setMilestoneForm] = useState({ title: "", description: "", objective: "", target_date: "", owner_cid: "", owner_name: "" });
   // Deliverables drafted while creating the milestone (created right after it).
@@ -118,7 +118,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Milestones are collapsed by default; clicking one opens it (accordion).
   const [milestoneOpenId, setMilestoneOpenId] = useState(null);
 
-  // Deliverables (evidence) attached to a milestone: add/edit (Lead Manager /
+  // Deliverables (evidence) attached to a milestone: add/edit (Venture Manager /
   // Super Admin), submit evidence, approve / request changes.
   const [deliverableAddFor, setDeliverableAddFor] = useState(null);
   const [deliverableAction, setDeliverableAction] = useState(null); // { id, mode: edit|submit|review }

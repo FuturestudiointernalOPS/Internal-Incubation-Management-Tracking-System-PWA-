@@ -81,7 +81,7 @@ export const VENTURE_SCOPE_TYPES = [
 ];
 
 // ── Seed defaults (agreed matrix) ──────────────────────────────────────────
-// Lead Manager: everything except configuring/deleting permissions, except
+// Venture Manager: everything except configuring/deleting permissions, except
 // configuring staff-assignment & settings structure.
 function leadManagerDefaults() {
   const rows = [];
@@ -132,13 +132,13 @@ function facilitatorDefaults() {
 }
 
 const DEFAULT_RESPONSIBILITIES = [
-  { code: "lead_manager", name: "Lead Manager", description: "Overall operational management and coordination of the Venture." },
+  { code: "venture_manager", name: "Venture Manager", description: "Overall operational management and coordination of the Venture." },
   { code: "coach", name: "Coach", description: "Specialist supporting an assigned scope of the Venture." },
   { code: "facilitator", name: "Facilitator", description: "Operational support with plan-authoring and review duties." },
 ];
 
 const DEFAULT_MATRIX = {
-  lead_manager: leadManagerDefaults(),
+  venture_manager: leadManagerDefaults(),
   coach: coachDefaults(),
   facilitator: facilitatorDefaults(),
 };
@@ -151,7 +151,7 @@ const DEFAULT_MATRIX = {
  *   coach · calendar.schedule      a Coach supports a Venture; a manager books
  *   coach · milestones.create      a Coach does not restructure the roadmap
  *   coach · milestones.edit        ...nor rewrite or complete it
- *   facilitator · milestones.*     same: the Lead Manager owns the roadmap
+ *   facilitator · milestones.*     same: the Venture Manager owns the roadmap
  *
  * Facilitator is listed separately on purpose. Its defaults INHERIT the coach's,
  * so a fresh database already gets the corrected shape from `facilitatorDefaults`
@@ -283,7 +283,7 @@ export async function createAssignment({ ventureId, staffContactId, responsibili
   // A delegated staff member granted access just now must be able to use it
   // without waiting for the remembered answers to expire.
   invalidateVentureAccess(ventureId);
-  // Being made the Venture's Lead Manager is what justifies the `venture_manager`
+  // Being made a Venture Manager is what justifies the `venture_manager`
   // profile — and the profile is what carries `ventures.view`/`edit`. Without this,
   // the assignment gave SCOPE but no CAPABILITY: the manager held a Venture she was
   // not allowed to open (docs/VENTURE_IDENTITY_PHASE0.md §4.5, "Phase E").
@@ -320,7 +320,7 @@ export async function removeAssignment({ id }) {
 }
 
 /** The responsibility whose assignment carries workspace access. */
-const MANAGER_RESPONSIBILITY = "lead_manager";
+const MANAGER_RESPONSIBILITY = "venture_manager";
 
 /**
  * Tell the Venture that its LEAD changed.

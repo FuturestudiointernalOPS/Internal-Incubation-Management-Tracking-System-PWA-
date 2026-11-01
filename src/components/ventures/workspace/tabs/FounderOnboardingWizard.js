@@ -22,7 +22,7 @@ const pickSupport = (payload) => (payload?.success ? payload.support || null : n
  * FounderOnboardingWizard
  * 
  * Guided Day-1 launchpad for startup founders inside their Venture Workspace.
- * Introduces their designated Lead Manager (Handler) and gives them a clear,
+ * Introduces their designated Venture Manager (Handler) and gives them a clear,
  * actionable checklist to complete setup without getting lost across tabs.
  */
 export default function FounderOnboardingWizard({
@@ -44,14 +44,14 @@ export default function FounderOnboardingWizard({
     }
   });
 
-  // Fetch support team to identify the designated Lead Manager
+  // Fetch support team to identify the designated Venture Manager
   const { data: support } = useApi(
     ventureId ? `/api/ventures/${ventureId}/support` : null,
     { defaultValue: null, transform: pickSupport, deps: [ventureId] }
   );
 
   const leadManager = support?.primary_lead || (support?.team || []).find(
-    (p) => p.responsibility_code === "lead_manager" && p.active
+    (p) => p.responsibility_code === "venture_manager" && p.active
   );
 
   // Profile completion evaluation

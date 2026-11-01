@@ -80,7 +80,7 @@ export async function createVentureWithFounderInvite({
       await createAssignment({
         ventureId: created.venture_id,
         staffContactId: handlerId,
-        responsibilityCode: "lead_manager",
+        responsibilityCode: "venture_manager",
         scopeType: "venture_wide",
         assignedBy: actor?.cid || null,
         notes: "Assigned as Lead Handler during venture creation",
