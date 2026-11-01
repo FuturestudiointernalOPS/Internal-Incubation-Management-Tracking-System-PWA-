@@ -1,114 +1,133 @@
 "use client";
 
-import { Briefcase, Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { ArrowRight } from "lucide-react";
 import CreateActions from "@/components/create/CreateActions";
-
-// ─── Module-scope readers ────────────────────────────────────────────────────
-// The reading hook keys its internal work on these, so they are made once here
-// rather than rebuilt on every render.
+import AppTable from "@/components/ui/AppTable";
+import AppCard from "@/components/ui/AppCard";
+import AppButton from "@/components/ui/AppButton";
+import AppStatusBadge from "@/components/ui/AppStatusBadge";
+import PageHero from "@/components/ui/PageHero";
 
 const EMPTY_LIST = [];
-
 const pickVentures = (payload) => (payload?.success ? payload.ventures || [] : []);
 
 export default function ParticipantVentures() {
   const { t } = useI18n();
   const router = useRouter();
-
-  // Scoping is resolved server-side from the session; the contact identifier in
-  // the address only narrows the list for a global role. It comes from the
-  // shell's session cache rather than from the browser's stored copy, so no
-  // effect has to read a browser store. The identity is absent for the first
-  // moment of a cold load, and the screen keeps its placeholder until it
-  // arrives rather than asking for a list it would have to ask for again.
   const { cid } = useSessionUser();
+
   const { data: ventures, loading: readLoading } = useApi(
     cid ? `/api/ventures?contact_id=${cid}` : null,
     { defaultValue: EMPTY_LIST, transform: pickVentures, deps: [cid] },
   );
   const loading = !cid || readLoading;
 
-  return (
-    <>
-      <div className="p-6 space-y-6">
-        <div className="flex items-center justify-between">
+  const columns = [
+    {
+      key: "company",
+      title: "Company",
+      render: (v) => (
+        <div className="flex items-center gap-3">
+          <div
+            className="flex h-9 w-9 items-center justify-center rounded-xl shrink-0 font-black text-sm"
+            style={{
+              background: "color-mix(in srgb, var(--brand-orange) 15%, transparent)",
+              color: "var(--brand-orange)",
+            }}
+          >
+            {(v.company_name || v.name || "V").charAt(0).toUpperCase()}
+          </div>
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{t("venture.myVentures")}</h1>
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.title")}</p>
+            <div className="font-bold text-[13px]" style={{ color: "var(--text-primary)" }}>
+              {v.company_name || v.name || "Untitled Venture"}
+            </div>
+            <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--text-secondary)" }}>
+              {v.industry || "General / Tech"}
+            </div>
           </div>
-          <CreateActions only={["venture"]} tone="primary" />
         </div>
+      ),
+    },
+    {
+      key: "program",
+      title: "Cohort / Program",
+      render: (v) => (
+        <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
+          {v.program_name || v.cohort_name || "Direct Incubator"}
+        </span>
+      ),
+    },
+    {
+      key: "stage",
+      title: "Stage",
+      render: (v) => (
+        <span
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
+          style={{
+            background: "var(--surface-3)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-primary)",
+          }}
+        >
+          {v.business_stage || "Idea"}
+        </span>
+      ),
+    },
+    {
+      key: "status",
+      title: "Status",
+      render: (v) => (
+        <AppStatusBadge status={v.status || "active"} />
+      ),
+    },
+    {
+      key: "actions",
+      title: "",
+      className: "text-right",
+      render: (v) => {
+        const ventureId = v.venture_id || v.id;
+        return (
+          <div className="flex justify-end">
+            <AppButton
+              size="sm"
+              variant="ghost"
+              icon={ArrowRight}
+              className="text-xs font-bold"
+              onClick={(e) => {
+                e.stopPropagation();
+                router.push(`/founder/ventures/${ventureId}`);
+              }}
+            >
+              Open Workspace
+            </AppButton>
+          </div>
+        );
+      },
+    },
+  ];
 
-        {loading ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="animate-spin" style={{ color: "var(--text-secondary)" }} size={32} />
-          </div>
-        ) : ventures.length === 0 ? (
-          <div className="text-center py-16" style={{ color: "var(--text-secondary)" }}>
-            <Briefcase size={48} className="mx-auto mb-4 opacity-40" />
-            <p>{t("venture.noVentures")}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {ventures.map((venture) => (
-              <div
-                key={venture.id}
-                role="link"
-                tabIndex={0}
-                onClick={() => router.push(`/participant/ventures/${venture.venture_id || venture.id}`)}
-                onKeyDown={(event) => {
-                  // A clickable card must also open from the keyboard.
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    router.push(`/participant/ventures/${venture.venture_id || venture.id}`);
-                  }
-                }}
-                className="rounded-xl p-5 transition-all cursor-pointer border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-orange)]"
-                style={{
-                  backgroundColor: "var(--surface-3)",
-                  borderColor: "var(--border-primary)",
-                  color: "var(--text-primary)"
-                }}
-                onMouseEnter={event => { event.currentTarget.style.borderColor = "var(--brand-orange)"; event.currentTarget.style.boxShadow = "0 4px 20px rgb(255 102 0 / 0.15)"; }}
-                onMouseLeave={event => { event.currentTarget.style.borderColor = "var(--border-primary)"; event.currentTarget.style.boxShadow = "none"; }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  {/* Same display rule as every other Ventures surface: the
-                      company name first, the legacy `name` column only as a
-                      fallback (it can still hold a pre-fix intake-run label). */}
-                  <h3 className="font-semibold text-lg">{venture.company_name || venture.name}</h3>
-                  <span className="text-xs px-2 py-1 rounded-full font-medium"
-                    style={{
-                      backgroundColor: venture.status === "active" ? "rgb(16 185 129 / 0.2)" : venture.status === "paused" ? "rgb(245 158 11 / 0.2)" : venture.status === "graduated" ? "rgb(168 85 247 / 0.2)" : "var(--border-primary)",
-                      color: venture.status === "active" ? "var(--chart-success)" : venture.status === "paused" ? "var(--chart-warning)" : venture.status === "graduated" ? "var(--chart-info)" : "var(--text-secondary)"
-                    }}
-                  >
-                    {t(`venture.statuses.${venture.status || "active"}`)}
-                  </span>
-                </div>
-                {venture.description && (
-                  <p className="text-sm mb-3 line-clamp-2" style={{ color: "var(--text-secondary)" }}>{venture.description}</p>
-                )}
-                <div className="flex items-center gap-3 text-xs" style={{ color: "var(--text-secondary)" }}>
-                  <span>{t(`venture.stages.${venture.business_stage || "idea"}`)}</span>
-                  <span>•</span>
-                  <span>{venture.founder_count || 0} {t("venture.founderCount")}</span>
-                  {venture.industry && (
-                    <>
-                      <span>•</span>
-                      <span>{venture.industry}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
+  return (
+    <div className="p-6 space-y-6">
+      <PageHero
+        kicker="VENTURE PORTFOLIO"
+        title={t("venture.myVentures")}
+        subtitle="All startups and ventures you actively own or collaborate on across Future Studio."
+        action={<CreateActions only={["venture"]} tone="primary" />}
+      />
+
+      <AppCard padding="none">
+        <AppTable
+          columns={columns}
+          data={ventures}
+          loading={loading}
+          emptyMessage={t("venture.noVentures")}
+          onRowClick={(row) => router.push(`/founder/ventures/${row.venture_id || row.id}`)}
+        />
+      </AppCard>
+    </div>
   );
 }

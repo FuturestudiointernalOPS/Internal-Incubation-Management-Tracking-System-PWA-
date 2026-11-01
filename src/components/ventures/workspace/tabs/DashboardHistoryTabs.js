@@ -6,6 +6,7 @@ import { useVenture } from "../VentureContext";
 import KpiCard from "@/components/ui/KpiCard";
 import DashboardWorkQueue from "./DashboardWorkQueue";
 import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
+import FounderOnboardingWizard from "./FounderOnboardingWizard";
 
 /**
  * Founder dashboard — the Venture's state at a glance, and what needs doing.
@@ -35,6 +36,7 @@ export function DashboardTab({ onSection }) {
     myWorkFailed,
     fetchMyWork,
     params,
+    form,
   } = useVenture();
 
   // Overview helpers: current/next Journey stage.
@@ -71,6 +73,14 @@ export function DashboardTab({ onSection }) {
 
   return (
     <div className="space-y-4">
+      {/* ── Founder Day-1 Launchpad & Guided Setup Wizard ── */}
+      <FounderOnboardingWizard
+        venture={ventureInfo}
+        onSection={onSection}
+        form={form}
+        team={team}
+        journeyStages={journeyList}
+      />
       {/* ── Venture overview ─────────────────────────────────────────────── */}
       <div className="stf-grid c4">
         <KpiCard
