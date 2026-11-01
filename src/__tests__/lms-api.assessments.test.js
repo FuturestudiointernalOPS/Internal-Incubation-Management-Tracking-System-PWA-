@@ -23,9 +23,11 @@ jest.mock("@/server/auth/session", () => ({
 
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
+  // The authoring reads accept any of view/create/edit.
+  requireAnyAuthorization: jest.fn(async () => null),
 }));
 
-const { requireAuthorization } = require("@/models/authorization/index");
+const { requireAuthorization, requireAnyAuthorization } = require("@/models/authorization/index");
 
 // ─── Route modules under test ──────────────────────────────────────────────
 const { GET: coursesGET, POST: coursesPOST } = require("@/app/api/lms/courses/route");
@@ -67,6 +69,7 @@ const readJson = async (res) => res.json();
 beforeEach(() => {
   mockFake.reset();
   requireAuthorization.mockResolvedValue(null);
+  requireAnyAuthorization.mockResolvedValue(null);
 });
 
 
@@ -481,7 +484,7 @@ describe("Authorization (ticket §31)", () => {
   });
 
   test("unauthorized users cannot list courses (403)", async () => {
-    requireAuthorization.mockResolvedValueOnce({ status: 403 });
+    requireAnyAuthorization.mockResolvedValueOnce({ status: 403 });
     const res = await coursesGET(new Request("http://localhost/api/lms/courses"));
     expect(res.status).toBe(403);
   });

@@ -73,6 +73,29 @@ export async function ensureLmsViewBackfill() {
   }
 }
 
+// ─── LMS course-authoring delegation ─────────────────────────────────────────
+// Course authoring (`lms.view` / `create` / `edit` / `delete`) used to be
+// reachable only by the platform owner (bypass) or through a seeded profile.
+// The LMS feature's role ceiling was super-admin-only, so an administrator could
+// not grant `lms.create` to a given staff member from the Permission Center.
+// The defaults now list `staff`; this one-time migration writes that ceiling row
+// into databases whose eligibility seed already ran.
+//
+// Insert-only: an administrator who explicitly removed the row keeps their
+// decision.
+async function ensureLmsAuthoringDelegation() {
+  await ensurePermissionsSchema();
+
+  await db.execute({
+    sql: `INSERT INTO feature_eligibility
+            (feature_key, identity_type, identity_value, eligible)
+          VALUES ('lms', 'role', 'staff', 1)
+          ON CONFLICT (feature_key, identity_type, identity_value)
+          DO NOTHING`,
+    args: [],
+  });
+}
+
 const MESSAGING_INTERNAL_ROLES = [
   "super_admin",
   "staff",
@@ -169,3 +192,4 @@ export async function ensureCommunicationFeatureBackfill() {
 }
 
 export { ensureLmsCapabilityRetirement, ensureMessagingPolicyBackfill };
+export { ensureLmsAuthoringDelegation };

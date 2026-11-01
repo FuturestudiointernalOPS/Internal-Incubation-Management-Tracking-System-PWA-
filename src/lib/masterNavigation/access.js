@@ -188,11 +188,19 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
   security: { module: "settings", capability: "view" },
   programs: { module: "programs", capability: "view" },
   knowledge: { module: "knowledge", capability: "view" },
-  // LMS — course authoring. Admin-capable roles (super_admin) open
-  // the /admin/lms pages directly; a role without a reachable non-admin landing
-  // still has the node DROPPED by the projection (no dead links), so this
-  // requirement never leaks an /admin link to a non-admin role.
-  lms: { module: "lms", capability: "view" },
+  // LMS — course authoring. Any of the three authoring rights opens the
+  // section: a delegated creator may hold `create` without `view` (the course
+  // reads accept it), and an editor may hold only `edit`. Admin-capable roles
+  // (super_admin) open the /admin/lms pages directly; a role without a
+  // reachable non-admin landing still has the node DROPPED by the projection
+  // (no dead links), so this requirement never leaks an /admin link.
+  lms: {
+    anyOf: [
+      { module: "lms", capability: "view" },
+      { module: "lms", capability: "create" },
+      { module: "lms", capability: "edit" },
+    ],
+  },
   reports: { module: "reports", capability: "view" },
   ventures: { module: "ventures", capability: "view" },
   investors: { module: "investor", capability: "view" },

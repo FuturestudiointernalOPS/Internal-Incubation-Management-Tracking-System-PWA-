@@ -32,7 +32,7 @@ const LEGACY_FILTER = "__legacy__";
  */
 export default function VentureDataRoom({ ventureId, className = "" }) {
   const { t } = useI18n();
-  const { confirm, prompt, alert } = useDialogs();
+  const { confirm } = useDialogs();
   const { data, loading, error, status, refresh } = useApi(
     ventureId ? `/api/ventures/${ventureId}/data-room` : null,
     { defaultValue: null, transform: pickDataRoom, deps: [ventureId] },
@@ -137,33 +137,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const download = async (documentEntry) => {
     await recordAccess(documentEntry, "download");
     await downloadDocument(documentEntry);
-  };
-
-  // Approve / do not approve, straight from the document's own row. A refusal
-  // must say why; the same endpoint and rule as the review dialog.
-  const decideDocument = async (documentEntry, decision) => {
-    let notes = null;
-    if (decision === "verified") {
-      if (!(await confirm({ message: t("dataRoom.preview.approveConfirm", { title: documentEntry.title || documentEntry.file_name || "" }) }))) return;
-    } else {
-      notes = await prompt({ message: t("dataRoom.reviewModal.rejectionReason"), required: true });
-      if (!notes || !notes.trim()) return;
-    }
-    const response = await fetch(`/api/ventures/${ventureId}/data-room`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "review", document_id: documentEntry.id, decision, notes: notes ? notes.trim() : null }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (data.success) {
-      refresh();
-      // Not approving usually means a conversation: offer to schedule it.
-      if (decision === "rejected" && (await confirm({ message: t("dataRoom.session.planPrompt") }))) {
-        setSessionDoc({ ...documentEntry, review_notes: notes });
-      }
-    } else if (data.error) {
-      await alert({ message: String(data.error).startsWith("dataRoom.") ? t(data.error) : data.error });
-    }
   };
 
   const removeDocument = async (documentEntry) => {
@@ -360,7 +333,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                   onReplace={(documentEntry) => setUploadState({ mode: "replace", document: documentEntry })}
                   onEdit={(documentEntry) => setUploadState({ mode: "edit", document: documentEntry })}
                   onReview={setReviewDoc}
-                  onDecide={decideDocument}
                   onSession={setSessionDoc}
                   onAccess={setAccessDoc}
                   onDelete={removeDocument}

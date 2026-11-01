@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAuthorization, requireAnyAuthorization } from "@/models/authorization/index";
 import {
   getCourseStructure,
   updateCourse,
@@ -26,12 +26,17 @@ function stripAnswerKeys(node) {
 
 /**
  * GET /api/lms/courses/[id] — full authoring structure (course + sections +
- * lessons + assessments + questions). Requires lms.view.
+ * lessons + assessments + questions). Every authoring right opens it; the
+ * answer key stays an EDITOR resource.
  */
 export async function GET(req, { params }) {
   try {
     await initDb();
-    const capError = await requireAuthorization("lms", "view");
+    const capError = await requireAnyAuthorization([
+      { module: "lms", capability: "view" },
+      { module: "lms", capability: "create" },
+      { module: "lms", capability: "edit" },
+    ]);
     if (capError) return capError;
 
     const { id } = await params;
