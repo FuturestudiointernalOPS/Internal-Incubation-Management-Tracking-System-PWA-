@@ -57,7 +57,8 @@ export default function FounderOnboardingWizard({
   // Profile completion evaluation
   const hasDescription = Boolean(form?.description && form.description.trim().length > 10);
   const hasIndustry = Boolean(form?.industry);
-  const profileComplete = hasDescription && hasIndustry;
+  const hasLogo = Boolean(form?.logo_url);
+  const profileComplete = hasDescription && hasIndustry && hasLogo;
 
   // Team setup evaluation
   const founderCount = team?.founders ?? 1;
@@ -164,7 +165,7 @@ export default function FounderOnboardingWizard({
             className="rounded-xl p-4 flex flex-col justify-between border transition-all"
             style={{
               background: "var(--surface-1)",
-              borderColor: profileComplete ? "#10B981" : "var(--border-primary)",
+              borderColor: profileComplete ? "color-mix(in srgb, #10B981 30%, transparent)" : "var(--border-primary)",
             }}
           >
             <div>
@@ -189,11 +190,11 @@ export default function FounderOnboardingWizard({
             <div className="mt-4 pt-2">
               <AppButton
                 size="sm"
-                variant={profileComplete ? "ghost" : "primary"}
+                variant={profileComplete ? "secondary" : "primary"}
                 className="w-full text-xs font-bold justify-between"
                 onClick={() => onSection?.("profile")}
               >
-                <span>{profileComplete ? "Edit Profile" : "Complete Profile"}</span>
+                <span>{profileComplete ? "Review Profile" : "Complete Profile"}</span>
                 <ArrowRight size={14} />
               </AppButton>
             </div>
@@ -204,7 +205,7 @@ export default function FounderOnboardingWizard({
             className="rounded-xl p-4 flex flex-col justify-between border transition-all"
             style={{
               background: "var(--surface-1)",
-              borderColor: teamDone ? "#10B981" : "var(--border-primary)",
+              borderColor: teamDone ? "color-mix(in srgb, #10B981 30%, transparent)" : "var(--border-primary)",
             }}
           >
             <div>
@@ -229,7 +230,7 @@ export default function FounderOnboardingWizard({
             <div className="mt-4 pt-2">
               <AppButton
                 size="sm"
-                variant={teamDone ? "ghost" : "primary"}
+                variant={teamDone ? "secondary" : "primary"}
                 className="w-full text-xs font-bold justify-between"
                 onClick={() => onSection?.("team")}
               >
@@ -244,7 +245,7 @@ export default function FounderOnboardingWizard({
             className="rounded-xl p-4 flex flex-col justify-between border transition-all"
             style={{
               background: "var(--surface-1)",
-              borderColor: journeyReady ? "#10B981" : "var(--border-primary)",
+              borderColor: journeyReady ? "color-mix(in srgb, #10B981 30%, transparent)" : "var(--border-primary)",
             }}
           >
             <div>
@@ -269,12 +270,12 @@ export default function FounderOnboardingWizard({
             <div className="mt-4 pt-2">
               <AppButton
                 size="sm"
-                variant={journeyReady ? "primary" : "ghost"}
+                variant={journeyReady ? "secondary" : "ghost"}
                 disabled={!journeyReady}
                 className="w-full text-xs font-bold justify-between"
                 onClick={() => onSection?.("journey")}
               >
-                <span>{journeyReady ? "View Milestones" : "In Preparation"}</span>
+                <span>{journeyReady ? "View Roadmap" : "In Preparation"}</span>
                 <ArrowRight size={14} />
               </AppButton>
             </div>

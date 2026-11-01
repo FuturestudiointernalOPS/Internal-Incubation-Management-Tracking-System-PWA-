@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Inbox, ListChecks, Loader2 } from "lucide-react";
+import { AlertTriangle, Inbox, ListChecks, Loader2, ArrowRight } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { statusLabel } from "@/lib/ventureStatuses";
 import SectionHead from "@/components/ui/SectionHead";
@@ -13,19 +13,6 @@ import { groupWork } from "@/components/participant/ventures/ventureScreenModel"
  * It renders ONLY what GET /api/ventures/[id]/my-work returned. No bucket is
  * recomputed here and no deadline is invented: the classification lives in
  * `services/ventures/myWork`, so the screen and the API can never disagree.
- *
- * THREE RULES
- *
- * 1. ONE ROW PER RECORD. The API's buckets overlap on purpose (a returned task
- *    is also past due), so each record is printed in the FIRST group that lists
- *    it — overdue, then returned, then due soon, then waiting — and the group
- *    counts are the rows actually printed beneath them.
- *
- * 2. A FAILED READ IS NOT AN EMPTY QUEUE. Three states — loading, failed,
- *    empty — are three different screens. Zeroes are never drawn over a failure.
- *
- * 3. WORK WITH A REVIEWER IS NOT YOURS TO SUBMIT. It is listed last, quiet,
- *    separately, as the API reports it.
  */
 
 /** status tone → the shared tag colour modifier (components/staff/staff.css). */
@@ -61,26 +48,40 @@ function WorkRow({ item, onOpen }) {
   const { t } = useI18n();
   const feedback =
     item.submission?.state === "changes_requested" ? item.submission.feedback : null;
+  const title = item.title || item.task_title || item.name || "Sprint Deliverable";
 
   return (
     <li
-      className="py-2.5 border-b last:border-0"
-      style={{ borderColor: "var(--border-primary)" }}
+      className="p-3.5 rounded-xl border mb-2 transition-all hover:bg-[var(--surface-2)]"
+      style={{
+        background: "var(--surface-1)",
+        borderColor: "var(--border-primary)",
+      }}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">{item.title}</span>
+            <span className="text-[13px] font-bold text-[var(--text-primary)]">
+              {title}
+            </span>
             <span className={`stf-tag ${TAG_TONE[item.status?.tone] || ""}`}>
               {statusLabel(item.status, t)}
             </span>
           </div>
           <div
-            className="mt-0.5 flex flex-wrap gap-x-3 text-[11px]"
+            className="mt-1 flex flex-wrap items-center gap-x-3 text-[11px]"
             style={{ color: "var(--text-secondary)" }}
           >
-            {item.milestone?.title && <span>{item.milestone.title}</span>}
-            {item.owner?.name && <span>{item.owner.name}</span>}
+            {item.milestone?.title && (
+              <span className="font-medium text-[var(--text-primary)]">
+                {item.milestone.title}
+              </span>
+            )}
+            {item.owner?.name && (
+              <span>
+                Owner: <strong>{item.owner.name}</strong>
+              </span>
+            )}
             <span>
               {item.due_date
                 ? t("venture.myWork.dueOn", { date: formatDay(item.due_date) })
@@ -89,17 +90,26 @@ function WorkRow({ item, onOpen }) {
           </div>
           {feedback && (
             <p
-              className="mt-1.5 rounded-lg px-2.5 py-1.5 text-[12px]"
-              style={{ background: "var(--surface-3)" }}
+              className="mt-2 rounded-lg p-2.5 text-[12px] border"
+              style={{
+                background: "color-mix(in srgb, var(--brand-orange) 8%, var(--surface-1))",
+                borderColor: "color-mix(in srgb, var(--brand-orange) 20%, transparent)",
+                color: "var(--text-primary)",
+              }}
             >
-              <span className="font-semibold">{t("venture.myWork.feedback")}: </span>
+              <strong className="text-[var(--brand-orange)]">{t("venture.myWork.feedback")}: </strong>
               {feedback}
             </p>
           )}
         </div>
         {onOpen && (
-          <button type="button" className="stf-link-btn shrink-0" onClick={onOpen}>
-            {t("venture.myWork.open")}
+          <button
+            type="button"
+            className="shrink-0 flex items-center gap-1 text-xs font-bold text-[var(--brand-orange)] hover:underline pt-0.5"
+            onClick={onOpen}
+          >
+            <span>{t("venture.myWork.open")}</span>
+            <ArrowRight size={13} />
           </button>
         )}
       </div>
@@ -155,14 +165,12 @@ export default function DashboardWorkQueue({ myWork, loading, failed, onOpen, on
     );
   }
 
-  // One row per record — the first group that claims it wins (pure, and pinned
-  // by src/__tests__/venture-my-work-queue.test.js).
+  // One row per record — the first group that claims it wins
   const allGroups = groupWork(myWork).map((group) => ({
     ...group,
     items: [...group.items].sort(byDueDate),
   }));
   const total = allGroups.reduce((n, group) => n + group.items.length, 0);
-  // Cap the printed rows (group order is kept), unless "Show all" is on.
   const limit = showAll ? Infinity : VISIBLE_ROWS;
   let printedBefore = 0;
   const groups = [];
@@ -195,8 +203,8 @@ export default function DashboardWorkQueue({ myWork, loading, failed, onOpen, on
         </div>
       ) : (
         groups.map((group) => (
-          <div key={group.key} className="mt-4 first:mt-0">
-            <p className="stf-k mb-1">
+          <div key={group.key} className="mt-4 first:mt-2">
+            <p className="stf-k mb-2 text-[11px] uppercase font-bold tracking-wider" style={{ color: "var(--text-secondary)" }}>
               {t(`venture.myWork.group.${group.key}`)} · {group.total}
             </p>
             <ul className="list-none p-0 m-0">

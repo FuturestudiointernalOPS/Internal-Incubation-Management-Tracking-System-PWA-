@@ -156,7 +156,7 @@ export function useDashboardNavigation({
       };
       // Investors use Investor Space as their home. Other personal accounts
       // keep the common participant dashboard, and team accounts keep /team.
-      const dashboardHref = activeRole === "team" ? "/team" : "/participant";
+      const dashboardHref = activeRole === "team" ? "/team" : (rel.isFounder ? "/founder" : "/participant");
       const investorAccount =
         carriesContextualValue(activeRole, "investor") || rel.isInvestor;
       const items = investorAccount ? [] : [
@@ -177,14 +177,13 @@ export function useDashboardNavigation({
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
-      if (activeRole !== "team") items.push({ id: "announcements", name: "ANNOUNCEMENTS", icon: Bell, href: "/participant/announcements" });
       if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),
         // not buried after every participant item. Team members keep the
         // additive arrangement: their venture door comes last.
-        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" };
+        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/founder/ventures" };
         if (rel.isFounder) {
           const progIndex = items.findIndex((navItem) => navItem.id === "programs");
           items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);

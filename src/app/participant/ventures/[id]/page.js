@@ -405,7 +405,7 @@ export default function VentureDetail() {
       brandColor={form.brandColor}
       activeTab={activeTab}
       onSection={openSection}
-      onBack={() => router.push("/participant/ventures")}
+      onBack={() => router.push("/founder/ventures")}
       workspace={ws}
       t={t}
     />

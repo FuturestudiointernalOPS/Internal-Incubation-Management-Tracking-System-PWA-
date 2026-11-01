@@ -1,7 +1,19 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, FileText, Loader2, RefreshCw, Search, ShieldCheck, Upload } from "lucide-react";
+import {
+  AlertTriangle,
+  Loader2,
+  RefreshCw,
+  Search,
+  ShieldCheck,
+  Upload,
+  Share2,
+  Sparkles,
+  BarChart3,
+  Layers,
+  FolderLock,
+} from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -13,6 +25,7 @@ import DataRoomPreviewModal from "./DataRoomPreviewModal";
 import DataRoomSessionModal from "./DataRoomSessionModal";
 import DataRoomAccessModal from "./DataRoomAccessModal";
 import DataRoomVersionsModal from "./DataRoomVersionsModal";
+import DataRoomShareModal from "./DataRoomShareModal";
 import DataRoomActivity from "./DataRoomActivity";
 import { downloadDocument, inlineDocumentUrl, STATUS_ORDER } from "./dataRoomUi";
 
@@ -21,15 +34,37 @@ const pickDataRoom = (payload) => (payload?.success ? payload : null);
 /** A catalogue lens, not a category: rows filed before the Data Room existed. */
 const LEGACY_FILTER = "__legacy__";
 
-/**
- * VENTURE DATA ROOM — the venture's confidential document set.
- *
- * One screen, used by every role that may see it (founder, member, assigned
- * staff, reviewer, granted investor). It does not decide what a person may do:
- * the API returns a `viewer` block, and the screen only renders the buttons
- * that block allows. A hand-typed request without the matching permission is
- * refused by the service, not hidden by the UI.
- */
+const DUE_DILIGENCE_FOLDERS = [
+  {
+    key: "pitch",
+    title: "Pitch & Strategy",
+    icon: Sparkles,
+    categories: ["pitch_deck", "company_overview", "market_traction"],
+    description: "Pitch decks, 1-pagers, market research",
+  },
+  {
+    key: "financials",
+    title: "Financials & Model",
+    icon: BarChart3,
+    categories: ["financials_projections", "fundraising_cap_table"],
+    description: "Projections, cap table, runway",
+  },
+  {
+    key: "legal",
+    title: "Legal & Corporate",
+    icon: ShieldCheck,
+    categories: ["legal_corporate", "due_diligence"],
+    description: "Incorporation, agreements, compliance",
+  },
+  {
+    key: "product",
+    title: "Product & Impact",
+    icon: Layers,
+    categories: ["product_technology", "team", "impact_sustainability", "reports_milestones"],
+    description: "Architecture, team bios, progress reports",
+  },
+];
+
 export default function VentureDataRoom({ ventureId, className = "" }) {
   const { t } = useI18n();
   const { confirm } = useDialogs();
@@ -40,15 +75,16 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
+  const [selectedFolder, setSelectedFolder] = useState(null);
   const [documentStatus, setDocumentStatus] = useState("all");
   const [uploadState, setUploadState] = useState(null);
-  // Bumped after each inline save so the form comes back empty.
   const [inlineRun, setInlineRun] = useState(0);
   const [reviewDoc, setReviewDoc] = useState(null);
   const [previewDoc, setPreviewDoc] = useState(null);
   const [sessionDoc, setSessionDoc] = useState(null);
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
+  const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const documents = useMemo(() => data?.documents || [], [data]);
   const viewer = data?.viewer || {
@@ -62,15 +98,10 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const history = data?.history || [];
   const accessHistory = data?.access_history || [];
   const isInvestor = viewer.type === "investor";
-  // The files are the Venture's own: its founders (and staff explicitly granted
-  // document rights) file them. The Lead Manager requests categories and the
-  // Super Admin reviews, but neither uploads — so neither is invited to.
   const canUpload = viewer.can_manage && viewer.type !== "super_admin" && !isInvestor;
 
   const categories = useMemo(() => {
     if (data?.categories?.length) return data.categories;
-    // An investor has no requirement list: show only the categories they can
-    // actually see, never the empty structure of the whole room.
     if (isInvestor) {
       const seen = new Set(documents.map((entry) => entry.category));
       return DATA_ROOM_CATEGORIES.filter((entry) => seen.has(entry.code)).map((entry) => ({
@@ -83,8 +114,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
     return [];
   }, [data, documents, isInvestor]);
 
-  // Legacy documents are kept and shown, but they are not a Data Room category.
-  // This count and lens make them findable so they can be re-filed.
   const legacyCount = useMemo(
     () => documents.filter((entry) => isLegacyDocumentCategory(entry.category)).length,
     [documents],
@@ -93,6 +122,10 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return documents.filter((entry) => {
+      if (selectedFolder) {
+        const folder = DUE_DILIGENCE_FOLDERS.find((f) => f.key === selectedFolder);
+        if (folder && !folder.categories.includes(entry.category)) return false;
+      }
       if (category === LEGACY_FILTER) {
         if (!isLegacyDocumentCategory(entry.category)) return false;
       } else if (category !== "all" && entry.category !== category) {
@@ -104,19 +137,13 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle));
     });
-  }, [documents, category, documentStatus, search]);
+  }, [documents, category, selectedFolder, documentStatus, search]);
 
-  // On a real category the upload form sits in the page, already filed under it
-  // — but only while that category is still empty: once it holds a document the
-  // header's Upload button does the job and the form steps aside.
   const selectedCategory =
     canUpload && category !== "all" && category !== LEGACY_FILTER && dataRoomCategory(category) ? category : null;
   const inlineCategory =
     selectedCategory && !documents.some((entry) => entry.category === selectedCategory) ? selectedCategory : null;
 
-  // The journal is an audit side effect: it never blocks the file. Opening is
-  // fired without awaiting so the browser still sees a direct user gesture;
-  // downloading awaits the event so a slow journal cannot reorder the trace.
   const recordAccess = (documentEntry, accessType) =>
     fetch(`/api/ventures/${ventureId}/data-room`, {
       method: "POST",
@@ -188,41 +215,114 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   }
 
   return (
-    <div className={`space-y-4 ${className}`}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className={`space-y-6 ${className}`}>
+      {/* ── Header Bar ── */}
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h2 className="text-[13px] font-black text-[var(--text-primary)] flex items-center gap-2">
-            <ShieldCheck size={15} className="text-[var(--brand-orange)]" /> {t("dataRoom.title")}
+          <h2 className="text-base font-black text-[var(--text-primary)] flex items-center gap-2">
+            <ShieldCheck size={18} className="text-[var(--brand-orange)]" /> {t("dataRoom.title")}
           </h2>
-          <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">
+          <p className="text-xs text-[var(--text-secondary)] mt-0.5">
             {isInvestor ? t("dataRoom.investorSubtitle") : t("dataRoom.subtitle")}
           </p>
         </div>
-        {canUpload && documents.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setUploadState({ mode: "create", category: selectedCategory || undefined })}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest"
-          >
-            <Upload size={13} /> {t("dataRoom.upload")}
-          </button>
-        ) : null}
+
+        <div className="flex items-center gap-2.5">
+          {canUpload && (
+            <button
+              type="button"
+              onClick={() => setShareModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-[var(--border-primary)] bg-surface-2 hover:bg-surface-3 text-[var(--text-primary)] text-xs font-bold transition-all shadow-sm"
+            >
+              <Share2 size={14} className="text-[var(--brand-orange)]" />
+              <span>Share with Investor</span>
+            </button>
+          )}
+
+          {canUpload && (
+            <button
+              type="button"
+              onClick={() => setUploadState({ mode: "create", category: selectedCategory || undefined })}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-extrabold transition-all shadow-sm hover:opacity-90"
+            >
+              <Upload size={14} />
+              <span>{t("dataRoom.upload")}</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {isInvestor ? (
-        <p className="rounded-xl border border-blue-500/25 bg-blue-500/5 px-3 py-2 text-[10px] text-blue-400">
+        <p className="rounded-xl border border-blue-500/25 bg-blue-500/5 px-4 py-2.5 text-xs text-blue-400">
           {t("dataRoom.readOnlyInvestor")}
         </p>
       ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-4">
+      {/* ── 4 Institutional Due Diligence Folders ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {DUE_DILIGENCE_FOLDERS.map((folder) => {
+          const Icon = folder.icon;
+          const folderDocsCount = documents.filter((d) => folder.categories.includes(d.category)).length;
+          const isSelected = selectedFolder === folder.key;
+
+          return (
+            <button
+              key={folder.key}
+              type="button"
+              onClick={() => {
+                if (isSelected) {
+                  setSelectedFolder(null);
+                } else {
+                  setSelectedFolder(folder.key);
+                  setCategory("all");
+                }
+              }}
+              className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                isSelected
+                  ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/10 shadow-sm"
+                  : "border-[var(--border-primary)] bg-surface-2 hover:border-[var(--border-primary)]/80"
+              }`}
+            >
+              <div className="flex items-center justify-between w-full mb-2">
+                <div
+                  className={`p-2 rounded-xl ${
+                    isSelected
+                      ? "bg-[var(--brand-orange)] text-black"
+                      : "bg-surface-3 text-[var(--brand-orange)]"
+                  }`}
+                >
+                  <Icon size={16} />
+                </div>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-surface-3 text-[var(--text-secondary)]">
+                  {folderDocsCount} {folderDocsCount === 1 ? "file" : "files"}
+                </span>
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-[var(--text-primary)]">
+                  {folder.title}
+                </h4>
+                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 line-clamp-1">
+                  {folder.description}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── Main Data Room Explorer ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-6 items-start">
+        {/* Categories Sidebar */}
         {!isInvestor ? (
-          <div className="space-y-1">
+          <div className="space-y-1 p-2 rounded-2xl border border-[var(--border-primary)] bg-surface-1">
             <CategoryRow
-              active={category === "all"}
+              active={category === "all" && !selectedFolder}
               label={t("dataRoom.allCategories")}
               count={documents.length}
-              onClick={() => setCategory("all")}
+              onClick={() => {
+                setCategory("all");
+                setSelectedFolder(null);
+              }}
             />
             {categories.map((entry) => (
               <CategoryRow
@@ -231,7 +331,10 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                 label={t(entry.labelKey)}
                 count={entry.count}
                 level={entry.level}
-                onClick={() => setCategory(entry.code)}
+                onClick={() => {
+                  setCategory(entry.code);
+                  setSelectedFolder(null);
+                }}
               />
             ))}
             {legacyCount > 0 ? (
@@ -239,13 +342,17 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                 active={category === LEGACY_FILTER}
                 label={t("dataRoom.legacy.filter")}
                 count={legacyCount}
-                onClick={() => setCategory(LEGACY_FILTER)}
+                onClick={() => {
+                  setCategory(LEGACY_FILTER);
+                  setSelectedFolder(null);
+                }}
               />
             ) : null}
           </div>
         ) : null}
 
-        <div className="space-y-3">
+        {/* Documents Main Area */}
+        <div className="space-y-4">
           {inlineCategory ? (
             <DataRoomUploadModal
               key={`${inlineCategory}-${inlineRun}`}
@@ -261,20 +368,22 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
               }}
             />
           ) : null}
-          <div className="flex flex-wrap gap-2">
-            <div className="relative flex-1 min-w-[160px]">
-              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+
+          {/* Search & Status Filter */}
+          <div className="flex flex-wrap gap-2.5">
+            <div className="relative flex-1 min-w-[180px]">
+              <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={t("dataRoom.searchPlaceholder")}
-                className="w-full pl-8 pr-3 py-2 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[10px] text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
+                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-[var(--border-primary)] bg-surface-2 text-xs text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
               />
             </div>
             <select
               value={documentStatus}
               onChange={(event) => setDocumentStatus(event.target.value)}
-              className="px-3 py-2 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[10px] text-[var(--text-primary)] outline-none"
+              className="px-3 py-2.5 rounded-xl border border-[var(--border-primary)] bg-surface-2 text-xs text-[var(--text-primary)] outline-none"
             >
               <option value="all">{t("dataRoom.allStatuses")}</option>
               {STATUS_ORDER.map((entry) => (
@@ -283,10 +392,11 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
             </select>
           </div>
 
+          {/* Document Cards */}
           {visible.length === 0 ? (
-            <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-8 text-center space-y-1">
-              <FileText size={22} className="mx-auto text-[var(--text-secondary)]" />
-              <p className="text-[11px] text-[var(--text-secondary)]">
+            <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-10 text-center space-y-2">
+              <FolderLock size={28} className="mx-auto text-[var(--text-secondary)]" />
+              <p className="text-xs font-bold text-[var(--text-primary)]">
                 {documents.length === 0
                   ? canUpload
                     ? t("dataRoom.emptyRoom")
@@ -301,19 +411,14 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
                 <button
                   type="button"
                   onClick={() => setUploadState({ mode: "create" })}
-                  className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest"
+                  className="mt-3 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-extrabold uppercase tracking-wide"
                 >
-                  <Upload size={13} /> {t("dataRoom.upload")}
+                  <Upload size={14} /> {t("dataRoom.upload")}
                 </button>
-              ) : null}
-              {category === LEGACY_FILTER ? (
-                <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.legacy.filterHint")}</p>
-              ) : category !== "all" && documents.length > 0 && !isInvestor ? (
-                <p className="text-[9px] text-[var(--text-secondary)]">{t("dataRoom.emptyCategory")}</p>
               ) : null}
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-3">
               {visible.map((entry) => (
                 <DataRoomDocumentCard
                   key={entry.id}
@@ -343,6 +448,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         </div>
       </div>
 
+      {/* Due Diligence Requirements */}
       {(viewer.can_review || viewer.can_configure_requirements) && requirements.length > 0 ? (
         <RequirementsPanel
           requirements={requirements}
@@ -356,6 +462,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
       {!isInvestor ? <DataRoomActivity kind="history" events={history} /> : null}
       {!isInvestor ? <DataRoomActivity kind="access" events={accessHistory} /> : null}
 
+      {/* ── Dialog Modals ── */}
       {uploadState ? (
         <DataRoomUploadModal
           mode={uploadState.mode}
@@ -418,6 +525,13 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           onClose={() => setVersionsDoc(null)}
         />
       ) : null}
+
+      {/* ── External Investor Share Modal ── */}
+      <DataRoomShareModal
+        ventureId={ventureId}
+        isOpen={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+      />
     </div>
   );
 }
@@ -427,16 +541,16 @@ function CategoryRow({ active, label, count, level, onClick }) {
     <button
       type="button"
       onClick={onClick}
-      className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg border text-left transition-colors ${
+      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
         active
-          ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)]"
+          ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] font-bold"
           : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
       }`}
     >
-      <span className="text-[10px] font-bold truncate">{label}</span>
+      <span className="text-xs truncate">{label}</span>
       <span className="flex items-center gap-1.5 shrink-0">
         {level === "required" ? <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" title="required" /> : null}
-        <span className="text-[9px] tabular-nums">{count}</span>
+        <span className="text-[11px] tabular-nums font-semibold">{count}</span>
       </span>
     </button>
   );
@@ -444,33 +558,38 @@ function CategoryRow({ active, label, count, level, onClick }) {
 
 function RequirementsPanel({ requirements, canReview, canManage, t, onChange }) {
   return (
-    <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-4 space-y-2">
-      <p className="text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)]">
-        {t("dataRoom.requirements.title")}
-      </p>
-      <p className="text-[9px] text-[var(--text-secondary)] leading-relaxed">{t("dataRoom.requirements.description")}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+    <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-5 space-y-3">
+      <div>
+        <p className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
+          {t("dataRoom.requirements.title")}
+        </p>
+        <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
+          {t("dataRoom.requirements.description")}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {requirements.map((row) => {
           const entry = dataRoomCategory(row.category);
           if (!entry) return null;
           return (
-            <div key={row.category} className="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-[var(--surface-1)]">
-              <span className="text-[10px] text-[var(--text-primary)] truncate">
+            <div key={row.category} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-primary)]">
+              <span className="text-xs text-[var(--text-primary)] truncate font-medium">
                 {t(entry.labelKey)}
-                {row.customized ? <span className="text-[9px] text-[var(--text-secondary)]"> · {t("dataRoom.requirements.customized")}</span> : null}
+                {row.customized ? <span className="text-[10px] text-[var(--text-secondary)]"> · {t("dataRoom.requirements.customized")}</span> : null}
               </span>
               {canReview ? (
                 <select
                   value={row.level}
                   onChange={(event) => onChange(row.category, event.target.value)}
-                  className="text-[9px] bg-transparent border border-[var(--border-primary)] rounded px-1 py-0.5 text-[var(--text-secondary)] outline-none"
+                  className="text-xs bg-transparent border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[var(--text-secondary)] outline-none"
                 >
                   {["required", "recommended", "conditional", "not_applicable"].map((level) => (
                     <option key={level} value={level}>{t(`dataRoom.level.${level}`)}</option>
                   ))}
                 </select>
               ) : (
-                <span className="text-[9px] font-bold uppercase text-[var(--text-secondary)]">
+                <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">
                   {t(`dataRoom.level.${row.level}`)}
                 </span>
               )}
@@ -479,7 +598,7 @@ function RequirementsPanel({ requirements, canReview, canManage, t, onChange }) 
         })}
       </div>
       {canReview ? (
-        <p className="text-[9px] text-[var(--text-secondary)]">
+        <p className="text-[11px] text-[var(--text-secondary)]">
           {canManage
             ? t("dataRoom.requirements.editableHint")
             : t("dataRoom.requirements.leadManagerHint")}

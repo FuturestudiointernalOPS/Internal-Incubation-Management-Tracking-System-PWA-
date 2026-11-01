@@ -41,6 +41,7 @@ export async function createAdminVenture({
   createdByCid = null,
   industry = null,
   businessStage = "idea",
+  programId = null,
 }) {
   await initDb();
   await ensureVentureSchema();

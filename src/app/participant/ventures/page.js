@@ -30,23 +30,32 @@ export default function ParticipantVentures() {
     {
       key: "company",
       title: "Company",
-      render: (v) => (
+      render: (_cell, row) => (
         <div className="flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-xl shrink-0 font-black text-sm"
-            style={{
-              background: "color-mix(in srgb, var(--brand-orange) 15%, transparent)",
-              color: "var(--brand-orange)",
-            }}
-          >
-            {(v.company_name || v.name || "V").charAt(0).toUpperCase()}
-          </div>
+          {row.logo_url ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={row.logo_url}
+              alt={row.company_name || row.name || ""}
+              className="w-9 h-9 rounded-xl object-contain bg-[var(--surface-1)] border border-[var(--border-primary)] p-0.5 shrink-0"
+            />
+          ) : (
+            <div
+              className="flex h-9 w-9 items-center justify-center rounded-xl shrink-0 font-black text-sm"
+              style={{
+                background: "color-mix(in srgb, var(--brand-orange) 15%, transparent)",
+                color: "var(--brand-orange)",
+              }}
+            >
+              {(row.company_name || row.name || "V").charAt(0).toUpperCase()}
+            </div>
+          )}
           <div>
             <div className="font-bold text-[13px]" style={{ color: "var(--text-primary)" }}>
-              {v.company_name || v.name || "Untitled Venture"}
+              {row.company_name || row.name || "Untitled Venture"}
             </div>
             <div className="text-[10px] uppercase tracking-wider font-semibold" style={{ color: "var(--text-secondary)" }}>
-              {v.industry || "General / Tech"}
+              {row.industry || "General / Tech"}
             </div>
           </div>
         </div>
@@ -55,16 +64,16 @@ export default function ParticipantVentures() {
     {
       key: "program",
       title: "Cohort / Program",
-      render: (v) => (
+      render: (_cell, row) => (
         <span className="text-xs font-medium" style={{ color: "var(--text-primary)" }}>
-          {v.program_name || v.cohort_name || "Direct Incubator"}
+          {row.program_name || row.cohort_name || "Direct Incubator"}
         </span>
       ),
     },
     {
       key: "stage",
       title: "Stage",
-      render: (v) => (
+      render: (_cell, row) => (
         <span
           className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
           style={{
@@ -73,23 +82,23 @@ export default function ParticipantVentures() {
             border: "1px solid var(--border-primary)",
           }}
         >
-          {v.business_stage || "Idea"}
+          {row.business_stage || "Idea"}
         </span>
       ),
     },
     {
       key: "status",
       title: "Status",
-      render: (v) => (
-        <AppStatusBadge status={v.status || "active"} />
+      render: (_cell, row) => (
+        <AppStatusBadge status={row.status || "active"} />
       ),
     },
     {
       key: "actions",
       title: "",
       className: "text-right",
-      render: (v) => {
-        const ventureId = v.venture_id || v.id;
+      render: (_cell, row) => {
+        const ventureId = row.venture_id || row.id;
         return (
           <div className="flex justify-end">
             <AppButton

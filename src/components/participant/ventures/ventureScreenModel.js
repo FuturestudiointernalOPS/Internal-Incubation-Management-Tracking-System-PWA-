@@ -34,6 +34,7 @@ export const ventureToForm = (venture) => ({
   language: venture.language || "en",
   brandColor: venture.branding?.color || "#f60",
   country_code: venture.country_code || "",
+  logo_url: venture.logo_url || "",
 });
 
 // ── The answer shapers for this screen's reads ─────────────────────────────

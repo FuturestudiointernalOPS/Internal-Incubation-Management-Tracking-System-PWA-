@@ -38,6 +38,7 @@ export async function createVentureWithFounderInvite({
   companyName,
   founderEmail,
   actor,
+  handlerId = null,
 }) {
   const name = typeof companyName === "string" ? companyName.trim() : "";
   const email = typeof founderEmail === "string" ? founderEmail.trim() : "";

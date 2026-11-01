@@ -233,6 +233,9 @@ export function resolveLanding({
   if (owned.length === 1 && owned[0].venture_id) {
     return `/founder/ventures/${owned[0].venture_id}`;
   }
+  if (owned.length > 1) {
+    return "/founder/ventures";
+  }
 
   // An approved investor context is a relationship the badge cannot carry:
   // a baseline member who was taken as an investor belongs in their investor
