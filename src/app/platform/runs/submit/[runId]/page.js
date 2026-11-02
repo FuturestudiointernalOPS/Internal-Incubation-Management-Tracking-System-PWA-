@@ -28,7 +28,7 @@ const pickFormPayload = (response) => (response?.success ? response : null);
 export default function SubmitFormPage() {
   const params = useParams();
   const router = useRouter();
-  const goBack = useSafeBack("/admin/platform/runs");
+  const goBack = useSafeBack("/platform/runs");
   const { t } = useI18n();
   const runId = params.runId;
 
