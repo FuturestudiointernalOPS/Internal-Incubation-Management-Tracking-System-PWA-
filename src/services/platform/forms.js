@@ -39,6 +39,23 @@ import {
   updatePlatformFormSection,
 } from "@/models/forms";
 import { assertSingleInvestorForm, ensureSingleInvestorFormIndex } from "@/models/investorIntake";
+import { createFormRun } from "@/models/formRuns";
+import { onRunCreated } from "@/models/platform/automation";
+
+/**
+ * A section id the builder has not saved yet ("tmp-1712…-3") is not a database
+ * id: `parseInt` turns it into NaN, so treating it as an existing section both
+ * fails the update and loses the field → section link.
+ */
+function isUnsavedId(value) {
+  if (value === null || value === undefined || value === "") return true;
+  return !/^\d+$/.test(String(value).trim());
+}
+
+/** The unguessable public slug every run gets (same format as run creation). */
+function newPublicSlug() {
+  return "r" + Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+}
 
 // ── Reads ───────────────────────────────────────────────────────────────────
 
@@ -118,37 +135,71 @@ export async function guardInvestorIntake({ form_id = null, settings } = {}) {
 }
 
 /**
- * Publish a new version: snapshot the given fields/sections and bump the form.
+ * Publish = save the builder, snapshot what was saved, then create the run that
+ * carries that snapshot.
+ *
+ * Saving first is what makes the snapshot the truth: the builder's payload can
+ * still hold temporary section ids that exist only in the browser, and a
+ * snapshot of those would pin a layout the database never had (the "scattered"
+ * public form). Reading the rows back after the save pins real ids.
  *
  * @returns {Promise<{status: number, body: Object}>}
  */
 export async function publishFormVersion({ id, fields, sections, evaluation_framework, session }) {
-  if (!id || !fields || !sections) {
-    return { status: 400, body: { success: false, error: "id, fields, and sections are required" } };
+  if (!id) {
+    return { status: 400, body: { success: false, error: "id is required" } };
   }
 
-  const form = await getPlatformFormById(parseInt(id));
+  const formId = parseInt(id);
+  const form = await getPlatformFormById(formId);
   if (form.rows.length === 0) {
     return { status: 404, body: { success: false, error: "Form not found" } };
   }
 
   const currentForm = form.rows[0];
+
+  // ── 1. Persist the builder (unchanged payload shape: both keys optional).
+  if (Array.isArray(fields) || Array.isArray(sections)) {
+    const saved = await saveFormBuilder({ id: formId, fields, sections });
+    if (saved.status !== 200) return saved;
+  }
+
+  // ── 2. Snapshot the SAVED rows — real field ids, real section links.
+  const liveSections = await getPlatformFormSections(formId);
+  const liveFields = await getPlatformFormFields(formId);
+
   const newVersion = (currentForm.version || 1) + 1;
   const snapshot = {
-    fields,
-    sections,
+    fields: liveFields.rows,
+    sections: liveSections.rows,
     settings: currentForm.settings,
     publishedAt: new Date().toISOString(),
     evaluation_framework: evaluation_framework || null,
   };
 
-  // Save version snapshot
-  await createPlatformFormVersion(parseInt(id), newVersion, JSON.stringify(snapshot), session.cid || null);
+  await createPlatformFormVersion(formId, newVersion, JSON.stringify(snapshot), session?.cid || null);
+  await publishPlatformForm(formId, newVersion);
 
-  // Increment version on form
-  await publishPlatformForm(parseInt(id), newVersion);
+  // ── 3. The run that carries this version, live from the moment it exists.
+  //    Its name says which version it pins, so two runs of one form are never
+  //    mistaken for each other in the Runs list.
+  const createdRun = await createFormRun({
+    form_id: formId,
+    form_version: newVersion,
+    name: `${currentForm.name} v${newVersion}`,
+    description: currentForm.description || null,
+    opens_at: null,
+    closes_at: null,
+    settings: {},
+    owner_id: session?.cid || null,
+    created_by: session?.cid || null,
+    public_slug: newPublicSlug(),
+    status: "active",
+  });
+  const run = createdRun?.rows?.[0] || null;
+  if (run) onRunCreated(run, session);
 
-  return { status: 200, body: { success: true, version: newVersion } };
+  return { status: 200, body: { success: true, version: newVersion, run } };
 }
 
 /** @returns {Promise<{status: number, body: Object}>} */
@@ -200,13 +251,24 @@ export async function saveFormBuilder({ id, fields, sections }) {
   }
 
   // ── Step 2: Upsert sections (inserts/updates only — deletions come later).
+  //    A section the builder has not saved yet arrives with a temporary id
+  //    ("tmp-…") or none at all. It is INSERTED, and the temporary id is kept
+  //    in `tempIdToRealId` so this request's fields can be pointed at the row
+  //    that was just created — otherwise they fall out of their section.
+  const tempIdToRealId = new Map();
   if (Array.isArray(sections)) {
     for (const sec of sections) {
       if (sec._delete) continue; // handled in Step 4
-      if (sec.id) {
-        await updatePlatformFormSection({ formId: id, section: sec });
-      } else {
-        await createPlatformFormSection({ formId: id, section: sec });
+      if (!isUnsavedId(sec.id)) {
+        await updatePlatformFormSection({ formId: id, section: { ...sec, id: parseInt(sec.id) } });
+        continue;
+      }
+
+      const created = await createPlatformFormSection({ formId: id, section: sec });
+      const realId = parseInt(created?.rows?.[0]?.id);
+      const tempKey = sec._tmpId ?? sec.id;
+      if (tempKey !== null && tempKey !== undefined && !isNaN(realId)) {
+        tempIdToRealId.set(String(tempKey), realId);
       }
     }
   }
@@ -232,17 +294,21 @@ export async function saveFormBuilder({ id, fields, sections }) {
         continue;
       }
 
-      // Resolve section_id: null-out if the section is being deleted, if the
-      // value is a non-numeric temp string (e.g. "tmp-1-2"), or if the id no
-      // longer exists for this form.
-      const rawSectionId = fld.section_id ? parseInt(fld.section_id) : null;
-      const resolvedSectionId =
-        rawSectionId &&
-        !isNaN(rawSectionId) &&
-        !deletedSectionIds.has(rawSectionId) &&
-        liveSectionIds.has(rawSectionId)
-          ? rawSectionId
-          : null;
+      // Resolve section_id: a temporary id becomes the row created in Step 2
+      // (when this request carried that section), and a real id is kept only
+      // while the section still exists and is not being deleted. Anything else
+      // is nulled out — a field with no section is recoverable, a rejected save
+      // is not.
+      const rawSection = fld.section_id;
+      let resolvedSectionId = null;
+      if (!isUnsavedId(rawSection)) {
+        const numericId = parseInt(rawSection);
+        if (!deletedSectionIds.has(numericId) && liveSectionIds.has(numericId)) {
+          resolvedSectionId = numericId;
+        }
+      } else if (rawSection !== null && rawSection !== undefined && rawSection !== "") {
+        resolvedSectionId = tempIdToRealId.get(String(rawSection)) ?? null;
+      }
 
       if (fld.id) {
         await updatePlatformFormField({ formId: id, field: fld, sectionId: resolvedSectionId });

@@ -289,6 +289,7 @@
       "notifyFormRepublished": "Form republished — live URL updated",
       "notifyFormRestored": "Form restored",
       "notifyFormSaved": "Form saved",
+      "notifyPublishedRun": "Published version {version} — run \"{run}\" is now live",
       "notifyPublishedVersion": "Published version {version}",
       "notifyTemplatesSaved": "Templates saved",
       "notifyWorkflowSaved": "Workflow saved",

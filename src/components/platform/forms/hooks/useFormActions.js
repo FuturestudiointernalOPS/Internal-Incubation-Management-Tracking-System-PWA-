@@ -112,13 +112,32 @@ export function useFormActions({
       });
       const data = await response.json();
       if (data.success) {
-        notify(t("platformMisc.forms.notifyPublishedVersion", { version: data.version }));
+        notify(
+          data.run?.name
+            ? t("platformMisc.forms.notifyPublishedRun", { version: data.version, run: data.run.name })
+            : t("platformMisc.forms.notifyPublishedVersion", { version: data.version }),
+        );
         setEditingForm((prev) => ({ ...prev, status: "published", version: data.version }));
         refreshForms();
+
+        // Publishing SAVES the builder first (the snapshot must be persisted
+        // rows), so sections added in this session now have real ids. Reload
+        // them: keeping the browser's temporary ids would insert the same
+        // section a second time on the next save.
+        if (!skipSave) {
+          try {
+            const refreshResponse = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+            const freshData = await refreshResponse.json();
+            if (freshData.success) {
+              refreshSections(freshData, genTempId);
+              refreshFields(freshData, genTempId);
+            }
+          } catch (_) {}
+        }
       }
     } catch (_) {}
     if (!skipSave) setSaving(false);
-  }, [editingForm, fields, sections, notify, refreshForms, t, setEditingForm]);
+  }, [editingForm, fields, sections, notify, refreshForms, refreshSections, refreshFields, genTempId, t, setEditingForm]);
 
   const handleDuplicate = useCallback(async (form) => {
     if (!(await confirm({ message: t("platformMisc.forms.confirmDuplicate", { name: form.name }) }))) return;
@@ -139,14 +158,27 @@ export function useFormActions({
         const sourceResponse = await fetch(`/api/platform/forms?id=${form.id}`);
         const sourceData = await sourceResponse.json();
         if (sourceData.success) {
+          // A section id belongs to the SOURCE form: it means nothing in the copy.
+          // Each copied section gets a temporary key, and its fields are pointed at
+          // that key, so the server can re-link them to the rows it creates.
+          const sectionKeyById = new Map(
+            sourceData.sections.map((section) => [String(section.id), `dup-${section.id}`]),
+          );
+          const sections = sourceData.sections.map((section) => ({
+            ...section,
+            id: null,
+            _tmpId: sectionKeyById.get(String(section.id)),
+          }));
+          const fields = sourceData.fields.map((field) => ({
+            ...field,
+            id: null,
+            section_id: field.section_id ? sectionKeyById.get(String(field.section_id)) ?? null : null,
+          }));
+
           await fetch("/api/platform/forms", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: data.form.id,
-              fields: sourceData.fields.map((field) => ({ ...field, id: null })),
-              sections: sourceData.sections.map((section) => ({ ...section, id: null })),
-            }),
+            body: JSON.stringify({ id: data.form.id, fields, sections }),
           });
         }
         notify(t("platformMisc.forms.notifyFormDuplicated"));
@@ -393,7 +425,14 @@ export function useFormActions({
         }
       } catch (_) {}
 
-      const cleanSections = sections.map((section) => (String(section.id).startsWith("tmp-") ? { ...section, id: null } : section));
+      // A section the server has not stored yet keeps its temporary id under
+      // `_tmpId`: `id: null` tells the server "insert this one", and the temp id
+      // is what re-points its fields to the row that gets created.
+      const cleanSections = sections.map((section) =>
+        String(section.id).startsWith("tmp-")
+          ? { ...section, _tmpId: section._tmpId || section.id, id: null }
+          : section,
+      );
       const payload = { id: editingForm.id, fields, sections: cleanSections };
       const response = await fetch("/api/platform/forms", {
         method: "PUT",

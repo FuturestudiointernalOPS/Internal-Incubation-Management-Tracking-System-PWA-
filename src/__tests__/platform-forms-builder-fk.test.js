@@ -40,7 +40,9 @@ jest.mock("@/models/investorIntake", () => ({
 const {
   getPlatformFormSections,
   createPlatformFormField,
+  createPlatformFormSection,
   updatePlatformFormField,
+  updatePlatformFormSection,
 } = require("@/models/forms");
 const { saveFormBuilder } = require("@/services/platform/forms");
 
@@ -98,4 +100,56 @@ test("the save still succeeds when a section is deleted in the same request", as
 
   expect(result.status).toBe(200);
   expect(updatePlatformFormField.mock.calls[0][0]).toMatchObject({ sectionId: null });
+});
+
+test("a field in a section that was just added keeps that section", async () => {
+  // The builder has not saved the section yet, so its id is a temporary string.
+  // createPlatformFormSection is mocked to return id 8.
+  const result = await saveFormBuilder({
+    id: 42,
+    sections: [{ id: null, _tmpId: "tmp-1-2", title: "Legal" }],
+    fields: [{ id: null, label: "Registration number", section_id: "tmp-1-2" }],
+  });
+
+  expect(result.status).toBe(200);
+  expect(createPlatformFormSection).toHaveBeenCalledTimes(1);
+  expect(createPlatformFormField.mock.calls[0][0]).toMatchObject({ sectionId: 8 });
+});
+
+test("a section still carrying its temporary id is INSERTED, not silently dropped", async () => {
+  const result = await saveFormBuilder({
+    id: 42,
+    sections: [{ id: "tmp-9-1", title: "Impact" }],
+    fields: [{ id: null, label: "Beneficiaries", section_id: "tmp-9-1" }],
+  });
+
+  expect(result.status).toBe(200);
+  expect(createPlatformFormSection).toHaveBeenCalledTimes(1);
+  expect(updatePlatformFormSection).not.toHaveBeenCalled();
+  expect(createPlatformFormField.mock.calls[0][0]).toMatchObject({ sectionId: 8 });
+});
+
+test("a duplicated form re-links its fields to the copied sections", async () => {
+  createPlatformFormSection
+    .mockResolvedValueOnce({ rows: [{ id: 8 }] })
+    .mockResolvedValueOnce({ rows: [{ id: 9 }] });
+
+  const result = await saveFormBuilder({
+    id: 42,
+    // The copy's sections carry keys derived from the source ids.
+    sections: [
+      { id: null, _tmpId: "dup-11", title: "Profile" },
+      { id: null, _tmpId: "dup-12", title: "Market" },
+    ],
+    fields: [
+      { id: null, label: "Company name", section_id: "dup-11" },
+      { id: null, label: "Customers", section_id: "dup-12" },
+    ],
+  });
+
+  expect(result.status).toBe(200);
+  const createdSections = createPlatformFormSection.mock.calls.length;
+  expect(createdSections).toBe(2);
+  const mappedIds = createPlatformFormField.mock.calls.map((call) => call[0].sectionId);
+  expect(mappedIds).toEqual([8, 9]);
 });
