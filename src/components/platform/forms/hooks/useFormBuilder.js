@@ -43,10 +43,10 @@ export function useFormBuilder({ refreshForms, forms, collections, loading }) {
     setSections,
     activeSectionId,
     setActiveSectionId,
-    addSection,
+    addSection: addSectionRecord,
     updateSection,
-    removeSection,
-    moveSection,
+    removeSection: removeSectionRecord,
+    moveSection: moveSectionRecord,
     loadSections,
     createDefaultSection,
     refreshSections,
@@ -57,7 +57,7 @@ export function useFormBuilder({ refreshForms, forms, collections, loading }) {
     setFields,
     selectedFieldId,
     setSelectedFieldId,
-    addField,
+    addField: addFieldRecord,
     updateField,
     removeField,
     moveField,
@@ -67,6 +67,37 @@ export function useFormBuilder({ refreshForms, forms, collections, loading }) {
     loadFields,
     refreshFields,
   } = useFormFields({ t });
+
+  // The section/field hooks take their collaborators as arguments (the id
+  // generator, the live sections, the active section) so they stay pure. The
+  // builder's buttons only know what was clicked, so the rest is bound here.
+  const addSection = useCallback(() => addSectionRecord(genTempId), [addSectionRecord, genTempId]);
+  const addField = useCallback(
+    (fieldType, sectionId) =>
+      addFieldRecord(fieldType, sectionId, activeSectionId, sections, genTempId),
+    [addFieldRecord, activeSectionId, sections, genTempId],
+  );
+  const removeSection = useCallback(
+    (sectionIndex) => {
+      const removedId = removeSectionRecord(sectionIndex, sections);
+      // The section's questions are not deleted with it: they are detached, the
+      // same way the save nulls their section, so they stay reachable (they
+      // show up as unassigned) instead of silently vanishing from the canvas.
+      if (removedId != null) {
+        setFields((previousFields) =>
+          previousFields.map((field) =>
+            String(field.section_id) === String(removedId) ? { ...field, section_id: null } : field,
+          ),
+        );
+      }
+      return removedId;
+    },
+    [removeSectionRecord, sections, setFields],
+  );
+  const moveSection = useCallback(
+    (sectionIndex, direction) => moveSectionRecord(sectionIndex, direction, sections),
+    [moveSectionRecord, sections],
+  );
 
   const {
     showScoring,

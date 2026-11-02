@@ -323,6 +323,7 @@
       "restoreTitle": "Restore this form",
       "restoreWhatHappens": "What happens when you restore:",
       "runCreated": "Run created — launching...",
+      "runAlreadyActive": "This form is already collecting — opening its active run.",
       "save": "Save",
       "saveFailed": "Save failed",
       "saving": "Saving...",

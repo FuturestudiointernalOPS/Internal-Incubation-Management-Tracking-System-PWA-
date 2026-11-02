@@ -323,6 +323,7 @@
       "restoreTitle": "Restaurer ce formulaire",
       "restoreWhatHappens": "Que se passe-t-il lors de la restauration :",
       "runCreated": "Exécution créée — lancement...",
+      "runAlreadyActive": "Ce formulaire collecte déjà — ouverture de son run actif.",
       "save": "Enregistrer",
       "saveFailed": "Échec de l'enregistrement",
       "saving": "Enregistrement...",

@@ -40,6 +40,13 @@ import {
 } from "@/models/forms";
 import { assertSingleInvestorForm, ensureSingleInvestorFormIndex } from "@/models/investorIntake";
 
+/** A strict positive integer from an id of any shape, or null. */
+function toNumericId(value) {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
+
 // ── Reads ───────────────────────────────────────────────────────────────────
 
 /**
@@ -175,9 +182,15 @@ export async function createForm({ body, session }) {
 }
 
 /**
- * The builder save. Section deletions run AFTER field upserts so a field that
- * still references a deleted section never trips the FK
- * (`platform_form_fields_section_id_fkey`).
+ * The builder save. The whole state arrives in ONE request: sections upserted,
+ * fields re-pointed, then deletions — section deletions last, after the fields
+ * that referenced them have moved away (the FK is `section_id`).
+ *
+ * Two rules keep a stale editor from failing the save on the foreign key:
+ *   - a section the client believes exists but this form no longer has is
+ *     re-created (its id mapped) instead of silently skipped;
+ *   - a field's section id that does not match a section this form owns — or
+ *     that is being deleted in this same request — becomes NULL.
  *
  * @returns {Promise<{status: number, body: Object}>}
  */
@@ -186,34 +199,44 @@ export async function saveFormBuilder({ id, fields, sections }) {
     return { status: 400, body: { success: false, error: "id is required" } };
   }
 
-  // ── Step 1: Collect section IDs that will be deleted in this request.
-  //    We must NOT delete them yet — fields still reference them and must be
-  //    updated first. Deleting a section before its fields are re-assigned
-  //    triggers the FK violation ("platform_form_fields_section_id_fkey").
+  // ── Step 1: sections this request removes, and the ones the form really has.
   const deletedSectionIds = new Set();
   if (Array.isArray(sections)) {
     for (const sec of sections) {
-      if (sec._delete && sec.id) {
-        deletedSectionIds.add(parseInt(sec.id));
+      if (sec._delete) {
+        const numericId = toNumericId(sec.id);
+        if (numericId != null) deletedSectionIds.add(numericId);
       }
     }
   }
+  const existingSections = await getPlatformFormSections(id);
+  const knownSectionIds = new Set(
+    (existingSections.rows || []).map((row) => Number(row.id)),
+  );
 
-  // ── Step 2: Upsert sections (inserts/updates only — deletions come later).
+  // ── Step 2: upsert sections (inserts/updates only — deletions come later).
+  //    New sections carry their builder-side temporary id, so the fields that
+  //    already point at it can be handed the real id below.
+  const sectionIdMap = new Map();
   if (Array.isArray(sections)) {
     for (const sec of sections) {
       if (sec._delete) continue; // handled in Step 4
-      if (sec.id) {
+      const numericId = toNumericId(sec.id);
+      if (numericId != null && knownSectionIds.has(numericId)) {
         await updatePlatformFormSection({ formId: id, section: sec });
-      } else {
-        await createPlatformFormSection({ formId: id, section: sec });
+        continue;
       }
+
+      const created = await createPlatformFormSection({ formId: id, section: sec });
+      const createdId = toNumericId(created?.rows?.[0]?.id);
+      if (createdId == null) continue;
+      knownSectionIds.add(createdId);
+      if (sec.id != null) sectionIdMap.set(String(sec.id), createdId);
+      if (sec._tmpId != null) sectionIdMap.set(String(sec._tmpId), createdId);
     }
   }
 
-  // ── Step 3: Upsert fields.
-  //    If a field's section_id points to a section that is being deleted in
-  //    this same request, use null instead — avoids the FK violation.
+  // ── Step 3: upsert fields.
   if (Array.isArray(fields)) {
     for (const fld of fields) {
       if (fld._delete && fld.id) {
@@ -221,11 +244,20 @@ export async function saveFormBuilder({ id, fields, sections }) {
         continue;
       }
 
-      // Resolve section_id: null-out if the section is being deleted or
-      // if the value is a non-numeric temp string (e.g. "_tmp_xyz").
-      const rawSectionId = fld.section_id ? parseInt(fld.section_id) : null;
-      const resolvedSectionId =
-        rawSectionId && !isNaN(rawSectionId) && !deletedSectionIds.has(rawSectionId) ? rawSectionId : null;
+      // Resolve section_id through the sections this form now owns (including
+      // the ones just created). Anything else becomes NULL: a stale or
+      // foreign id can never reach the foreign key.
+      let resolvedSectionId = null;
+      if (fld.section_id != null && fld.section_id !== "") {
+        const key = String(fld.section_id);
+        resolvedSectionId = sectionIdMap.get(key) ?? toNumericId(key);
+      }
+      if (
+        resolvedSectionId != null &&
+        (deletedSectionIds.has(resolvedSectionId) || !knownSectionIds.has(resolvedSectionId))
+      ) {
+        resolvedSectionId = null;
+      }
 
       if (fld.id) {
         await updatePlatformFormField({ formId: id, field: fld, sectionId: resolvedSectionId });
