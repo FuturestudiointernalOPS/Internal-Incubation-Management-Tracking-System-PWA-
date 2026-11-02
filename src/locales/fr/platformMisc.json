@@ -289,6 +289,7 @@
       "notifyFormRepublished": "Formulaire republié — URL en direct mise à jour",
       "notifyFormRestored": "Formulaire restauré",
       "notifyFormSaved": "Formulaire enregistré",
+      "notifyPublishedRun": "Version {version} publiée — l'exécution « {run} » est en ligne",
       "notifyPublishedVersion": "Version publiée {version}",
       "notifyTemplatesSaved": "Modèles enregistrés",
       "notifyWorkflowSaved": "Workflow enregistré",

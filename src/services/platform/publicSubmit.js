@@ -29,8 +29,9 @@ import {
   getActiveRunIdByPublicSlug,
   getActiveRunById,
   countRecentSubmissionsFromIp,
-  getFormIdByRunId,
+  getFormIdAndVersionByRunId,
   getFormFieldsByFormId,
+  getFormVersionSnapshotByFormAndVersion,
   getSubmittedSubmissionBySubmitter,
   insertRateEntryForSubmission,
   getDraftSubmissionBySubmitter,
@@ -128,6 +129,37 @@ async function preparePaidCheckout({ paidContext, submissionId, fullName, email,
 }
 
 /**
+ * The fields whose ids and labels name this run's answers.
+ *
+ * A run pins a version, and the form keeps changing after it: reading the LIVE
+ * fields would label an old run's answers with fields it never showed (or lose
+ * them entirely, since a deleted field has no label left). The pinned snapshot
+ * is the source of truth; the live tables stay the fallback for runs created
+ * before snapshots existed.
+ */
+async function resolveRunFields(runId) {
+  const run = await getFormIdAndVersionByRunId(runId);
+  if (run.rows.length === 0) return [];
+
+  const { form_id, form_version } = run.rows[0];
+
+  if (form_version) {
+    const pinned = await getFormVersionSnapshotByFormAndVersion(form_id, form_version);
+    const snapshotFields = pinned.rows?.[0]?.snapshot?.fields;
+    if (Array.isArray(snapshotFields) && snapshotFields.length > 0) {
+      return snapshotFields.map((field) => ({
+        id: field.id,
+        label: field.label,
+        field_type: field.field_type,
+      }));
+    }
+  }
+
+  const live = await getFormFieldsByFormId(form_id);
+  return live.rows;
+}
+
+/**
  * Read the submitter's name / email / phone from the answered form fields.
  *
  * Name resolution: an explicit "Full Name" field wins; otherwise the first
@@ -141,12 +173,11 @@ async function resolveSubmitterIdentity(runId, data) {
   let submitterPhone = null;
 
   try {
-    // Fetch form fields to map field IDs to labels
-    const formIdResult = await getFormIdByRunId(runId);
-    if (formIdResult.rows.length > 0) {
-      const fieldsResult = await getFormFieldsByFormId(formIdResult.rows[0].form_id);
+    // The run's OWN fields: labels are what the answers are recognised by.
+    const fields = await resolveRunFields(runId);
+    if (fields.length > 0) {
       const fieldMap = {};
-      for (const field of fieldsResult.rows) {
+      for (const field of fields) {
         fieldMap[String(field.id)] = { label: field.label, type: field.field_type };
       }
       // Now find name/email by field label, not field ID.
