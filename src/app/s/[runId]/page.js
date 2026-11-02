@@ -53,11 +53,12 @@ const pickPublicRun = (slug) => (payload) => {
   let draftSection = 0;
   try {
     const saved = localStorage.getItem(`form_draft_${slug}`);
-    if (saved) {
-      const draft = JSON.parse(saved);
-      if (draft.formData && typeof draft.formData === "object") {
-        draftData = draft.formData;
-      }
+    // Kept at this scope: the saved position is read further down, with the
+    // link's own parameters. It used to be declared inside the `if (saved)`
+    // block, so reading it threw and the visitor never resumed their step.
+    const draft = saved ? JSON.parse(saved) : null;
+    if (draft?.formData && typeof draft.formData === "object") {
+      draftData = draft.formData;
     }
     if (typeof window !== "undefined") {
       const sp = new URLSearchParams(window.location.search);
@@ -70,7 +71,7 @@ const pickPublicRun = (slug) => (payload) => {
         draftData["Company Name"] = vName;
         draftData["Nom de la startup"] = vName;
       }
-      if (typeof draft.currentSection === "number" && draft.currentSection >= 0) {
+      if (typeof draft?.currentSection === "number" && draft.currentSection >= 0) {
         draftSection = draft.currentSection;
       }
     }
