@@ -52,7 +52,7 @@ export default function KnowledgeBankSection({
               onChange={(event) =>
                 setProgram({ ...program, note_id: event.target.value })
               }
-              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
+              className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] appearance-none cursor-pointer"
             >
               <option value="">{t("adminMisc.newProgram.linkKnowledgeNode")}</option>
               {knowledgeNodes.map((node) => (
@@ -69,7 +69,7 @@ export default function KnowledgeBankSection({
                   setNewKB({ ...newKB, title: event.target.value })
                 }
                 placeholder={t("adminMisc.newProgram.knowledgeBaseNamePlaceholder")}
-                className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
               />
               <div className="relative group h-20">
                 <input
@@ -80,7 +80,7 @@ export default function KnowledgeBankSection({
                   className="absolute inset-0 opacity-0 cursor-pointer z-10"
                 />
                 <div className="flex flex-col items-center justify-center h-full border border-dashed border-[var(--border-primary)] rounded-lg group-hover:border-[var(--brand-orange)]">
-                  <p className="text-[10px] font-bold uppercase text-white/40">
+                  <p className="text-[10px] font-bold uppercase text-[var(--text-tertiary)]">
                     {t("adminMisc.newProgram.uploadDocumentsForKb")}
                   </p>
                 </div>
@@ -118,7 +118,7 @@ export default function KnowledgeBankSection({
             ) : (
               <Upload className="w-6 h-6 text-[var(--text-secondary)] group-hover:text-[var(--brand-orange)] mb-2 transition-all" />
             )}
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-all">
               {isUploading
                 ? t("adminMisc.newProgram.uploadingAssets")
                 : t("adminMisc.newProgram.attachProgramMaterials")}

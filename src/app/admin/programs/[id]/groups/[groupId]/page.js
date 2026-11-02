@@ -130,7 +130,7 @@ export default function GroupWorkspaceV2({ params }) {
                     value={group.project_description || ''}
                     onChange={event => setGroup({...group, project_description: event.target.value})}
                     placeholder={t('adminMisc.programGroups.projectConceptPlaceholder')}
-                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-white font-bold outline-none focus:border-[#FF6600]/80 transition-colors resize-none"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl p-6 text-[var(--text-primary)] font-bold outline-none focus:border-[#FF6600]/80 transition-colors resize-none"
                  />
               </div>
 
@@ -147,7 +147,7 @@ export default function GroupWorkspaceV2({ params }) {
                              value={group.pitch_deck_url || ''}
                              onChange={event => setGroup({...group, pitch_deck_url: event.target.value})}
                              placeholder="https://slides..."
-                             className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none"
+                             className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-[var(--text-primary)] outline-none"
                           />
                        </div>
                        <div className="space-y-2">
@@ -159,7 +159,7 @@ export default function GroupWorkspaceV2({ params }) {
                              value={group.demo_link || ''}
                              onChange={event => setGroup({...group, demo_link: event.target.value})}
                              placeholder="https://app..."
-                             className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-white outline-none"
+                             className="w-full bg-white/5 border border-white/5 rounded-xl py-3 px-4 text-xs font-bold text-[var(--text-primary)] outline-none"
                           />
                        </div>
                     </div>

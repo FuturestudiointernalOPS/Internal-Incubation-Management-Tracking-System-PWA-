@@ -102,7 +102,7 @@ export default function SuperAdminProgressHub() {
                 placeholder={t("adminMisc.progress.searchPlaceholder")}
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
+                className="w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-12 pr-6 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/40 focus:bg-white/[0.08] transition-all"
               />
             </div>
           </div>

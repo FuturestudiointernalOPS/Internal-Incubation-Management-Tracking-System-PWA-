@@ -61,7 +61,7 @@ export default function ContactGroupSection({
                 assigned_segments: [event.target.value],
               })
             }
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] cursor-pointer"
           >
             <option value="">{t("adminMisc.newProgram.selectExistingGroup")}</option>
             {segments.map((segment) => (
@@ -78,7 +78,7 @@ export default function ContactGroupSection({
                 setNewGroup({ ...newGroup, name: event.target.value })
               }
               placeholder={t("adminMisc.newProgram.groupNamePlaceholder")}
-              className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-white outline-none focus:border-blue-400"
+              className="w-full bg-transparent border-b border-[var(--border-primary)] py-2 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-blue-400"
             />
             <textarea
               value={newGroup.description}
@@ -90,7 +90,7 @@ export default function ContactGroupSection({
               }
               placeholder={t("adminMisc.newProgram.groupDescriptionPlaceholder")}
               rows={2}
-              className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-white outline-none focus:border-blue-400 resize-none"
+              className="w-full bg-transparent border border-[var(--border-primary)] p-2 rounded text-[10px] font-medium text-[var(--text-primary)] outline-none focus:border-blue-400 resize-none"
             />
             <button
               type="button"

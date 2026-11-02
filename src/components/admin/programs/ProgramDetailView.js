@@ -401,7 +401,7 @@ export default function ProgramDetailView({ ctx }) {
                                          value={newFollowup.comment}
                                          onChange={event => setNewFollowup({...newFollowup, comment: event.target.value})}
                                          placeholder={t("adminMisc.programDetail.commentPlaceholder")}
-                                         className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all resize-none"
+                                         className="w-full bg-black/40 border border-white/10 rounded-2xl p-6 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 transition-all resize-none"
                                          rows={3}
                                       />
                                       <div className="flex justify-end gap-3">
