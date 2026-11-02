@@ -31,11 +31,13 @@ import {
  */
 
 export default function NewProgramForm({
-  // Where the "back" link and the post-create redirect go. The admin screen
-  // keeps its defaults; the delegated `/create/program` surface passes its own.
+  // Where the "back" link goes. The admin screen keeps its default; the
+  // delegated `/create/program` surface passes the program workspace list.
   backHref = "/admin/programs",
   backLabelKey = "adminMisc.newProgram.programList",
-  successHref = "/admin/programs",
+  // Where the creator lands once the program exists: its own page, built from
+  // the id the API returns.
+  programHref = (id) => `/admin/programs/${id}`,
 }) {
   const router = useRouter();
   const { t } = useI18n();
@@ -273,7 +275,8 @@ export default function NewProgramForm({
       });
       if (payload.success) {
         notify("success", t("adminMisc.newProgram.programCreatedFromTemplate"));
-        setTimeout(() => router.push(successHref), 1500);
+        const destination = payload.id ? programHref(payload.id) : backHref;
+        setTimeout(() => router.push(destination), 1500);
       } else {
         notify("error", t((payload.error || t("adminMisc.newProgram.failed")) || "") || (payload.error || t("adminMisc.newProgram.failed")));
       }
@@ -353,7 +356,10 @@ export default function NewProgramForm({
 
       if (payload.success) {
         notify("success", t("adminMisc.newProgram.created"));
-        setTimeout(() => router.push(successHref), 1500);
+        // Straight to the record that was just created, not to the list: the
+        // creator's next step is configuring it, not finding it again.
+        const destination = payload.id ? programHref(payload.id) : backHref;
+        setTimeout(() => router.push(destination), 1500);
       } else {
         throw new Error(t((payload.error || t("adminMisc.newProgram.failedToSaveProgram")) || "") || (payload.error || t("adminMisc.newProgram.failedToSaveProgram")));
       }
