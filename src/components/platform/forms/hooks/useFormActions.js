@@ -264,6 +264,41 @@ export function useFormActions({
     setSaving(false);
   }, [editingForm, router, notify, t]);
 
+  const handleRestorePublished = useCallback(async () => {
+    if (!editingForm) return;
+    const confirmed = await confirm({
+      message: t("platformMisc.forms.restorePublishedConfirm"),
+      tone: "danger",
+      confirmLabel: t("platformMisc.forms.restorePublishedAction"),
+    });
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/platform/forms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", id: editingForm.id }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notify(t("platformMisc.forms.restorePublishedDone"));
+        const refreshResponse = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+        const freshData = await refreshResponse.json();
+        if (freshData.success) {
+          refreshSections(freshData, genTempId);
+          refreshFields(freshData, genTempId);
+          setEditingForm(freshData.form || editingForm);
+        }
+      } else {
+        notify(t("platformMisc.forms.restorePublishedFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.forms.restorePublishedFailed"));
+    }
+    setSaving(false);
+  }, [editingForm, confirm, t, notify, genTempId, refreshSections, refreshFields, setEditingForm, setSaving]);
+
   const handleSaveWorkflow = useCallback(async () => {
     if (!editingForm) return;
     setSaving(true);
@@ -487,6 +522,7 @@ export function useFormActions({
     confirmArchiveAction,
     handleGenerateForm,
     handleLaunchRun,
+    handleRestorePublished,
     handleSaveWorkflow,
     handleSaveTemplates,
     handleSaveAiEvalFramework,

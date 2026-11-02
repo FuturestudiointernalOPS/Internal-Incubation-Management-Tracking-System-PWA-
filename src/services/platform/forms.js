@@ -280,6 +280,129 @@ export async function saveFormBuilder({ id, fields, sections }) {
   return { status: 200, body: { success: true } };
 }
 
+/** Drop a builder-only marker before a row is re-inserted. */
+function withoutDeleteMarker(row) {
+  if (!row || typeof row !== "object") return {};
+  const { _delete: _ignoredDelete, ...rest } = row;
+  return rest;
+}
+
+const normalizeTitle = (value) => String(value || "").trim().toLowerCase();
+
+/** The live section a published one should reuse, so its id (and its questions) survive. */
+function matchLiveSection(snapshotSection, liveSections) {
+  return liveSections.findIndex(
+    (live) => normalizeTitle(live.title) === normalizeTitle(snapshotSection.title),
+  );
+}
+
+/**
+ * The live question a published one should reuse: same wording and type first,
+ * then the same type at the same position (a question that was renamed since
+ * the publication). Matching on identity (not on the wording alone) is what
+ * keeps already-collected answers attached, since answers are filed by the
+ * question's own id.
+ */
+function matchLiveField(snapshotField, liveFields) {
+  let index = liveFields.findIndex(
+    (live) =>
+      String(live.label) === String(snapshotField.label) &&
+      String(live.field_type) === String(snapshotField.field_type),
+  );
+  if (index === -1) {
+    index = liveFields.findIndex(
+      (live) =>
+        Number(live.sort_order) === Number(snapshotField.sort_order) &&
+        String(live.field_type) === String(snapshotField.field_type),
+    );
+  }
+  return index;
+}
+
+/**
+ * Restore a form's sections and questions from its last published version.
+ *
+ * Used to repair a form whose live content was lost (the sections are gone but
+ * the questions survived, detached) and as a rollback to the published
+ * structure. It is a MERGE, not a wholesale replacement:
+ *   - a live section whose title matches a published one keeps its id;
+ *   - a live question that matches a published one keeps its id (so answers
+ *     already collected stay under the right question);
+ *   - missing published sections/questions are re-created;
+ *   - content added since the publication is kept rather than destroyed.
+ * Settings and metadata are left alone. The work is done by the same save the
+ * builder uses, so relationships follow the same rules.
+ *
+ * @returns {Promise<{status: number, body: Object}>}
+ */
+export async function restoreFormFromLatestVersion({ id }) {
+  const formId = toNumericId(id);
+  if (formId == null) {
+    return { status: 400, body: { success: false, error: "id is required" } };
+  }
+
+  const form = await getPlatformFormById(formId);
+  if (form.rows.length === 0) {
+    return { status: 404, body: { success: false, error: "Form not found" } };
+  }
+
+  const version = await getLatestPlatformFormVersion(formId);
+  const snapshot = version.rows[0]?.snapshot || null;
+  const snapshotSections = Array.isArray(snapshot?.sections) ? snapshot.sections : [];
+  const snapshotFields = Array.isArray(snapshot?.fields) ? snapshot.fields : [];
+
+  if (snapshotSections.length === 0 && snapshotFields.length === 0) {
+    return {
+      status: 409,
+      body: { success: false, error: "This form has no published version to restore." },
+    };
+  }
+
+  const currentSections = await getPlatformFormSections(formId);
+  const currentFields = await getPlatformFormFields(formId);
+  const liveSections = [...(currentSections.rows || [])];
+  const liveFields = [...(currentFields.rows || [])];
+
+  // Where each published section reference lands: a kept section keeps its id;
+  // a re-created one is mapped by its temporary id, and the save hands it the
+  // id it creates for it.
+  const sectionReferences = new Map();
+  const sections = [];
+  for (const snapshotSection of snapshotSections) {
+    const cleanSection = withoutDeleteMarker(snapshotSection);
+    const reference = String(cleanSection._tmpId ?? cleanSection.id ?? "");
+    const index = matchLiveSection(cleanSection, liveSections);
+    if (index !== -1) {
+      const [liveSection] = liveSections.splice(index, 1);
+      sections.push({ ...cleanSection, id: liveSection.id });
+      sectionReferences.set(reference, String(liveSection.id));
+    } else {
+      sections.push({ ...cleanSection, id: null, _tmpId: reference });
+    }
+  }
+  // Sections that the published version never had are removed (their questions,
+  // if any survived, are kept and simply detached by the save).
+  sections.push(...liveSections.map((liveSection) => ({ id: liveSection.id, _delete: true })));
+
+  const fields = [];
+  for (const snapshotField of snapshotFields) {
+    const cleanField = withoutDeleteMarker(snapshotField);
+    const reference = String(cleanField.section_id ?? "");
+    const sectionId = sectionReferences.get(reference) ?? cleanField.section_id;
+    const index = matchLiveField(cleanField, liveFields);
+    if (index !== -1) {
+      const [liveField] = liveFields.splice(index, 1);
+      fields.push({ ...cleanField, id: liveField.id, section_id: sectionId });
+    } else {
+      fields.push({ ...cleanField, id: null, section_id: sectionId });
+    }
+  }
+  // Questions added since the publication are kept as they are.
+  fields.push(...liveFields);
+
+  return saveFormBuilder({ id: formId, fields, sections });
+}
+
 /** @returns {Promise<{status: number, body: Object}>} */
 export async function updateFormMetadata({ id, name, description, collection_id, visibility, tags, status, settings }) {
   if (!id) {
