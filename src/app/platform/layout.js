@@ -114,6 +114,11 @@ export default function PlatformLayout({ children }) {
   // CRM section that links to the Forms tool), falling back to their role home.
   const goBack = useSafeBack(roleHomeHref(user.role) || "/workspaces");
 
+  // A DETERMINISTIC way out of the platform workspace. "Back" depends on the
+  // in-app history, so from a deep link it can only guess; this link always
+  // lands on the person's own dashboard.
+  const dashboardHref = roleHomeHref(user.role) || "/workspaces";
+
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/session-logout", { method: "POST" });
@@ -250,6 +255,15 @@ export default function PlatformLayout({ children }) {
               <ArrowLeft className="w-3.5 h-3.5" />
               <span>{t("common.back")}</span>
             </button>
+            <span className="h-4 w-px bg-[var(--border-primary)] opacity-60" />
+            <Link
+              href={dashboardHref}
+              className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
+              title={t("navigation.dashboard")}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>{t("navigation.dashboard")}</span>
+            </Link>
             <span className="h-4 w-px bg-[var(--border-primary)] opacity-60" />
             <button
               onClick={() => switchLang(lang === "en" ? "fr" : "en")}

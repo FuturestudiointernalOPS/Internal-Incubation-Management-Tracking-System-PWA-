@@ -13,6 +13,8 @@ import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
 import AddVentureForm from "@/components/create/AddVentureForm";
+import BroadcastCensusModal from "@/components/ventures/BroadcastCensusModal";
+import { Send } from "lucide-react";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -45,6 +47,7 @@ export default function VenturesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   // The loader's work — painting from the cache first, discarding a stale
   // response, the background refresh — belongs to the hook, so the screen keeps
   // no list state of its own and never sets state from an effect. Adding a
@@ -114,6 +117,12 @@ export default function VenturesPage() {
             </h1>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => setShowBroadcastModal(true)}
+              className="btn btn-secondary gap-2 border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 font-semibold"
+            >
+              <Send className="w-4 h-4" /> Broadcast Census / Form
+            </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="btn btn-primary gap-2"
@@ -196,9 +205,18 @@ export default function VenturesPage() {
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
-                              <Rocket className="w-4 h-4" />
-                            </div>
+                            {venture.logo_url ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={venture.logo_url}
+                                alt={venture.company_name || ""}
+                                className="w-8 h-8 rounded-lg object-contain bg-[var(--surface-1)] border border-[var(--border-primary)] p-0.5 group-hover:scale-110 transition-transform shrink-0"
+                              />
+                            ) : (
+                              <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform shrink-0">
+                                <Rocket className="w-4 h-4" />
+                              </div>
+                            )}
                             <div>
                               <p className="text-sm font-bold text-[var(--text-primary)]">{venture.company_name}</p>
                               <p className="text-[10px] text-slate-500 font-medium">{venture.venture_id}</p>
@@ -263,6 +281,14 @@ export default function VenturesPage() {
           }}
         />
       </AppModal>
+
+      {/* The button above only sets this state; without the modal rendered here
+          the click did nothing at all. */}
+      <BroadcastCensusModal
+        isOpen={showBroadcastModal}
+        onClose={() => setShowBroadcastModal(false)}
+        ventures={ventures}
+      />
     </>
   );
 }

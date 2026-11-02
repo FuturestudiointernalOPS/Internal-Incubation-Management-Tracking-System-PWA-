@@ -38,12 +38,12 @@ test("the activity column no longer carries a Recent documents widget", () => {
   expect(source).toContain("notifications");
 });
 
-test("the Data Room screen no longer draws the readiness card (founder, Super Admin, staff)", () => {
+test("the Data Room draws one coverage table and one document table (founder, Super Admin, staff)", () => {
   const fs = require("node:fs");
   const source = fs.readFileSync("src/components/ventures/data-room/VentureDataRoom.js", "utf8");
-  expect(source).not.toContain("dataRoom.completeness.title");
-  expect(source).not.toContain("dataRoom.completeness.percent");
-  // the screen itself is intact: catalogue, filters and upload are still there
-  expect(source).toContain("DataRoomDocumentCard");
+  // Readiness is asked for again on purpose: it is the coverage table that answers
+  // "what is required / submitted / left", and it owns the completeness copy.
+  expect(source).toContain("DataRoomCoverage");
+  expect(source).toContain("DataRoomDocumentTable");
   expect(source).toContain("DataRoomUploadModal");
 });

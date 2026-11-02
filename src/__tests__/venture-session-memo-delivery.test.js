@@ -8,7 +8,7 @@
  *
  * The memo is the one artefact that goes OUT (a milestone record stays in, a
  * journey report goes up). It must therefore travel with every session notice:
- * to the Venture, to the coach, and to the Lead Managers — in the message the
+ * to the Venture, to the coach, and to the Venture Managers — in the message the
  * recipient reads AND in the stored template params.
  */
 const mockCreateSession = jest.fn(async () => ({ id: 42 }));
@@ -117,7 +117,7 @@ async function bookSession(overrides = {}) {
 }
 
 describe("Phase 1 — the memo travels with the session notice", () => {
-  test("the Venture, the coach and the Lead Managers are all told what the session is for", async () => {
+  test("the Venture, the coach and the Venture Managers are all told what the session is for", async () => {
     const res = await bookSession();
     expect(res.status).toBe(200);
 
@@ -131,7 +131,7 @@ describe("Phase 1 — the memo travels with the session notice", () => {
     expect(coach.message).toContain(MEMO);
     expect(coach.emailLines.join("\n")).toContain(MEMO);
 
-    // The Lead Managers, who are accountable for it.
+    // The Venture Managers, who are accountable for it.
     const leadManager = optsOf(mockNotifyLeadManagers);
     expect(leadManager.message).toContain(MEMO);
     expect(leadManager.emailLines.join("\n")).toContain(MEMO);

@@ -231,7 +231,10 @@ export function resolveLanding({
 
   const owned = (ventures || []).filter((venture) => isActiveVenture(venture) && isFounderMembership(venture));
   if (owned.length === 1 && owned[0].venture_id) {
-    return `/participant/ventures/${owned[0].venture_id}`;
+    return `/founder/ventures/${owned[0].venture_id}`;
+  }
+  if (owned.length > 1) {
+    return "/founder/ventures";
   }
 
   // An approved investor context is a relationship the badge cannot carry:

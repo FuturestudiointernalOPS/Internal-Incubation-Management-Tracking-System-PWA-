@@ -17,7 +17,7 @@ import {
 
 /**
  * The document types the Data bank asks for now live in `venture_document_types`
- * (see the model) and are defined by a Super Admin or a Lead Manager. These two
+ * (see the model) and are defined by a Super Admin or a Venture Manager. These two
  * exports are the built-in seed, kept as the load-bearing fallback for a
  * database whose configuration table cannot be read.
  */
@@ -47,7 +47,7 @@ export async function canManageVerification(ventureId, session) {
   if (session.role === "super_admin") return { allowed: true, isReviewer: true };
   if (session.role === "verification_officer") return { allowed: true, isReviewer: true };
   // The Data bank sign-off belongs to whoever leads the WHOLE Venture — the
-  // Super Admin, or its Lead Manager. This is the same rule that lets them
+  // Super Admin, or its Venture Manager. This is the same rule that lets them
   // define the Venture's Data bank documents, so the two doors agree. A scoped
   // coach reviews the milestones they were given, not the Venture's compliance
   // file, so a milestone/task-scoped assignment is deliberately not enough.

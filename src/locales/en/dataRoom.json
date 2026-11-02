@@ -14,6 +14,8 @@
     "view": "Open",
     "versions": "Version history",
     "review": "Review",
+    "grantUser": "Grant access to a user",
+    "scheduleSession": "Schedule session",
     "delete": "Delete",
     "shareAccess": "Investor access",
     "cancel": "Cancel",
@@ -21,6 +23,40 @@
     "close": "Close",
     "searchPlaceholder": "Search by title, description or file name…",
     "allCategories": "All categories",
+    "allDocuments": "All documents",
+    "fileCount": "{count} file(s)",
+    "coverage": {
+      "missing": "Not provided"
+    },
+    "standard": {
+      "document": "Document",
+      "level": "Level",
+      "status": "Status",
+      "files": "Files",
+      "required": "{count} required",
+      "missing": "{count} missing",
+      "stillToProvide": "Still to provide",
+      "documents": "Documents",
+      "actions": "Actions"
+    },
+    "folders": {
+      "pitch": {
+        "title": "Pitch & Strategy",
+        "description": "Pitch decks, 1-pagers, market research"
+      },
+      "financials": {
+        "title": "Financials & Model",
+        "description": "Projections, cap table, runway"
+      },
+      "legal": {
+        "title": "Legal & Corporate",
+        "description": "Incorporation, agreements, compliance"
+      },
+      "product": {
+        "title": "Product & Impact",
+        "description": "Architecture, team bios, progress reports"
+      }
+    },
     "allStatuses": "All statuses",
     "noDocuments": "No documents in this category yet.",
     "noMatch": "No document matches your search or filters.",

@@ -84,9 +84,9 @@ export default function VentureSupportCard({ ventureId }) {
   );
 
   const failed = Boolean(error) || (status !== null && status >= 400);
-  // ONLY the Venture's Lead Managers: the people a founder writes to. Other
+  // ONLY the Venture Managers: the people a founder writes to. Other
   // supporting staff are not listed here.
-  const isLead = (person) => person.responsibility_code === "lead_manager";
+  const isLead = (person) => person.responsibility_code === "venture_manager";
   const primary = data?.primary || null;
   const leads = (data?.current || []).filter(isLead);
   // A lead who was removed stays visible, labelled, until a replacement exists.

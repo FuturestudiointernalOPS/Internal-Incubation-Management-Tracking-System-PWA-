@@ -129,10 +129,10 @@ export async function updatePlatformFormSection({ formId, section }) {
   });
 }
 
-/** Insert a new builder section for a form, returning the created row. */
+/** Insert a new builder section for a form. Returns the created row (with its id). */
 export async function createPlatformFormSection({ formId, section }) {
   return db.execute({
-    sql: "INSERT INTO platform_form_sections (form_id, title, description, sort_order) VALUES (?, ?, ?, ?) RETURNING id",
+    sql: "INSERT INTO platform_form_sections (form_id, title, description, sort_order) VALUES (?, ?, ?, ?) RETURNING *",
     args: [parseInt(formId), section.title, section.description || null, section.sort_order || 0],
   });
 }

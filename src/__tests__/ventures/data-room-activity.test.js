@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  *
- * The Data Room activity: a coloured timeline that folds down and shows the
- * latest events first.
+ * The Data Room activity: a coloured timeline that STARTS FOLDED (history is
+ * reference, not work) and opens on a click of its header, latest events first.
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 
@@ -17,9 +17,11 @@ const history = [
 ];
 
 const view = (props) => render(<I18nProvider><DataRoomActivity kind="history" events={history} {...props} /></I18nProvider>);
+const openCard = () => fireEvent.click(screen.getByRole("button", { name: /Data Room activity/ }));
 
 test("shows only the latest events, with a count, and opens the rest on demand", () => {
   view();
+  openCard();
   expect(screen.getAllByRole("listitem")).toHaveLength(5);
   expect(screen.getByText("9")).toBeTruthy(); // total in the header
   fireEvent.click(screen.getByRole("button", { name: /Show all 9/ }));
@@ -30,6 +32,7 @@ test("shows only the latest events, with a count, and opens the rest on demand",
 
 test("each event carries what, which category, who and when", () => {
   view();
+  openCard();
   expect(screen.getByText("Document verified")).toBeTruthy();
   expect(screen.getByText("Legal & Corporate")).toBeTruthy();
   expect(screen.getAllByText("Harry").length).toBeGreaterThan(0);
@@ -37,17 +40,19 @@ test("each event carries what, which category, who and when", () => {
 
 test("verdicts are coloured: verified green, rejected and deleted red", () => {
   const { container } = view();
+  openCard();
   const tones = [...container.querySelectorAll(".dr-ico")].map((node) => node.className.replace("dr-ico", "").trim());
   expect(tones.slice(0, 3)).toEqual(["r", "g", "r"]); // deleted, verified, rejected
 });
 
-test("the whole header folds the card down to its title", () => {
+test("the card starts folded, and the header opens and closes it", () => {
   view();
-  fireEvent.click(screen.getByRole("button", { name: /Data Room activity/ }));
-  expect(screen.queryAllByRole("listitem")).toHaveLength(0);
   expect(screen.getByText("Data Room activity")).toBeTruthy();
-  fireEvent.click(screen.getByRole("button", { name: /Data Room activity/ }));
+  expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+  openCard();
   expect(screen.getAllByRole("listitem")).toHaveLength(5);
+  openCard();
+  expect(screen.queryAllByRole("listitem")).toHaveLength(0);
 });
 
 test("nothing happened yet: no empty card", () => {

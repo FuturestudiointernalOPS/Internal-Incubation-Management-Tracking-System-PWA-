@@ -263,7 +263,7 @@ describe("the enforced cell is reported truthfully", () => {
     { responsibility_code: "coach", scope_type: "venture_wide", scope_ref_type: null, scope_ref_id: null },
   ];
   const LEAD = [
-    { responsibility_code: "lead_manager", scope_type: "venture_wide", scope_ref_type: null, scope_ref_id: null },
+    { responsibility_code: "venture_manager", scope_type: "venture_wide", scope_ref_type: null, scope_ref_id: null },
   ];
 
   test("a Coach whose cell is denied reads false", async () => {
@@ -274,7 +274,7 @@ describe("the enforced cell is reported truthfully", () => {
     expect(read.body.matrix["calendar.schedule"].allowed).toBe(false);
   });
 
-  test("a Lead Manager whose cell is granted reads true", async () => {
+  test("a Venture Manager whose cell is granted reads true", async () => {
     mockWithin = true;
     mockAssignments = LEAD;
     mockMatrixAllowed = true;

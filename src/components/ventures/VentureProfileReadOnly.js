@@ -48,7 +48,7 @@ function Link({ value }) {
  * The Venture's profile exactly as its founders fill it in — name, description,
  * mission, vision, industry, sector, stage, website, country, registration and
  * social links — READ-ONLY, for the people who follow the Venture without owning
- * it (Super Admin, Lead Manager). Same fields, same labels, same order as the
+ * it (Super Admin, Venture Manager). Same fields, same labels, same order as the
  * founder's form; there is no input and no save here by design.
  */
 export default function VentureProfileReadOnly({ venture }) {

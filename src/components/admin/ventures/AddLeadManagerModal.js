@@ -10,7 +10,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppInput from "@/components/ui/AppInput";
 
 // Platform roles that represent Future Studio staff/operators — the people who
-// may carry a responsibility on a Venture. A Lead Manager is always one of
+// may carry a responsibility on a Venture. A Venture Manager is always one of
 // them (same set the staff assignment page offers).
 const STAFF_ROLES = new Set([
   "super_admin", "staff", "program_manager",
@@ -18,11 +18,11 @@ const STAFF_ROLES = new Set([
 ]);
 
 /**
- * AddLeadManagerModal — bind one staff member as the Lead Manager of a Venture,
+ * AddLeadManagerModal — bind one staff member as the Venture Manager of a Venture,
  * from the Venture itself, without leaving the page.
  *
  * It is mounted only while open, so it starts clean every time. It writes a
- * single `lead_manager` assignment (venture-wide) through the same API the
+ * single `venture_manager` assignment (venture-wide) through the same API the
  * assignment page uses, then closes. Everything else about a Venture's staff —
  * other responsibilities, scopes, removal — stays on that page, which this
  * dialog links to.
@@ -73,7 +73,7 @@ export default function AddLeadManagerModal({ onClose, ventureId }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           staff_contact_id: picked.cid,
-          responsibility_code: "lead_manager",
+          responsibility_code: "venture_manager",
           scope_type: "venture_wide",
         }),
       });

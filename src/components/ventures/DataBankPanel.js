@@ -24,13 +24,13 @@ import DataBankDocumentRow from "@/components/ventures/DataBankDocumentRow";
  *
  * The founder files the compliance documents and submits them; the sign-off
  * belongs to whoever leads the whole Venture — the Super Admin (whose own
- * screen is /admin/ventures/[id]/verification) or, here, its Lead Manager.
+ * screen is /admin/ventures/[id]/verification) or, here, its Venture Manager.
  * `canReview` is decided by the caller from the viewer's own assignments and the
  * server re-checks it on the write, so a read-only viewer never sees a control
  * that would be refused.
  *
  * Documents carry the same actions everywhere (view / download / versions /
- * delete), through the shared row — a Lead Manager reviews the file rather than
+ * delete), through the shared row — a Venture Manager reviews the file rather than
  * replacing it, so version uploads stay with the founder.
  */
 

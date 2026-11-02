@@ -50,7 +50,7 @@ export const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
-  const participant = pathname?.startsWith("/participant");
+  const participant = pathname?.startsWith("/participant") || pathname?.startsWith("/founder");
   // D-1 — a staff identity carrying the program-manager PROFILE belongs in the
   // PM space; the role alone no longer says so. The legacy value stays in the
   // table for the rollback.

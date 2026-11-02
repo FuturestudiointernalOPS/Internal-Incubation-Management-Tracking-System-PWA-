@@ -53,12 +53,25 @@ const pickPublicRun = (slug) => (payload) => {
   let draftSection = 0;
   try {
     const saved = localStorage.getItem(`form_draft_${slug}`);
-    if (saved) {
-      const draft = JSON.parse(saved);
-      if (draft.formData && typeof draft.formData === "object") {
-        draftData = draft.formData;
+    // Kept at this scope: the saved position is read further down, with the
+    // link's own parameters. It used to be declared inside the `if (saved)`
+    // block, so reading it threw and the visitor never resumed their step.
+    const draft = saved ? JSON.parse(saved) : null;
+    if (draft?.formData && typeof draft.formData === "object") {
+      draftData = draft.formData;
+    }
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const vId = sp.get("venture_id") || sp.get("vnt");
+      const vName = sp.get("name") || sp.get("startup_name");
+      if (vId) draftData.venture_id = vId;
+      if (vName) {
+        draftData.startup_name = vName;
+        draftData["Startup Name"] = vName;
+        draftData["Company Name"] = vName;
+        draftData["Nom de la startup"] = vName;
       }
-      if (typeof draft.currentSection === "number" && draft.currentSection >= 0) {
+      if (typeof draft?.currentSection === "number" && draft.currentSection >= 0) {
         draftSection = draft.currentSection;
       }
     }
@@ -376,6 +389,7 @@ export default function PublicSubmitPage() {
         body: JSON.stringify({
           slug: runId,
           data: formData,
+          venture_id: (typeof window !== "undefined" ? (new URLSearchParams(window.location.search).get("venture_id") || new URLSearchParams(window.location.search).get("vnt")) : null) || formData.venture_id || undefined,
           consent: paidRun ? consent : undefined,
           whatsapp_opt_in: paidRun ? whatsappConsent : undefined,
           language: lang,

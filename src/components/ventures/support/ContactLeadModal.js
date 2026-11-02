@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import AppModal from "@/components/ui/AppModal";
 
 /**
- * Write to the Venture Leads, inside ImpactOS.
+ * Write to the Venture Managers, inside ImpactOS.
  *
  * The message lands in each chosen lead's own Messages inbox — the platform's
  * message space — from the founder, who keeps the conversation. Nothing is sent

@@ -26,6 +26,7 @@ export default function JourneyManagerModals({ ctx }) {
     savingSave,
     savingTemplate,
     selectedTemplateId,
+    setApplyOpen,
     setForm,
     setSaveForm,
     setSaveOpen,
@@ -48,6 +49,7 @@ export default function JourneyManagerModals({ ctx }) {
         <JourneyApplyTemplateBar
           applyTemplate={applyTemplate}
           journeyTemplates={journeyTemplates}
+          onClose={() => setApplyOpen(false)}
           savingTemplate={savingTemplate}
           selectedTemplateId={selectedTemplateId}
           setSelectedTemplateId={setSelectedTemplateId}

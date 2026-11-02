@@ -35,6 +35,18 @@ const nextConfig = {
       },
     ];
   },
+  async rewrites() {
+    return [
+      {
+        source: "/founder/ventures/:path*",
+        destination: "/participant/ventures/:path*",
+      },
+      {
+        source: "/founder/ventures",
+        destination: "/participant/ventures",
+      },
+    ];
+  },
   async redirects() {
     return [
       {

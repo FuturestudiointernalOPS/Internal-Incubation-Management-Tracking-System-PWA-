@@ -1,3 +1,4 @@
+import { createAssignment } from "@/services/ventures/permissions";
 /**
  * Admin ventures — the super-admin "Add a Venture" fast-path (SERVICE layer).
  *
@@ -37,6 +38,7 @@ export async function createVentureWithFounderInvite({
   companyName,
   founderEmail,
   actor,
+  handlerId = null,
 }) {
   const name = typeof companyName === "string" ? companyName.trim() : "";
   const email = typeof founderEmail === "string" ? founderEmail.trim() : "";
@@ -69,6 +71,23 @@ export async function createVentureWithFounderInvite({
       status: 409,
       body: { success: false, error: "vadmin.list.addVentureDuplicate" },
     };
+  }
+
+
+  // If a lead manager (handler) was selected at creation, assign them immediately
+  if (handlerId && created?.venture_id) {
+    try {
+      await createAssignment({
+        ventureId: created.venture_id,
+        staffContactId: handlerId,
+        responsibilityCode: "venture_manager",
+        scopeType: "venture_wide",
+        assignedBy: actor?.cid || null,
+        notes: "Assigned as Lead Handler during venture creation",
+      });
+    } catch (handlerErr) {
+      console.warn("Failed to assign lead manager during creation:", handlerErr);
+    }
   }
 
   // The founder is invited, not written in: the invitation screen is where the

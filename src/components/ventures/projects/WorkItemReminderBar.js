@@ -318,7 +318,7 @@ export default function WorkItemReminderBar({ ventureId, item, onChanged }) {
 
       {/* The reminder goes TO the owner (and supporting people); a copy also
           reaches whoever runs the Venture, so a chase is never invisible to the
-          Lead Manager. Only an activity carries that copy. */}
+          Venture Manager. Only an activity carries that copy. */}
       {item?.kind === "activity" ? (
         <p className="text-[10px] text-[var(--text-tertiary)]">{t("venture.reminders.ccHint")}</p>
       ) : null}

@@ -141,7 +141,7 @@ export function listActiveVentureManagerVentures(cid) {
   return db.execute({
     sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS venture_id
           FROM venture_staff_assignments
-          WHERE staff_contact_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
+          WHERE staff_contact_id = ? AND responsibility_code = 'venture_manager' AND status = 'active'`,
     args: [String(cid)],
   });
 }
@@ -150,7 +150,7 @@ export function listActiveVentureManagerVentures(cid) {
 export function listVentureManagerCids() {
   return db.execute({
     sql: `SELECT DISTINCT staff_contact_id AS cid FROM venture_staff_assignments
-          WHERE responsibility_code = 'lead_manager' AND status = 'active'
+          WHERE responsibility_code = 'venture_manager' AND status = 'active'
             AND staff_contact_id IS NOT NULL`,
   });
 }

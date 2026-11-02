@@ -6,7 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, Flag, ListTodo, Calendar, FileText, Users, Inbox, Route, StickyNote, FolderKanban, FolderOpen, TrendingUp, Building2 } from "lucide-react";
+import { Loader2, Rocket, ListTodo, Calendar, Route, StickyNote, FolderKanban, FolderOpen, TrendingUp, Building2 } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
@@ -14,6 +14,9 @@ import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
+import CockpitMetrics from "@/components/ventures/cockpit/CockpitMetrics";
+import CockpitDecisions from "@/components/ventures/cockpit/CockpitDecisions";
+import CockpitSnapshot from "@/components/ventures/cockpit/CockpitSnapshot";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VentureTimelineView from "@/components/ventures/timeline/VentureTimelineView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
@@ -44,7 +47,7 @@ const TABS = [
   { id: "overview", label: "venture.overview", icon: Rocket },
   { id: "journey", label: "venture.journey", icon: Route },
   // The Project lens on the same work: every milestone, activity and deliverable
-  // in one row each — the Super Admin's "Project" button, for the Lead Manager.
+  // in one row each — the Super Admin's "Project" button, for the Venture Manager.
   { id: "projects", label: "venture.projects.pageTitle", icon: FolderKanban, leadManagerOnly: true },
   // Investment readiness: the same two indicators the founder sees (roadmap
   // progress and Data Room completeness), between the work lens and the tasks.
@@ -55,7 +58,7 @@ const TABS = [
   // The Data Room is the venture's confidential fundraising / due-diligence
   // document set (including the material shared with granted investors).
   { id: "dataRoom", label: "dataRoom.title", icon: FolderOpen },
-  // The profile the founders fill in, read-only: the Lead Manager follows the
+  // The profile the founders fill in, read-only: the Venture Manager follows the
   // Venture without owning its record.
   { id: "profile", label: "vadmin.detail.profile", icon: Building2, leadManagerOnly: true },
 ];
@@ -70,8 +73,6 @@ export default function StaffVentureWorkspace() {
   const [venture, setVenture] = useState(null);
   const [myRoles, setMyRoles] = useState([]);
   const [members, setMembers] = useState([]);
-  const [milestones, setMilestones] = useState([]);
-  const [tasks, setTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [reviewQueue, setReviewQueue] = useState([]);
   const [queueLoading, setQueueLoading] = useState(true);
@@ -92,7 +93,7 @@ export default function StaffVentureWorkspace() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const tabFromUrl = String(searchParams?.get("tab") || "");
-  const isLeadManager = myRoles.some((role) => role.responsibility_code === "lead_manager");
+  const isLeadManager = myRoles.some((role) => role.responsibility_code === "venture_manager");
   // A tab the viewer is not entitled to is not a tab they can stand on: a
   // hand-typed ?tab=projects falls back to Overview instead of an empty pane.
   // (The SERVER is still the authority — this only decides what is rendered.)
@@ -150,27 +151,23 @@ export default function StaffVentureWorkspace() {
   useEffect(() => {
     (async () => {
       try {
-        const [ventureResponse, rolesResponse, membersResponse, milestonesResponse, tasksResponse, sessionsResponse] = await Promise.all([
+        const [ventureResponse, rolesResponse, membersResponse, tasksResponse, sessionsResponse] = await Promise.all([
           fetch(`/api/ventures/${id}`),
           fetch(`/api/ventures/assigned?venture=${id}`),
           fetch(`/api/ventures/${id}/members`),
-          fetch(`/api/ventures/${id}/milestones`),
           fetch(`/api/ventures/${id}/tasks`),
           fetch(`/api/ventures/${id}/sessions`),
         ]);
         const ventureData = await ventureResponse.json();
         const rolesData = await rolesResponse.json();
         const membersData = await membersResponse.json();
-        const milestonesData = await milestonesResponse.json();
         const tasksData = await tasksResponse.json();
         const sessionsData = await sessionsResponse.json();
         if (!ventureData.success) { setNotFound(true); return; }
         setVenture(ventureData.venture);
         setMyRoles((rolesData.assignments || []).filter((role) => role.venture_id === id));
         setMembers((membersData.members || membersData.rows || []));
-        setMilestones((milestonesData.milestones || []).slice(0, 8));
         const fullTasks = tasksData.tasks || [];
-        setTasks(fullTasks.slice(0, 8));
         const taskMap = {};
         for (const task of fullTasks) if (task.id != null && task.title) taskMap[String(task.id)] = task.title;
         setTaskTitleById(taskMap);
@@ -242,6 +239,7 @@ export default function StaffVentureWorkspace() {
         brandColor={venture.branding?.color}
         ventureId={venture.venture_id}
         status={venture.status}
+        logoUrl={venture.logo_url}
         metaItems={[
           t(`venture.stages.${venture.business_stage || "idea"}`),
           venture.industry,
@@ -249,11 +247,28 @@ export default function StaffVentureWorkspace() {
         ]}
       />
 
-      {isLeadManager ? (
-        <p className="text-[10px] text-[var(--text-secondary)] rounded-lg border border-[var(--border-primary)] bg-[var(--surface-1)] px-3 py-2">
-          {t("staff.leadHome.workspaceHint")}
-        </p>
-      ) : null}
+      {/* The viewer's mandate, kept as one line rather than a card: the full
+          responsibility and its scope stay in the tooltip. */}
+      {myRoles.length > 0 && (
+        <div className="-mt-2 flex flex-wrap items-center gap-2">
+          {myRoles.map((role) => {
+            const scope =
+              role.scope_type && role.scope_type !== "venture_wide"
+                ? ` · ${role.scope_type}${role.scope_ref_id ? `: ${role.scope_ref_id}` : ""}`
+                : "";
+            const label = role.responsibility_name || role.responsibility_code;
+            return (
+              <span
+                key={role.id}
+                title={`${label}${scope}`}
+                className="rounded-lg bg-brand-orange/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]"
+              >
+                {t("staff.ventureWorkspace.myRole")}: {label}
+              </span>
+            );
+          })}
+        </div>
+      )}
 
       {/* Tabs — same bar as the Super Admin venture hub, for consistency */}
       <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
@@ -279,137 +294,20 @@ export default function StaffVentureWorkspace() {
 
       {activeTab === "overview" && (
       <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-      {/* My responsibilities on this Venture */}
-      <div className="card h-full">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Rocket className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.myRole")}
-        </h3>
-        {myRoles.length === 0 ? (
-          <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noAssignment")}</p>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {myRoles.map((role) => (
-              <span key={role.id} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)]">
-                {role.responsibility_name || role.responsibility_code}
-                {role.scope_type !== "venture_wide" && ` · ${role.scope_type}${role.scope_ref_id ? `: ${role.scope_ref_id}` : ""}`}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+      {/* Four figures first: where the work is, what waits on this person, what is
+          late, what is next. Each one is a filter link into the tab that holds it. */}
+      <CockpitMetrics ventureId={id} reviewCount={reviewQueue.length} onNavigate={selectTab} />
 
-      {/* Attention — submissions awaiting review (Coach / Venture Support) */}
-      <div className="card h-full">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-          <Inbox className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.needsAttention", { count: reviewQueue.length })}
-        </h3>
-        {queueLoading ? (
-          <p className="text-xs text-slate-500">{t("common.loading")}</p>
-        ) : reviewQueue.length === 0 ? (
-          <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.nothingToReview")}</p>
-        ) : (
-          <div className="space-y-2">
-            {reviewQueue.map((submission) => (
-              <div key={submission.submission_id} className="rounded-lg border border-[var(--border-primary)] p-3 flex flex-col md:flex-row md:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-bold text-[var(--text-primary)] truncate">{submission.task_title}</p>
-                  <p className="text-[10px] text-slate-500">
-                    {submission.milestone_title ? `${submission.milestone_title} · ` : ""}{t("staff.ventureWorkspace.submissionMeta", { version: submission.version, name: submission.submitted_by_name || t("venture.label") })} · {new Date(submission.created_at).toLocaleDateString()}
-                  </p>
-                  {submission.notes && <p className="text-[10px] text-slate-400 mt-0.5 truncate">{submission.notes}</p>}
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {submission.file_url && (
-                    <a href={submission.file_url} target="_blank" rel="noreferrer" className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded border border-[var(--border-primary)] text-slate-500 hover:text-[var(--text-primary)]">
-                      {t("venture.personal.open")}
-                    </a>
-                  )}
-                  <button onClick={() => decideSubmission(submission, "approved")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25">
-                    {t("venture.manager.approveDeliverable")}
-                  </button>
-                  <button onClick={() => decideSubmission(submission, "changes_requested")} className="text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/25">
-                    {t("venture.manager.requestChanges")}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
-        <div className="card h-full">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Users className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("staff.ventureWorkspace.foundersAndMembers", { count: members.length })}
-          </h3>
-          {members.length === 0 ? (
-            <p className="text-xs text-slate-500">{t("staff.ventureWorkspace.noMembers")}</p>
-          ) : (
-            <div className="space-y-2">
-              {members.slice(0, 6).map((member) => (
-                <div key={member.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)]">{member.contact_name || member.contact_id}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{member.member_type || "member"}</span>
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Two zones: what waits on this person, and the few facts that place the
+          Venture. The roster, roadmap and calendar have their own tabs — the
+          Overview no longer repeats them. */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <CockpitDecisions items={reviewQueue} loading={queueLoading} onDecide={decideSubmission} />
         </div>
-      {venture.description && (
-        <div className="card h-full">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">{t("staff.ventureWorkspace.about")}</h3>
-          <p className="text-sm text-[var(--text-secondary)]">{venture.description}</p>
-        </div>
-      )}
-
+        <CockpitSnapshot members={members} sessions={sessions} />
       </div>
 
-      {/* Read panes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <Flag className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.milestones")} ({milestones.length})
-          </h3>
-          {milestones.length === 0 ? (
-            <p className="text-xs text-slate-500">{t("venture.manager.noMilestones")}</p>
-          ) : (
-            <div className="space-y-2">
-              {milestones.map((milestone) => (
-                <div key={milestone.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)]">{milestone.title}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{milestone.status || "not_started"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-            <ListTodo className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.tasks")} ({tasks.length})
-          </h3>
-          {tasks.length === 0 ? (
-            <p className="text-xs text-slate-500">{t("venture.noTasksYet")}</p>
-          ) : (
-            <div className="space-y-2">
-              {tasks.map((task) => (
-                <div key={task.id} className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border-primary)]">
-                  <p className="text-xs font-medium text-[var(--text-primary)] truncate">{task.title}</p>
-                  <span className="text-[9px] uppercase tracking-widest px-2 py-0.5 rounded bg-slate-500/10 text-slate-400">{task.status || "backlog"}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-      </div>
-
-      <p className="text-[10px] text-slate-400 flex items-center gap-1.5">
-        <FileText className="w-3 h-3" /> {t("staff.ventureWorkspace.readPanesNote")}
-      </p>
       </>
       )}
 
@@ -443,7 +341,7 @@ export default function StaffVentureWorkspace() {
 
       {/* Projects — the same read the Super Admin's venture "Project" page shows.
           The server gate is `ventures.view` + venture scope, which already admits
-          the Venture's own Lead Manager; this is the surface that was missing. */}
+          the Venture's own Venture Manager; this is the surface that was missing. */}
       {activeTab === "projects" && isLeadManager && (
         <div className="flex gap-2 mb-5" role="tablist">
           {["work", "timeline"].map((option) => (
@@ -470,7 +368,7 @@ export default function StaffVentureWorkspace() {
       )}
 
       {/* WHO the work stands on: the same linking the Super Admin's Project page
-          offers, so a Lead Manager can name the people their Venture's work
+          offers, so a Venture Manager can name the people their Venture's work
           mentions and their reminders reach them. */}
       {activeTab === "projects" && isLeadManager && projectsView === "work" && (
         <div className="pt-2">

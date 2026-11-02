@@ -440,7 +440,7 @@ export const SUPPORTED_CONTEXT_ROLES = [
   ```
 
   lecture : `contextGrantsStore.js:139-147`
-  (`FROM venture_staff_assignments WHERE ... responsibility_code = 'lead_manager' AND status = 'active'`).
+  (`FROM venture_staff_assignments WHERE ... responsibility_code = 'venture_manager' AND status = 'active'`).
 
 - **FACILITATOR** : `contextGrantJustification.js:99-131` (branche
   `context === "program" && roleKey === "facilitator"`) ; lecture des

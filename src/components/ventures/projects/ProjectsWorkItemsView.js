@@ -11,7 +11,6 @@ import {
   ListChecks,
   Mail,
   PlayCircle,
-  SlidersHorizontal,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useContentTranslation } from "@/lib/hooks/useContentTranslation";
@@ -23,8 +22,10 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import KpiCard from "@/components/ui/KpiCard";
 import SectionHead from "@/components/ui/SectionHead";
 import WorkItemDetailModal from "./WorkItemDetailModal";
+import WorkItemsFilterBar from "./WorkItemsFilterBar";
 import { formatDay } from "./projectFormat";
 import { AssigneeCell, PriorityCell, StatusCell, buildPatch } from "./WorkItemInlineEdit";
+import { statusCategory } from "@/lib/workItemStatus";
 import { notify } from "@/lib/notify";
 
 /**
@@ -86,6 +87,14 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
   const [status, setStatus] = useState(ANY);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
+  // Search and Status stay on the bar; the four rarer filters live behind one
+  // toggle, so the bar stops being 800px of chrome above a list.
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Ordering is a property of the table, not of the load: no sort keeps the
+  // manager's working order (what starts today first); a sortable header
+  // switches it, and empty values sink in either direction.
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState("asc");
   // What the manager has just changed in place, per work item. It is laid over
   // the list instead of re-reading it, so the table does not blink or lose its
   // place; a refused write removes its own entry again.
@@ -97,8 +106,8 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     ...(change.priority ? { priority: change.priority } : {}),
     ...(change.status
       ? item.kind === "activity"
-        ? { stored_status: change.status }
-        : { stored_status: change.status, status: { ...item.status, id: change.status } }
+        ? { stored_status: change.status, status_category: statusCategory(change.status) }
+        : { stored_status: change.status, status: { ...item.status, id: change.status }, status_category: statusCategory(change.status) }
       : {}),
     ...("assigned_cid" in change
       ? { owner: change.assigned_name ? { name: change.assigned_name, cid: change.assigned_cid, external: !change.assigned_cid } : null }
@@ -126,6 +135,10 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     setStatus(ANY);
     setSearch("");
   };
+
+  const advancedFilterCount = [owner, supporting, journey, milestone].filter(
+    (value) => value !== ANY,
+  ).length;
 
   const patchItem = async (item, change) => {
     const { url, body } = buildPatch(ventureId, item, change);
@@ -222,7 +235,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
       if (supporting !== ANY && !(item.supporting_names || []).includes(supporting)) return false;
       if (journey !== ANY && String(item.journey?.id || "") !== journey) return false;
       if (milestone !== ANY && String(item.milestone?.id || "") !== milestone) return false;
-      if (status !== ANY && item.status?.id !== status) return false;
+      if (status !== ANY && item.status_category !== status) return false;
       if (!needle) return true;
       // Both wordings are searchable: a reader who types the original language
       // finds the row, and so does the reader who types the displayed one.
@@ -245,10 +258,38 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     });
   }, [edited, bucket, owner, supporting, journey, milestone, status, search, tv]);
 
-  const selectOptions = (values, anyLabel) => [
-    { value: ANY, label: anyLabel },
-    ...values.map((value) => ({ value, label: value })),
-  ];
+  // The table's own ordering, applied over the filtered rows. An empty value
+  // sinks to the bottom in either direction: a row with no date is not the
+  // earliest one, it is the one that says nothing.
+  const sorted = useMemo(() => {
+    if (!sortKey) return filtered;
+    const pick = (item) => {
+      if (sortKey === "owner") return item.owner?.name || "";
+      if (sortKey === "priority") return item.priority ?? "";
+      if (sortKey === "finish") return item.finish || "";
+      if (sortKey === "status") return item.status?.id || "";
+      return item.title || "";
+    };
+    const direction = sortDir === "desc" ? -1 : 1;
+    return [...filtered].sort((left, right) => {
+      const a = pick(left);
+      const b = pick(right);
+      if (!a && !b) return 0;
+      if (!a) return 1;
+      if (!b) return -1;
+      if (a === b) return 0;
+      return a > b ? direction : -direction;
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const toggleSort = (key) => {
+    if (key === sortKey) {
+      setSortDir((direction) => (direction === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  };
 
   // Five columns, each answering one question: what, who, when, in what state,
   // and where in the Journey. Related facts share a cell so a row reads at a glance.
@@ -272,6 +313,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     {
       key: "owner",
       label: t("venture.tasksPanel.assignee"),
+      sortable: true,
       render: (_value, item) => (
         <div className="min-w-[170px]">
           <AssigneeCell item={item} disabled={saving.has(item.id)} onChange={(change) => patchItem(item, change)} />
@@ -286,6 +328,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     {
       key: "priority",
       label: t("venture.priority"),
+      sortable: true,
       render: (_value, item) => (
         <PriorityCell item={item} disabled={saving.has(item.id)} onChange={(change) => patchItem(item, change)} />
       ),
@@ -293,6 +336,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     {
       key: "finish",
       label: t("venture.projects.dates"),
+      sortable: true,
       render: (_value, item) => (
         <div className="whitespace-nowrap text-[13px] leading-relaxed">
           <p className="text-[var(--text-secondary)]">
@@ -309,6 +353,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     {
       key: "status",
       label: t("venture.projects.status"),
+      sortable: true,
       render: (_value, item) => (
         <StatusCell item={item} disabled={saving.has(item.id)} onChange={(change) => patchItem(item, change)} />
       ),
@@ -398,90 +443,34 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
         </div>
       )}
 
-      {/* FILTERS — every option is drawn from the loaded work, never hardcoded,
-          and the whole set sits on one line: search, then one compact dropdown
-          per fact. The list below is the screen. */}
-      <div className="stf-bar" style={{ marginBottom: 10 }}>
-        <span className="stf-k" style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "none" }}>
-          <SlidersHorizontal size={13} /> {t("venture.projects.filters")}
-        </span>
-        <input
-          className="stf-input"
-          style={{ flex: "2 1 200px" }}
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder={t("venture.projects.searchPlaceholder")}
-          aria-label={t("common.search")}
-        />
-        <select
-          className="stf-input"
-          style={{ flex: "1 1 130px" }}
-          value={owner}
-          onChange={(event) => setOwner(event.target.value)}
-          aria-label={t("venture.manager.milestoneOwner")}
-          title={t("venture.manager.milestoneOwner")}
-        >
-          {selectOptions(options.owners || [], t("venture.manager.milestoneOwner")).map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-        <select
-          className="stf-input"
-          style={{ flex: "1 1 130px" }}
-          value={supporting}
-          onChange={(event) => setSupporting(event.target.value)}
-          aria-label={t("venture.manager.supporting")}
-          title={t("venture.manager.supporting")}
-        >
-          {selectOptions(options.supporting || [], t("venture.manager.supporting")).map((option) => (
-            <option key={option.value} value={option.value}>{option.label}</option>
-          ))}
-        </select>
-        <select
-          className="stf-input"
-          style={{ flex: "1 1 120px" }}
-          value={status}
-          onChange={(event) => setStatus(event.target.value)}
-          aria-label={t("venture.projects.status")}
-          title={t("venture.projects.status")}
-        >
-          <option value={ANY}>{t("venture.projects.status")}</option>
-          {(options.statuses || []).map((entry) => (
-            <option key={entry.id} value={entry.id}>{t(entry.key)}</option>
-          ))}
-        </select>
-        <select
-          className="stf-input"
-          style={{ flex: "1 1 140px" }}
-          value={journey}
-          onChange={(event) => setJourney(event.target.value)}
-          aria-label={t("venture.projects.journey")}
-          title={t("venture.projects.journey")}
-        >
-          <option value={ANY}>{t("venture.projects.journey")}</option>
-          {(options.journeys || []).map((entry) => (
-            <option key={entry.id} value={String(entry.id)}>{tv(entry.name)}</option>
-          ))}
-        </select>
-        <select
-          className="stf-input"
-          style={{ flex: "1 1 140px" }}
-          value={milestone}
-          onChange={(event) => setMilestone(event.target.value)}
-          aria-label={t("venture.projects.milestone")}
-          title={t("venture.projects.milestone")}
-        >
-          <option value={ANY}>{t("venture.projects.milestone")}</option>
-          {(options.milestones || []).map((entry) => (
-            <option key={entry.id} value={String(entry.id)}>{tv(entry.title)}</option>
-          ))}
-        </select>
-        {hasFilters && (
-          <button type="button" className="stf-link-btn" style={{ flex: "none" }} onClick={clearFilters}>
-            {t("venture.projects.clearFilters")}
-          </button>
-        )}
-      </div>
+      {/* FILTERS — search and Status stay on the bar; the four rarer facts sit
+          behind one toggle, so the list is not preceded by a wall of dropdowns. */}
+      <WorkItemsFilterBar
+        ANY={ANY}
+        advancedFilterCount={advancedFilterCount}
+        clearFilters={clearFilters}
+        filtersOpen={filtersOpen}
+        hasFilters={hasFilters}
+        journey={journey}
+        journeys={options.journeys || []}
+        milestone={milestone}
+        milestones={options.milestones || []}
+        owner={owner}
+        owners={options.owners || []}
+        search={search}
+        setFiltersOpen={setFiltersOpen}
+        setJourney={setJourney}
+        setMilestone={setMilestone}
+        setOwner={setOwner}
+        setSearch={setSearch}
+        setStatus={setStatus}
+        setSupporting={setSupporting}
+        status={status}
+        statuses={options.status_categories || []}
+        supporting={supporting}
+        supportingOptions={options.supporting || []}
+        tv={tv}
+      />
 
       <SectionHead
         icon={ListChecks}
@@ -495,6 +484,11 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
           ) : null
         }
       />
+
+      {/* Inline editing already works; the page just never said so. */}
+      <p className="stf-small" style={{ marginTop: -6, marginBottom: 8 }}>
+        {t("venture.projects.editableHint")}
+      </p>
 
       {/* The source text stays on screen while the answer lands — no spinner
           over the list, only a quiet note that the wording is still settling. */}
@@ -519,7 +513,15 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
       ) : filtered.length === 0 ? (
         <AppEmptyState title={t("venture.projects.empty")} description={t("venture.projects.emptyHint")} />
       ) : (
-        <AppTable roomy columns={columns} data={filtered} onRowClick={(item) => setSelected(item)} />
+        <AppTable
+          roomy
+          columns={columns}
+          data={sorted}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={toggleSort}
+          onRowClick={(item) => setSelected(item)}
+        />
       )}
 
       <WorkItemDetailModal

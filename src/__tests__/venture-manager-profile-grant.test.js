@@ -1,5 +1,5 @@
 /**
- * Making someone the Venture's Lead Manager must also grant the CAPABILITY.
+ * Making someone the Venture Manager must also grant the CAPABILITY.
  *
  * THE DEFECT THIS LOCKS SHUT (found on production, real person)
  *
@@ -60,17 +60,17 @@ beforeEach(() => {
   mockInsertAssignment.mockResolvedValue({ lastInsertRowid: 11 });
   mockRemoveAssignmentRow.mockResolvedValue({ rows: [] });
   mockSelectAssignmentRow.mockResolvedValue({
-    rows: [{ staff_contact_id: "C1", responsibility_code: "lead_manager" }],
+    rows: [{ staff_contact_id: "C1", responsibility_code: "venture_manager" }],
   });
   mockSyncContextGrants.mockResolvedValue({ success: true });
 });
 
-describe("appointing a Venture Lead Manager", () => {
+describe("appointing a Venture Manager", () => {
   test("opens the Venture Manager profile for that person", async () => {
     await createAssignment({
       ventureId: "VNT-1",
       staffContactId: "C1",
-      responsibilityCode: "lead_manager",
+      responsibilityCode: "venture_manager",
     });
 
     expect(mockInsertAssignment).toHaveBeenCalled();
@@ -94,14 +94,14 @@ describe("appointing a Venture Lead Manager", () => {
     const result = await createAssignment({
       ventureId: "VNT-1",
       staffContactId: "C1",
-      responsibilityCode: "lead_manager",
+      responsibilityCode: "venture_manager",
     });
 
     expect(result).toEqual({ success: true, id: 11 });
   });
 });
 
-describe("removing a Lead Manager assignment", () => {
+describe("removing a Venture Manager assignment", () => {
   test("reads the row first, then reconciles the profile", async () => {
     await removeAssignment({ id: 7 });
 

@@ -101,7 +101,7 @@ export async function GET(req, { params }) {
     });
 
     // Milestone STRUCTURE authority (add / remove / duplicate / reorder) is
-    // Lead Manager or Super Admin only — the panel hides those controls when
+    // Venture Manager or Super Admin only — the panel hides those controls when
     // this is false. Never granted to members.
     let milestoneAuthority = false;
     if (viewer) {

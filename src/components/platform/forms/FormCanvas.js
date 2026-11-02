@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChevronUp, ChevronDown, Trash2, FileText } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import FieldPreview from "./FieldPreview";
@@ -8,6 +9,9 @@ export default function FormCanvas({
   onUpdate, onMove, onRemove, onAddOption, onUpdateOption, onRemoveOption,
 }) {
   const { t } = useI18n();
+  // Target for the bulk move of unassigned fields. Defaults to the first section
+  // so the control is usable without a second click.
+  const [bulkTarget, setBulkTarget] = useState(null);
   const formFieldsForSection = (sectionId) => fields.filter((field) => field.section_id === sectionId);
   const orphanFields = fields.filter((field) => !field.section_id);
   const renderField = (field) => (
@@ -60,9 +64,40 @@ export default function FormCanvas({
         {/* Orphan Fields (legacy — should be empty with new architecture) */}
         {orphanFields.length > 0 && (
           <div className="space-y-3 pt-4 border-t-2 border-dashed border-amber-500/30">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-amber-500/70">
-              {t("platformMisc.forms.orphanFieldsTitle", { count: orphanFields.length })}
-            </p>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-500/70">
+                {t("platformMisc.forms.orphanFieldsTitle", { count: orphanFields.length })}
+              </p>
+              {/* One click puts every unassigned field back into a section — the
+                  per-field dropdown stays for the cases that need it. */}
+              {sections.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+                    {t("platformMisc.forms.orphanAssignAllTo")}
+                  </span>
+                  <select
+                    value={bulkTarget || sections[0]?.id || ""}
+                    onChange={(event) => setBulkTarget(event.target.value)}
+                    className="px-2 py-1 rounded-lg bg-primary border border-[var(--border-primary)] text-[10px] font-bold text-[var(--text-primary)] outline-none"
+                  >
+                    {sections.map((section) => (
+                      <option key={section.id} value={section.id}>{section.title}</option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const target = bulkTarget || sections[0]?.id;
+                      if (!target) return;
+                      for (const field of orphanFields) onUpdate(field._tmpId, { section_id: target });
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-[var(--brand-orange)] text-black text-[9px] font-black uppercase tracking-widest"
+                  >
+                    {t("platformMisc.forms.orphanAssignAll")}
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
               {orphanFields.map((field) => <div key={field._tmpId}>{renderField(field)}</div>)}
             </div>

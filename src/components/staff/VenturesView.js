@@ -33,7 +33,7 @@ function formatShortDate(value) {
 /**
  * Staff → Ventures.
  *
- * Lead Managers land on an operational "My day" home (KPIs + urgency queue +
+ * Venture Managers land on an operational "My day" home (KPIs + urgency queue +
  * enriched Mes Ventures). Staff with only coach/facilitator assignments keep
  * the simpler assignment list (same source of truth: their own rows).
  */
@@ -57,7 +57,7 @@ export default function VenturesView() {
   });
 
   const home = homeRead.data;
-  const isLeadManager = Boolean(home?.is_lead_manager);
+  const isLeadManager = Boolean(home?.is_venture_manager);
   const kpis = home?.kpis || null;
   const queue = useMemo(
     () => (Array.isArray(home?.queue) ? home.queue : []),
@@ -103,7 +103,7 @@ export default function VenturesView() {
     return <div className="stf"><div className="stf-empty">{t("common.loading")}</div></div>;
   }
 
-  // Lead Manager operational home
+  // Venture Manager operational home
   if (isLeadManager) {
     return (
       <div className="stf" style={{ paddingBottom: 60 }}>
@@ -324,7 +324,7 @@ export default function VenturesView() {
     );
   }
 
-  // Fallback: coach / facilitator / other assignments (non–lead_manager)
+  // Fallback: coach / facilitator / other assignments (non–venture_manager)
   const ventures = new Set(assignments.map((assignment) => assignment.venture_id)).size;
   const active = assignments.filter((assignment) => String(assignment.status).toLowerCase() === "active").length;
 

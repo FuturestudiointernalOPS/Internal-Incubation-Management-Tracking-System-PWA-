@@ -13,6 +13,7 @@ import EmailsTab from "@/components/platform/runs/EmailsTab";
 import SettingsTab from "@/components/platform/runs/SettingsTab";
 import ShareTab from "@/components/platform/runs/ShareTab";
 import TemplatesTab from "@/components/platform/runs/TemplatesTab";
+import GeneralAnalyticsTab from "@/components/platform/runs/GeneralAnalyticsTab";
 
 export default function RunAdminTabs({ retryAbortRef, runRetryEmails, ctx }) {
   const {
@@ -104,6 +105,8 @@ export default function RunAdminTabs({ retryAbortRef, runRetryEmails, ctx }) {
 
   return (
     <>
+        {/* ─── GENERAL ANALYTICS TAB ─── */}
+        {detailTab === "analytics" && <GeneralAnalyticsTab selectedRun={selectedRun} />}
         {/* ─── EMAILS TAB ─── */}
         {detailTab === "emails" && (
           <EmailsTab
