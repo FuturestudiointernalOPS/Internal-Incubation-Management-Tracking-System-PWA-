@@ -281,6 +281,14 @@ export default function VenturesPage() {
           }}
         />
       </AppModal>
+
+      {/* The button above only sets this state; without the modal rendered here
+          the click did nothing at all. */}
+      <BroadcastCensusModal
+        isOpen={showBroadcastModal}
+        onClose={() => setShowBroadcastModal(false)}
+        ventures={ventures}
+      />
     </>
   );
 }

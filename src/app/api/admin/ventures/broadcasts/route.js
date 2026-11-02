@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import {
   selectActiveBroadcasts,
   selectAllBroadcasts,
@@ -43,11 +44,11 @@ export async function GET(req) {
       } else if (latest.target_scope === "segment" && latest.target_segment) {
         // Query venture program_type or stage
         const vRes = await db.execute({
-          sql: "SELECT program_type, stage FROM ventures WHERE id::text = ? OR vnt_id = ? LIMIT 1",
+          sql: "SELECT programme_type, stage FROM ventures WHERE id::text = ? OR venture_id = ? LIMIT 1",
           args: [ventureId, ventureId],
         });
         const v = vRes.rows[0];
-        if (v && (v.program_type === latest.target_segment || v.stage === latest.target_segment)) {
+        if (v && (v.programme_type === latest.target_segment || v.stage === latest.target_segment)) {
           isTargeted = true;
         }
       }
@@ -114,6 +115,10 @@ export async function POST(req) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+    // Broadcasting mails every targeted founder, so it is a Ventures WRITE, not
+    // something any signed-in account may do. Super Admin bypasses capabilities.
+    const authError = await requireAuthorization("ventures", "edit");
+    if (authError) return authError;
 
     const body = await req.json();
     const {
@@ -145,6 +150,18 @@ export async function POST(req) {
     const runId = runRes.rows[0]?.id || null;
     const broadcastTitle = title || runRes.rows[0]?.name || "Venture Performance Census";
 
+    // A link nobody can open is not a broadcast. Inserting it anyway made every
+    // banner and every emailed button point at a dead /s/<slug> page.
+    if (!runId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `No form run matches "${slug}". Publish the form first, then paste the /s/ link of the run you want to broadcast.`,
+        },
+        { status: 400 },
+      );
+    }
+
     // Insert broadcast
     const insertRes = await insertVentureBroadcast({
       title: broadcastTitle,
@@ -163,9 +180,11 @@ export async function POST(req) {
     // Optional email blast to lead founders
     let emailStats = { sent: 0, failed: 0, recipients: [] };
     if (send_email) {
-      // Find eligible ventures
-      let venturesSql = `
-        SELECT v.id, v.name, v.vnt_id, v.program_type, v.stage,
+      // Column names follow the live schema: `venture_id`, `programme_type`.
+      // The old query asked for `vnt_id` / `program_type`, which do not exist —
+      // so every broadcast WITH email failed with a 500 before sending anything.
+      const venturesSql = `
+        SELECT v.id, v.venture_id, v.name, v.programme_type, v.stage,
                c.name as founder_name, c.email as founder_email
         FROM ventures v
         LEFT JOIN LATERAL (
@@ -186,21 +205,26 @@ export async function POST(req) {
       // Filter by scope
       if (target_scope === "custom") {
         ventures = ventures.filter(
-          (v) => target_venture_ids.includes(String(v.id)) || target_venture_ids.includes(String(v.vnt_id))
+          (v) => target_venture_ids.includes(String(v.id)) || target_venture_ids.includes(String(v.venture_id))
         );
       } else if (target_scope === "segment" && target_segment) {
         ventures = ventures.filter(
-          (v) => v.program_type === target_segment || v.stage === target_segment
+          (v) => v.programme_type === target_segment || v.stage === target_segment
         );
       }
 
       const origin = process.env.NEXT_PUBLIC_APP_URL || "https://impactos.futurestudio.bj";
 
       for (const venture of ventures) {
-        if (!venture.founder_email || !venture.founder_email.includes("@")) continue;
+        if (!venture.founder_email || !venture.founder_email.includes("@")) {
+          // The result panel calls this counter "Failed / Missing Email", so a
+          // venture with no address must land here instead of vanishing.
+          emailStats.failed++;
+          continue;
+        }
 
         const magicLink = `${origin}/s/${slug}?venture_id=${encodeURIComponent(
-          venture.vnt_id || venture.id
+          venture.venture_id || venture.id
         )}&name=${encodeURIComponent(venture.name)}`;
 
         const emailHtml = `
@@ -262,6 +286,8 @@ export async function PATCH(req) {
     if (!session) {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
+    const authError = await requireAuthorization("ventures", "edit");
+    if (authError) return authError;
 
     const { id, is_active } = await req.json();
     const updateRes = await updateBroadcastStatus(id, is_active);

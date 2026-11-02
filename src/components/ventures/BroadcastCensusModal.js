@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppButton from "@/components/ui/AppButton";
+import { useDialogs } from "@/components/ui/DialogProvider";
 
 /**
  * BroadcastCensusModal
@@ -21,7 +22,11 @@ import AppButton from "@/components/ui/AppButton";
  * 3. Activate on startup dashboards & optionally blast emails to lead founders
  */
 export default function BroadcastCensusModal({ isOpen, onClose, ventures = [], onBroadcastCreated }) {
-  const [link, setLink] = useState("https://impactos.futurestudio.bj/s/r619232621d");
+  const { alert } = useDialogs();
+  // No default link: the field used to start with a demo slug, so pressing
+  // Broadcast without editing it targeted a run that does not exist and mailed
+  // every founder a dead link.
+  const [link, setLink] = useState("");
   const [title, setTitle] = useState("Future Studio Startup Performance & Impact Census");
   const [message, setMessage] = useState(
     "Please take 3-5 minutes to complete this performance & impact census for your startup. Unanswered or pre-stage metrics can be left blank."
@@ -38,6 +43,11 @@ export default function BroadcastCensusModal({ isOpen, onClose, ventures = [], o
 
   const activeVentures = ventures.filter((v) => v.status === "active" || !v.status);
 
+  // `venture_id` (VNT-…) is what a founder's dashboard and the emailed link use
+  // to identify itself. `vnt_id` never existed, so custom targeting used to
+  // store the internal id and never matched the venture it was aimed at.
+  const ventureKey = (v) => String(v.venture_id || v.id);
+
   const handleToggleVenture = (vId) => {
     setSelectedVentureIds((prev) =>
       prev.includes(vId) ? prev.filter((id) => id !== vId) : [...prev, vId]
@@ -48,13 +58,17 @@ export default function BroadcastCensusModal({ isOpen, onClose, ventures = [], o
     if (selectedVentureIds.length === activeVentures.length) {
       setSelectedVentureIds([]);
     } else {
-      setSelectedVentureIds(activeVentures.map((v) => String(v.id || v.vnt_id)));
+      setSelectedVentureIds(activeVentures.map(ventureKey));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!link.trim()) return;
+    if (targetScope === "custom" && selectedVentureIds.length === 0) {
+      await alert({ message: "Select at least one startup to broadcast to." });
+      return;
+    }
 
     setLoading(true);
     setResult(null);
@@ -80,10 +94,10 @@ export default function BroadcastCensusModal({ isOpen, onClose, ventures = [], o
         setResult(data);
         if (onBroadcastCreated) onBroadcastCreated(data);
       } else {
-        alert(data.error || "Failed to broadcast form");
+        await alert({ message: data.error || "Failed to broadcast form", tone: "danger" });
       }
     } catch (err) {
-      alert("Error broadcasting: " + err.message);
+      await alert({ message: "Error broadcasting: " + err.message, tone: "danger" });
     } finally {
       setLoading(false);
     }
@@ -292,7 +306,7 @@ export default function BroadcastCensusModal({ isOpen, onClose, ventures = [], o
                   </div>
                   <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                     {activeVentures.map((v) => {
-                      const idStr = String(v.id || v.vnt_id);
+                      const idStr = ventureKey(v);
                       const isChecked = selectedVentureIds.includes(idStr);
                       return (
                         <label
@@ -309,7 +323,7 @@ export default function BroadcastCensusModal({ isOpen, onClose, ventures = [], o
                             {v.company_name || v.name}
                           </span>
                           <span className="text-[10px] text-[var(--text-secondary)]">
-                            ({v.vnt_id || v.stage || "Active"})
+                            ({v.venture_id || v.stage || "Active"})
                           </span>
                         </label>
                       );
