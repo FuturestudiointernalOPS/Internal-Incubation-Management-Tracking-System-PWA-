@@ -25,6 +25,7 @@ import WorkItemDetailModal from "./WorkItemDetailModal";
 import WorkItemsFilterBar from "./WorkItemsFilterBar";
 import { formatDay } from "./projectFormat";
 import { AssigneeCell, PriorityCell, StatusCell, buildPatch } from "./WorkItemInlineEdit";
+import { statusCategory } from "@/lib/workItemStatus";
 import { notify } from "@/lib/notify";
 
 /**
@@ -105,8 +106,8 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
     ...(change.priority ? { priority: change.priority } : {}),
     ...(change.status
       ? item.kind === "activity"
-        ? { stored_status: change.status }
-        : { stored_status: change.status, status: { ...item.status, id: change.status } }
+        ? { stored_status: change.status, status_category: statusCategory(change.status) }
+        : { stored_status: change.status, status: { ...item.status, id: change.status }, status_category: statusCategory(change.status) }
       : {}),
     ...("assigned_cid" in change
       ? { owner: change.assigned_name ? { name: change.assigned_name, cid: change.assigned_cid, external: !change.assigned_cid } : null }
@@ -234,7 +235,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
       if (supporting !== ANY && !(item.supporting_names || []).includes(supporting)) return false;
       if (journey !== ANY && String(item.journey?.id || "") !== journey) return false;
       if (milestone !== ANY && String(item.milestone?.id || "") !== milestone) return false;
-      if (status !== ANY && item.status?.id !== status) return false;
+      if (status !== ANY && item.status_category !== status) return false;
       if (!needle) return true;
       // Both wordings are searchable: a reader who types the original language
       // finds the row, and so does the reader who types the displayed one.
@@ -465,7 +466,7 @@ export default function ProjectsWorkItemsView({ ventureId, emailsHref = null }) 
         setStatus={setStatus}
         setSupporting={setSupporting}
         status={status}
-        statuses={options.statuses || []}
+        statuses={options.status_categories || []}
         supporting={supporting}
         supportingOptions={options.supporting || []}
         tv={tv}

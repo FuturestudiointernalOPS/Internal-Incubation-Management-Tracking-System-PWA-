@@ -1021,6 +1021,12 @@
       "work": "Travail",
       "type": "Type",
       "status": "Statut",
+      "statusCategories": {
+        "toDo": "À faire",
+        "inProgress": "En cours",
+        "blocked": "Bloqué",
+        "done": "Terminé"
+      },
       "journey": "Parcours",
       "milestone": "Jalon",
       "parent": "Rattaché à",
