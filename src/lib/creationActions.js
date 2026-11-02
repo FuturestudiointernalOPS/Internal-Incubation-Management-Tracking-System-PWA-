@@ -11,7 +11,7 @@
  * This module is the ONE list of those doors, shared by:
  *   - `CreateActions`, the button row rendered on the dashboards and on the
  *     Programmes / Ventures views (never a sidebar section of its own);
- *   - the `/create` guard and hub page;
+ *   - the `/create` guard;
  *   - each `/create/*` page's own gate.
  *
  * Server routes stay authoritative: they check the capability themselves.
