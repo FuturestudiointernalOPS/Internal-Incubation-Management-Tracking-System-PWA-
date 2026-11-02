@@ -389,7 +389,7 @@ export default function ResponsesPage() {
                           placeholder={t("crm.responses.searchList")}
                           value={search}
                           onChange={(event) => setSearch(event.target.value)}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-white outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-[var(--text-primary)] outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
                         />
                       </div>
                       <button

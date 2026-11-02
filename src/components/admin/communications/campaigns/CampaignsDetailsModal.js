@@ -132,7 +132,7 @@ export default function CampaignsDetailsModal({
 
                 <div className="relative">
                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 w-4 h-4" />
-                   <input type="text" placeholder={t('crm.campaigns.searchAudience')} value={searchContacts} onChange={event => setSearchContacts(event.target.value)} className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-[10px] text-white outline-none" />
+                   <input type="text" placeholder={t('crm.campaigns.searchAudience')} value={searchContacts} onChange={event => setSearchContacts(event.target.value)} className="w-full bg-white/5 border border-white/5 rounded-xl py-2 pl-9 pr-4 text-[10px] text-[var(--text-primary)] outline-none" />
                 </div>
                 
                 <div className="max-h-[350px] overflow-y-auto custom-scrollbar space-y-2 border-t border-white/5 pt-4">

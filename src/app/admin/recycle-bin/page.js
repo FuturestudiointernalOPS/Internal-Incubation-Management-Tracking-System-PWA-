@@ -90,7 +90,7 @@ export default function RecycleBinPage() {
 
         <div className="relative">
           <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input type="text" placeholder={t('adminMisc.recycleBin.searchPlaceholder')} value={search} onChange={event => setSearch(event.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600] transition-all" />
+          <input type="text" placeholder={t('adminMisc.recycleBin.searchPlaceholder')} value={search} onChange={event => setSearch(event.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600] transition-all" />
         </div>
 
         {loading ? (

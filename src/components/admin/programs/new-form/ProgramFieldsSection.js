@@ -30,7 +30,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, name: event.target.value })
             }
             placeholder={t("adminMisc.newProgram.namePlaceholder")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
           />
         </div>
         <div className="space-y-2">
@@ -47,7 +47,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, start_date: startDate });
               validateDates(startDate, program.end_date);
             }}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
           />
         </div>
         <div className="space-y-2">
@@ -63,7 +63,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, end_date: endDate });
               validateDates(program.start_date, endDate);
             }}
-            className={`w-full bg-secondary border rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all ${dateError ? "border-rose-500" : "border-[var(--border-primary)]"}`}
+            className={`w-full bg-secondary border rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all ${dateError ? "border-rose-500" : "border-[var(--border-primary)]"}`}
           />
           {dateError && (
             <p className="text-[10px] font-bold uppercase tracking-widest text-rose-400 mt-1 ml-2">
@@ -100,7 +100,7 @@ export default function ProgramFieldsSection({
               onChange={(event) =>
                 setProgram({ ...program, program_type: event.target.value })
               }
-              className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="flex-1 bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
             >
               <option value="incubation">
                 {t("admin.programTypes.incubation")}
@@ -140,7 +140,7 @@ export default function ProgramFieldsSection({
                 value={newTypeInput}
                 onChange={(event) => setNewTypeInput(event.target.value)}
                 placeholder={t("adminMisc.newProgram.newTypePlaceholder")}
-                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-3 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+                className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
               />
               <button
                 type="button"
@@ -161,7 +161,7 @@ export default function ProgramFieldsSection({
             onChange={(event) =>
               setProgram({ ...program, visibility: event.target.value })
             }
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
           >
             <option value="private">
               {t("admin.visibilityOptions.private")}
@@ -183,7 +183,7 @@ export default function ProgramFieldsSection({
             onChange={(event) =>
               setProgram({ ...program, language: event.target.value })
             }
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
           >
             <option value="en">English</option>
             <option value="fr">French</option>
@@ -203,7 +203,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, vision: event.target.value })
             }
             placeholder={t("adminMisc.newProgram.visionPlaceholder")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
           />
         </div>
         <div className="space-y-2">
@@ -217,7 +217,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, objectives: event.target.value })
             }
             placeholder={t("adminMisc.newProgram.objectivesPlaceholder")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
           />
         </div>
       </div>
@@ -235,7 +235,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, expected_outcomes: event.target.value })
             }
             placeholder={t("adminMisc.newProgram.expectedOutcomesPlaceholder")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
           />
         </div>
         <div className="space-y-2">
@@ -249,7 +249,7 @@ export default function ProgramFieldsSection({
               setProgram({ ...program, success_metrics: event.target.value })
             }
             placeholder={t("adminMisc.newProgram.successMetricsPlaceholder")}
-            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+            className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
           />
         </div>
       </div>

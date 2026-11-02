@@ -46,7 +46,7 @@ export default function ConceptNoteSection({ t, program, setProgram }) {
             setProgram({ ...program, description: event.target.value })
           }
           placeholder={t("adminMisc.newProgram.conceptNotePlaceholder")}
-          className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-white outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 font-medium text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all resize-none"
         />
       )}
 
@@ -59,7 +59,7 @@ export default function ConceptNoteSection({ t, program, setProgram }) {
             setProgram({ ...program, conceptNoteLink: event.target.value })
           }
           placeholder="https://docs.google.com/..."
-          className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+          className="w-full bg-secondary border border-[var(--border-primary)] rounded-2xl p-6 text-lg font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
         />
       )}
 
@@ -83,7 +83,7 @@ export default function ConceptNoteSection({ t, program, setProgram }) {
           />
           <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-[var(--border-primary)] rounded-2xl group-hover:border-[var(--brand-orange)] transition-all bg-primary/50">
             <Upload className="w-8 h-8 text-slate-500 group-hover:text-[var(--brand-orange)] mb-3 transition-all" />
-            <p className="text-[10px] font-bold uppercase tracking-widest text-white/60 group-hover:text-white transition-all">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-all">
               {program.conceptNoteFile ||
                 t("adminMisc.newProgram.clickToUpload")}
             </p>

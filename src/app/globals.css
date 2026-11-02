@@ -515,6 +515,24 @@
 :root:not([data-theme="dark"]) :is(.text-purple-400, .text-purple-500, .text-violet-400, .text-violet-500) { color: #7e22ce; }
 :root:not([data-theme="dark"]) .text-slate-400 { color: var(--text-secondary); }
 
+/* ─────────────────────────────────────────────
+   LIGHT MODE — READABLE FORM FIELD VALUES
+   Some fields still carry Tailwind's `text-white`, written for the dark theme,
+   on a theme surface that turns white in light mode: the value the user types
+   is white-on-white. Their foreground is also fixed where it is written; this
+   is the safety net for the ones nobody has touched yet.
+   Only theme surfaces are targeted, so the always-dark public pages (form,
+   invite, registration) keep their white text. Dark mode is untouched.
+   ───────────────────────────────────────────── */
+:root:not([data-theme="dark"])
+    :is(input, textarea, select)[class*="text-white"]:is(
+        [class*="bg-secondary"],
+        [class*="bg-primary"],
+        [class*="bg-surface-"]
+    ) {
+    color: var(--text-primary);
+}
+
 /* ── Global type scale: the arbitrary px sizes (text-[10px] …) were too small to read.
    Each one is lifted ~1.5px; the rem sizes follow the 15px root above. ── */
 html .text-\[6px\] { font-size: 8px; }

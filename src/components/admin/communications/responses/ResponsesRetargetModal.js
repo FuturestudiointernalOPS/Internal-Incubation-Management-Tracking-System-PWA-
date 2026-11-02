@@ -51,7 +51,7 @@ export default function ResponsesRetargetModal({
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
               placeholder={t("crm.responses.campaignNamePlaceholder")}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-white outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 pb-2 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/80/50 focus:bg-white/10 transition-colors font-bold"
             />
           </div>
           <div className="pt-4">

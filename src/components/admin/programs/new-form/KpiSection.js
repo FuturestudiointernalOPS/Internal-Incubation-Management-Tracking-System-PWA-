@@ -10,7 +10,7 @@ export default function KpiSection({ t, kpisList, setKpisList, kpiInput, setKpiI
             <Target className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <h3 className="text-xl font-black text-white uppercase tracking-tight">
+            <h3 className="text-xl font-black text-[var(--text-primary)] uppercase tracking-tight">
               {t("adminMisc.newProgram.strategicKpisConfiguration")}
             </h3>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mt-1">
@@ -39,7 +39,7 @@ export default function KpiSection({ t, kpisList, setKpisList, kpiInput, setKpiI
               onChange={(event) =>
                 setKpiInput({ ...kpiInput, title: event.target.value })
               }
-              className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)]"
+              className="flex-1 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)]"
             />
             <input
               type="number"
@@ -49,7 +49,7 @@ export default function KpiSection({ t, kpisList, setKpisList, kpiInput, setKpiI
               onChange={(event) =>
                 setKpiInput({ ...kpiInput, target_value: parseInt(event.target.value) || 0 })
               }
-              className="w-20 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] text-center"
+              className="w-20 bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] text-center"
               placeholder="%"
             />
             <button
@@ -99,7 +99,7 @@ export default function KpiSection({ t, kpisList, setKpisList, kpiInput, setKpiI
                 className="flex items-center justify-between p-4 bg-white/[0.02] border border-[var(--border-primary)] rounded-xl group hover:border-brand-orange/30 transition-all text-left"
               >
                 <div>
-                  <p className="text-xs font-bold text-white uppercase tracking-tighter">
+                  <p className="text-xs font-bold text-[var(--text-primary)] uppercase tracking-tighter">
                     {kpi.title}
                     <span className="text-[var(--brand-orange)] ml-2">
                       {kpi.target_value}%

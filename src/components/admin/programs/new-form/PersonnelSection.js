@@ -34,7 +34,7 @@ export default function PersonnelSection({
             onChange={(event) =>
               setProgram({ ...program, assigned_pm_id: event.target.value })
             }
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] cursor-pointer"
           >
             <option value="">{t("adminMisc.newProgram.selectManager")}</option>
             {staffList.map((staff) => (
@@ -73,7 +73,7 @@ export default function PersonnelSection({
             onChange={(event) => {
               if (event.target.value) toggleAssistant(event.target.value);
             }}
-            className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[var(--brand-orange)] cursor-pointer"
+            className="w-full bg-primary border border-[var(--border-primary)] rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] cursor-pointer"
           >
             <option value="">{t("adminMisc.newProgram.selectSupport")}</option>
             {staffList
