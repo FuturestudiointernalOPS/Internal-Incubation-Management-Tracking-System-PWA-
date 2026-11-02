@@ -21,7 +21,7 @@ const pickMatrix = (payload) => (payload?.success ? payload.matrix : null);
  * GLOBAL Venture Permissions — Super Admin → Ventures → Permissions.
  *
  * The permission matrix exists ONCE globally and is the single source of
- * truth for every Venture. A responsibility (Lead Manager, Coach, …) defines
+ * truth for every Venture. A responsibility (Venture Manager, Coach, …) defines
  * what someone can do; the Venture ASSIGNMENT decides where that profile
  * applies; the assignment SCOPE decides the boundaries.
  *

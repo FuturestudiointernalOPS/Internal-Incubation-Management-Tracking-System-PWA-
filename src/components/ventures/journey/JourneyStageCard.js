@@ -28,6 +28,7 @@ export default function JourneyStageCard({
   saveEdit,
   stageNodeClass,
   statusPill,
+  selectMode = false,
   toggleSelectStage,
   selectedStageIds,
   journeyMenuItems,
@@ -124,9 +125,10 @@ export default function JourneyStageCard({
 }) {
   const { t, lang } = useI18n();
   const isEditing = editId === stage.id;
-  // A journey folds down to its header (title, status, progress). Open by default;
-  // purely a view choice, so it lives here and nothing else depends on it.
-  const [collapsed, setCollapsed] = React.useState(false);
+  // A journey folds down to its header (title, status, progress, date). Closed
+  // by default: a journey of five stages is read as a list first and opened
+  // only where the reader is working. Purely a view choice.
+  const [collapsed, setCollapsed] = React.useState(true);
   const milestones = stage.milestones || [];
   const done = stage.milestone_counts?.completed || 0;
   const total = stage.milestone_counts?.total || 0;
@@ -167,6 +169,12 @@ export default function JourneyStageCard({
               <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
               <input
                 type="date"
+                // Today or later; a start date already on file may be earlier and stays valid.
+                min={(() => {
+                  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                  const current = String(stage.start_date || "").slice(0, 10);
+                  return current && current < today ? current : today;
+                })()}
                 value={editForm.start_date || ""}
                 onChange={(event) => setEditForm({ ...editForm, start_date: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -211,7 +219,7 @@ export default function JourneyStageCard({
                     >
                       {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
                     </button>
-                    {access.manage && !stage.is_archived && (
+                    {selectMode && access.manage && !stage.is_archived && (
                       <button
                         type="button"
                         onClick={() => toggleSelectStage(stage.id)}
@@ -223,6 +231,9 @@ export default function JourneyStageCard({
                     )}
                     <h4 className={`jy-sh-title ${isDone ? "is-done" : ""}`}>{stage.name}</h4>
                   </div>
+                  {collapsed && stage.start_date && (
+                    <p className="jy-sh-meta">{fmtDate(stage.start_date)}</p>
+                  )}
                   {!collapsed && stage.description && <p className="jy-sh-meta">{stage.description}</p>}
                   {!collapsed && stage.objective && (
                     <p className="jy-obj">

@@ -148,7 +148,7 @@ export function combineMilestoneStatus({ fromDeliverables = null, fromTasks = nu
  *
  * Completion keeps its AUTHORITY and its CONDITIONS: it takes every task
  * finished AND every deliverable approved, and then only an actor who may
- * complete milestones (the Lead Manager / a Super Admin) closes it — with the
+ * complete milestones (the Venture Manager / a Super Admin) closes it — with the
  * usual consequence that closing the last one closes the Journey. A scoped
  * coach, who may REVIEW a deliverable but holds no `milestones.edit`, can move
  * the milestone as far as `in_progress` and no further.

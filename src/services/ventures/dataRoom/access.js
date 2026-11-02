@@ -52,7 +52,7 @@ import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./share
  *   super admin                     → view + manage + review
  *   venture founder / owner         → view + manage
  *   other venture member            → view (and download)
- *   assigned Lead Manager           → view + configure requirements, never manage/review
+ *   assigned Venture Manager           → view + configure requirements, never manage/review
  *   assigned staff with documents.* → view + manage (edit/upload/manage)
  *   assigned staff with review      → review
  *   investor with a live grant      → view + download, their granted subset only
@@ -91,7 +91,7 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
     assigned = await hasAnyVentureAssignment({ ventureId, contactId: cid });
   }
 
-  // A Lead Manager RUNS the Venture but does not file its documents: they
+  // A Venture Manager RUNS the Venture but does not file its documents: they
   // request the categories and review what the founder uploads. Detecting the
   // responsibility explicitly keeps that rule out of the generic document
   // capability matrix, which other staff roles still use.
@@ -115,7 +115,7 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   if (superAdmin) {
     canReview = true;
   } else if (assigned && isLeadManager) {
-    // The Lead Manager decides on what the founder files: approve or not.
+    // The Venture Manager decides on what the founder files: approve or not.
     canReview = true;
   } else if (assigned) {
     canReview =
@@ -125,7 +125,7 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
         : false);
   }
 
-  // A Lead Manager configures WHAT must be provided and reviews what is filed;
+  // A Venture Manager configures WHAT must be provided and reviews what is filed;
   // they still do not upload or edit the documents themselves.
   const canConfigureRequirements = canReview || (assigned && isLeadManager);
 

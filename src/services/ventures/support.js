@@ -5,12 +5,12 @@
  * The source is `venture_staff_assignments` and NOTHING else (the coached
  * catalogue in `venture_coach_assignments` is a different, older system and is
  * deliberately not merged here). The read is `listAssignments`, the same one the
- * admin permissions screen uses, so the founder, the Lead Manager and the Super
+ * admin permissions screen uses, so the founder, the Venture Manager and the Super
  * Admin can never be told three different stories about who is assigned.
  *
  * ── FOUR RULES ──────────────────────────────────────────────────────────────
  *
- * 1. THE PRIMARY IS DERIVED, NEVER STORED. The oldest ACTIVE `lead_manager` is the
+ * 1. THE PRIMARY IS DERIVED, NEVER STORED. The oldest ACTIVE `venture_manager` is the
  *    primary contact. No column, no migration, no second source of truth.
  *
  * 2. NO ACTIVE LEAD IS STATED, NOT HIDDEN. When every lead has been removed, the
@@ -39,7 +39,7 @@ import {
 } from "@/models/communications";
 
 /** The responsibility whose holder is the Venture's day-to-day contact. */
-export const LEAD_RESPONSIBILITY = "lead_manager";
+export const LEAD_RESPONSIBILITY = "venture_manager";
 
 /** How many former supporters the founder can reopen (newest first). */
 export const FORMER_SUPPORT_LIMIT = 5;
@@ -145,7 +145,7 @@ export async function readVentureSupport(ventureId) {
 }
 
 /**
- * Write a founder's message to their Venture Leads — in the platform's own
+ * Write a founder's message to their Venture Managers — in the platform's own
  * MESSAGE SPACE, not by email.
  *
  * Each chosen lead receives a direct message in their ImpactOS inbox (the same

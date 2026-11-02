@@ -1,7 +1,7 @@
 /**
  * Venture Operating Plans — shared access helpers (Phase 4b).
  *
- * Operating plans are a staff instrument (Lead Manager authors them;
+ * Operating plans are a staff instrument (Venture Manager authors them;
  * scoped coaches/facilitators view/comment). Founders/members never see the
  * plan engine itself — the work they own (tasks, milestones, documents) is
  * surfaced through the existing founder workspace and referenced here via

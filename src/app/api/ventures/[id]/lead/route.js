@@ -101,7 +101,7 @@ export async function POST(req, { params }) {
       const { createVentureNotification } = await import("@/services/ventures/activity");
       await createVentureNotification({
         recipient_id: session.cid || "sa",
-        title: "Venture Lead Changed",
+        title: "Venture Manager Changed",
         message: `The lead founder of ${ventureId} has been changed.`,
       });
     } catch (_) {}

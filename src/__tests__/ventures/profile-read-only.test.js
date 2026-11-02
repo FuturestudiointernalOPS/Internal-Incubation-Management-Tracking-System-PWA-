@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * The founders' profile, read-only, for the Super Admin and the Lead Manager.
+ * The founders' profile, read-only, for the Super Admin and the Venture Manager.
  */
 import { render, screen } from "@testing-library/react";
 import fs from "node:fs";
@@ -48,7 +48,7 @@ test("it is read-only: no input, no textarea, no save", () => {
   expect(container.querySelectorAll("input, textarea, select, button")).toHaveLength(0);
 });
 
-test("the Super Admin hub and the Lead Manager workspace both render it", () => {
+test("the Super Admin hub and the Venture Manager workspace both render it", () => {
   const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
   expect(read("src/components/admin/ventures/VentureDetailView.js")).toContain("<VentureProfileReadOnly venture={venture} />");
   const staff = read("src/app/staff/ventures/[id]/page.js");

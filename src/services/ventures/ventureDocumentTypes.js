@@ -1,7 +1,7 @@
 /**
  * VENTURE DOCUMENT TYPES — the documents the Data bank asks ONE Venture for.
  *
- * The list belongs to the VENTURE: a Super Admin, or the Lead Manager of that
+ * The list belongs to the VENTURE: a Super Admin, or the Venture Manager of that
  * Venture, defines it, and only that Venture's Data bank changes. The set used
  * to be six hardcoded categories copied in three places (the founder screen, the
  * reviewer screen and the code that generated the per-Venture items).
@@ -197,8 +197,8 @@ export async function deleteVentureDocumentType({ ventureId, id }, database) {
 
 /**
  * Who may define ONE Venture's document types: a Super Admin, or a delegated
- * member of staff carrying the `lead_manager` responsibility ON THAT Venture.
- * Mirrors the codebase rule that a Lead Manager is the staff role with that
+ * member of staff carrying the `venture_manager` responsibility ON THAT Venture.
+ * Mirrors the codebase rule that a Venture Manager is the staff role with that
  * responsibility code — never inferred from the role string alone.
  *
  * `ventureId` must be the Venture CODE: assignments are stored by code.

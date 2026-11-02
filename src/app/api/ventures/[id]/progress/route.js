@@ -73,14 +73,15 @@ export async function GET(req, { params }) {
 
     const ventureRow = venture.rows?.[0] || {};
     let profileScore = 0;
-    if (ventureRow.name) profileScore += 10;
-    if (ventureRow.description) profileScore += 10;
+    if (ventureRow.name) profileScore += 8;
+    if (ventureRow.description) profileScore += 8;
+    if (ventureRow.logo_url) profileScore += 10;
     if (ventureRow.mission) profileScore += 5;
     if (ventureRow.vision) profileScore += 5;
-    if (ventureRow.industry) profileScore += 10;
-    if (ventureRow.sector) profileScore += 5;
-    if (ventureRow.business_stage) profileScore += 5;
-    if (ventureRow.website) profileScore += 5;
+    if (ventureRow.industry) profileScore += 7;
+    if (ventureRow.sector) profileScore += 4;
+    if (ventureRow.business_stage) profileScore += 4;
+    if (ventureRow.website) profileScore += 4;
     // Founders: 15%
     const founderCount = parseInt(founders.rows?.[0]?.count||0);
     if (founderCount >= 2) profileScore += 15;

@@ -34,15 +34,16 @@ const when = (value) => {
 /**
  * A timeline of what happened in the Data Room: one coloured marker per event
  * (green approved, red refused/deleted, orange filed, …), the person and the
- * moment under it. The card folds down to its header, and shows the latest few
- * events — the rest open on demand — so a busy room never becomes a long page.
+ * moment under it. The card STARTS FOLDED and opens on a click of its header —
+ * history is reference, not work, so it must not push the documents down the
+ * page. Open, it shows the latest few events and the rest on demand.
  *
  * `kind` is "history" (document and requirement events) or "access" (who opened
  * or downloaded what); the server decided every fact, this only draws it.
  */
 export default function DataRoomActivity({ kind, events = [], preview = 5 }) {
   const { t } = useI18n();
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [all, setAll] = useState(false);
   if (events.length === 0) return null;
 

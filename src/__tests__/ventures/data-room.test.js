@@ -249,7 +249,7 @@ describe("resolveDataRoomViewer", () => {
     expect(viewer).toMatchObject({ allowed: true, canManage: true, canReview: false });
   });
 
-  test("a Lead Manager requests categories and reviews, but never uploads", async () => {
+  test("a Venture Manager requests categories and reviews, but never uploads", async () => {
     hasAnyVentureAssignment.mockResolvedValue(true);
     hasVentureCapability.mockResolvedValue(true);
     canManageVerification.mockResolvedValue({ allowed: true });

@@ -79,6 +79,7 @@ export default function JourneyStageList({ ctx }) {
     saveReport,
     saveSessionNote,
     selectedStageIds,
+    selectMode,
     sessionStatusKey,
     setBookFor,
     setBookForm,
@@ -140,6 +141,7 @@ export default function JourneyStageList({ ctx }) {
               saveEdit={saveEdit}
               stageNodeClass={stageNodeClass}
               statusPill={statusPill}
+              selectMode={selectMode}
               toggleSelectStage={toggleSelectStage}
               selectedStageIds={selectedStageIds}
               journeyMenuItems={journeyMenuItems}

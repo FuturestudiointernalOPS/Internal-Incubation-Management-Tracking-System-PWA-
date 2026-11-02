@@ -89,9 +89,18 @@ export default function VentureHubNav({ id }) {
       <div className="card mb-8">
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
-              <Rocket className="w-8 h-8 text-[var(--brand-orange)]" />
-            </div>
+            {venture?.logo_url ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={venture.logo_url}
+                alt={venture.company_name || venture.name || ""}
+                className="w-16 h-16 rounded-2xl object-contain bg-[var(--surface-1)] border border-[var(--border-primary)] p-1.5 shrink-0 shadow-sm"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-brand-orange/10 flex items-center justify-center shrink-0">
+                <Rocket className="w-8 h-8 text-[var(--brand-orange)]" />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-3 mb-1">
                 <h1 className="text-2xl font-black text-[var(--text-primary)]">{venture?.company_name || venture?.name || "…"}</h1>

@@ -44,6 +44,7 @@ export default function JourneyAddStageForm({
         <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
         <input
           type="date"
+          min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10)}
           value={form.start_date || ""}
           onChange={(event) => setForm({ ...form, start_date: event.target.value })}
           className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"

@@ -29,6 +29,7 @@ export default function JourneyArchiveToolbar({
   askDeleteSelected,
   bulkBusy,
   canDelete,
+  selectMode = false,
   selectedStageIds,
   setSelectedStageIds,
   setViewArchived,
@@ -58,7 +59,7 @@ export default function JourneyArchiveToolbar({
           {t("venture.manager.viewArchivedJourneys", { n: archivedStages.length })}
         </button>
       </div>
-      {!viewArchived && activeStages.length > 0 && (
+      {selectMode && !viewArchived && activeStages.length > 0 && (
         <button type="button" onClick={toggleSelectAllStages} className="stf-btn sm">
           {allSelected ? <CheckSquare size={14} /> : <Square size={14} />}
           {t("venture.manager.selectAllJourneys")}

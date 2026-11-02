@@ -1,8 +1,8 @@
 /**
- * Lead Manager home dashboard (SERVICE layer).
+ * Venture Manager home dashboard (SERVICE layer).
  *
  * Builds the "My day" KPIs, the urgency queue and the enriched Mes Ventures
- * cards for staff whose active responsibility is `lead_manager`. Never invents
+ * cards for staff whose active responsibility is `venture_manager`. Never invents
  * Super Admin power — the code list comes only from their own assignments.
  */
 
@@ -378,7 +378,7 @@ export async function buildLeadManagerHome(staffCid) {
   });
 
   return {
-    is_lead_manager: true,
+    is_venture_manager: true,
     kpis,
     queue: queue.slice(0, 60),
     ventures: cards,
@@ -388,7 +388,7 @@ export async function buildLeadManagerHome(staffCid) {
 
 function emptyHome() {
   return {
-    is_lead_manager: false,
+    is_venture_manager: false,
     kpis: {
       ventures_total: 0,
       ventures_by_phase: [],

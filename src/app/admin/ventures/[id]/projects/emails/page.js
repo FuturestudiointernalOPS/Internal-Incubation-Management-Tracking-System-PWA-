@@ -7,7 +7,7 @@ import ProjectReminderEmailsView from "@/components/ventures/projects/ProjectRem
 /**
  * Super Admin → Ventures → [Venture] → Projects → Sent emails.
  *
- * The same reminder log the Lead Manager sees, reached from the Venture's
+ * The same reminder log the Venture Manager sees, reached from the Venture's
  * Project page. It reads the one Venture-scoped endpoint, so the two roles
  * cannot be shown different mail.
  */

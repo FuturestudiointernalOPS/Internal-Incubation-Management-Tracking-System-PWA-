@@ -2,17 +2,18 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { Route, Copy, Save, Plus, X, FileSpreadsheet, History } from "lucide-react";
+import { Route, Copy, Save, Plus, X, FileSpreadsheet, History, CheckSquare } from "lucide-react";
+import AppMenu from "@/components/ui/AppMenu";
 
 /**
- * The journey panel toolbar: the title + active-stage count, and the Create
- * actions ("From template" / "Import a plan" / "Change history" / "Save as
- * template" / "Add journey"), with the intro line underneath.
+ * The journey panel toolbar: the title, the active-stage count, and ONE primary
+ * action.
  *
- * Import and history sit here, beside "From template", because all three act on
- * the journey as a whole: a template generates it, a tracker proposes it, and
- * the change log says what happened to it. Each one opens its own panel below,
- * so the toolbar stays one line of actions.
+ * The journey-wide actions that used to sit beside it as equal buttons (generate
+ * from a template, import a plan, change history, save as a template) are rare
+ * and are now behind a single overflow menu — each of them opens a panel that
+ * closes itself. "Select" enters selection mode; while it is on, the bulk
+ * archive/delete bar and the per-stage checkboxes are the only new controls.
  *
  * Every prop carries the panel value of the same name (state, setter, handler or
  * loop value): the panel keeps all state and all writes, this block only lays
@@ -22,60 +23,83 @@ export default function JourneyPanelHeader({
   access,
   activeStages,
   addOpen,
-  applyOpen,
-  historyOpen,
-  importOpen,
   saveOpen,
+  selectMode,
   stages,
   setAddOpen,
   setSaveOpen,
   toggleApply,
   toggleHistory,
   toggleImport,
+  toggleSelectMode,
 }) {
   const { t } = useI18n();
+
+  const overflow = [];
+  if (access.create) {
+    overflow.push({
+      key: "template",
+      label: t("venture.manager.fromTemplate"),
+      icon: Copy,
+      onSelect: toggleApply,
+    });
+    overflow.push({
+      key: "import",
+      label: t("venture.planImport.title"),
+      icon: FileSpreadsheet,
+      onSelect: toggleImport,
+    });
+  }
+  overflow.push({
+    key: "history",
+    label: t("venture.changes.title"),
+    icon: History,
+    onSelect: toggleHistory,
+  });
+  if (access.create && access.manage && stages.length > 0) {
+    overflow.push({ key: "sep", separator: true });
+    overflow.push({
+      key: "save",
+      label: t("venture.manager.saveTemplate"),
+      icon: Save,
+      onSelect: () => setSaveOpen(!saveOpen),
+    });
+  }
+
   return (
-    <>
-      <div className="jy-top">
-        <div style={{ display: "grid", gap: 6 }}>
-          <h2>
-            <Route size={18} />
-            {t("venture.manager.title")}
-            <span className="stf-tag o">{t("venture.manager.stagesCount", { count: activeStages.length })}</span>
-          </h2>
-          <p className="jy-note">{t("venture.manager.intro")}</p>
-        </div>
-        <div className="jy-acts">
-          {access.create && (
-            <>
-              <button onClick={toggleApply} className="stf-btn">
-                <Copy size={14} />
-                {applyOpen ? t("common.cancel") : t("venture.manager.fromTemplate")}
-              </button>
-              <button onClick={toggleImport} className="stf-btn">
-                <FileSpreadsheet size={14} />
-                {importOpen ? t("common.cancel") : t("venture.planImport.title")}
-              </button>
-            </>
-          )}
-          <button onClick={toggleHistory} className="stf-btn">
-            <History size={14} />
-            {historyOpen ? t("common.cancel") : t("venture.changes.title")}
-          </button>
-          {access.create && access.manage && stages.length > 0 && (
-            <button onClick={() => setSaveOpen(!saveOpen)} className="stf-btn">
-              <Save size={14} />
-              {t("venture.manager.saveTemplate")}
-            </button>
-          )}
-          {access.create && (
-            <button onClick={() => setAddOpen(!addOpen)} className="stf-btn pr">
-              {addOpen ? <X size={14} /> : <Plus size={14} />}
-              {addOpen ? t("common.cancel") : t("venture.manager.addStage")}
-            </button>
-          )}
-        </div>
+    <div className="jy-top">
+      <div style={{ display: "grid", gap: 6 }}>
+        <h2>
+          <Route size={18} />
+          {t("venture.manager.title")}
+          <span className="stf-tag o">
+            {t("venture.manager.stagesCount", { count: activeStages.length })}
+          </span>
+        </h2>
+        {/* Guidance is only useful while there is nothing to guide: once the
+            journeys exist, the journeys are the explanation. */}
+        {activeStages.length === 0 && <p className="jy-note">{t("venture.manager.intro")}</p>}
       </div>
-    </>
+      <div className="jy-acts">
+        {access.manage && (
+          <button
+            type="button"
+            onClick={toggleSelectMode}
+            aria-pressed={selectMode}
+            className={`stf-btn${selectMode ? " pr" : ""}`}
+          >
+            <CheckSquare size={14} />
+            {selectMode ? t("common.cancel") : t("venture.manager.selectJourney")}
+          </button>
+        )}
+        <AppMenu label={t("venture.manager.journeyActions")} align="right" items={overflow} />
+        {access.create && (
+          <button onClick={() => setAddOpen(!addOpen)} className="stf-btn pr">
+            {addOpen ? <X size={14} /> : <Plus size={14} />}
+            {addOpen ? t("common.cancel") : t("venture.manager.addStage")}
+          </button>
+        )}
+      </div>
+    </div>
   );
 }

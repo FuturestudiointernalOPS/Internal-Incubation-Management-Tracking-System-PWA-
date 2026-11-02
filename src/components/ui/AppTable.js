@@ -1,5 +1,7 @@
 "use client";
 
+import { ChevronDown, ChevronUp } from "lucide-react";
+
 export default function AppTable({
   columns = [],
   data = [],
@@ -8,6 +10,12 @@ export default function AppTable({
   emptyMessage = "No data found.",
   className = "",
   roomy = false,
+  // Optional sorting: a column marked `sortable` becomes a header button that
+  // calls back with its key. Tables that pass no `onSort` render exactly as
+  // before, so this is additive.
+  sortKey = null,
+  sortDir = "asc",
+  onSort = null,
 }) {
   if (loading) {
     return (
@@ -66,19 +74,40 @@ export default function AppTable({
             className="border-b"
             style={{ borderColor: "var(--border-primary)" }}
           >
-            {columns.map((column, columnIndex) => (
-              <th
-                key={column.key || columnIndex}
-                className="p-4 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
-                style={{
-                  color: "var(--text-secondary)",
-                  background: "var(--surface-2)",
-                  textAlign: column.align || "left",
-                }}
-              >
-                {column.label || column.key}
-              </th>
-            ))}
+            {columns.map((column, columnIndex) => {
+              const sortable = Boolean(onSort) && Boolean(column.sortable);
+              const active = sortable && sortKey === column.key;
+              return (
+                <th
+                  key={column.key || columnIndex}
+                  aria-sort={active ? (sortDir === "desc" ? "descending" : "ascending") : undefined}
+                  className="p-4 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap"
+                  style={{
+                    color: "var(--text-secondary)",
+                    background: "var(--surface-2)",
+                    textAlign: column.align || "left",
+                  }}
+                >
+                  {sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort(column.key)}
+                      className="inline-flex items-center gap-1 uppercase tracking-widest transition-colors hover:text-[var(--text-primary)]"
+                      style={{ color: "inherit", fontWeight: "inherit", fontSize: "inherit" }}
+                    >
+                      {column.label || column.key}
+                      {active ? (
+                        sortDir === "desc" ? <ChevronDown size={12} /> : <ChevronUp size={12} />
+                      ) : (
+                        <ChevronDown size={12} style={{ opacity: 0.25 }} />
+                      )}
+                    </button>
+                  ) : (
+                    column.label || column.key
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

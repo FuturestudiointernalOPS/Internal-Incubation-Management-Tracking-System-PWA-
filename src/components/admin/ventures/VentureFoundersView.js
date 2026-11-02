@@ -10,6 +10,10 @@ import {
   AlertTriangle,
   Search,
   UserPlus,
+  Send,
+  Mail,
+  Clock,
+  RefreshCw,
 } from "lucide-react";
 
 import FounderCard from "./venture-founders/FounderCard";
@@ -45,11 +49,13 @@ export default function VentureFoundersView({ ctx }) {
     confirmAction,
     error,
     filteredFounders,
+    founderInvitations,
     founders,
     getRoleColor,
     handleInvite,
     handleReactivate,
     handleRemove,
+    handleResendInvitation,
     handleRoleUpdate,
     handleSuspend,
     id,
@@ -58,6 +64,7 @@ export default function VentureFoundersView({ ctx }) {
     notify,
     openMenuId,
     reload,
+    resendingId,
     router,
     searchQuery,
     setConfirmAction,
@@ -150,14 +157,13 @@ export default function VentureFoundersView({ ctx }) {
             >
               <Crown className="w-3.5 h-3.5" /> {t("vadmin.founders.transferOwnership")}
             </button>
-            {/* Adding a member starts from the Venture itself (the founder sends
-                an email invitation). Disabled here on purpose. */}
+            {/* Adding a founder here sends the SAME invitation link as the
+                Venture's own Team tab — one email, one acceptance screen. */}
             <button
               type="button"
-              disabled
-              aria-disabled="true"
-              title={t("vadmin.founders.inviteDisabledHint")}
-              className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 opacity-40 cursor-not-allowed"
+              onClick={() => setShowInviteModal(true)}
+              title={t("vadmin.founders.inviteHint")}
+              className="px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all hover:brightness-110 flex items-center gap-2"
             >
               <UserPlus className="w-3.5 h-3.5" /> {t("vadmin.founders.inviteMember")}
             </button>
@@ -175,6 +181,75 @@ export default function VentureFoundersView({ ctx }) {
                 {owner.name} · {owner.email}
               </p>
               <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.founders.ownerHint")}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Invitations that were emailed and are still waiting. This is where
+            the founder invited when the Venture was created shows up — long
+            before they have a founder row — and where the email is sent again. */}
+        {founderInvitations.length > 0 && (
+          <div className="card">
+            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
+              <Send className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
+              {t("vadmin.founders.pendingInvitationsTitle")}
+            </h3>
+            <p className="text-[11px] text-[var(--text-secondary)] mt-1 max-w-2xl">
+              {t("vadmin.founders.pendingInvitationsHint")}
+            </p>
+            <div className="mt-4 space-y-2">
+              {founderInvitations.map((invitation) => (
+                <div
+                  key={invitation.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-4 bg-tertiary rounded-xl border border-[var(--border-primary)]"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-bold text-[var(--text-primary)] truncate">
+                        {invitation.display_name || invitation.name || invitation.email}
+                      </p>
+                      <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-amber-500/10 text-amber-400">
+                        {t("vadmin.founders.pending")}
+                      </span>
+                      {invitation.is_expired && (
+                        <span className="text-[8px] font-black uppercase px-2 py-0.5 rounded bg-rose-500/10 text-rose-400">
+                          {t("vadmin.founders.invitationExpired")}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 mt-1 text-[10px] text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <Mail className="w-3 h-3" /> {invitation.email}
+                      </span>
+                      <span>{invitation.role || t("vadmin.founders.pendingRoleFallback")}</span>
+                      {invitation.expires_at && (
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {t("vadmin.founders.expiresOn", {
+                            date: new Date(invitation.expires_at).toLocaleDateString(),
+                          })}
+                        </span>
+                      )}
+                    </div>
+                    {invitation.email_status === "failed" && (
+                      <p className="text-[10px] text-rose-400 mt-1">
+                        {t("vadmin.founders.lastEmailFailed")}
+                      </p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleResendInvitation(invitation)}
+                    disabled={resendingId === invitation.id}
+                    className="px-4 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest hover:bg-secondary transition-all disabled:opacity-40 flex items-center gap-2 shrink-0"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${resendingId === invitation.id ? "animate-spin" : ""}`} />
+                    {resendingId === invitation.id
+                      ? t("vadmin.founders.resending")
+                      : t("vadmin.founders.resendInvitation")}
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -204,10 +279,9 @@ export default function VentureFoundersView({ ctx }) {
             {!searchQuery && (
               <button
                 type="button"
-                disabled
-                aria-disabled="true"
-                title={t("vadmin.founders.inviteDisabledHint")}
-                className="btn btn-primary gap-2 opacity-40 cursor-not-allowed"
+                onClick={() => setShowInviteModal(true)}
+                title={t("vadmin.founders.inviteHint")}
+                className="btn btn-primary gap-2"
               >
                 <UserPlus className="w-4 h-4" /> {t("vadmin.founders.inviteMember")}
               </button>

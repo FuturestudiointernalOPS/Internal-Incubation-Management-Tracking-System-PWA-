@@ -196,9 +196,18 @@ export default function VenturesPage() {
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
-                              <Rocket className="w-4 h-4" />
-                            </div>
+                            {venture.logo_url ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={venture.logo_url}
+                                alt={venture.company_name || ""}
+                                className="w-8 h-8 rounded-lg object-contain bg-[var(--surface-1)] border border-[var(--border-primary)] p-0.5 group-hover:scale-110 transition-transform shrink-0"
+                              />
+                            ) : (
+                              <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform shrink-0">
+                                <Rocket className="w-4 h-4" />
+                              </div>
+                            )}
                             <div>
                               <p className="text-sm font-bold text-[var(--text-primary)]">{venture.company_name}</p>
                               <p className="text-[10px] text-slate-500 font-medium">{venture.venture_id}</p>

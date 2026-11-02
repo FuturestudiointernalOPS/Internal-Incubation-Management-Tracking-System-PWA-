@@ -40,6 +40,7 @@ export default function VentureWorkspaceView({
         brandColor={brandColor}
         ventureId={venture.venture_id}
         status={venture.status}
+        logoUrl={venture.logo_url}
         metaItems={[
           t(`venture.stages.${venture.business_stage || "idea"}`),
           venture.industry,

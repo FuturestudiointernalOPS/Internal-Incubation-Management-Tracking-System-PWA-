@@ -212,20 +212,37 @@ export async function saveFormBuilder({ id, fields, sections }) {
   }
 
   // ── Step 3: Upsert fields.
-  //    If a field's section_id points to a section that is being deleted in
-  //    this same request, use null instead — avoids the FK violation.
+  //    A field's section_id is only accepted when that section actually exists
+  //    for THIS form, after the upsert above. The client can still be holding a
+  //    section id that was deleted in an earlier request (or in another tab);
+  //    writing it violated `platform_form_fields_section_id_fkey` and rejected
+  //    the WHOLE save. A field with no section is recoverable — a rejected save
+  //    is not.
   if (Array.isArray(fields)) {
+    const sectionsNow = await getPlatformFormSections(id);
+    const liveSectionIds = new Set(
+      (sectionsNow.rows || [])
+        .map((row) => parseInt(row.id))
+        .filter((value) => !isNaN(value)),
+    );
+
     for (const fld of fields) {
       if (fld._delete && fld.id) {
         await deletePlatformFormField({ formId: id, fieldId: fld.id });
         continue;
       }
 
-      // Resolve section_id: null-out if the section is being deleted or
-      // if the value is a non-numeric temp string (e.g. "_tmp_xyz").
+      // Resolve section_id: null-out if the section is being deleted, if the
+      // value is a non-numeric temp string (e.g. "tmp-1-2"), or if the id no
+      // longer exists for this form.
       const rawSectionId = fld.section_id ? parseInt(fld.section_id) : null;
       const resolvedSectionId =
-        rawSectionId && !isNaN(rawSectionId) && !deletedSectionIds.has(rawSectionId) ? rawSectionId : null;
+        rawSectionId &&
+        !isNaN(rawSectionId) &&
+        !deletedSectionIds.has(rawSectionId) &&
+        liveSectionIds.has(rawSectionId)
+          ? rawSectionId
+          : null;
 
       if (fld.id) {
         await updatePlatformFormField({ formId: id, field: fld, sectionId: resolvedSectionId });

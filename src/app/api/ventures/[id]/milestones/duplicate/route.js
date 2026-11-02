@@ -23,7 +23,7 @@ export async function POST(req, { params }) {
     if (access.error) return access.error;
     const { session } = access;
 
-    // Duplicating creates a milestone — Lead Manager or Super Admin only.
+    // Duplicating creates a milestone — Venture Manager or Super Admin only.
     const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
     if (!allowed) {
       return NextResponse.json(

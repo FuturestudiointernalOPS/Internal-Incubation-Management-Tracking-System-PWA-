@@ -39,7 +39,7 @@ function makeRouteDb() {
     }
     if (sql.includes("FROM ventures WHERE venture_id = ?")) return { rows: [{ id: VENTURE_DB_ID, venture_id: "VNT-3ECFB390" }] };
     // Authority: the assignment supplies the responsibility, the matrix decides
-    // the cell. Seeded truth — a Lead Manager holds `milestones.edit`.
+    // the cell. Seeded truth — a Venture Manager holds `milestones.edit`.
     if (sql.includes("FROM venture_staff_assignments")) {
       return {
         rows: flags.assignment === "none"
@@ -90,7 +90,7 @@ jest.mock("@/lib/ventureAuth", () => ({
 
 jest.mock("@/lib/ventureScopedAccess", () => ({
   // A Venture Manager holds `ventures.edit` and is in scope — the gate the
-  // staging data confirmed (LEW: profile 11, lead_manager, venture-wide).
+  // staging data confirmed (LEW: profile 11, venture_manager, venture-wide).
   requireVentureScopedAccess: jest.fn().mockResolvedValue({
     session: { cid: "USR-LEW", role: "staff" },
     path: "capability+scope",
@@ -458,7 +458,7 @@ describe("CHECK 6 — field and date edits stay open to the Venture Manager", ()
   });
 
   test("completion is the ONE status change that still needs the matrix cell", async () => {
-    flags.assignment = "lead_manager";
+    flags.assignment = "venture_manager";
     flags.matrixAllows = true;
     const res = await edit({ status: "completed" });
     expect(res.status).toBe(200);

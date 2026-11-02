@@ -285,6 +285,9 @@ never selects a role.
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
 - [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors
 - [ ] Promoting to production (branch `G` → `main`): run the **production test** — `docs/PRODUCTION_TEST.md`
+- [ ] Never open or merge a pull request into `main` from anything other than `G`
+- [ ] Never merge `white_label_os` into `interns`
+- [ ] Branch rules and how they are enforced: `docs/BRANCH_PROTECTION.md`
 
 ---
 
@@ -349,3 +352,13 @@ the two apart before pointing any tool at them, count, read-only:
 `node scripts/db-audit/run-readonly.mjs <sql-file> .env.local` — that runner
 executes only `SELECT / WITH / SET / SHOW / EXPLAIN / VALUES` statements and
 skips (never runs) anything else.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

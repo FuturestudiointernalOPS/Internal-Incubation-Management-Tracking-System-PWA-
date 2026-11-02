@@ -27,7 +27,7 @@ import DocumentTypeList from "./DocumentTypeManager/DocumentTypeList";
  * DATA BANK — the documents ONE Venture is asked for.
  *
  * The list belongs to the Venture: a Super Admin defines it, and so does that
- * Venture's Lead Manager (the staff member carrying the `lead_manager`
+ * Venture Manager (the staff member carrying the `venture_manager`
  * responsibility on it). The server decides which of the two is asking, and
  * `can_manage` in the read is what tells this screen whether to offer the
  * editing controls — a viewer who may only see the Venture gets the list

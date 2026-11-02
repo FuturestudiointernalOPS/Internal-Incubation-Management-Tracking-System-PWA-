@@ -4,9 +4,10 @@ import {
   getRecentNotifications,
   countUnreadNotifications,
   getNotificationRecipientById,
-  markNotificationRead,
+  markNotificationRead, markAllNotificationsRead,
   markNotificationUnread,
   getParticipantAnnouncementHistory,
+  getParticipantNotificationHistory,
   markNotificationsSeen,
 } from "@/models/workspace";
 /**
@@ -130,6 +131,12 @@ export async function publishInboxNotification({ session, recipient_id, title, m
 }
 
 export async function applyInboxNotificationAction({ session, id, action }) {
+  if (action === "read_all") {
+    const recipientId = session.cid || session.id;
+    if (!recipientId) return { denied: { error: "errors.authRequired", status: 401 } };
+    await markAllNotificationsRead(recipientId);
+    return { ok: true };
+  }
   if (action === "read" || action === "unread") {
     const recipientResult = await getNotificationRecipientById(parseInt(id));
     if (!recipientResult.rows || recipientResult.rows.length === 0) {
@@ -147,6 +154,14 @@ export async function applyInboxNotificationAction({ session, id, action }) {
 }
 
 export async function readParticipantAnnouncements(session) {
-  const result = await getParticipantAnnouncementHistory(session.cid);
-  return { success: true, recipientId: session.cid, announcements: result.rows || [] };
+  const [result, notified] = await Promise.all([
+    getParticipantAnnouncementHistory(session.cid),
+    getParticipantNotificationHistory(session.cid).catch(() => ({ rows: [] })),
+  ]);
+  return {
+    success: true,
+    recipientId: session.cid,
+    announcements: result.rows || [],
+    notifications: notified.rows || [],
+  };
 }
