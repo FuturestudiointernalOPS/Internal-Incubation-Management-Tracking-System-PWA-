@@ -341,18 +341,18 @@ async function notifyFoundersOfLeadChange({ ventureDbId, assignmentId, event, co
       selectNotifyContact(contactId).catch(() => ({ rows: [] })),
       import("@/services/ventures/notify"),
     ]);
-    const name = contact?.rows?.[0]?.name || "A Venture Lead";
+    const name = contact?.rows?.[0]?.name || "A Venture Manager";
     const assigned = event === "assigned";
 
     await notify.notifyAndEmailVentureFounders({
       dbId: ventureDbId,
-      title: assigned ? "Venture Lead assigned" : "Venture Lead updated",
+      title: assigned ? "Venture Manager assigned" : "Venture Manager updated",
       message: assigned
         ? `${name} now supports your Venture — you can reach them from your Venture dashboard.`
         : `${name} is no longer assigned to your Venture.`,
       emailSubject: assigned
-        ? "A Venture Lead has been assigned to your Venture"
-        : "Your Venture Lead has been updated",
+        ? "A Venture Manager has been assigned to your Venture"
+        : "Your Venture Manager has been updated",
       emailLines: assigned
         ? [
             `${name} now supports your Venture.`,

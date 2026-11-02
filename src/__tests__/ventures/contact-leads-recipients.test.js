@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * "Write to them": the founder chooses who among the Venture Leads — one or all —
+ * "Write to them": the founder chooses who among the Venture Managers — one or all —
  * and the request carries assignment ids only.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
@@ -53,7 +53,7 @@ test("the founder can write to just one of them", async () => {
 
 test("with nobody ticked the message cannot be sent", () => {
   modal([harry, joakh]);
-  fireEvent.click(screen.getByRole("checkbox", { name: /All Venture Leads/ })); // untick everyone
+  fireEvent.click(screen.getByRole("checkbox", { name: /All Venture Managers/ })); // untick everyone
   fireEvent.change(screen.getByPlaceholderText(/Write your message/), { target: { value: "x" } });
   expect(screen.getByRole("button", { name: /Send message/ }).disabled).toBe(true);
   expect(screen.getByText(/Choose at least one person/)).toBeTruthy();
@@ -82,14 +82,14 @@ test('"Write to them" sits in the card header, beside the title — not on a per
   expect(screen.getAllByRole("button", { name: /Write to them/ })).toHaveLength(1);
   // and it still opens the recipient chooser
   fireEvent.click(button);
-  expect(await screen.findByRole("checkbox", { name: /All Venture Leads/ })).toBeTruthy();
+  expect(await screen.findByRole("checkbox", { name: /All Venture Managers/ })).toBeTruthy();
 });
 
 test("the founder is told the message went to the leads' messages — no email involved", async () => {
   modal([harry, joakh]);
   fireEvent.change(screen.getByPlaceholderText(/Write your message/), { target: { value: "Hello" } });
   fireEvent.click(screen.getByRole("button", { name: /Send message/ }));
-  expect(await screen.findByText(/Message sent to 1 Venture Lead\(s\) in their messages/)).toBeTruthy();
+  expect(await screen.findByText(/Message sent to 1 Venture Manager\(s\) in their messages/)).toBeTruthy();
   expect(screen.queryByText(/email/i)).toBeNull();
 });
 

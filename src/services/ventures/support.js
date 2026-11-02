@@ -145,7 +145,7 @@ export async function readVentureSupport(ventureId) {
 }
 
 /**
- * Write a founder's message to their Venture Leads — in the platform's own
+ * Write a founder's message to their Venture Managers — in the platform's own
  * MESSAGE SPACE, not by email.
  *
  * Each chosen lead receives a direct message in their ImpactOS inbox (the same
