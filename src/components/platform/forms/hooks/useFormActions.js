@@ -281,6 +281,10 @@ export function useFormActions({
   }, [editingForm, templateConfig, notify, t]);
 
   const handleSaveAiEvalFramework = useCallback(async () => {
+    // Nothing to store is not a server error: say it here rather than let the
+    // API answer 400 ("form_id and framework required") about an empty form.
+    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
+    if (!aiEvalFramework) { notify(t("platformMisc.forms.aiEvalNothingToSave")); return; }
     setSaving(true);
     try {
       const response = await fetch("/api/platform/ai/evaluation-config", {
@@ -288,9 +292,14 @@ export function useFormActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ form_id: editingForm.id, framework: aiEvalFramework })
       });
-      if (response.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
-      else notify(t("platformMisc.forms.aiEvalSaveFailed"));
-    } catch {}
+      if (response.ok) {
+        notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
+      } else {
+        // The body names the reason; a generic "failed" hides it.
+        const detail = await response.json().catch(() => ({}));
+        notify(t(detail?.error || "platformMisc.forms.aiEvalSaveFailed"));
+      }
+    } catch { notify(t("platformMisc.forms.aiEvalSaveFailed")); }
     setSaving(false);
   }, [editingForm, aiEvalFramework, notify, t]);
 
@@ -324,9 +333,12 @@ export function useFormActions({
   }, [aiEvalText, editingForm, notify, t, setAiEvalFramework]);
 
   const handleSaveAiEvalDetailed = useCallback(async () => {
+    // Guard BEFORE reading `dimensions`: with no framework this used to throw
+    // inside the render path instead of telling the person what to do.
+    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
+    if (!aiEvalFramework) { notify(t("platformMisc.forms.aiEvalNothingToSave")); return; }
     const total = (aiEvalFramework.dimensions || []).reduce((sum, dimension) => sum + (parseInt(dimension.weight) || 0), 0);
     if (total !== 100) { notify(t("platformMisc.forms.aiEvalWeightsMustTotal")); return; }
-    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
     setAiEvalLoading(true);
     try {
       const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };

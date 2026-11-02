@@ -163,6 +163,7 @@
       "aiEvalGenerationFailed": "Generation failed",
       "aiEvalGenerationFailedConnection": "AI generation failed",
       "aiEvalNoForm": "No form selected",
+      "aiEvalNothingToSave": "There is no framework to save yet — generate one first",
       "aiEvalRemoveConfirm": "Remove evaluation framework?",
       "aiEvalSaveFailed": "Failed to save framework",
       "aiEvalSaveFramework": "Save Framework",

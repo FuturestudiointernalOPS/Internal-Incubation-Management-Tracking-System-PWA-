@@ -163,6 +163,7 @@
       "aiEvalGenerationFailed": "Échec de la génération",
       "aiEvalGenerationFailedConnection": "Échec de la génération IA",
       "aiEvalNoForm": "Aucun formulaire sélectionné",
+      "aiEvalNothingToSave": "Aucun cadre à enregistrer pour l'instant — générez-en un d'abord",
       "aiEvalRemoveConfirm": "Supprimer le cadre d'évaluation ?",
       "aiEvalSaveFailed": "Échec de l'enregistrement du cadre",
       "aiEvalSaveFramework": "Enregistrer le cadre",
