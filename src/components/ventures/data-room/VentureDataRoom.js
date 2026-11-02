@@ -9,15 +9,14 @@ import {
   ShieldCheck,
   Upload,
   Share2,
-  Sparkles,
-  BarChart3,
-  Layers,
+  FolderOpen,
   FolderLock,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { DATA_ROOM_CATEGORIES, dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
+import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
+import SectionHead from "@/components/ui/SectionHead";
 import DataRoomDocumentCard from "./DataRoomDocumentCard";
 import DataRoomUploadModal from "./DataRoomUploadModal";
 import DataRoomReviewModal from "./DataRoomReviewModal";
@@ -27,43 +26,13 @@ import DataRoomAccessModal from "./DataRoomAccessModal";
 import DataRoomVersionsModal from "./DataRoomVersionsModal";
 import DataRoomShareModal from "./DataRoomShareModal";
 import DataRoomActivity from "./DataRoomActivity";
+import DataRoomCoverage from "./DataRoomCoverage";
 import { downloadDocument, inlineDocumentUrl, STATUS_ORDER } from "./dataRoomUi";
 
 const pickDataRoom = (payload) => (payload?.success ? payload : null);
 
 /** A catalogue lens, not a category: rows filed before the Data Room existed. */
 const LEGACY_FILTER = "__legacy__";
-
-const DUE_DILIGENCE_FOLDERS = [
-  {
-    key: "pitch",
-    title: "Pitch & Strategy",
-    icon: Sparkles,
-    categories: ["pitch_deck", "company_overview", "market_traction"],
-    description: "Pitch decks, 1-pagers, market research",
-  },
-  {
-    key: "financials",
-    title: "Financials & Model",
-    icon: BarChart3,
-    categories: ["financials_projections", "fundraising_cap_table"],
-    description: "Projections, cap table, runway",
-  },
-  {
-    key: "legal",
-    title: "Legal & Corporate",
-    icon: ShieldCheck,
-    categories: ["legal_corporate", "due_diligence"],
-    description: "Incorporation, agreements, compliance",
-  },
-  {
-    key: "product",
-    title: "Product & Impact",
-    icon: Layers,
-    categories: ["product_technology", "team", "impact_sustainability", "reports_milestones"],
-    description: "Architecture, team bios, progress reports",
-  },
-];
 
 export default function VentureDataRoom({ ventureId, className = "" }) {
   const { t } = useI18n();
@@ -75,7 +44,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
-  const [selectedFolder, setSelectedFolder] = useState(null);
   const [documentStatus, setDocumentStatus] = useState("all");
   const [uploadState, setUploadState] = useState(null);
   const [inlineRun, setInlineRun] = useState(0);
@@ -100,32 +68,12 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const isInvestor = viewer.type === "investor";
   const canUpload = viewer.can_manage && viewer.type !== "super_admin" && !isInvestor;
 
-  const categories = useMemo(() => {
-    if (data?.categories?.length) return data.categories;
-    if (isInvestor) {
-      const seen = new Set(documents.map((entry) => entry.category));
-      return DATA_ROOM_CATEGORIES.filter((entry) => seen.has(entry.code)).map((entry) => ({
-        code: entry.code,
-        labelKey: entry.labelKey,
-        count: documents.filter((documentEntry) => documentEntry.category === entry.code).length,
-        level: "conditional",
-      }));
-    }
-    return [];
-  }, [data, documents, isInvestor]);
-
-  const legacyCount = useMemo(
-    () => documents.filter((entry) => isLegacyDocumentCategory(entry.category)).length,
-    [documents],
-  );
+  // The coverage table is the navigation: clicking a requirement row filters the
+  // list below to that category.
 
   const visible = useMemo(() => {
     const needle = search.trim().toLowerCase();
     return documents.filter((entry) => {
-      if (selectedFolder) {
-        const folder = DUE_DILIGENCE_FOLDERS.find((f) => f.key === selectedFolder);
-        if (folder && !folder.categories.includes(entry.category)) return false;
-      }
       if (category === LEGACY_FILTER) {
         if (!isLegacyDocumentCategory(entry.category)) return false;
       } else if (category !== "all" && entry.category !== category) {
@@ -137,7 +85,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         .filter(Boolean)
         .some((value) => String(value).toLowerCase().includes(needle));
     });
-  }, [documents, category, selectedFolder, documentStatus, search]);
+  }, [documents, category, documentStatus, search]);
 
   const selectedCategory =
     canUpload && category !== "all" && category !== LEGACY_FILTER && dataRoomCategory(category) ? category : null;
@@ -258,98 +206,40 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         </p>
       ) : null}
 
-      {/* ── 4 Institutional Due Diligence Folders ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {DUE_DILIGENCE_FOLDERS.map((folder) => {
-          const Icon = folder.icon;
-          const folderDocsCount = documents.filter((d) => folder.categories.includes(d.category)).length;
-          const isSelected = selectedFolder === folder.key;
+      {/* ── What we ask for · what has been submitted · what is left ── */}
+      {!isInvestor && (
+        <DataRoomCoverage
+          completeness={data?.completeness || null}
+          requirements={requirements}
+          canReview={viewer.can_configure_requirements}
+          onChange={setRequirement}
+          onSelectCategory={(code) => setCategory((current) => (current === code ? "all" : code))}
+          selectedCategory={category}
+        />
+      )}
 
-          return (
-            <button
-              key={folder.key}
-              type="button"
-              onClick={() => {
-                if (isSelected) {
-                  setSelectedFolder(null);
-                } else {
-                  setSelectedFolder(folder.key);
-                  setCategory("all");
-                }
-              }}
-              className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between ${
-                isSelected
-                  ? "border-[var(--brand-orange)] bg-[var(--brand-orange)]/10 shadow-sm"
-                  : "border-[var(--border-primary)] bg-surface-2 hover:border-[var(--border-primary)]/80"
-              }`}
-            >
-              <div className="flex items-center justify-between w-full mb-2">
-                <div
-                  className={`p-2 rounded-xl ${
-                    isSelected
-                      ? "bg-[var(--brand-orange)] text-black"
-                      : "bg-surface-3 text-[var(--brand-orange)]"
-                  }`}
-                >
-                  <Icon size={16} />
-                </div>
-                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-surface-3 text-[var(--text-secondary)]">
-                  {folderDocsCount} {folderDocsCount === 1 ? "file" : "files"}
-                </span>
-              </div>
-              <div>
-                <h4 className="text-xs font-extrabold text-[var(--text-primary)]">
-                  {folder.title}
-                </h4>
-                <p className="text-[10px] text-[var(--text-secondary)] mt-0.5 line-clamp-1">
-                  {folder.description}
-                </p>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ── Main Data Room Explorer ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-[230px_1fr] gap-6 items-start">
-        {/* Categories Sidebar */}
-        {!isInvestor ? (
-          <div className="space-y-1 p-2 rounded-2xl border border-[var(--border-primary)] bg-surface-1">
-            <CategoryRow
-              active={category === "all" && !selectedFolder}
-              label={t("dataRoom.allCategories")}
-              count={documents.length}
-              onClick={() => {
-                setCategory("all");
-                setSelectedFolder(null);
-              }}
-            />
-            {categories.map((entry) => (
-              <CategoryRow
-                key={entry.code}
-                active={category === entry.code}
-                label={t(entry.labelKey)}
-                count={entry.count}
-                level={entry.level}
-                onClick={() => {
-                  setCategory(entry.code);
-                  setSelectedFolder(null);
-                }}
-              />
-            ))}
-            {legacyCount > 0 ? (
-              <CategoryRow
-                active={category === LEGACY_FILTER}
-                label={t("dataRoom.legacy.filter")}
-                count={legacyCount}
-                onClick={() => {
-                  setCategory(LEGACY_FILTER);
-                  setSelectedFolder(null);
-                }}
-              />
-            ) : null}
-          </div>
-        ) : null}
+      {/* ── Documents: the coverage table above chooses the category. ── */}
+      <div className="space-y-4">
+        <SectionHead
+          icon={FolderOpen}
+          title={
+            category === "all"
+              ? t("dataRoom.standard.documents")
+              : category === LEGACY_FILTER
+                ? t("dataRoom.legacy.filter")
+                : (() => {
+                    const entry = dataRoomCategory(category);
+                    return entry ? t(entry.labelKey) : category;
+                  })()
+          }
+          action={
+            category !== "all" ? (
+              <button type="button" className="stf-btn sm" onClick={() => setCategory("all")}>
+                {t("dataRoom.allDocuments")}
+              </button>
+            ) : null
+          }
+        />
 
         {/* Documents Main Area */}
         <div className="space-y-4">
@@ -449,16 +339,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
       </div>
 
       {/* Due Diligence Requirements */}
-      {(viewer.can_review || viewer.can_configure_requirements) && requirements.length > 0 ? (
-        <RequirementsPanel
-          requirements={requirements}
-          canReview={viewer.can_configure_requirements}
-          canManage={viewer.can_manage}
-          t={t}
-          onChange={setRequirement}
-        />
-      ) : null}
-
       {!isInvestor ? <DataRoomActivity kind="history" events={history} /> : null}
       {!isInvestor ? <DataRoomActivity kind="access" events={accessHistory} /> : null}
 
@@ -532,78 +412,6 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
         isOpen={shareModalOpen}
         onClose={() => setShareModalOpen(false)}
       />
-    </div>
-  );
-}
-
-function CategoryRow({ active, label, count, level, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`w-full flex items-center justify-between gap-2 px-3 py-2 rounded-xl border text-left transition-all ${
-        active
-          ? "border-[var(--brand-orange)]/40 bg-[var(--brand-orange)]/10 text-[var(--brand-orange)] font-bold"
-          : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-2)] hover:text-[var(--text-primary)]"
-      }`}
-    >
-      <span className="text-xs truncate">{label}</span>
-      <span className="flex items-center gap-1.5 shrink-0">
-        {level === "required" ? <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" title="required" /> : null}
-        <span className="text-[11px] tabular-nums font-semibold">{count}</span>
-      </span>
-    </button>
-  );
-}
-
-function RequirementsPanel({ requirements, canReview, canManage, t, onChange }) {
-  return (
-    <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-5 space-y-3">
-      <div>
-        <p className="text-xs font-black uppercase tracking-wider text-[var(--text-primary)]">
-          {t("dataRoom.requirements.title")}
-        </p>
-        <p className="text-xs text-[var(--text-secondary)] mt-0.5 leading-relaxed">
-          {t("dataRoom.requirements.description")}
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-        {requirements.map((row) => {
-          const entry = dataRoomCategory(row.category);
-          if (!entry) return null;
-          return (
-            <div key={row.category} className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--surface-1)] border border-[var(--border-primary)]">
-              <span className="text-xs text-[var(--text-primary)] truncate font-medium">
-                {t(entry.labelKey)}
-                {row.customized ? <span className="text-[10px] text-[var(--text-secondary)]"> · {t("dataRoom.requirements.customized")}</span> : null}
-              </span>
-              {canReview ? (
-                <select
-                  value={row.level}
-                  onChange={(event) => onChange(row.category, event.target.value)}
-                  className="text-xs bg-transparent border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[var(--text-secondary)] outline-none"
-                >
-                  {["required", "recommended", "conditional", "not_applicable"].map((level) => (
-                    <option key={level} value={level}>{t(`dataRoom.level.${level}`)}</option>
-                  ))}
-                </select>
-              ) : (
-                <span className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">
-                  {t(`dataRoom.level.${row.level}`)}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {canReview ? (
-        <p className="text-[11px] text-[var(--text-secondary)]">
-          {canManage
-            ? t("dataRoom.requirements.editableHint")
-            : t("dataRoom.requirements.leadManagerHint")}
-        </p>
-      ) : null}
     </div>
   );
 }

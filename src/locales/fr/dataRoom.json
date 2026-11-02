@@ -21,6 +21,39 @@
     "close": "Fermer",
     "searchPlaceholder": "Rechercher par titre, description ou nom de fichier…",
     "allCategories": "Toutes les catégories",
+    "allDocuments": "Tous les documents",
+    "fileCount": "{count} fichier(s)",
+    "coverage": {
+      "missing": "Non fourni"
+    },
+    "standard": {
+      "document": "Document",
+      "level": "Niveau",
+      "status": "Statut",
+      "files": "Fichiers",
+      "required": "{count} requis",
+      "missing": "{count} manquants",
+      "stillToProvide": "Reste à fournir",
+      "documents": "Documents"
+    },
+    "folders": {
+      "pitch": {
+        "title": "Pitch et stratégie",
+        "description": "Pitch decks, one-pagers, études de marché"
+      },
+      "financials": {
+        "title": "Finances et modèle",
+        "description": "Projections, cap table, trésorerie"
+      },
+      "legal": {
+        "title": "Juridique et corporate",
+        "description": "Constitution, accords, conformité"
+      },
+      "product": {
+        "title": "Produit et impact",
+        "description": "Architecture, bios de l'équipe, rapports d'avancement"
+      }
+    },
     "allStatuses": "Tous les statuts",
     "noDocuments": "Aucun document dans cette catégorie pour le moment.",
     "noMatch": "Aucun document ne correspond à ta recherche ou à tes filtres.",

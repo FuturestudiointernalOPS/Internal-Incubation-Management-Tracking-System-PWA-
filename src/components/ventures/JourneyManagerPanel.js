@@ -19,6 +19,7 @@ import JourneyTemplateSource from "@/components/ventures/journey/JourneyTemplate
 import JourneyArchiveToolbar from "@/components/ventures/journey/JourneyArchiveToolbar";
 import JourneyManagerModals from "@/components/ventures/journey/JourneyManagerModals";
 import JourneyStageList from "@/components/ventures/journey/JourneyStageList";
+import JourneyReportsSummary from "@/components/ventures/journey/JourneyReportsSummary";
 import { stageWrites } from "@/components/ventures/journey/actions/stageWrites";
 import { journeyLabels } from "@/components/ventures/journey/actions/labels";
 import { reportWrites } from "@/components/ventures/journey/actions/reports";
@@ -99,6 +100,9 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Journey archive/delete: selection + archived view + busy flag.
   const [viewArchived, setViewArchived] = useState(false);
   const [selectedStageIds, setSelectedStageIds] = useState(() => new Set());
+  // Selection is a MODE, not furniture: the checkboxes and the bulk bar only
+  // exist while it is on, and leaving it always clears what was ticked.
+  const [selectMode, setSelectMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   // In-app confirmation flow (no browser dialogs): step 1 asks, step 2 is the
   // final confirmation for archive/delete; restore asks once.
@@ -158,6 +162,11 @@ export default function JourneyManagerPanel({ ventureId }) {
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
 
+  const toggleSelectMode = () => {
+    setSelectMode((on) => !on);
+    setSelectedStageIds(new Set());
+  };
+
   // Every state value and every read stays here; the writes live in
   // ./journey/actions (one factory per concern) and the two large markup
   // blocks in ./journey. Both sides read the panel through `values` (what it
@@ -211,6 +220,9 @@ export default function JourneyManagerPanel({ ventureId }) {
     setJourneyTemplates,
     viewArchived,
     setViewArchived,
+    selectMode,
+    setSelectMode,
+    toggleSelectMode,
     selectedStageIds,
     setSelectedStageIds,
     bulkBusy,
@@ -340,16 +352,15 @@ export default function JourneyManagerPanel({ ventureId }) {
         access={access}
         activeStages={activeStages}
         addOpen={addOpen}
-        applyOpen={applyOpen}
-        historyOpen={historyOpen}
-        importOpen={importOpen}
         saveOpen={saveOpen}
+        selectMode={selectMode}
         stages={stages}
         setAddOpen={setAddOpen}
         setSaveOpen={setSaveOpen}
         toggleApply={toggleApply}
         toggleHistory={() => setHistoryOpen((open) => !open)}
         toggleImport={() => setImportOpen((open) => !open)}
+        toggleSelectMode={toggleSelectMode}
       />
 
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
@@ -373,6 +384,8 @@ export default function JourneyManagerPanel({ ventureId }) {
 
       <JourneyTemplateSource templateSource={templateSource} />
 
+      <JourneyReportsSummary stages={stages} reportsByStage={reportsByStage} />
+
       {/* Journey archive toolbar: Active/Archived views, select all, bulk
           archive/delete (each with a double confirmation). */}
       {access.manage && stages.length > 0 && (
@@ -385,6 +398,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           bulkBusy={bulkBusy}
           canDelete={Boolean(access?.delete)}
           selectedStageIds={selectedStageIds}
+          selectMode={selectMode}
           setSelectedStageIds={setSelectedStageIds}
           setViewArchived={setViewArchived}
           toggleSelectAllStages={toggleSelectAllStages}

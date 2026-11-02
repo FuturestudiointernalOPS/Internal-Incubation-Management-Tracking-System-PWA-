@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { Copy, Loader2 } from "lucide-react";
+import { Copy, Loader2, X } from "lucide-react";
 
 /**
  * Generate the journey from a journey template or an operating-plan
@@ -15,6 +15,7 @@ import { Copy, Loader2 } from "lucide-react";
 export default function JourneyApplyTemplateBar({
   applyTemplate,
   journeyTemplates,
+  onClose,
   savingTemplate,
   selectedTemplateId,
   setSelectedTemplateId,
@@ -39,6 +40,19 @@ export default function JourneyApplyTemplateBar({
       <button onClick={applyTemplate} disabled={savingTemplate || !selectedTemplateId} className="px-4 py-2 bg-[var(--brand-orange)] text-black rounded-xl text-[9px] font-black uppercase tracking-widest flex items-center gap-2 disabled:opacity-50">
         {savingTemplate ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Copy className="w-3.5 h-3.5" />} {t("venture.manager.generate")}
       </button>
+      {/* The bar opens from an overflow menu, so it carries its own close: the
+          menu item is no longer a button that flips to "Cancel". */}
+      {onClose && (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("common.close")}
+          title={t("common.close")}
+          className="p-2 rounded-lg text-slate-500 hover:text-[var(--text-primary)] transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 }
