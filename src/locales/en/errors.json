@@ -21,6 +21,7 @@
     "taskCreateFailed": "Could not create the task.",
     "authRequired": "Authentication required.",
     "insufficientPermissions": "You do not have the required permissions for this action. Please contact an administrator to request access.",
+    "outOfAssignmentScope": "This belongs to another part of the venture. You can view it, but not change it.",
     "forbidden": "You are not allowed to do this.",
     "invalidEligibilityChanges": "Invalid eligibility configuration.",
     "invalidMembershipAction": "Invalid membership action.",

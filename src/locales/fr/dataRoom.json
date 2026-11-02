@@ -14,6 +14,8 @@
     "view": "Ouvrir",
     "versions": "Historique des versions",
     "review": "Réviser",
+    "grantUser": "Accorder l'accès à un utilisateur",
+    "scheduleSession": "Planifier une session",
     "delete": "Supprimer",
     "shareAccess": "Accès investisseur",
     "cancel": "Annuler",
@@ -34,7 +36,8 @@
       "required": "{count} requis",
       "missing": "{count} manquants",
       "stillToProvide": "Reste à fournir",
-      "documents": "Documents"
+      "documents": "Documents",
+      "actions": "Actions"
     },
     "folders": {
       "pitch": {

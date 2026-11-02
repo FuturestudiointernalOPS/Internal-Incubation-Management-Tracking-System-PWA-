@@ -17,7 +17,7 @@ import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
 import SectionHead from "@/components/ui/SectionHead";
-import DataRoomDocumentCard from "./DataRoomDocumentCard";
+import DataRoomDocumentTable from "./DataRoomDocumentTable";
 import DataRoomUploadModal from "./DataRoomUploadModal";
 import DataRoomReviewModal from "./DataRoomReviewModal";
 import DataRoomPreviewModal from "./DataRoomPreviewModal";
@@ -308,32 +308,26 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
               ) : null}
             </div>
           ) : (
-            <div className="space-y-3">
-              {visible.map((entry) => (
-                <DataRoomDocumentCard
-                  key={entry.id}
-                  documentEntry={entry}
-                  t={t}
-                  canManage={viewer.can_manage}
-                  canReview={viewer.can_review}
-                  onOpen={(documentEntry, mode) => {
-                    if (mode === "download") return download(documentEntry);
-                    if (mode === "preview") {
-                      void recordAccess(documentEntry, "view");
-                      return setPreviewDoc(documentEntry);
-                    }
-                    return openDocument(documentEntry);
-                  }}
-                  onVersions={setVersionsDoc}
-                  onReplace={(documentEntry) => setUploadState({ mode: "replace", document: documentEntry })}
-                  onEdit={(documentEntry) => setUploadState({ mode: "edit", document: documentEntry })}
-                  onReview={setReviewDoc}
-                  onSession={setSessionDoc}
-                  onAccess={setAccessDoc}
-                  onDelete={removeDocument}
-                />
-              ))}
-            </div>
+            <DataRoomDocumentTable
+              documents={visible}
+              canManage={viewer.can_manage}
+              canReview={viewer.can_review}
+              onOpen={(documentEntry, mode) => {
+                if (mode === "download") return download(documentEntry);
+                if (mode === "preview") {
+                  void recordAccess(documentEntry, "view");
+                  return setPreviewDoc(documentEntry);
+                }
+                return openDocument(documentEntry);
+              }}
+              onVersions={setVersionsDoc}
+              onReplace={(documentEntry) => setUploadState({ mode: "replace", document: documentEntry })}
+              onEdit={(documentEntry) => setUploadState({ mode: "edit", document: documentEntry })}
+              onReview={setReviewDoc}
+              onSession={setSessionDoc}
+              onAccess={setAccessDoc}
+              onDelete={removeDocument}
+            />
           )}
         </div>
       </div>

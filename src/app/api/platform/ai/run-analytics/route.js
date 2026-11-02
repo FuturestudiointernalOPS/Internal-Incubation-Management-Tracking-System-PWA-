@@ -4,12 +4,33 @@ import { getSubmissionsByRunId } from "@/models/formRuns/readsAndHelpers/reads";
 import { getFormFieldsByFormId } from "@/models/publicFormRuns";
 import { deepseekIntelligence } from "@/lib/deepseek";
 import db from "@/lib/db";
+import {
+  ensureRunAnalyticsTable,
+  selectRunAnalytics,
+  upsertRunAnalytics,
+} from "@/models/platformAnalyticsStore";
 
 export const dynamic = "force-dynamic";
 
+/** The newest response on the run — half of the cache fingerprint. */
+function latestSubmissionIso(submissions = []) {
+  let latest = "";
+  for (const submission of submissions) {
+    if (!submission?.created_at) continue;
+    const date = new Date(submission.created_at);
+    if (Number.isNaN(date.getTime())) continue;
+    const iso = date.toISOString();
+    if (iso > latest) latest = iso;
+  }
+  return latest;
+}
+
 /**
- * GET /api/platform/ai/run-analytics?run_id=XXX
- * Computes executive synthesis, quantitative KPIs, and question-by-question AI takeaways.
+ * GET /api/platform/ai/run-analytics?run_id=XXX[&ai=1]
+ *
+ * Always: quantitative KPIs and question-by-question distributions — a fast read.
+ * With `ai=1`: additionally asks the model for the executive synthesis, which is
+ * slow and billed, so it is opt-in per request.
  */
 export async function GET(req) {
   try {
@@ -125,21 +146,44 @@ export async function GET(req) {
     });
 
     // ── AI Executive Synthesis via DeepSeek / Model ──
+    // OPT-IN ONLY (`ai=1`). The numbers are deterministic and must never wait on
+    // a model call: the screen asks for the synthesis on a button, not on every
+    // mount. Without the flag this route is a fast, cheap aggregation.
     let aiSynthesis = null;
-    try {
-      const compactQuestions = questionAnalytics
-        .filter((q) => q.answeredCount > 0)
-        .map((q) => {
-          const topFreq = Object.entries(q.frequencies)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 4)
-            .map(([opt, cnt]) => `${opt}: ${cnt} (${Math.round((cnt / q.answeredCount) * 100)}%)`)
-            .join(", ");
-          return `- ${q.label}: ${topFreq || q.sampleValues.join("; ")}`;
-        })
-        .join("\n");
+    if (searchParams.get("ai") === "1") {
+      // A stored synthesis is reused while this run's fingerprint is unchanged:
+      // same number of responses, same newest response. Otherwise it is stale.
+      const latestSubmissionAt = latestSubmissionIso(submissions);
+      try {
+        await ensureRunAnalyticsTable();
+        const stored = await selectRunAnalytics(targetRunId);
+        const row = stored?.rows?.[0];
+        if (
+          row &&
+          Number(row.submissions_count) === totalCount &&
+          String(row.latest_submission_at || "") === String(latestSubmissionAt || "")
+        ) {
+          aiSynthesis = row.payload;
+        }
+      } catch (cacheError) {
+        console.warn("[Run Analytics] cache read failed:", cacheError.message);
+      }
 
-      const prompt = `You are the Chief Investment & Impact Officer at Future Studio (ImpactOS).
+      if (!aiSynthesis) {
+      try {
+        const compactQuestions = questionAnalytics
+          .filter((q) => q.answeredCount > 0)
+          .map((q) => {
+            const topFreq = Object.entries(q.frequencies)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 4)
+              .map(([opt, cnt]) => `${opt}: ${cnt} (${Math.round((cnt / q.answeredCount) * 100)}%)`)
+              .join(", ");
+            return `- ${q.label}: ${topFreq || q.sampleValues.join("; ")}`;
+          })
+          .join("\n");
+
+        const prompt = `You are the Chief Investment & Impact Officer at Future Studio (ImpactOS).
 Analyze the following aggregate survey/census responses from our portfolio startups.
 Total Submissions: ${totalCount} startups.
 
@@ -163,13 +207,25 @@ Provide a high-level, executive portfolio analysis in valid JSON format ONLY:
 
 Return ONLY raw JSON, with no markdown code fences.`;
 
-      const aiResponse = await deepseekIntelligence.chat(prompt);
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        aiSynthesis = JSON.parse(jsonMatch[0]);
+        const aiResponse = await deepseekIntelligence.chat(prompt);
+        const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          aiSynthesis = JSON.parse(jsonMatch[0]);
+        }
+        // Store it so the next reader (this admin, another admin, a later visit)
+        // gets the brief without paying for another model call.
+        if (aiSynthesis) {
+          await upsertRunAnalytics({
+            runId: targetRunId,
+            submissionsCount: totalCount,
+            latestSubmissionAt,
+            payload: aiSynthesis,
+          }).catch((cacheError) => console.warn("[Run Analytics] cache write failed:", cacheError.message));
+        }
+      } catch (aiErr) {
+        console.warn("[Run Analytics AI] Chat failed:", aiErr.message);
       }
-    } catch (aiErr) {
-      console.warn("[Run Analytics AI] Chat failed:", aiErr.message);
+      }
     }
 
     return NextResponse.json({

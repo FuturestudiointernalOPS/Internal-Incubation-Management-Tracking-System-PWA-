@@ -6,13 +6,14 @@ import { useI18n } from "@/lib/i18n";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import SkeletonCard from "./venture-dashboard/SkeletonCard";
-import AttentionWidget from "./venture-dashboard/AttentionWidget";
 import DashboardHeader from "./venture-dashboard/DashboardHeader";
-import HealthSummary from "./venture-dashboard/HealthSummary";
 import QuickActions from "./venture-dashboard/QuickActions";
 import MetricsColumn from "./venture-dashboard/MetricsColumn";
 import TeamCoachingColumn from "./venture-dashboard/TeamCoachingColumn";
 import ActivityColumn from "./venture-dashboard/ActivityColumn";
+import CockpitMetrics from "./cockpit/CockpitMetrics";
+import CockpitDecisions from "./cockpit/CockpitDecisions";
+import { useReviewQueue } from "./cockpit/useReviewQueue";
 
 // ─── Read shapers (module scope: built once, never per render) ───────────
 
@@ -47,7 +48,7 @@ function isWidgetEmpty(data) {
 
 // ─── Main Dashboard Component ────────────────────────────────────────────
 
-export default function VentureDashboard({ id, embedded = false, onOpenProfile }) {
+export default function VentureDashboard({ id, embedded = false }) {
   const router = useRouter();
   const { t } = useI18n();
 
@@ -73,6 +74,19 @@ export default function VentureDashboard({ id, embedded = false, onOpenProfile }
     transform: pickDashboard,
   });
   const dashboard = dashState.dashboard;
+
+  // The same queue the Venture Manager's cockpit shows. One hook, one endpoint,
+  // one server-side scope filter — the Super Admin simply sees everything.
+  const { items: reviewQueue, loading: queueLoading, decide } = useReviewQueue(id);
+
+  // A KPI card is a filter link: on this surface the work lives in the hub's
+  // own sections, so "journey" and "tasks" are routes, not query tabs.
+  const goTo = (section) => {
+    const base = `/admin/ventures/${id}`;
+    if (section === "journey") router.push(`${base}/journey`);
+    else if (section === "tasks") router.push(`${base}/tasks`);
+    else if (section === "sessions") router.push(`${base}/sessions`);
+  };
 
   // Three shapes of failure reach the screen: the server refusing (a status),
   // the payload reporting its own failure (a message), and a request that never
@@ -208,9 +222,9 @@ export default function VentureDashboard({ id, embedded = false, onOpenProfile }
         )}
 
         {/* Manager attention (Vinance 3 — what needs attention right now) */}
-        <AttentionWidget id={id} />
+        <CockpitMetrics ventureId={id} onNavigate={goTo} />
 
-        <HealthSummary data={dashboardData} ventureId={id} onOpenProfile={onOpenProfile} />
+        <CockpitDecisions items={reviewQueue} loading={queueLoading} onDecide={decide} />
 
         <QuickActions id={id} />
 

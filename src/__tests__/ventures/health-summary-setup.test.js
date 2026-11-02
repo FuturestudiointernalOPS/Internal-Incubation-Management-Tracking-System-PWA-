@@ -56,8 +56,8 @@ test("without a way to open it (standalone page) the Profile tile stays a plain 
   expect(screen.queryByTitle(/Open the Profile tab/)).toBeNull();
 });
 
-test("the hub passes the Profile tab to the embedded dashboard; the founder card opens it too", () => {
+test("the hub embeds the cockpit both screens share; the founder card still opens Profile", () => {
   const fs = require("node:fs");
-  expect(fs.readFileSync("src/components/admin/ventures/VentureDetailView.js", "utf8")).toContain('onOpenProfile={() => setActiveTab("profile")}');
+  expect(fs.readFileSync("src/components/admin/ventures/VentureDetailView.js", "utf8")).toContain("<VentureDashboard id={id} embedded />");
   expect(fs.readFileSync("src/components/ventures/workspace/tabs/DashboardHistoryTabs.js", "utf8")).toContain('onSection("profile")');
 });

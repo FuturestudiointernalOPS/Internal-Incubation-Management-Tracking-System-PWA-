@@ -14,6 +14,8 @@
     "view": "Open",
     "versions": "Version history",
     "review": "Review",
+    "grantUser": "Grant access to a user",
+    "scheduleSession": "Schedule session",
     "delete": "Delete",
     "shareAccess": "Investor access",
     "cancel": "Cancel",
@@ -34,7 +36,8 @@
       "required": "{count} required",
       "missing": "{count} missing",
       "stillToProvide": "Still to provide",
-      "documents": "Documents"
+      "documents": "Documents",
+      "actions": "Actions"
     },
     "folders": {
       "pitch": {

@@ -42,7 +42,6 @@ export default function VentureDetailView({ ctx }) {
     memberSummary,
     members,
     router,
-    setActiveTab,
     t,
     venture,
   } = ctx;
@@ -85,7 +84,7 @@ export default function VentureDetailView({ ctx }) {
         {activeTab === "dashboard" && (
           /* Full Dashboard is the first view when opening a Venture (merged
              with the former standalone dashboard page content). */
-          <VentureDashboard id={id} embedded onOpenProfile={() => setActiveTab("profile")} />
+          <VentureDashboard id={id} embedded />
         )}
 
         {(activeTab === "profile" || activeTab === "overview") && (
