@@ -1021,6 +1021,12 @@
       "work": "Work",
       "type": "Type",
       "status": "Status",
+      "statusCategories": {
+        "toDo": "To do",
+        "inProgress": "In progress",
+        "blocked": "Blocked",
+        "done": "Done"
+      },
       "journey": "Journey",
       "milestone": "Milestone",
       "parent": "Belongs to",

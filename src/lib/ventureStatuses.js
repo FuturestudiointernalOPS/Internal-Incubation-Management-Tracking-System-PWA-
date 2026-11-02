@@ -243,9 +243,30 @@ export function deliverableStatusWord(deliverable = {}) {
   if (status === "submitted" || status === "under_review" || status === "review") {
     return statusWord("awaiting_review");
   }
+  if (status === "blocked") return statusWord("blocked");
   if (status === "in_progress") return statusWord("in_progress");
   return statusWord("not_started");
 }
+
+/**
+ * The progress words a manager may set on a deliverable, and the stored value
+ * each one means.
+ *
+ * Review outcomes (`awaiting_review`, `changes_requested`, `approved`) are
+ * deliberately absent: they are the result of the review action, which requires
+ * evidence, a reviewer and an audit row. A dropdown must never be able to grant
+ * an approval.
+ */
+export const DELIVERABLE_PROGRESS_WORDS = ["not_started", "in_progress", "blocked"];
+
+/** The review outcomes. Never selectable: `action: "review"` owns them. */
+export const DELIVERABLE_REVIEW_WORDS = ["awaiting_review", "changes_requested", "approved"];
+
+export const DELIVERABLE_STATUS_BY_WORD = {
+  not_started: "pending",
+  in_progress: "in_progress",
+  blocked: "blocked",
+};
 
 /**
  * The ONE label helper. Returns the translated word, or — when a state has no

@@ -3,6 +3,8 @@
 import React from "react";
 import VenturePersonField from "@/components/ventures/VenturePersonField";
 import { useI18n } from "@/lib/i18n";
+import { CATEGORY_COLOR, statusCategory } from "@/lib/workItemStatus";
+import { DELIVERABLE_PROGRESS_WORDS, DELIVERABLE_REVIEW_WORDS } from "@/lib/ventureStatuses";
 
 /**
  * The three facts a manager changes straight from a work item's row: who it is
@@ -16,19 +18,16 @@ import { useI18n } from "@/lib/i18n";
 
 export const TASK_STATUSES = ["backlog", "todo", "in_progress", "review", "done", "blocked", "cancelled"];
 export const MILESTONE_STATUSES = ["not_started", "in_progress", "blocked", "completed"];
-export const DELIVERABLE_WORDS = ["not_started", "in_progress", "awaiting_review", "changes_requested", "approved"];
+/**
+ * A deliverable's PROGRESS is the manager's to set.
+ *
+ * The review words are shown so the row's current state is readable, but they
+ * are refused in the list: an approval or a change request comes from the
+ * review action, which demands evidence, a reviewer and an audit row. A
+ * dropdown must never be able to grant one.
+ */
+export const DELIVERABLE_WORDS = [...DELIVERABLE_PROGRESS_WORDS, ...DELIVERABLE_REVIEW_WORDS];
 export const PRIORITIES = ["low", "medium", "high", "critical"];
-
-const STATUS_COLOR = {
-  backlog: "bg-slate-500/10 text-slate-400",
-  todo: "bg-blue-500/10 text-blue-400",
-  in_progress: "bg-amber-500/10 text-amber-400",
-  review: "bg-purple-500/10 text-purple-400",
-  done: "bg-emerald-500/10 text-emerald-400",
-  completed: "bg-emerald-500/10 text-emerald-400",
-  approved: "bg-emerald-500/10 text-emerald-400",
-  blocked: "bg-rose-500/10 text-rose-400",
-};
 
 const PRIORITY_COLOR = {
   low: "text-[var(--text-secondary)]",
@@ -72,17 +71,10 @@ export function statusOptions(item) {
   return DELIVERABLE_WORDS;
 }
 
-// Not started yet: its start date is still ahead, so it reads as not started.
-const startsLater = (item) => {
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return Boolean(item.start) && String(item.start).slice(0, 10) > today;
-};
-
+// A status is what a person DECLARED. The start date is displayed in its own
+// column and never rewrites the status: doing so made the row disagree with
+// every count and report, which read the stored value.
 export function currentStatus(item) {
-  if (startsLater(item) && String(item.stored_status || item.status?.id) === "in_progress") {
-    return item.kind === "activity" ? "todo" : "not_started";
-  }
   if (item.kind === "deliverable") return item.status?.id || "not_started";
   if (item.kind === "milestone") {
     const stored = String(item.stored_status || "").toLowerCase();
@@ -106,12 +98,17 @@ export function StatusCell({ item, onChange, disabled }) {
       onClick={stop}
       onChange={(event) => onChange({ status: event.target.value })}
       aria-label={t("venture.projects.status")}
-      className={`px-2 py-1 rounded-lg outline-none border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest ${STATUS_COLOR[value] || ""}`}
+      className={`px-2 py-1 rounded-lg outline-none border border-[var(--border-primary)] text-[9px] font-black uppercase tracking-widest ${CATEGORY_COLOR[statusCategory(value)] || ""}`}
     >
       {!options.includes(value) ? <option value="">{value || "—"}</option> : null}
-      {options.map((option) => (
-        <option key={option} value={option}>{label(option)}</option>
-      ))}
+      {options.map((option) => {
+        // A review outcome is not the manager's to pick — the review action owns
+        // it. It stays visible (the row must read correctly) but cannot be chosen.
+        const refused = item.kind === "deliverable" && DELIVERABLE_REVIEW_WORDS.includes(option);
+        return (
+          <option key={option} value={option} disabled={refused}>{label(option)}</option>
+        );
+      })}
     </select>
   );
 }
