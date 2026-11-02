@@ -206,7 +206,7 @@ async function resolveSubmitterIdentity(runId, data) {
  * @param {(task: Function) => void} params.after the deferred-task hook (HTTP boundary)
  * @returns {Promise<{status: number, body: Object, browserToken: string|null}>}
  */
-export async function submitPublicResponse({ data, slug, consent, language, ip, browserToken, after, whatsappOptIn = false }) {
+export async function submitPublicResponse({ data, slug, consent, language, ip, browserToken, after, whatsappOptIn = false, ventureId }) {
   if (!slug || !data || typeof data !== "object") {
     return { status: 400, body: { success: false, error: "slug and data required" }, browserToken: null };
   }
@@ -264,6 +264,7 @@ export async function submitPublicResponse({ data, slug, consent, language, ip, 
   // Optional run invitation provenance is no longer resolved here: the Venture
   // intake flow has been retired.
   const invitationId = null;
+  const targetVentureId = ventureId || data?.venture_id || null;
 
   // IP-based rate limiting: max 5 submissions per IP per run per hour. Gracefully
   // skip if the rate table doesn't exist yet.
@@ -348,12 +349,28 @@ export async function submitPublicResponse({ data, slug, consent, language, ip, 
     const draftResult = await getDraftSubmissionBySubmitter(run_id, submitterEmail);
     if (draftResult.rows.length > 0) {
       await upgradeDraftToSubmitted(data, submitterName, invitationId, draftResult.rows[0].id);
+      if (targetVentureId) {
+        try {
+          const { ensureVentureBroadcastsTable } = await import("@/models/ventureBroadcastStore");
+          await ensureVentureBroadcastsTable();
+          const dbMod = (await import("@/lib/db")).default;
+          await dbMod.execute({ sql: "UPDATE platform_form_submissions SET venture_id = ? WHERE id = ?", args: [String(targetVentureId), draftResult.rows[0].id] });
+        } catch (_) {}
+      }
       submissionId = draftResult.rows[0].id;
     }
   }
 
   if (!submissionId) {
     const result = await insertSubmittedSubmission(run_id, submitterId, submitterName, data, invitationId);
+    if (targetVentureId && result.rows?.[0]?.id) {
+      try {
+        const { ensureVentureBroadcastsTable } = await import("@/models/ventureBroadcastStore");
+        await ensureVentureBroadcastsTable();
+        const dbMod = (await import("@/lib/db")).default;
+        await dbMod.execute({ sql: "UPDATE platform_form_submissions SET venture_id = ? WHERE id = ?", args: [String(targetVentureId), result.rows[0].id] });
+      } catch (_) {}
+    }
     submissionId = result.rows[0].id;
   }
 

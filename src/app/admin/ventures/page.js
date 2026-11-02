@@ -13,6 +13,8 @@ import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
 import AddVentureForm from "@/components/create/AddVentureForm";
+import BroadcastCensusModal from "@/components/ventures/BroadcastCensusModal";
+import { Send } from "lucide-react";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -45,6 +47,7 @@ export default function VenturesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   // The loader's work — painting from the cache first, discarding a stale
   // response, the background refresh — belongs to the hook, so the screen keeps
   // no list state of its own and never sets state from an effect. Adding a
@@ -114,6 +117,12 @@ export default function VenturesPage() {
             </h1>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => setShowBroadcastModal(true)}
+              className="btn btn-secondary gap-2 border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 font-semibold"
+            >
+              <Send className="w-4 h-4" /> Broadcast Census / Form
+            </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="btn btn-primary gap-2"

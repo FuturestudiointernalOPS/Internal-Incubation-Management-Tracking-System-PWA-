@@ -19,6 +19,7 @@ import PageHero from "@/components/ui/PageHero";
 import KpiCard from "@/components/ui/KpiCard";
 import ParticipantCommandCalendar from "@/components/ui/ParticipantCommandCalendar";
 import CreateActions from "@/components/create/CreateActions";
+import StartupBroadcastBanner from "@/components/ventures/StartupBroadcastBanner";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 
@@ -160,6 +161,12 @@ export default function FounderExecutiveDashboard() {
 
   return (
     <div className="space-y-6">
+      {primaryVenture && (
+        <StartupBroadcastBanner
+          ventureId={primaryVenture.venture_id || primaryVenture.id}
+          ventureName={primaryVenture.company_name || primaryVenture.name}
+        />
+      )}
       {/* ── 1. Page Hero ── */}
       <PageHero
         kicker="FOUNDER WORKSPACE"
