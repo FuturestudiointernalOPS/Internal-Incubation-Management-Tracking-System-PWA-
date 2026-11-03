@@ -203,7 +203,13 @@
         "net_burn": "Net burn",
         "average_burn": "Average burn",
         "runway_months": "Runway (months)",
-        "fte": "FTE"
+        "fte": "FTE",
+        "paying_customers": "Paying customers",
+        "ltv_cac": "LTV : CAC",
+        "cac_payback_months": "CAC payback (months)",
+        "magic_number": "Magic number",
+        "burn_multiple": "Burn multiple",
+        "gross_margin": "Gross margin"
       },
       "events": {
         "title": "Events",

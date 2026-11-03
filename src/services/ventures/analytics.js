@@ -27,6 +27,10 @@ import {
   selectTasksReport,
   selectTeamProductivity,
 } from "@/models/ventureAnalyticsStore";
+import {
+  selectApprovedDeliverablesByMonth,
+  selectCompletedStagesByMonth,
+} from "@/models/ventureExecutionTimeline";
 
 /**
  * Compute full project analytics for a venture.
@@ -194,4 +198,39 @@ export async function getExportData(ventureId, type = "tasks") {
     }));
   }
   return [];
+}
+
+/**
+ * Approved deliverables and completed stages, per calendar month.
+ *
+ * The overlay's two inputs, merged into ONE ordered series so the screen never
+ * has to align two lists itself. A month with no activity simply does not
+ * appear — the caller charts against the months that have data.
+ */
+export async function getExecutionTimeline(dbId) {
+  const [approved, stages] = await Promise.all([
+    selectApprovedDeliverablesByMonth(dbId).catch(() => ({ rows: [] })),
+    selectCompletedStagesByMonth(dbId).catch(() => ({ rows: [] })),
+  ]);
+
+  const byPeriod = new Map();
+  const entryFor = (period) => {
+    const key = String(period || "");
+    if (!key) return null;
+    if (!byPeriod.has(key)) byPeriod.set(key, { period: key, approved: 0, stages: 0 });
+    return byPeriod.get(key);
+  };
+
+  for (const row of approved.rows || []) {
+    const entry = entryFor(row.period);
+    if (entry) entry.approved += Number(row.approved) || 0;
+  }
+  for (const row of stages.rows || []) {
+    const entry = entryFor(row.period);
+    if (entry) entry.stages += Number(row.completed) || 0;
+  }
+
+  return {
+    months: [...byPeriod.values()].sort((a, b) => (a.period < b.period ? -1 : 1)),
+  };
 }

@@ -102,6 +102,16 @@ export async function getVentureDashboard({ ventureUuid }) {
       netBurn: pointOf(metricsByPeriod, month.period, "net_burn", monthCurrency),
       runway: pointOf(metricsByPeriod, month.period, "runway_months", monthCurrency),
       fte: pointOf(metricsByPeriod, month.period, "fte", monthCurrency),
+      // The rest of the calculated layer: read by the studio's business snapshot.
+      // Still "nothing recomputed here" — these are stored metrics, not sums.
+      arpu: pointOf(metricsByPeriod, month.period, "arpu", monthCurrency),
+      ltvCac: pointOf(metricsByPeriod, month.period, "ltv_cac", monthCurrency),
+      cacPayback: pointOf(metricsByPeriod, month.period, "cac_payback_months", monthCurrency),
+      magicNumber: pointOf(metricsByPeriod, month.period, "magic_number", monthCurrency),
+      burnMultiple: pointOf(metricsByPeriod, month.period, "burn_multiple", monthCurrency),
+      grossMargin: pointOf(metricsByPeriod, month.period, "gross_margin", monthCurrency),
+      churnRate: pointOf(metricsByPeriod, month.period, "churn_rate", monthCurrency),
+      mrrGrowth3m: pointOf(metricsByPeriod, month.period, "mrr_growth_3m", monthCurrency),
     };
   });
 
@@ -167,6 +177,13 @@ export async function getVentureDashboard({ ventureUuid }) {
   };
 
   return {
+    // The studio's own thresholds, so a screen can state "below the 9-month
+    // line" instead of hard-coding a number the settings already own.
+    thresholds: {
+      runwayGreenMonths: numericOrNull(settings.settings?.traffic_runway_green_months),
+      runwayAmberMonths: numericOrNull(settings.settings?.traffic_runway_amber_months),
+      growthGreenPct: numericOrNull(settings.settings?.traffic_growth_green_pct),
+    },
     northStar: {
       name: profileRow?.north_star_name || null,
       unit: profileRow?.north_star_unit || null,

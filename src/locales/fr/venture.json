@@ -203,7 +203,13 @@
         "net_burn": "Brûlage net",
         "average_burn": "Brûlage moyen",
         "runway_months": "Autonomie (mois)",
-        "fte": "ETP"
+        "fte": "ETP",
+        "paying_customers": "Clients payants",
+        "ltv_cac": "LTV : CAC",
+        "cac_payback_months": "Retour sur CAC (mois)",
+        "magic_number": "Magic number",
+        "burn_multiple": "Multiple de brûlage",
+        "gross_margin": "Marge brute"
       },
       "events": {
         "title": "Événements",
