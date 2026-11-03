@@ -27,6 +27,9 @@ export default [
 "CREATE INDEX IF NOT EXISTS idx_vss_key ON venture_stage_settings (setting_key, business_model, effective_from DESC)",
 
 // ─── Money bands (flow and cash) ───────────────────────────────────────────
+// A band is a set of ABSOLUTE amounts, so the ladder belongs to a CURRENCY: a
+// CFA ladder grading a USD report is a wrong answer wearing a band code. The
+// column defaults to XOF because the seeded ladder is the CFA one.
 `CREATE TABLE IF NOT EXISTS venture_band_settings (
   id SERIAL PRIMARY KEY,
   band_kind TEXT NOT NULL CHECK (band_kind IN ('flow','cash')),
@@ -35,10 +38,17 @@ export default [
   low NUMERIC,
   high NUMERIC,
   midpoint NUMERIC,
+  currency TEXT NOT NULL DEFAULT 'XOF',
   effective_from DATE NOT NULL DEFAULT CURRENT_DATE,
-  UNIQUE (band_kind, band_code, effective_from)
+  UNIQUE (band_kind, band_code, currency, effective_from)
 )`,
 "CREATE INDEX IF NOT EXISTS idx_vbs_kind ON venture_band_settings (band_kind, sort_order)",
+"ALTER TABLE venture_band_settings ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'XOF'",
+// An existing database carries the old three-column uniqueness, which would
+// forbid a second ladder for the same band code. Replace it with the currency-
+// aware index (idempotent: the DROP is a no-op once done).
+"ALTER TABLE venture_band_settings DROP CONSTRAINT IF EXISTS venture_band_settings_band_kind_band_code_effective_from_key",
+"CREATE UNIQUE INDEX IF NOT EXISTS idx_vbs_kind_code_currency ON venture_band_settings (band_kind, band_code, currency, effective_from)",
 
 // ─── Static profile — one row per version ──────────────────────────────────
 `CREATE TABLE IF NOT EXISTS venture_static_profile (
@@ -178,6 +188,16 @@ export default [
  ('reporting_utc_offset_minutes','default',0,'minute','2026-11-01')
  ON CONFLICT (setting_key, business_model, effective_from) DO NOTHING`,
 
+// ─── Seed: the business reading (verdict + risk panel) ─────────────────────
+// These four used to be literals in the Reports page. Seeded so a studio can
+// see and move them from the settings screen like every other threshold.
+`INSERT INTO venture_stage_settings (setting_key, business_model, setting_value, value_type, effective_from) VALUES
+ ('reading_growth_green_pct','default',5,'percent','2026-11-01'),
+ ('reading_growth_red_pct','default',-2,'percent','2026-11-01'),
+ ('reading_retention_floor_pct','default',50,'percent','2026-11-01'),
+ ('reading_min_ltv_cac','default',3,'number','2026-11-01')
+ ON CONFLICT (setting_key, business_model, effective_from) DO NOTHING`,
+
 // ─── Seed: bands (flow F0–F8, cash C0–C7) ──────────────────────────────────
 `INSERT INTO venture_band_settings (band_kind, band_code, sort_order, low, high, midpoint, effective_from) VALUES
  ('flow','F0',0,0,0,0,'2026-11-01'),
@@ -197,7 +217,7 @@ export default [
  ('cash','C5',5,5000001,10000000,7500000.5,'2026-11-01'),
  ('cash','C6',6,10000001,25000000,17500000.5,'2026-11-01'),
  ('cash','C7',7,25000001,31250001.25,28125001.125,'2026-11-01')
- ON CONFLICT (band_kind, band_code, effective_from) DO NOTHING`,
+ ON CONFLICT (band_kind, band_code, currency, effective_from) DO NOTHING`,
 
 // ─── Seed: glossary (studio must confirm the wording) ──────────────────────
 // `paying_customer` is defined as a STOCK AT MONTH END on purpose: the monthly

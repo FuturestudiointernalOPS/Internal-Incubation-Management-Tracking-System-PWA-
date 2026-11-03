@@ -960,6 +960,9 @@
       "flat": "Revenue is flat over the last three months.",
       "growing": "Revenue grew {percent} over the last three months, with {retention} retention.",
       "declining": "Revenue fell {percent} over the last three months.",
+      "customersGrowing": "Paying customers grew {percent} over the last three months.",
+      "customersDeclining": "Paying customers fell {percent} over the last three months.",
+      "customersFlat": "Paying customers are flat at {percent} over the last three months.",
       "runwayLow": "Runway is {months} months — below the studio's {threshold}-month threshold.",
       "runwayOk": "Runway is {months} months.",
       "unitsGood": "Unit economics are healthy (LTV:CAC {ratio}).",
@@ -1003,6 +1006,7 @@
     "reportsImpact": {
       "title": "Impact",
       "jobsCreated": "Jobs created since baseline",
+      "jobsLost": "lost",
       "jobsSupported": "Jobs supported (FTE)",
       "fteHint": "Full-time equivalent, latest validated month",
       "womenShare": "Women in the team",
@@ -1015,6 +1019,7 @@
       "title": "Work vs outcome",
       "subtitle": "Deliverables approved each month against the revenue the Venture reported.",
       "approved": "Deliverables approved",
+      "milestones": "Milestones completed",
       "revenue": "Revenue",
       "noData": "No approved deliverable yet — the overlay appears with the first approval."
     },

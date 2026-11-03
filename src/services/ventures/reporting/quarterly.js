@@ -128,7 +128,7 @@ export async function getQuarterlyReport({ ventureUuid, period }) {
   const currency = latest?.currency
     ? String(latest.currency).toUpperCase()
     : await currentReportingCurrency(ventureUuid);
-  const bands = groupBands(bandsResult.rows || []);
+  const bands = groupBands(bandsResult.rows || [], currency);
 
   let preview = null;
   if (open) {
@@ -170,15 +170,18 @@ export async function saveQuarterlyReport({ ventureUuid, ventureCode, actorCid, 
     return { errors: ["venture.reporting.quarterly.validation.futurePeriod"] };
   }
 
+  // ONE read of the Venture's currency for both the ladder and the stamp.
+  const currency = await currentReportingCurrency(ventureUuid);
   const bandsResult = await selectBands();
-  const bands = groupBands(bandsResult.rows || []);
+  // Validate band codes against the ladder of the currency the quarter will be
+  // filed in — a CFA code on a USD report is not a valid answer.
+  const bands = groupBands(bandsResult.rows || [], currency);
 
   const errors = validateQuarterlyReport(input, { bands });
   if (errors.length) return { errors };
 
   const submit = input.submit === true || input.submit === "yes";
   // Stamped server-side from the Venture's setting, exactly like the month.
-  const currency = await currentReportingCurrency(ventureUuid);
   const values = quarterlyRowValues({ input: { ...input, currency }, actorCid });
 
   const saved = await runInTransaction(async (query) => {

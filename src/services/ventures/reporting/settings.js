@@ -45,7 +45,7 @@ export function ensureReportingSchema() {
 }
 
 /** Thresholds (override applied where a business model is given) + bands + glossary. */
-export async function getReportingSettings({ businessModel = "default" } = {}) {
+export async function getReportingSettings({ businessModel = "default", currency = null } = {}) {
   await ensureReportingSchema();
   const [settingsResult, bandsResult, glossaryResult] = await Promise.all([
     selectStageSettings(),
@@ -68,7 +68,7 @@ export async function getReportingSettings({ businessModel = "default" } = {}) {
     defaults: buildSettingsMap(rows, "default"),
     overrides,
     businessModels: BUSINESS_MODELS,
-    bands: groupBands(bandsResult.rows || []),
+    bands: groupBands(bandsResult.rows || [], currency),
     glossary: glossaryResult.rows || [],
     // The definitions the settings screen renders, so the UI never hardcodes
     // a key, a range or a label.

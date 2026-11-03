@@ -29,7 +29,7 @@ import {
 import { ensureReportingSchema, getReportingSettings } from "./settings";
 import { moneyBounds } from "./metrics";
 import { numericOrNull } from "./monthlyRules";
-import { survivalAt, timeInStages, monthsBetween } from "./yearly";
+import { survivalAt, timeInStages, monthsBetween, jobsDelta } from "./yearly";
 import { evaluateTrafficLight, GREEN, AMBER, RED, UNKNOWN } from "./trafficLight";
 import { STAGES } from "./stageCriteria";
 
@@ -83,6 +83,13 @@ export async function getPortfolioRollup({ now = new Date() } = {}) {
   // The roll-up evaluates every Venture's traffic light, which is a per-model
   // rule. `default` is the studio baseline; the per-model overrides only ever
   // refine a single Venture, and the aggregate shows the baseline.
+  //
+  // Bands are read WITHOUT a currency here, because this is a fold across
+  // Ventures that may report in different units — there is no single correct
+  // ladder to apply. The per-Venture screens always pass their own currency.
+  // A portfolio that mixes currencies therefore needs conversion at the source
+  // before band amounts can be averaged; until then, keep the studio on one
+  // reporting currency.
   const settingsBundle = await getReportingSettings({ businessModel: "default" });
   const { settings, bands } = settingsBundle;
 
@@ -261,9 +268,14 @@ export async function getPortfolioRollup({ now = new Date() } = {}) {
   }
 
   // ── Jobs ──────────────────────────────────────────────────────────────────
+  // Summed as CHANGES, never as one signed "created" figure: a Venture that
+  // grew by 3 and one that shrank by 3 create 3 jobs and lose 3 — the portfolio
+  // must not report 0 created, which is what netting them would say.
   let fteTotal = 0;
   let fteKnown = 0;
   let jobsCreated = 0;
+  let jobsLost = 0;
+  let jobsNet = 0;
   let jobsCreatedKnown = 0;
   for (const venture of ventures) {
     const fte = metricOf.get(venture.id)?.fte ?? null;
@@ -271,8 +283,11 @@ export async function getPortfolioRollup({ now = new Date() } = {}) {
     fteTotal += fte;
     fteKnown += 1;
     const baselineFte = baselines.get(venture.id);
-    if (baselineFte !== null && baselineFte !== undefined) {
-      jobsCreated += fte - baselineFte;
+    const delta = jobsDelta(fte, baselineFte);
+    if (delta !== null) {
+      jobsCreated += Math.max(0, delta);
+      jobsLost += Math.max(0, -delta);
+      jobsNet += delta;
       jobsCreatedKnown += 1;
     }
   }
@@ -322,6 +337,8 @@ export async function getPortfolioRollup({ now = new Date() } = {}) {
       fte: fteKnown ? fteTotal : null,
       venturesReportingFte: fteKnown,
       created: jobsCreatedKnown ? jobsCreated : null,
+      lost: jobsCreatedKnown ? jobsLost : null,
+      net: jobsCreatedKnown ? jobsNet : null,
       venturesWithBaseline: jobsCreatedKnown,
     },
     team: {

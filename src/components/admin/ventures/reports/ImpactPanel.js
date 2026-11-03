@@ -26,7 +26,19 @@ export default function ImpactPanel({ dashboard, baseline }) {
     );
   }
 
-  const created = latestFte !== null && baselineFte !== null ? latestFte - baselineFte : null;
+  // Created and lost are reported separately. A Venture that went from 6 FTE to
+  // 4 has created 0 jobs — printing "−2" under a "jobs created" label reads as
+  // a small negative number, when it is a loss of two jobs.
+  const net = latestFte !== null && baselineFte !== null ? latestFte - baselineFte : null;
+  const created = net === null ? null : Math.max(0, net);
+  const lost = net === null ? null : Math.max(0, -net);
+
+  const jobsHint =
+    net === null
+      ? t("vadmin.reportsImpact.noBaseline")
+      : lost > 0
+        ? `${num(baselineFte, lang, 1)} → ${num(latestFte, lang, 1)} · ${num(lost, lang, 1)} ${t("vadmin.reportsImpact.jobsLost")}`
+        : `${num(baselineFte, lang, 1)} → ${num(latestFte, lang, 1)}`;
 
   return (
     <div className="space-y-5">
@@ -37,14 +49,10 @@ export default function ImpactPanel({ dashboard, baseline }) {
 
       <div className="stf-grid c4">
         <StatusCard
-          tone={created === null ? "o" : created >= 0 ? "g" : "r"}
+          tone={net === null ? "o" : net >= 0 ? "g" : "r"}
           label={t("vadmin.reportsImpact.jobsCreated")}
-          value={created === null ? "—" : (created > 0 ? `+${num(created, lang, 1)}` : num(created, lang, 1))}
-          hint={
-            latestFte === null || baselineFte === null
-              ? t("vadmin.reportsImpact.noBaseline")
-              : `${num(baselineFte, lang, 1)} → ${num(latestFte, lang, 1)}`
-          }
+          value={created === null ? "—" : created > 0 ? `+${num(created, lang, 1)}` : num(created, lang, 1)}
+          hint={jobsHint}
         />
         <StatusCard
           tone="g"

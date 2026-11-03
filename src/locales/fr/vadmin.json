@@ -960,6 +960,9 @@
       "flat": "Les revenus sont stables sur les trois derniers mois.",
       "growing": "Les revenus ont progressé de {percent} sur trois mois, avec une rétention de {retention}.",
       "declining": "Les revenus ont reculé de {percent} sur les trois derniers mois.",
+      "customersGrowing": "Les clients payants ont progressé de {percent} sur les trois derniers mois.",
+      "customersDeclining": "Les clients payants ont reculé de {percent} sur les trois derniers mois.",
+      "customersFlat": "Les clients payants sont stables à {percent} sur les trois derniers mois.",
       "runwayLow": "L'autonomie est de {months} mois — sous le seuil de {threshold} mois du studio.",
       "runwayOk": "L'autonomie est de {months} mois.",
       "unitsGood": "L'économie unitaire est saine (LTV:CAC {ratio}).",
@@ -1003,6 +1006,7 @@
     "reportsImpact": {
       "title": "Impact",
       "jobsCreated": "Emplois créés depuis la référence",
+      "jobsLost": "perdus",
       "jobsSupported": "Emplois soutenus (ETP)",
       "fteHint": "Équivalent temps plein, dernier mois validé",
       "womenShare": "Femmes dans l'équipe",
@@ -1015,6 +1019,7 @@
       "title": "Travail et résultat",
       "subtitle": "Livrables approuvés chaque mois, comparés aux revenus déclarés par la venture.",
       "approved": "Livrables approuvés",
+      "milestones": "Jalons terminés",
       "revenue": "Revenus",
       "noData": "Aucun livrable approuvé — la superposition apparaîtra dès la première approbation."
     },

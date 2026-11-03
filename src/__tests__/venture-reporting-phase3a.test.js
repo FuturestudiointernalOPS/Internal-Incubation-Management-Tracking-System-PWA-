@@ -28,6 +28,9 @@ jest.mock("@/services/ventures/reporting/settings", () => ({
 jest.mock("@/models/ventureReportingStore", () => ({
   runInTransaction: jest.fn(async (fn) => fn(jest.fn())),
   selectBands: jest.fn(async () => ({ rows: mockState.bands })),
+  // `listEvents` reads the Venture's currency to label amounts recorded before
+  // the currency was stamped on the row. An absent profile is the XOF default.
+  selectCurrentProfile: jest.fn(async () => ({ rows: [{ reporting_currency: "XOF" }] })),
   selectEvents: jest.fn(async () => ({ rows: [] })),
   insertEvent: jest.fn(async (_query, event) => {
     const row = {

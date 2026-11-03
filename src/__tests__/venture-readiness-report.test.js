@@ -55,8 +55,13 @@ const mockDb = {
     if (sql.startsWith("SELECT status FROM venture_milestones")) {
       return { rows: [{ status: "completed" }, { status: "completed" }, { status: "not_started" }] };
     }
-    if (sql.startsWith("SELECT status FROM venture_tasks")) {
-      return { rows: [{ status: "done" }, { status: "accepted" }, { status: "backlog" }, { status: "in_progress" }] };
+    if (sql.startsWith("SELECT id, status FROM venture_tasks")) {
+      return { rows: [
+        { id: 1, status: "done" },
+        { id: 2, status: "accepted" },
+        { id: 3, status: "backlog" },
+        { id: 4, status: "in_progress" },
+      ] };
     }
     if (sql.includes("SELECT s.status, s.review_decision")) {
       return { rows: [
@@ -167,7 +172,7 @@ describe("GET /api/ventures/[id]/investment-readiness — two indicators", () =>
     const roadmapReadiness = data.roadmap_readiness;
     expect(roadmapReadiness.counts.journeys).toEqual({ total: 3, completed: 1 });
     expect(roadmapReadiness.counts.milestones).toEqual({ total: 3, completed: 2 });
-    expect(roadmapReadiness.counts.tasks).toEqual({ total: 4, completed: 2 });
+    expect(roadmapReadiness.counts.tasks).toEqual({ total: 4, completed: 2, linked: 0 });
     expect(roadmapReadiness.counts.deliverables).toEqual({ reviewed: 3, approved: 2, outstanding: 1 });
     expect(roadmapReadiness.components.journeys).toBe(33);
     expect(roadmapReadiness.components.milestones).toBe(67);

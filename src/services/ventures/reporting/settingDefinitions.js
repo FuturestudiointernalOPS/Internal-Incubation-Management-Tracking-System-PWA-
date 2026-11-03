@@ -39,6 +39,19 @@ export const TRAFFIC_LIGHT_SETTINGS = [
   { key: "traffic_milestones_amber_pct", group: "traffic", labelKey: "venture.reporting.settings.milestonesAmber", min: 0, max: 100, fallback: 50 },
 ];
 
+// ── The business reading (the studio's verdict and risk panel) ─────────────
+// These four decide how the Super Admin's Reports page READS a month. They
+// used to be literals in `analysisModel.js`, which meant a studio could move
+// the traffic light's bar in settings and leave the verdict quoting the old
+// number. They live here so the screen and the engine share one threshold.
+// Percentages are stored as PERCENT (5 = 5%), matching the traffic light.
+export const READING_SETTINGS = [
+  { key: "reading_growth_green_pct", group: "reading", labelKey: "venture.reporting.settings.readingGrowthGreen", min: -100, max: 100, fallback: 5 },
+  { key: "reading_growth_red_pct", group: "reading", labelKey: "venture.reporting.settings.readingGrowthRed", min: -100, max: 100, fallback: -2 },
+  { key: "reading_retention_floor_pct", group: "reading", labelKey: "venture.reporting.settings.readingRetentionFloor", min: 0, max: 100, fallback: 50 },
+  { key: "reading_min_ltv_cac", group: "reading", labelKey: "venture.reporting.settings.readingMinLtvCac", min: 0, max: 100, fallback: 3 },
+];
+
 // ── Reporting schedule ─────────────────────────────────────────────────────
 export const SCHEDULE_SETTINGS = [
   { key: "reporting_monthly_due_day", group: "schedule", labelKey: "venture.reporting.settings.monthlyDueDay", min: 1, max: 31, fallback: 5 },
@@ -51,10 +64,16 @@ export const SCHEDULE_SETTINGS = [
 export const SETTING_GROUPS = [
   { key: "stage", labelKey: "venture.reporting.settings.groupStage", items: STAGE_SETTINGS },
   { key: "traffic", labelKey: "venture.reporting.settings.groupTraffic", items: TRAFFIC_LIGHT_SETTINGS },
+  { key: "reading", labelKey: "venture.reporting.settings.groupReading", items: READING_SETTINGS },
   { key: "schedule", labelKey: "venture.reporting.settings.groupSchedule", items: SCHEDULE_SETTINGS },
 ];
 
-export const ALL_SETTINGS = [...STAGE_SETTINGS, ...TRAFFIC_LIGHT_SETTINGS, ...SCHEDULE_SETTINGS];
+export const ALL_SETTINGS = [
+  ...STAGE_SETTINGS,
+  ...TRAFFIC_LIGHT_SETTINGS,
+  ...READING_SETTINGS,
+  ...SCHEDULE_SETTINGS,
+];
 
 export function definitionFor(key) {
   return ALL_SETTINGS.find((item) => item.key === key) || null;

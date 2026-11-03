@@ -20,12 +20,17 @@ import { buildCorrelation, money, num } from "./analysisModel";
  * Line: the revenue the founder REPORTED for the same month. Read together,
  * they answer "did the work move the business?" instead of leaving the two
  * halves of this page in separate tabs.
+ *
+ * The second line is milestones COMPLETED — a different kind of work (a unit of
+ * progress closed, not a document approved), which is why it is a line and not
+ * another bar: the same approval can close a milestone, and the chart should
+ * show both questions without merging them.
  */
 export default function ExecutionOutcomeChart({ dashboard, timeline }) {
   const { t, lang } = useI18n();
   const rows = buildCorrelation({ months: dashboard?.months || [], timeline });
   const currency = dashboard?.latest?.currency || "XOF";
-  const hasWork = rows.some((row) => row.approved > 0 || row.stages > 0);
+  const hasWork = rows.some((row) => row.approved > 0 || row.stages > 0 || row.milestones > 0);
 
   return (
     <div className="stf-card" style={{ padding: 14, display: "grid", gap: 10 }}>
@@ -78,6 +83,15 @@ export default function ExecutionOutcomeChart({ dashboard, timeline }) {
                 fill="var(--brand-orange)"
                 opacity={0.55}
                 radius={[4, 4, 0, 0]}
+              />
+              <Line
+                yAxisId="work"
+                type="monotone"
+                dataKey="milestones"
+                name={t("vadmin.reportsCorrelation.milestones")}
+                stroke="var(--brand-blue)"
+                strokeWidth={2}
+                dot={false}
               />
               <Line
                 yAxisId="outcome"

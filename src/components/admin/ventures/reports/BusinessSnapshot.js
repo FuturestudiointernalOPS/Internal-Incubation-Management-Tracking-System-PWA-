@@ -18,9 +18,10 @@ import {
 /**
  * THE BUSINESS SNAPSHOT — items 1 and 2 of the studio's reading.
  *
- * Twelve figures from the latest validated month, then the trajectory that led
- * there. Everything is read from the calculated layer; nothing is recomputed
- * here, and a metric the engine did not produce prints as « — ».
+ * The figures management reads first, from the latest validated month, then the
+ * trajectory that led there. Revenue growth and customer growth are shown as
+ * separate figures. Everything is read from the calculated layer; nothing is
+ * recomputed here, and a metric the engine did not produce prints as « — ».
  */
 export default function BusinessSnapshot({ dashboard, baseline }) {
   const { t, lang } = useI18n();

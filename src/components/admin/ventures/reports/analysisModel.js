@@ -86,17 +86,58 @@ export function bridgeToTargetRunway(dashboard) {
   return gapMonths > 0 ? { months: gapMonths, amount: gapMonths * burn } : null;
 }
 
+/**
+ * The studio's reading thresholds. They live in `venture_stage_settings` (the
+ * `reading_*` keys) and are read off the dashboard bundle; the literals here are
+ * only the DEFINITION fallbacks, so a screen can never quote a number the
+ * settings screen does not own.
+ */
+export function readingThresholds(dashboard) {
+  const thresholds = dashboard?.thresholds || {};
+  const percentOr = (value, fallback) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number / 100 : fallback;
+  };
+  return {
+    green: percentOr(thresholds.readingGrowthGreenPct, 0.05),
+    red: percentOr(thresholds.readingGrowthRedPct, -0.02),
+    retentionFloor: percentOr(thresholds.retentionFloorPct, 0.5),
+    minLtvCac: Number.isFinite(Number(thresholds.minLtvCac)) ? Number(thresholds.minLtvCac) : 3,
+  };
+}
+
+/**
+ * Revenue growth is NOT customer growth. A Venture can sell more to the same
+ * customers (revenue up, customers flat) or grow its customer base without
+ * earning more each (customers up, revenue flat). The studio's reading shows
+ * both, separately, and never lets one stand in for the other.
+ *
+ * The engine stores `customer_growth_3m` as a PER-MONTH rate (cube root), which
+ * is what the stage rules compare against a monthly threshold. Comparing that
+ * rate with a three-month revenue change would be apples and oranges, so it is
+ * COMPOUNDED here: this function returns the growth over the three months.
+ */
+export function customerGrowth(months = []) {
+  const rate = latestPoint(months, "customerGrowth3m");
+  if (rate === null || rate <= -1) return null;
+  return Math.pow(1 + rate, 3) - 1;
+}
+
 // ── Scorecard ──────────────────────────────────────────────────────────────
 
 /**
- * The twelve figures management reads first. Each row knows its own unit, so a
+ * The figures management reads first. Each row knows its own unit, so a
  * missing value prints as « — » and never as 0.
+ *
+ * Revenue growth and customer growth are BOTH here, side by side: they are
+ * different questions and regularly disagree.
  */
 export function buildScorecard({ dashboard, lang }) {
   const months = dashboard?.months || [];
   const month = latestMonth(months);
   const currency = month?.currency || dashboard?.latest?.currency || "XOF";
   const growth = revenueGrowth(months, 3);
+  const customers = customerGrowth(months);
 
   return [
     {
@@ -112,6 +153,15 @@ export function buildScorecard({ dashboard, lang }) {
       value: num(month?.payingCustomers, lang),
       hint: month?.newPayingCustomers != null ? `+${num(month.newPayingCustomers, lang)}` : null,
       tone: TONE.muted,
+    },
+    {
+      // The customer side of growth, beside the revenue side above. Separate
+      // figures on purpose: they answer different questions and often disagree.
+      key: "customerGrowth",
+      labelKey: "venture.reporting.metric.customer_growth_3m",
+      value: percent(customers, lang),
+      hint: null,
+      tone: customers === null ? TONE.muted : customers >= 0 ? TONE.good : TONE.bad,
     },
     {
       key: "retention",
@@ -217,7 +267,7 @@ export function buildRisks({ dashboard, compliance, dataRoom, lang, t }) {
   }
 
   const retention = pointValue(month?.retention);
-  if (retention !== null && retention < 0.5) {
+  if (retention !== null && retention < readingThresholds(dashboard).retentionFloor) {
     risks.push({
       key: "retention",
       tone: TONE.warn,
@@ -271,25 +321,49 @@ export function buildVerdict({ dashboard, t, lang }) {
 
   const month = latestMonth(months);
   const growth = revenueGrowth(months, 3);
+  const customers = customerGrowth(months);
   const retention = pointValue(month?.retention);
   const runway = pointValue(month?.runway);
   const ltvCac = pointValue(month?.ltvCac);
+  const thresholds = readingThresholds(dashboard);
   const sentences = [];
-  let tone = TONE.muted;
 
-  if (growth === null) sentences.push(t("vadmin.reportsVerdict.flat"));
-  else if (growth >= 0.05) {
+  // Two growths, two sentences. They are read against the SAME thresholds but
+  // reported separately, because they measure different things and can point in
+  // opposite directions in the same quarter.
+  const direction = (value) =>
+    value === null ? null : value >= thresholds.green ? "up" : value <= thresholds.red ? "down" : "flat";
+  const revenueDirection = direction(growth);
+  const customerDirection = direction(customers);
+
+  if (revenueDirection === "up") {
     sentences.push(
       t("vadmin.reportsVerdict.growing", {
         percent: percent(growth, lang),
         retention: percent(retention, lang),
       }),
     );
-    tone = TONE.good;
-  } else if (growth <= -0.02) {
+  } else if (revenueDirection === "down") {
     sentences.push(t("vadmin.reportsVerdict.declining", { percent: percent(Math.abs(growth), lang) }));
-    tone = TONE.bad;
-  } else sentences.push(t("vadmin.reportsVerdict.flat"));
+  } else {
+    sentences.push(t("vadmin.reportsVerdict.flat"));
+  }
+
+  if (customerDirection === "up") {
+    sentences.push(t("vadmin.reportsVerdict.customersGrowing", { percent: percent(customers, lang) }));
+  } else if (customerDirection === "down") {
+    sentences.push(
+      t("vadmin.reportsVerdict.customersDeclining", { percent: percent(Math.abs(customers), lang) }),
+    );
+  } else if (customerDirection === "flat") {
+    sentences.push(t("vadmin.reportsVerdict.customersFlat", { percent: percent(customers, lang) }));
+  }
+
+  // The tone is the worst of the two: revenue growing while customers shrink is
+  // not a good month, and the verdict should not say it is.
+  let tone = TONE.muted;
+  if (revenueDirection === "down" || customerDirection === "down") tone = TONE.bad;
+  else if (revenueDirection === "up" || customerDirection === "up") tone = TONE.good;
 
   if (runway !== null) {
     const runwayStatus = dimensionStatus(dashboard, "runway");
@@ -306,7 +380,7 @@ export function buildVerdict({ dashboard, t, lang }) {
 
   if (ltvCac !== null) {
     sentences.push(
-      ltvCac >= 3
+      ltvCac >= thresholds.minLtvCac
         ? t("vadmin.reportsVerdict.unitsGood", { ratio: num(ltvCac, lang, 1) })
         : t("vadmin.reportsVerdict.unitsWeak", { ratio: num(ltvCac, lang, 1) }),
     );
@@ -374,6 +448,7 @@ export function buildCorrelation({ months = [], timeline = [] }) {
       revenue: pointValue(month.totalRevenue),
       approved: Number(work.approved) || 0,
       stages: Number(work.stages) || 0,
+      milestones: Number(work.milestones) || 0,
       currency: month.currency || "XOF",
     };
   });

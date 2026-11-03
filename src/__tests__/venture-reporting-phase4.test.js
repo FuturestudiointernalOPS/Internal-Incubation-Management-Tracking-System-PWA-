@@ -17,6 +17,7 @@ const {
   SCHEDULE_SETTINGS,
   TRAFFIC_LIGHT_SETTINGS,
   STAGE_SETTINGS,
+  READING_SETTINGS,
   ALL_SETTINGS,
 } = require("@/services/ventures/reporting/settingDefinitions");
 const { buildSettingsMap } = require("@/services/ventures/reporting/rules");
@@ -131,10 +132,16 @@ describe("settings resolution", () => {
 
   test("the stage thresholds of §4.5 are editable too", () => {
     expect(STAGE_SETTINGS).toHaveLength(12);
+    expect(READING_SETTINGS).toHaveLength(4);
     expect(ALL_SETTINGS).toHaveLength(
-      STAGE_SETTINGS.length + TRAFFIC_LIGHT_SETTINGS.length + SCHEDULE_SETTINGS.length,
+      STAGE_SETTINGS.length +
+        TRAFFIC_LIGHT_SETTINGS.length +
+        READING_SETTINGS.length +
+        SCHEDULE_SETTINGS.length,
     );
     expect(isEditableKey("growth_min_paying_customers")).toBe(true);
+    // The business reading's thresholds are studio-editable, not literals.
+    expect(isEditableKey("reading_growth_green_pct")).toBe(true);
   });
 });
 
