@@ -27,6 +27,7 @@ import {
   deleteContactPrograms,
   ensureContactProgramMembership,
 } from "@/models/contacts/programMembership";
+import { releaseProgramLearning } from "@/services/lms/learning";
 export const dynamic = "force-dynamic";
 
 /**
@@ -156,6 +157,8 @@ export async function PUT(req) {
       // participant, so drop the enrollment. The conflict guard is skipped — the
       // role is changing on purpose.
       await deleteContactPrograms(data.cid);
+      // The learning those seats granted leaves with them (suspended).
+      await releaseProgramLearning({ cid: data.cid });
     } else if (plan.programIds) {
       // Verify all programs exist before assigning
       const missing = await findMissingProgram(plan.programIds);
