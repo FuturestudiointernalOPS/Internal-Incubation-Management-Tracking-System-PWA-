@@ -68,10 +68,12 @@ node scripts/audit-phase10-safety.mjs     # ineligible grants, inactive/missing 
 node scripts/dryrun-eligibility-policy.mjs
 ```
 
-**Env-file trap.** `.env.local` and `.env.prod-verify` point at **production**;
-`.env.staging` and `.env.audit-staging` point at **staging**. Several scripts read
-`.env.local` **first**, so they target production by default. Check the script's
-env preference before running it. Some scripts are staging-only by design
+**Env-file trap.** `.env.local`, `.env.staging` and `.env.audit-staging` point
+at **staging** (`mbpaxrfhqqclzyiefuab`, URL begins with `M`). Only
+`.env.prod-verify` points at **production** (`yakxdxdzuojafzdkqhjd`). Several
+scripts read `.env.local` **first**, so they target staging by default — the
+opposite of what this file said before 2026-11-02. Check the script's env
+preference before running it. Some scripts are staging-only by design
 (`scripts/phase1-bulk-upload.mjs` exits unless a staging URL is present) — those
 must be reimplemented as SQL for production, never "repointed" by hand.
 

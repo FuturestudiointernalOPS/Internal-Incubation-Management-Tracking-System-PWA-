@@ -27,8 +27,8 @@
  *
  * The env file default is .env.audit-readonly, which on this repository does NOT
  * exist. Be deliberate about which database you point at: per docs/PRODUCTION_TEST.md
- * section 2, .env.local and .env.prod-verify point at PRODUCTION, while
- * .env.staging and .env.audit-staging point at staging.
+ * section 2, .env.local, .env.staging and .env.audit-staging point at STAGING
+ * (project mbpaxrfhqqclzyiefuab), while only .env.prod-verify points at PRODUCTION.
  */
 import { readFileSync, existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";

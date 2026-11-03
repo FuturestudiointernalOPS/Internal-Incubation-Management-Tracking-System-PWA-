@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -8,6 +9,8 @@ import {
   Search,
   ChevronRight,
   Loader2,
+  BarChart3,
+  Settings2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
@@ -117,6 +120,14 @@ export default function VenturesPage() {
             </h1>
           </div>
           <div className="flex gap-3">
+            {/* The portfolio roll-up and the reporting settings are GLOBAL, so
+                they live beside the list rather than inside a Venture. */}
+            <Link href="/admin/ventures/portfolio" className="btn btn-secondary gap-2">
+              <BarChart3 className="w-4 h-4" /> {t("vadmin.list.portfolio")}
+            </Link>
+            <Link href="/admin/ventures/reporting-settings" className="btn btn-secondary gap-2">
+              <Settings2 className="w-4 h-4" /> {t("vadmin.list.reportingSettings")}
+            </Link>
             <button
               onClick={() => setShowBroadcastModal(true)}
               className="btn btn-secondary gap-2 border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 font-semibold"

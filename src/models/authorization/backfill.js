@@ -24,6 +24,7 @@ import {
   ensureProfileCatalogueSeed,
   ensureFacilitatorProfileSeed,
   ensureVentureMemberEditBackfill,
+  ensureVentureOpsProfileSeed,
   ensureDelegatedCapabilityDefaults,
 } from "./profileCatalogueSeed";
 import { backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
@@ -181,6 +182,9 @@ export function ensureCapabilityBackfills() {
           // recorded once per database, so an existing one never receives a
           // profile added later; this key seeds it (insert-only).
           runAuthzMigration("facilitator-profile-seed-v1", ensureFacilitatorProfileSeed),
+          // The delegable Venture Ops Contributor profile (LMS + Programs +
+          // Ventures, create/edit only). Same one-time-seed reason as above.
+          runAuthzMigration("venture-ops-profile-seed-v1", ensureVentureOpsProfileSeed),
           // Lot 5 / D-7 — the Venture Member profile gains `ventures.edit`, so
           // the canonical write gate preserves the access the legacy
           // membership gate gave every active member.
