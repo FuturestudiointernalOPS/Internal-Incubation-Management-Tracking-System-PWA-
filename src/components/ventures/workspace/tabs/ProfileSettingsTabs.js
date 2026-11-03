@@ -8,9 +8,10 @@ import { STAGES, INDUSTRY_FALLBACK } from "../ventureMeta";
 import CountrySelect from "@/components/ventures/CountrySelect";
 import { countryName } from "@/lib/countries";
 import { isValidSocialLink } from "@/lib/socialLinks";
+import VentureBusinessProfileSection from "./VentureBusinessProfileSection";
 
 /* Profile Tab */
-export function ProfileTab() {
+export function ProfileTab({ ventureId }) {
   const { t } = useI18n();
   const { form, setForm, saving, handleSave, optionLists, inputStyle, cardStyle } = useVenture();
   const fileInputRef = useRef(null);
@@ -208,19 +209,17 @@ export function ProfileTab() {
           </div>
         </div>
 
-        {/* ── Business Stage ── */}
+        {/* ── Business Stage (Read-only) ── */}
         <div>
           <label className="block text-sm font-medium mb-1">{t("venture.businessStage")}</label>
-          <select
-            value={form.business_stage || "idea"}
-            onChange={(event) => setForm({ ...form, business_stage: event.target.value })}
-            className="w-full px-3 py-2 rounded-lg outline-none border"
-            style={inputStyle}
-          >
-            {(optionLists?.business_stage && optionLists.business_stage.length ? optionLists.business_stage : STAGES).map((stg) => (
-              <option key={stg} value={stg}>{t(`venture.stages.${stg}`) || stg}</option>
-            ))}
-          </select>
+          <div className="flex items-center gap-3 px-3.5 py-2.5 rounded-lg border bg-[var(--surface-2)]" style={{ borderColor: "var(--border-primary)" }}>
+            <span className="font-extrabold uppercase text-xs tracking-wider text-[var(--brand-orange)]">
+              {t(`venture.stages.${form.business_stage || 'idea'}`) || form.business_stage || 'Idea'}
+            </span>
+            <span className="text-[11px] text-[var(--text-secondary)]">
+              (Automated by milestones, validation and reporting)
+            </span>
+          </div>
         </div>
 
         {/* ── Website ── */}
@@ -304,6 +303,9 @@ export function ProfileTab() {
           </div>
         </div>
       </div>
+
+      {/* ── Business & Legal Identity Section (Organized within Profile) ── */}
+      {ventureId && <VentureBusinessProfileSection ventureId={ventureId} />}
 
       <div className="flex justify-end pt-4 border-t" style={{ borderColor: "var(--border-primary)" }}>
         <button

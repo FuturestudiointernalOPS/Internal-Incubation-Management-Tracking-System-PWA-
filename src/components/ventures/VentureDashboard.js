@@ -13,6 +13,7 @@ import TeamCoachingColumn from "./venture-dashboard/TeamCoachingColumn";
 import ActivityColumn from "./venture-dashboard/ActivityColumn";
 import CockpitMetrics from "./cockpit/CockpitMetrics";
 import CockpitDecisions from "./cockpit/CockpitDecisions";
+import VentureReportingCharts from "./reporting/VentureReportingCharts";
 import { useReviewQueue } from "./cockpit/useReviewQueue";
 
 // ─── Read shapers (module scope: built once, never per render) ───────────
@@ -227,6 +228,12 @@ export default function VentureDashboard({ id, embedded = false }) {
         <CockpitDecisions items={reviewQueue} loading={queueLoading} onDecide={decide} />
 
         <QuickActions id={id} />
+
+        {/* The same reporting charts the founder sees — the studio reads the
+            Venture's numbers where the Venture reports them, not a second
+            rendering of them. Directly under the quick actions: the figures are
+            the reason someone opens this dashboard. */}
+        <VentureReportingCharts ventureId={id} />
 
         {/* Progress & Metrics Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

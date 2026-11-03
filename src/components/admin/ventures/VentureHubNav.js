@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  Activity, ArrowLeft, Building2, Calendar, FileText, FolderKanban, FolderOpen, Rocket, Route,
+  Activity, ArrowLeft, Building2, Calendar, ClipboardCheck, FileText, FolderKanban, FolderOpen, Rocket, Route,
   TrendingUp, UserPlus, Users,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
@@ -67,6 +67,9 @@ export default function VentureHubNav({ id }) {
     { key: "journey", label: "vadmin.detail.journeyTab", icon: Route, href: `${base}/journey`, active: pathname.startsWith(`${base}/journey`) },
     { key: "investment", label: "vadmin.detail.investmentReadiness", icon: TrendingUp, href: `${base}/investment`, active: pathname.startsWith(`${base}/investment`) },
     { key: "reports", label: "vadmin.detail.reports", icon: FileText, href: `${base}/reports`, active: pathname.startsWith(`${base}/reports`) },
+    // The monthly report review queue: the studio validates the figures a
+    // founder submitted before they become part of the record.
+    { key: "reporting", label: "vadmin.detail.reporting", icon: ClipboardCheck, href: `${base}/reporting`, active: pathname.startsWith(`${base}/reporting`) },
     // The Data Room is the venture's confidential fundraising / due-diligence document set.
     { key: "dataRoom", label: "dataRoom.title", icon: FolderOpen, href: `${base}/documents`, active: pathname.startsWith(`${base}/documents`) },
     { key: "activity", label: "vadmin.detail.activity", icon: Activity, href: `${base}?tab=activity`, active: atHub && tab === "activity" },

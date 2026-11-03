@@ -1,5 +1,675 @@
 {
   "venture": {
+    "reporting": {
+      "title": "Venture reporting",
+      "subtitle": "The studio's record of who the venture is and where it starts.",
+      "notApplicable": "Not applicable",
+      "tabLabel": "Reporting",
+      "tab": {
+        "dashboard": "Dashboard",
+        "businessInfo": "Business Info",
+        "founders": "Founders",
+        "headcount": "Headcount",
+        "baseline": "Baseline",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "events": "Events",
+        "stage": "Stage",
+        "glossary": "Glossary"
+      },
+      "action": {
+        "save": "Save",
+        "newVersion": "Save as new version",
+        "supersede": "Supersede"
+      },
+      "version": {
+        "current": "Current version",
+        "superseded": "Superseded",
+        "history": "History",
+        "none": "No profile yet"
+      },
+      "message": {
+        "saved": "Saved",
+        "superseded": "Superseded"
+      },
+      "model": {
+        "subscription": "Subscription",
+        "transactional": "Transactional",
+        "marketplace": "Marketplace",
+        "services": "Services",
+        "other": "Other"
+      },
+      "accounting": {
+        "cash": "Cash",
+        "accrual": "Accrual"
+      },
+      "mode": {
+        "exact": "Exact amount",
+        "band": "Range"
+      },
+      "gender": {
+        "female": "Female",
+        "male": "Male",
+        "other": "Other",
+        "undisclosed": "Undisclosed"
+      },
+      "employment": {
+        "fullTime": "Full-time",
+        "partTime": "Part-time"
+      },
+      "field": {
+        "legalName": "Legal name",
+        "tradeName": "Trade name",
+        "foundingDate": "Founding date",
+        "registrationStatus": "Registration status",
+        "registrationCountry": "Registration country",
+        "paysTaxes": "Pays taxes",
+        "socialProtection": "Offers social protection",
+        "sector": "Sector",
+        "businessModel": "Business model",
+        "countries": "Countries of operation",
+        "currency": "Reporting currency",
+        "accountingBasis": "Accounting basis",
+        "vatIncluded": "Revenue includes VAT",
+        "northStarName": "North-star metric",
+        "northStarUnit": "Unit",
+        "northStarDefinition": "Definition",
+        "problemStatement": "Problem statement",
+        "icp": "Ideal customer profile (ICP)"
+      },
+      "founder": {
+        "name": "Name",
+        "gender": "Gender",
+        "dateOfBirth": "Date of birth",
+        "role": "Role",
+        "employment": "Employment",
+        "add": "Add founder"
+      },
+      "team": {
+        "period": "Period",
+        "womenEmployees": "Women employees",
+        "menEmployees": "Men employees",
+        "under35Women": "Women under 35",
+        "under35Men": "Men under 35",
+        "fullTimeEmployees": "Full-time employees",
+        "partTimeEmployees": "Part-time employees",
+        "partTimeDays": "Part-time days worked",
+        "fullTimeFounders": "Full-time founders",
+        "partTimeFounders": "Part-time founders",
+        "womenShare": "Women share",
+        "youthShare": "Youth share (under 35)"
+      },
+      "baseline": {
+        "fte": "Full-Time Equivalent (FTE)",
+        "payingCustomers": "Paying customers",
+        "cash": "Cash in bank ({currency})",
+        "cashBand": "Cash range",
+        "cashMode": "Cash entry mode",
+        "financingMode": "Financing entry mode",
+        "outsideFinancing": "Outside financing to date ({currency})",
+        "outsideFinancingBand": "Outside financing range",
+        "capture": "Capture baseline",
+        "locked": "Baseline locked — supersede it with a reason.",
+        "supersedeTitle": "Supersede the baseline",
+        "reason": "Reason"
+      },
+      "monthly": {
+        "title": "Monthly report",
+        "subtitle": "Eleven inputs. Everything else is calculated.",
+        "period": "Reporting month",
+        "status": {
+          "draft": "Draft",
+          "submitted": "Submitted",
+          "validated": "Validated",
+          "rejected": "Rejected"
+        },
+        "field": {
+          "mrr": "MRR (subscription revenue)",
+          "otherRevenue": "Other revenue (optional)",
+          "expenses": "Total expenses",
+          "cash": "Cash in bank (month end)",
+          "financingReceived": "Financing received this month?",
+          "activeUsers": "Active users (month end)",
+          "payingCustomers": "Paying customers (month end)",
+          "newPayingCustomers": "New paying customers",
+          "fullTime": "Full-time employees",
+          "partTime": "Part-time employees",
+          "partTimeDays": "Part-time days worked",
+          "fullTimeFounders": "Full-time founders",
+          "northStarValue": "North-star value",
+          "channels": "Acquisition channels this month",
+          "narrative": "Wins, challenges and help needed"
+        },
+        "action": {
+          "saveDraft": "Save draft",
+          "submit": "Submit for validation",
+          "validate": "Validate",
+          "reject": "Reject"
+        },
+        "preview": "Preview — not yet validated",
+        "notProvided": "Not provided",
+        "mode": "Entry mode",
+        "amount": "Amount ({currency})",
+        "band": "Range",
+        "calculated": "Calculated from the validated report",
+        "selfSustaining": "Self-sustaining",
+        "lockedNote": "This month is under review. It cannot be edited until the studio validates or rejects it.",
+        "correctionNote": "This month is already validated. Saving will create a new version; the validated numbers stay live until the new version is validated.",
+        "rejectedNote": "Rejected — reason:",
+        "message": {
+          "saved": "Draft saved",
+          "submitted": "Submitted for validation",
+          "validated": "Report validated — the metrics are now live",
+          "rejected": "Report rejected"
+        },
+        "validation": {
+          "period": "Choose a valid reporting month.",
+          "futurePeriod": "A month that has not ended yet cannot be reported.",
+          "mrr": "MRR is required.",
+          "mrrBand": "Choose a valid MRR range.",
+          "otherRevenue": "Enter a valid other revenue amount.",
+          "otherRevenueBand": "Choose a valid other revenue range.",
+          "expenses": "Total expenses are required.",
+          "expensesBand": "Choose a valid expenses range.",
+          "cash": "Cash in bank is required.",
+          "cashBand": "Choose a valid cash range.",
+          "activeUsers": "Active users are required (0 is a valid answer).",
+          "payingCustomers": "Paying customers are required (0 is a valid answer).",
+          "newPayingCustomers": "New paying customers are required (0 is a valid answer).",
+          "fullTime": "Full-time employees are required (0 is a valid answer).",
+          "fullTimeFounders": "Full-time founders are required (0 is a valid answer).",
+          "partTime": "Part-time employees must be a whole number.",
+          "partTimeDays": "Part-time days must be a number.",
+          "northStarValue": "The north-star value must be a number.",
+          "alreadySubmitted": "This month is under review. It cannot be edited until it is validated or rejected.",
+          "notSubmitted": "Only a submitted report can be validated or rejected.",
+          "action": "Choose validate or reject.",
+          "reason": "A reason is required to reject a report."
+        },
+        "amountGeneric": "Amount"
+      },
+      "metric": {
+        "total_revenue": "Total revenue",
+        "lost_customers": "Lost customers",
+        "churn_rate": "Churn rate",
+        "retention": "Retention",
+        "customer_growth_3m": "Customer growth (3-month)",
+        "mrr_growth_mom": "MRR growth (month)",
+        "mrr_growth_3m": "MRR growth (3-month)",
+        "user_to_paid": "User-to-paid ratio",
+        "arpu": "ARPU",
+        "customer_lifetime_months": "Customer lifetime (months)",
+        "ltv": "LTV",
+        "net_burn": "Net burn",
+        "average_burn": "Average burn",
+        "runway_months": "Runway (months)",
+        "fte": "FTE",
+        "paying_customers": "Paying customers",
+        "ltv_cac": "LTV : CAC",
+        "cac_payback_months": "CAC payback (months)",
+        "magic_number": "Magic number",
+        "burn_multiple": "Burn multiple",
+        "gross_margin": "Gross margin"
+      },
+      "events": {
+        "title": "Events",
+        "subtitle": "What happened on a day, with the evidence to back it.",
+        "type": {
+          "pilot_signed": "Pilot or LOI signed",
+          "mvp_launched": "MVP launched",
+          "pilot_converted": "Pilot converted to paid",
+          "financing_received": "Financing received",
+          "new_market": "New market or segment entered",
+          "status_change": "Status change",
+          "stage_change": "Stage change"
+        },
+        "field": {
+          "type": "Event",
+          "eventDate": "Date",
+          "title": "Title",
+          "description": "Description",
+          "customerName": "Customer",
+          "amount": "Amount",
+          "financingType": "Financing type",
+          "source": "Source",
+          "marketDescription": "Market or segment",
+          "statusTo": "New status",
+          "evidence": "Evidence (document or link)"
+        },
+        "evidence": {
+          "upload": "Upload a document",
+          "link": "Paste a link",
+          "attached": "Evidence attached",
+          "none": "No evidence"
+        },
+        "action": {
+          "add": "Add event",
+          "remove": "Remove"
+        },
+        "financing": {
+          "grant": "Grant",
+          "equity": "Equity",
+          "debt": "Debt"
+        },
+        "empty": "No event recorded yet.",
+        "message": {
+          "added": "Event recorded",
+          "removed": "Event removed"
+        },
+        "validation": {
+          "type": "Choose an event type.",
+          "date": "Enter a real date that is not in the future.",
+          "customer": "Name the customer.",
+          "market": "Describe the market or segment.",
+          "status": "Choose the new status.",
+          "amount": "Enter the amount.",
+          "amountBand": "Choose a valid range.",
+          "financingType": "Choose grant, equity or debt.",
+          "evidence": "The evidence must be a link or an uploaded document.",
+          "evidenceRequired": "This event needs evidence: upload a document or paste a link.",
+          "id": "Choose an event to remove."
+        }
+      },
+      "interviews": {
+        "title": "Customer discovery interviews",
+        "subtitle": "Each interview needs a document or a link.",
+        "progress": "{count} with evidence of {minimum} required",
+        "empty": "No interview recorded yet.",
+        "field": {
+          "date": "Interview date",
+          "segment": "Customer segment",
+          "name": "Interviewee",
+          "notes": "Notes",
+          "insights": "Insights",
+          "evidence": "Evidence (document or link)"
+        },
+        "action": {
+          "add": "Add interview"
+        },
+        "message": {
+          "added": "Interview recorded"
+        },
+        "validation": {
+          "date": "Enter a real interview date that is not in the future.",
+          "evidence": "The evidence must be a link or an uploaded document.",
+          "evidenceRequired": "An interview needs evidence: upload a document or paste a link."
+        }
+      },
+      "quarterly": {
+        "title": "Quarterly report",
+        "subtitle": "Only what the monthly figures cannot answer.",
+        "period": "Quarter",
+        "lockedNote": "This quarter is under review. It cannot be edited until the studio validates or rejects it.",
+        "correctionNote": "This quarter is already validated. Saving will create a new version.",
+        "field": {
+          "teamConfirmed": "Team makeup still correct?",
+          "mvpPlanned": "MVP milestones planned",
+          "mvpHit": "MVP milestones hit on time",
+          "pilotsSigned": "Pilots signed",
+          "pilotsConverted": "Pilots converted to paid",
+          "channels": "Acquisition channels that brought customers",
+          "salesMarketing": "Sales and marketing spend",
+          "openDeals": "Open deals in the pipeline",
+          "salesCycleDays": "Average sales cycle (days)",
+          "top3Share": "Share of customers in the top 3",
+          "expansion": "Expansion MRR",
+          "churned": "Churned MRR",
+          "narrative": "Wins, challenges and help needed"
+        },
+        "channel": {
+          "referral": "Referral",
+          "outbound": "Outbound",
+          "partnership": "Partnership",
+          "content": "Content",
+          "paid_ads": "Paid ads",
+          "other": "Other"
+        },
+        "top3": {
+          "under_30": "Under 30%",
+          "30_60": "30 to 60%",
+          "over_60": "Over 60%"
+        },
+        "validation": {
+          "period": "Choose a valid quarter.",
+          "futurePeriod": "A quarter that has not ended cannot be reported.",
+          "salesMarketing": "Enter a valid sales and marketing amount.",
+          "salesMarketingBand": "Choose a valid sales and marketing range.",
+          "expansion": "Enter a valid expansion amount.",
+          "expansionBand": "Choose a valid expansion range.",
+          "churned": "Enter a valid churned amount.",
+          "churnedBand": "Choose a valid churned range.",
+          "mvpMilestonesPlanned": "Milestones planned must be a whole number.",
+          "mvpMilestonesHit": "Milestones hit must be a whole number.",
+          "pilotsSigned": "Pilots signed must be a whole number.",
+          "pilotsConverted": "Pilots converted must be a whole number.",
+          "openDeals": "Open deals must be a whole number.",
+          "salesCycleDays": "The sales cycle must be a number of days.",
+          "milestonesOverPlanned": "More milestones were hit than were planned.",
+          "pilotsOverSigned": "More pilots were converted than were signed.",
+          "top3Share": "Choose a valid share.",
+          "channels": "Channels must be a list.",
+          "alreadySubmitted": "This quarter is under review and cannot be edited.",
+          "notSubmitted": "Only a submitted report can be validated or rejected.",
+          "action": "Choose validate or reject.",
+          "reason": "A reason is required to reject a report."
+        },
+        "metric": {
+          "net_new_customers": "Net new customers",
+          "net_new_mrr": "Net new MRR",
+          "average_retention": "Average retention",
+          "quarter_end_runway": "Quarter-end runway (months)",
+          "burn_multiple": "Burn multiple",
+          "arpu_trend": "ARPU trend",
+          "cac": "CAC",
+          "cac_payback_months": "CAC payback (months)",
+          "ltv_cac": "LTV:CAC",
+          "pilot_to_paid": "Pilot-to-paid conversion",
+          "mvp_on_time": "MVP milestones on time",
+          "nrr": "Net revenue retention"
+        }
+      },
+      "settings": {
+        "title": "Reporting settings",
+        "subtitle": "The thresholds and deadlines the reporting engine reads. Every change is dated and never overwrites history.",
+        "groupGlossary": "Glossary",
+        "glossaryHint": "The definitions every number depends on. Edit them once, and every screen reads the new wording.",
+        "definitionEn": "Definition (English)",
+        "definitionFr": "Definition (French)",
+        "glossaryReadOnly": "Only a Super Admin can change these definitions. You can read them here at any time.",
+        "groupSchedule": "Reporting schedule",
+        "groupTraffic": "Traffic light",
+        "businessModel": "Business model",
+        "modelDefault": "Default (all business models)",
+        "defaultHint": "The baseline every venture uses unless its business model overrides a number below.",
+        "overrideHint": "Only the numbers this business model overrides. Everything left blank inherits the default, so later changes to the default still reach it.",
+        "overridden": "Overridden",
+        "inherited": "Inherited",
+        "inherit": "Use default",
+        "groupStage": "Stage criteria",
+        "consecutiveMonths": "Consecutive months required",
+        "minGrowth": "Minimum customer growth per month (%)",
+        "retentionEarly": "Minimum retention — Early Traction (%)",
+        "retentionGrowth": "Minimum retention — Growth (%)",
+        "minLtvCac": "Minimum LTV:CAC",
+        "minInterviews": "Validation: minimum interviews",
+        "minCustomersEarly": "Early Traction: minimum paying customers",
+        "minCustomersGrowth": "Growth: minimum paying customers",
+        "scalingMonths": "Scaling: sustained growth (months)",
+        "scalingRetention": "Scaling: minimum retention (%)",
+        "scalingFte": "Scaling: minimum non-founder Full-Time Equivalent (FTE)",
+        "reviewMonths": "Review flag: months below criteria",
+        "monthlyDueDay": "Monthly report due on day",
+        "monthlyDueMinute": "Monthly report due at",
+        "quarterlyDueDay": "Quarterly report due on day",
+        "quarterlyDueMinute": "Quarterly report due at",
+        "utcOffset": "UTC offset (minutes)",
+        "runwayGreen": "Runway: green from (months)",
+        "runwayAmber": "Runway: amber from (months)",
+        "growthGreen": "Growth: green from (%)",
+        "growthAmber": "Growth: amber from (%)",
+        "milestonesGreen": "Milestones on time: green from (%)",
+        "milestonesAmber": "Milestones on time: amber from (%)",
+        "nextMonthly": "Next monthly deadline",
+        "nextQuarterly": "Next quarterly deadline",
+        "save": "Save settings",
+        "saved": "Settings saved",
+        "validation": {
+          "unknown": "That setting is not editable.",
+          "number": "Enter a number.",
+          "range": "That value is outside the allowed range.",
+          "businessModel": "That business model is not recognised.",
+          "term": "A glossary term needs a key.",
+          "definition": "Both the English and the French definition are required.",
+          "definitionLength": "A definition cannot exceed 600 characters."
+        }
+      },
+      "evidence": {
+        "open": "Open",
+        "notAFile": "That is a link, not a file.",
+        "unavailable": "The evidence could not be opened."
+      },
+      "dashboard": {
+        "title": "Venture dashboard",
+        "subtitle": "Everything the studio has validated, in one place.",
+        "empty": "No validated monthly report yet. The dashboard appears as soon as a month is validated.",
+        "northStar": "North-star metric",
+        "customers": "Paying customers",
+        "revenue": "Revenue",
+        "team": "Team",
+        "narrative": "Latest narrative",
+        "noNarrative": "No narrative was submitted for the last validated month.",
+        "womenShare": "Women share",
+        "youthShare": "Under-35 share",
+        "kpi": {
+          "payingCustomers": "Paying customers",
+          "retention": "Retention",
+          "runway": "Runway (months)",
+          "fte": "Full-Time Equivalent (FTE)"
+        },
+        "yearly": {
+          "title": "Last 12 months",
+          "yoyMrr": "MRR growth vs previous 12 months",
+          "customerGrowth": "Customer growth vs 12 months ago",
+          "annualBurn": "Net burn (12 months)",
+          "jobsSupported": "Jobs supported: Full-Time Equivalent (FTE)",
+          "jobsCreated": "Jobs created vs baseline",
+          "financing": "Outside financing received",
+          "survival": "Survival",
+          "survivalMonths": "{months}m: {value}",
+          "pending": "pending",
+          "timeInStage": "Time in stage",
+          "days": "d"
+        }
+      },
+      "portfolio": {
+        "title": "Portfolio roll-up",
+        "subtitle": "Every figure here is folded from the months, stages and events the studio already validated. Nothing is stored twice, so nothing can disagree with the ventures it summarises.",
+        "loading": "Loading the portfolio…",
+        "error": "The portfolio could not be loaded.",
+        "empty": "No venture yet.",
+        "generated": "Generated",
+        "stage": {
+          "title": "Stage distribution",
+          "unset": "Not set"
+        },
+        "traffic": {
+          "title": "Health mix",
+          "green": "Green",
+          "amber": "Amber",
+          "red": "Red",
+          "unknown": "No data",
+          "hint": "The worst of runway, growth and milestones. A venture with no validated month is unknown, never red."
+        },
+        "funnel": {
+          "title": "Creation funnel",
+          "ventures": "Ventures",
+          "withPaying": "With a paying customer",
+          "participants": "Participants",
+          "participantsUnknown": "Not measured here"
+        },
+        "time": {
+          "title": "Time to first paying customer",
+          "toFirstPaying": "From the venture's start to the first validated month with a paying customer",
+          "average": "Average",
+          "median": "Median",
+          "days": "{days} d",
+          "ventures": "{count} ventures",
+          "venturesShort": "Ventures",
+          "inStage": "Time in stage",
+          "stage": "Stage",
+          "none": "No approved stage change yet."
+        },
+        "survival": {
+          "title": "Survival",
+          "months": "{months} months",
+          "eligible": "{survived} of {eligible}",
+          "none": "No venture is old enough to judge."
+        },
+        "capital": {
+          "title": "Financing received",
+          "total": "Total recorded",
+          "ventures": "Ventures with a financing event",
+          "approximate": "Some amounts were reported as a band, so this total is approximate.",
+          "none": "No financing event recorded.",
+          "type": {
+            "grant": "Grants",
+            "equity": "Equity",
+            "debt": "Debt",
+            "other": "Other"
+          }
+        },
+        "jobs": {
+          "title": "Jobs and team",
+          "fte": "Jobs supported (FTE)",
+          "created": "Jobs created vs baseline",
+          "women": "Women share",
+          "youth": "Under-35 share",
+          "members": "{count} people in the latest team snapshots"
+        },
+        "discipline": {
+          "title": "Reporting discipline",
+          "subtitle": "A period is only counted once its deadline has passed, and a venture is never expected to report for a month before it existed.",
+          "monthly": "Monthly",
+          "quarterly": "Quarterly",
+          "due": "Due",
+          "received": "Received",
+          "onTime": "On time",
+          "rejected": "Rejected",
+          "venture": "Venture",
+          "none": "No period is due yet."
+        }
+      },
+      "traffic": {
+        "overall": "Health",
+        "dimension": {
+          "runway": "Runway",
+          "growth": "Growth",
+          "milestones": "Milestones on time"
+        },
+        "status": {
+          "green": "Green",
+          "amber": "Amber",
+          "red": "Red",
+          "unknown": "No data"
+        }
+      },
+      "glossary": {
+        "title": "Glossary",
+        "subtitle": "The exact meaning of every number this page shows.",
+        "empty": "No definition has been published yet.",
+        "term": {
+          "mrr": "MRR",
+          "paying_customer": "Paying customer",
+          "active_user": "Active user",
+          "fte": "Full-Time Equivalent (FTE)",
+          "churn_rate": "Churn rate",
+          "retention": "Retention",
+          "arpu": "ARPU",
+          "ltv": "LTV"
+        }
+      },
+      "stage": {
+        "title": "Stage",
+        "subtitle": "What this venture has proven, and what is still missing.",
+        "name": {
+          "idea": "Idea",
+          "validation": "Validation",
+          "early_traction": "Early Traction",
+          "growth": "Growth",
+          "scaling": "Scaling"
+        },
+        "current": "Current stage",
+        "next": "Next stage",
+        "progress": "Progress toward {stage}",
+        "allMet": "Every criterion is met.",
+        "missingCount": "{count} criterion/ies cannot be judged yet.",
+        "maxStage": "This venture is at the final stage.",
+        "status": {
+          "met": "Met",
+          "not_met": "Not met",
+          "missing": "Missing data"
+        },
+        "criterion": {
+          "icp_defined": "Ideal customer profile defined",
+          "interviews": "Customer discovery interviews (with evidence)",
+          "pilot_or_mvp": "Pilot, LOI or working MVP",
+          "paying_customers_3m": "Paying customers in each of the last {months} months",
+          "retention_3m": "Retention in each of the last {months} months",
+          "channel": "At least one acquisition channel",
+          "same_channel_3m": "Same acquisition channel in each of the last {months} months",
+          "pilot_converted": "A pilot converted to paid",
+          "paying_customers": "Paying customers",
+          "growth_3m": "Customer growth (3-month)",
+          "ltv_cac": "LTV:CAC",
+          "new_market": "A new market or segment entered",
+          "sustained_growth": "Sustained customer growth",
+          "non_founder_fte": "Non-founder FTE"
+        },
+        "action": {
+          "propose": "Propose promotion",
+          "approve": "Approve promotion",
+          "reject": "Reject"
+        },
+        "pending": "Proposed promotion to {stage}",
+        "review": {
+          "flagged": "Below the current stage's criteria for {months} consecutive months.",
+          "ok": "Current stage criteria are holding.",
+          "notApplicable": "No monthly bar at this stage."
+        },
+        "history": "Stage history",
+        "validation": {
+          "notEligible": "Not every criterion is met, so no promotion can be proposed.",
+          "none": "There is no pending proposal to decide.",
+          "action": "Choose approve or reject.",
+          "reason": "A reason is required to reject a promotion."
+        }
+      },
+      "due": {
+        "dueOn": "Due",
+        "overdue": "Overdue",
+        "validatedOn": "Validated"
+      },
+      "review": {
+        "title": "Venture reporting review",
+        "subtitle": "Validate the monthly figures a founder submitted.",
+        "queue": "Submissions",
+        "empty": "No monthly report has been submitted yet.",
+        "submittedOn": "Submitted on",
+        "reasonPrompt": "Why is this report being rejected?",
+        "reasonHint": "The founder sees this reason and corrects the month. It is required.",
+        "switchToQuarterly": "Quarterly review",
+        "switchToMonthly": "Monthly review"
+      },
+      "versionLabel": "Version",
+      "validation": {
+        "legalName": "Legal name is required.",
+        "foundingDate": "Founding date is required.",
+        "businessModel": "Business model is required.",
+        "sector": "Sector is required.",
+        "problemStatement": "Problem statement is required.",
+        "idealCustomerProfile": "Ideal customer profile is required.",
+        "northStarName": "North-star metric is required.",
+        "northStarDefinition": "Definition is required.",
+        "northStarUnit": "Unit is required.",
+        "invalidDate": "Invalid date.",
+        "futureDate": "The date cannot be in the future.",
+        "accountingBasis": "Invalid accounting basis.",
+        "founderName": "Founder name is required.",
+        "gender": "Invalid gender.",
+        "employmentType": "Invalid employment type.",
+        "oneFounder": "At least one founder is required.",
+        "period": "Invalid period.",
+        "supersedeReason": "A reason is required to supersede the baseline.",
+        "baselineLocked": "A baseline already exists. Use supersede.",
+        "noBaseline": "There is no baseline to supersede.",
+        "cashValue": "Cash amount is required in exact mode.",
+        "cashBand": "Cash range is required in band mode.",
+        "financingValue": "Financing amount is required in exact mode.",
+        "financingBand": "Financing range is required in band mode.",
+        "settingKey": "Setting key is required.",
+        "settingValue": "Invalid setting value."
+      }
+    },
     "label": "Venture",
     "statusActive": "Active",
     "statusPaused": "Paused",
@@ -55,6 +725,7 @@
     "noVentures": "No ventures yet. Create your first venture to get started.",
     "myVentures": "My Ventures",
     "profile": "Profile",
+    "baseline": "Baseline",
     "settings": "Settings",
     "cancel": "Cancel",
     "creating": "Creating...",
@@ -391,6 +1062,12 @@
     },
     "standardJourney": "Standard Venture Journey",
     "journeyDesc": "Your Venture journey is defined by the Future Studio team supporting you. Stages unlock as the team marks each one complete.",
+    "journeyMap": {
+      "title": "Journey map",
+      "overall": "{percent}% complete",
+      "milestones": "{done}/{total} milestones · {percent}%",
+      "noMilestones": "No milestones yet"
+    },
     "evidenceUnavailable": "Some evidence could not be loaded. Reload the page, and tell your lead manager if it stays missing.",
     "noJourneyYet": "No journey stages have been defined yet.",
     "noJourneyYetDesc": "The team supporting your Venture will publish your journey soon.",
@@ -992,19 +1669,24 @@
       "clear": "Clear"
     },
     "projects": {
-    "shouldStart": "Should have started",
-    "followUp": {
-      "title": "Are the assignees on their tasks? (tasks whose start date has come)",
-      "none": "No task has reached its start date yet.",
-      "assignee": "Assignee",
-      "due": "Should have started",
-      "working": "In progress / done",
-      "blocked": "Blocked",
-      "waiting": "Not started",
-      "verdict": "Status",
-      "nobody": "Nobody assigned",
-      "verdicts": { "onIt": "On it", "partial": "Partly started", "notStarted": "Has not started", "unassigned": "No assignee" }
-    },
+      "shouldStart": "Should have started",
+      "followUp": {
+        "title": "Are the assignees on their tasks? (tasks whose start date has come)",
+        "none": "No task has reached its start date yet.",
+        "assignee": "Assignee",
+        "due": "Should have started",
+        "working": "In progress / done",
+        "blocked": "Blocked",
+        "waiting": "Not started",
+        "verdict": "Status",
+        "nobody": "Nobody assigned",
+        "verdicts": {
+          "onIt": "On it",
+          "partial": "Partly started",
+          "notStarted": "Has not started",
+          "unassigned": "No assignee"
+        }
+      },
       "title": "Project Management",
       "subtitle": "Every milestone, activity and deliverable of this Venture, with the owner, the people supporting it and the dates that matter.",
       "open": "Open",
@@ -1106,7 +1788,7 @@
       "schedule": "Schedule",
       "scheduledToast": "Reminder scheduled {days} day(s) before.",
       "calendarHint": "The email carries the date as a calendar invite (.ics and Google Calendar link).",
-      "ruleLine": "{days} day(s) before the {trigger}",
+      "ruleLine": "{days} day(s) before {trigger}",
       "sendSuccessHint": "Check the inbox (and spam) of each address above.",
       "ccHint": "A copy is also sent to the Venture's Venture Manager.",
       "attachmentDropped": "The message went out, but the mail service could not carry the file.",
@@ -1145,7 +1827,6 @@
       "addRule": "Add a rule",
       "addStandard": "Add the standard rules",
       "confirmDeleteRule": "Remove this reminder rule? Reminders already sent are kept in the history.",
-      "ruleLine": "{days} day(s) before {trigger}",
       "trigger": {
         "start": "Start",
         "finish": "Finish"
@@ -1288,6 +1969,42 @@
       "prefix": "Note",
       "saved": "Note saved — it is in the Notes tab.",
       "memo": "Session memo"
+    },
+    "charts": {
+      "sectionTitle": "Growth & Performance Telemetry",
+      "sectionSubtitle": "Verified metrics computed from validated monthly reports and verified evidence",
+      "period3": "Past 3 Months",
+      "period6": "Past 6 Months",
+      "periodAll": "All Time",
+      "signalRetentionTitle": "Cohort Retention Warning",
+      "signalRetentionDesc": "Monthly customer retention has dropped below 50% target threshold.",
+      "signalCustDropTitle": "Customer Contraction Alert",
+      "signalCustDropDesc": "drop in paying customers from the previous month.",
+      "signalCustGrowthTitle": "Customer Growth Acceleration",
+      "signalCustGrowthDesc": "increase in paying customers over the previous period.",
+      "signalRunwayTitle": "Critical Runway Alert",
+      "signalRunwayDesc": "months of cash runway remaining. Review net burn and funding requirements.",
+      "emptyTitle": "Venture Growth & Unit Economics",
+      "emptyDesc": "Performance trajectories, recurring revenue, retention curves and operational runway will appear here as monthly reports are validated.",
+      "revenueTitle": "Monthly Recurring Revenue (MRR)",
+      "revenueSubtitle": "Total verified recurring software & service revenue",
+      "revenueDataSource": "Data source: Validated monthly report (mrr + other_revenue)",
+      "customerTitle": "Paying Customers",
+      "customerSubtitle": "Active accounts with a paid contract or subscription",
+      "customerDataSource": "Data source: Validated monthly report (paying_customers)",
+      "retentionTitle": "Cohort Retention Rate",
+      "retentionSubtitle": "Percentage of customers retained month-over-month",
+      "retentionDataSource": "Data source: Computed metric: (paying_customers - new_paying_customers) / previous_paying_customers",
+      "northStarTitle": "North Star Metric",
+      "northStarSubtitle": "Core venture value delivery indicator",
+      "northStarDataSource": "Data source: Validated monthly report (north_star_value)",
+      "runwayTitle": "Capital Runway & Net Burn Projection",
+      "runwaySubtitle": "Operational runway in months and net burn rate",
+      "runwayDataSource": "Data source: Computed metric: cash_in_bank / monthly_burn",
+      "unit": "Unit",
+      "customersCount": "Customers",
+      "monthsOfRunway": "Months Runway",
+      "netBurn": "Net Burn"
     }
   }
 }

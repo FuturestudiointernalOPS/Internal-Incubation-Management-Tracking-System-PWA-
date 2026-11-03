@@ -193,6 +193,13 @@ export const FEATURE_MODULE_CAPABILITY = {
         permissions_view: { label: "View Permission Scopes", risk: "low", description: "See the venture permission scope types" },
         // "My Ventures" — the caller's OWN assignments, never a portfolio read.
         my_assignments: { label: "My Assignments", risk: "low", description: "See the Ventures the caller is assigned to" },
+        // Monthly reporting — the studio's right to ACCEPT or refuse a founder's
+        // monthly submission. Deliberately separate from `edit`: the founder
+        // fills the report, the studio decides whether it may feed KPIs. This is
+        // the only capability here that is not scoped to `venture_own` —
+        // validation must be assignable to a reviewer who is not a member of
+        // the Venture they review.
+        validate: { label: "Validate Reporting", risk: "medium", description: "Validate or reject venture monthly reports" },
       },
     },
   },

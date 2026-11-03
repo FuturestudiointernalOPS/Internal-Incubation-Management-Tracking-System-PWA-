@@ -27,6 +27,7 @@ import DataRoomVersionsModal from "./DataRoomVersionsModal";
 import DataRoomShareModal from "./DataRoomShareModal";
 import DataRoomActivity from "./DataRoomActivity";
 import DataRoomCoverage from "./DataRoomCoverage";
+import DataRoomCategoryDetailModal from "./DataRoomCategoryDetailModal";
 import { downloadDocument, inlineDocumentUrl, STATUS_ORDER } from "./dataRoomUi";
 
 const pickDataRoom = (payload) => (payload?.success ? payload : null);
@@ -53,6 +54,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
   const [accessDoc, setAccessDoc] = useState(null);
   const [versionsDoc, setVersionsDoc] = useState(null);
   const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [categoryDetailCode, setCategoryDetailCode] = useState(null);
 
   const documents = useMemo(() => data?.documents || [], [data]);
   const viewer = data?.viewer || {
@@ -213,7 +215,7 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           requirements={requirements}
           canReview={viewer.can_configure_requirements}
           onChange={setRequirement}
-          onSelectCategory={(code) => setCategory((current) => (current === code ? "all" : code))}
+          onSelectCategory={(code) => setCategoryDetailCode(code)}
           selectedCategory={category}
         />
       )}
@@ -399,6 +401,58 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
           onClose={() => setVersionsDoc(null)}
         />
       ) : null}
+
+            {/* ── Category Detail Popup Modal ── */}
+      <DataRoomCategoryDetailModal
+        isOpen={Boolean(categoryDetailCode)}
+        categoryCode={categoryDetailCode}
+        requirement={requirements.find((r) => r.category === categoryDetailCode)}
+        documents={documents}
+        canManage={viewer.can_manage}
+        canReview={viewer.can_review}
+        isInvestor={isInvestor}
+        onClose={() => setCategoryDetailCode(null)}
+        onOpenDoc={(doc, mode) => {
+          if (mode === "download") return download(doc);
+          if (mode === "preview") {
+            void recordAccess(doc, "view");
+            return setPreviewDoc(doc);
+          }
+          return openDocument(doc);
+        }}
+        onUploadNew={(cat) => {
+          setCategoryDetailCode(null);
+          setUploadState({ mode: "create", category: cat });
+        }}
+        onVersions={(doc) => {
+          setCategoryDetailCode(null);
+          setVersionsDoc(doc);
+        }}
+        onReplace={(doc) => {
+          setCategoryDetailCode(null);
+          setUploadState({ mode: "replace", document: doc });
+        }}
+        onEdit={(doc) => {
+          setCategoryDetailCode(null);
+          setUploadState({ mode: "edit", document: doc });
+        }}
+        onReview={(doc) => {
+          setCategoryDetailCode(null);
+          setReviewDoc(doc);
+        }}
+        onSession={(doc) => {
+          setCategoryDetailCode(null);
+          setSessionDoc(doc);
+        }}
+        onAccess={(doc) => {
+          setCategoryDetailCode(null);
+          setAccessDoc(doc);
+        }}
+        onDelete={async (doc) => {
+          await removeDocument(doc);
+        }}
+        t={t}
+      />
 
       {/* ── External Investor Share Modal ── */}
       <DataRoomShareModal

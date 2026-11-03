@@ -20,6 +20,7 @@ import {
 import { useVenture } from "../VentureContext";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { sessionBookingKey } from "@/components/ventures/journey/journeyShapers";
+import JourneyMap from "@/components/ventures/journey/JourneyMap";
 import FounderMilestoneSessions from "@/components/ventures/journey/FounderMilestoneSessions";
 import FounderMilestoneTasks from "@/components/ventures/journey/FounderMilestoneTasks";
 import { dateOnly } from "@/lib/ventureMilestoneDates";
@@ -413,6 +414,8 @@ export function JourneyTab() {
           {t('venture.evidenceUnavailable')}
         </div>
       )}
+      {/* The roadmap as one picture, above the stage cards it summarises. */}
+      {journeyStages.length > 0 && <JourneyMap stages={journeyStages} />}
       {journeyStages.length === 0 ? (
         <div className="rounded-xl p-8 border text-center" style={cardStyle}>
           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('venture.noJourneyYet') || 'No journey milestones have been defined yet.'}</p>

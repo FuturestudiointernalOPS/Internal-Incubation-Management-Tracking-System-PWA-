@@ -10,7 +10,7 @@ import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWor
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
   pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP,
-  pickInvestmentReadiness, pickOptionLists, TABS,
+  pickInvestmentReadiness, pickOptionLists, pickAccess, tabsFor,
 } from "@/components/participant/ventures/ventureScreenModel";
 import {
   ventureToPayload, inputStyle, cardStyle, notifyMsg,
@@ -86,12 +86,23 @@ export default function VentureDetail() {
   // bookmark lands on the same tab instead of falling back to the dashboard.
   // Derived, never copied into state: the address is the single source.
   const requestedTab = searchParams?.get("tab");
-  const activeTab = TABS.includes(requestedTab) ? requestedTab : "dashboard";
 
   // The signed-in identity comes from the shell's session cache rather than the
   // browser's stored copy, so it needs no effect and no read of its own.
   const { user: sessionUser } = useSessionUser();
   const user = sessionUser || {};
+
+  // What this person may actually do on THIS Venture — the guard's own verdict,
+  // not a guess from the role string. It decides whether the Reporting door
+  // exists, and the SAME answer validates `?tab=` below, so a deep link cannot
+  // open a door the tab bar hides.
+  const { data: access } = useApi(
+    params.id ? `/api/ventures/${params.id}/my-access` : null,
+    { defaultValue: null, transform: pickAccess },
+  );
+  const canReport = access?.capabilities?.edit?.allowed === true;
+  const allowedTabs = tabsFor({ canReport });
+  const activeTab = allowedTabs.includes(requestedTab) ? requestedTab : "dashboard";
 
   // The venture record is read through the shared hook, which owns the cache,
   // the cache-first paint and the discarding of a stale answer.
@@ -406,6 +417,7 @@ export default function VentureDetail() {
       activeTab={activeTab}
       onSection={openSection}
       onBack={() => router.push("/founder/ventures")}
+      canReport={canReport}
       workspace={ws}
       t={t}
     />

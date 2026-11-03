@@ -16,6 +16,7 @@ export default function VentureWorkspaceScreen({
   activeTab,
   onSection,
   onBack,
+  canReport = false,
   workspace,
   t,
 }) {
@@ -44,6 +45,7 @@ export default function VentureWorkspaceScreen({
         activeTab={activeTab}
         onSection={onSection}
         onBack={onBack}
+        canReport={canReport}
         t={t}
       />
     </VentureWorkspace.Provider>

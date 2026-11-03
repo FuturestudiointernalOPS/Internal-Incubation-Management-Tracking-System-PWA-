@@ -28,6 +28,7 @@ import governance from "./schema/governance";
 import journey from "./schema/journey";
 import sessionInvitees from "./schema/sessionInvitees";
 import reminders from "./schema/reminders";
+import reporting from "./schema/reporting";
 
 /**
  * Ensure venture schema is up to date.
@@ -45,6 +46,7 @@ export async function ensureVentureSchema() {
     ...journey,
     ...sessionInvitees,
     ...reminders,
+    ...reporting,
   ];
 
   for (const sql of migrations) {

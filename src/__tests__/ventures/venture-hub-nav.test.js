@@ -42,6 +42,7 @@ test("the bar carries the Venture's name and every destination as a link", async
     "/admin/ventures/VNT-1/journey",
     "/admin/ventures/VNT-1/investment",
     "/admin/ventures/VNT-1/reports",
+    "/admin/ventures/VNT-1/reporting",
     "/admin/ventures/VNT-1/documents",
     "/admin/ventures/VNT-1?tab=activity",
     "/admin/ventures/VNT-1?tab=profile",

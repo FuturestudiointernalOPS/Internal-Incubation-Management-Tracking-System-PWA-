@@ -14,6 +14,7 @@ import {
 } from "@/components/ventures/journey/journeyShapers";
 import JourneyConfirmModal from "@/components/ventures/journey/JourneyConfirmModal";
 import JourneyNotices from "@/components/ventures/journey/JourneyNotices";
+import JourneyMap from "@/components/ventures/journey/JourneyMap";
 import JourneyPanelHeader from "@/components/ventures/journey/JourneyPanelHeader";
 import JourneyTemplateSource from "@/components/ventures/journey/JourneyTemplateSource";
 import JourneyArchiveToolbar from "@/components/ventures/journey/JourneyArchiveToolbar";
@@ -362,6 +363,10 @@ export default function JourneyManagerPanel({ ventureId }) {
         toggleImport={() => setImportOpen((open) => !open)}
         toggleSelectMode={toggleSelectMode}
       />
+
+      {/* The roadmap as ONE picture, before the cards that describe it: the shape
+          of the journey is what a reader wants first, the detail stays below. */}
+      <JourneyMap stages={stages} />
 
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
           proposes. Guarded by the same authority that may define the journey —
