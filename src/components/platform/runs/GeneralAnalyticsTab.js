@@ -4,14 +4,14 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Sparkles,
   BarChart3,
-  Copy,
-  Check,
+  Download,
   RefreshCw,
   Lightbulb,
   AlertTriangle,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import { useApi } from "@/lib/hooks/useApi";
+import { downloadExecutiveSummaryPdf } from "./reportPdf";
 
 /**
  * General analytics for one form run.
@@ -40,7 +40,6 @@ export default function GeneralAnalyticsTab({ selectedRun }) {
   // simply stops matching — no reset effect, and no stale brief on another run.
   const [aiState, setAiState] = useState({ runId: null, data: null, failed: false });
   const [aiLoading, setAiLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
   const abortRef = useRef(null);
   const ai = aiState.runId === runId ? aiState.data : null;
   const aiFailed = aiState.runId === runId ? aiState.failed : false;
@@ -72,24 +71,9 @@ export default function GeneralAnalyticsTab({ selectedRun }) {
     }
   }, [runId]);
 
-  const handleCopyReport = () => {
+  const handleDownloadReport = () => {
     if (!ai?.executiveSummary) return;
-    const text = `FUTURE STUDIO PORTFOLIO INTELLIGENCE REPORT
-Run: ${selectedRun?.name}
-Submissions: ${data?.stats?.totalSubmissions || 0} startups
-
-EXECUTIVE SUMMARY:
-${ai.executiveSummary}
-
-KEY METRICS:
-${(ai.topMetrics || []).map((metric) => `• ${metric.label}: ${metric.value} (${metric.sub})`).join("\n")}
-
-QUESTION TAKEAWAYS:
-${(ai.questionHighlights || []).map((item) => `• ${item.question}: ${item.takeaway}`).join("\n")}
-`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    downloadExecutiveSummaryPdf({ selectedRun, data, ai });
   };
 
   if (loading) {
@@ -178,12 +162,11 @@ ${(ai.questionHighlights || []).map((item) => `• ${item.question}: ${item.take
           <AppButton
             size="sm"
             variant="primary"
-            onClick={handleCopyReport}
+            onClick={handleDownloadReport}
             disabled={!hasInsights}
             className="gap-1.5 text-xs"
           >
-            {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copied Report" : "Copy Executive Brief"}
+            <Download className="w-3.5 h-3.5" /> Download Executive Summary
           </AppButton>
         </div>
       </div>
