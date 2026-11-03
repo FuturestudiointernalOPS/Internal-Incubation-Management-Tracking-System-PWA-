@@ -229,6 +229,12 @@ export default function VentureDashboard({ id, embedded = false }) {
 
         <QuickActions id={id} />
 
+        {/* The same reporting charts the founder sees — the studio reads the
+            Venture's numbers where the Venture reports them, not a second
+            rendering of them. Directly under the quick actions: the figures are
+            the reason someone opens this dashboard. */}
+        <VentureReportingCharts ventureId={id} />
+
         {/* Progress & Metrics Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Column 1 */}
@@ -240,11 +246,6 @@ export default function VentureDashboard({ id, embedded = false }) {
           {/* Column 3 */}
           <ActivityColumn data={dashboardData} widgetState={widgetState} refreshWidget={refreshWidget} />
         </div>
-
-        {/* The same reporting charts the founder sees — the studio reads the
-            Venture's numbers where the Venture reports them, not a second
-            rendering of them. */}
-        <VentureReportingCharts ventureId={id} />
       </div>
     </>
   );
