@@ -1056,6 +1056,12 @@
     },
     "standardJourney": "Parcours Standard",
     "journeyDesc": "Votre parcours Venture est défini par l’équipe Future Studio qui vous accompagne. Les étapes se débloquent au fur et à mesure que l’équipe les valide.",
+    "journeyMap": {
+      "title": "Carte du parcours",
+      "overall": "{percent} % complété",
+      "milestones": "{done}/{total} jalons · {percent} %",
+      "noMilestones": "Aucun jalon pour l’instant"
+    },
     "evidenceUnavailable": "Certaines preuves n'ont pas pu être chargées. Rechargez la page et prévenez votre lead manager si elles restent absentes.",
     "noJourneyYet": "Aucune étape de parcours n’a encore été définie.",
     "noJourneyYetDesc": "L’équipe qui accompagne votre Venture publiera bientôt votre parcours.",

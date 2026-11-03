@@ -1056,6 +1056,12 @@
     },
     "standardJourney": "Standard Venture Journey",
     "journeyDesc": "Your Venture journey is defined by the Future Studio team supporting you. Stages unlock as the team marks each one complete.",
+    "journeyMap": {
+      "title": "Journey map",
+      "overall": "{percent}% complete",
+      "milestones": "{done}/{total} milestones · {percent}%",
+      "noMilestones": "No milestones yet"
+    },
     "evidenceUnavailable": "Some evidence could not be loaded. Reload the page, and tell your lead manager if it stays missing.",
     "noJourneyYet": "No journey stages have been defined yet.",
     "noJourneyYetDesc": "The team supporting your Venture will publish your journey soon.",
