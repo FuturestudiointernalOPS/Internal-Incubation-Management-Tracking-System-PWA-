@@ -1112,3 +1112,24 @@ export async function selectPortfolioMilestoneStats() {
     args: [],
   });
 }
+
+/** Update reporting currency on the current active profile row or insert fallback */
+export async function updateCurrentProfileCurrency({ ventureUuid, ventureCode, currency }) {
+  const current = await db.execute({
+    sql: "SELECT id FROM venture_static_profile WHERE venture_uuid = ? AND is_current LIMIT 1",
+    args: [ventureUuid],
+  });
+  if (current.rows?.length) {
+    return db.execute({
+      sql: "UPDATE venture_static_profile SET reporting_currency = ? WHERE id = ?",
+      args: [currency, current.rows[0].id],
+    });
+  } else {
+    return db.execute({
+      sql: `INSERT INTO venture_static_profile
+             (venture_uuid, venture_code, version, effective_from, is_current, reporting_currency)
+           VALUES (?, ?, 1, CURRENT_DATE, TRUE, ?)`,
+      args: [ventureUuid, ventureCode || "VNT", currency],
+    });
+  }
+}

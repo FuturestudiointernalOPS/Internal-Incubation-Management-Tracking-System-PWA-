@@ -80,9 +80,17 @@ export default function VentureDataDashboard({ ventureId }) {
   if (loading) return <AppCard>{t("common.loading")}</AppCard>;
   if (!data) {
     return (
-      <AppCard padding="normal">
-        <p className="text-xs text-rose-500">{t(error || "errors.somethingWrong")}</p>
-      </AppCard>
+      <div className="space-y-4">
+        <SectionHead
+          title={t("venture.reporting.dashboard.title")}
+          subtitle={t("venture.reporting.dashboard.subtitle")}
+        />
+        <AppCard padding="normal" className="text-center py-8">
+          <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+            {t("venture.reporting.dashboard.empty")}
+          </p>
+        </AppCard>
+      </div>
     );
   }
 

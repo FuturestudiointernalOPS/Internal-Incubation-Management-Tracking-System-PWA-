@@ -6,8 +6,7 @@
 // them, keeping the screen's body about state and orchestration only.
 
 export const TABS = [
-  "dashboard", "journey", "investment", "dataRoom",
-  "profile", "team",
+  "dashboard", "profile", "baseline", "team", "journey", "investment", "dataRoom",
 ];
 
 /**

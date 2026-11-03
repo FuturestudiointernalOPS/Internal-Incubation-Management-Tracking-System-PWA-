@@ -5,15 +5,58 @@
       "subtitle": "The studio's record of who the venture is and where it starts.",
       "notApplicable": "Not applicable",
       "tabLabel": "Reporting",
-      "tab": { "dashboard": "Dashboard", "profile": "Profile", "founders": "Founders", "team": "Team", "baseline": "Baseline", "monthly": "Monthly", "quarterly": "Quarterly", "events": "Events", "stage": "Stage", "glossary": "Glossary" },
-      "action": { "save": "Save", "newVersion": "Save as new version", "supersede": "Supersede" },
-      "version": { "current": "Current version", "superseded": "Superseded", "history": "History", "none": "No profile yet" },
-      "message": { "saved": "Saved", "superseded": "Superseded" },
-      "model": { "subscription": "Subscription", "transactional": "Transactional", "marketplace": "Marketplace", "services": "Services", "other": "Other" },
-      "accounting": { "cash": "Cash", "accrual": "Accrual" },
-      "mode": { "exact": "Exact amount", "band": "Range" },
-      "gender": { "female": "Female", "male": "Male", "other": "Other", "undisclosed": "Undisclosed" },
-      "employment": { "fullTime": "Full-time", "partTime": "Part-time" },
+      "tab": {
+        "dashboard": "Dashboard",
+        "businessInfo": "Business Info",
+        "founders": "Founders",
+        "headcount": "Headcount",
+        "baseline": "Baseline",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "events": "Events",
+        "stage": "Stage",
+        "glossary": "Glossary"
+      },
+      "action": {
+        "save": "Save",
+        "newVersion": "Save as new version",
+        "supersede": "Supersede"
+      },
+      "version": {
+        "current": "Current version",
+        "superseded": "Superseded",
+        "history": "History",
+        "none": "No profile yet"
+      },
+      "message": {
+        "saved": "Saved",
+        "superseded": "Superseded"
+      },
+      "model": {
+        "subscription": "Subscription",
+        "transactional": "Transactional",
+        "marketplace": "Marketplace",
+        "services": "Services",
+        "other": "Other"
+      },
+      "accounting": {
+        "cash": "Cash",
+        "accrual": "Accrual"
+      },
+      "mode": {
+        "exact": "Exact amount",
+        "band": "Range"
+      },
+      "gender": {
+        "female": "Female",
+        "male": "Male",
+        "other": "Other",
+        "undisclosed": "Undisclosed"
+      },
+      "employment": {
+        "fullTime": "Full-time",
+        "partTime": "Part-time"
+      },
       "field": {
         "legalName": "Legal name",
         "tradeName": "Trade name",
@@ -34,7 +77,14 @@
         "problemStatement": "Problem statement",
         "icp": "Ideal customer profile (ICP)"
       },
-      "founder": { "name": "Name", "gender": "Gender", "dateOfBirth": "Date of birth", "role": "Role", "employment": "Employment", "add": "Add founder" },
+      "founder": {
+        "name": "Name",
+        "gender": "Gender",
+        "dateOfBirth": "Date of birth",
+        "role": "Role",
+        "employment": "Employment",
+        "add": "Add founder"
+      },
       "team": {
         "period": "Period",
         "womenEmployees": "Women employees",
@@ -50,7 +100,7 @@
         "youthShare": "Youth share (under 35)"
       },
       "baseline": {
-        "fte": "FTE",
+        "fte": "Full-Time Equivalent (FTE)",
         "payingCustomers": "Paying customers",
         "cash": "Cash in bank",
         "cashBand": "Cash range",
@@ -226,8 +276,12 @@
           "insights": "Insights",
           "evidence": "Evidence (document or link)"
         },
-        "action": { "add": "Add interview" },
-        "message": { "added": "Interview recorded" },
+        "action": {
+          "add": "Add interview"
+        },
+        "message": {
+          "added": "Interview recorded"
+        },
         "validation": {
           "date": "Enter a real interview date that is not in the future.",
           "evidence": "The evidence must be a link or an uploaded document.",
@@ -335,7 +389,7 @@
         "minCustomersGrowth": "Growth: minimum paying customers",
         "scalingMonths": "Scaling: sustained growth (months)",
         "scalingRetention": "Scaling: minimum retention (%)",
-        "scalingFte": "Scaling: minimum non-founder FTE",
+        "scalingFte": "Scaling: minimum non-founder Full-Time Equivalent (FTE)",
         "reviewMonths": "Review flag: months below criteria",
         "monthlyDueDay": "Monthly report due on day",
         "monthlyDueMinute": "Monthly report due at",
@@ -383,14 +437,14 @@
           "payingCustomers": "Paying customers",
           "retention": "Retention",
           "runway": "Runway (months)",
-          "fte": "FTE"
+          "fte": "Full-Time Equivalent (FTE)"
         },
         "yearly": {
           "title": "Last 12 months",
           "yoyMrr": "MRR growth vs previous 12 months",
           "customerGrowth": "Customer growth vs 12 months ago",
           "annualBurn": "Net burn (12 months)",
-          "jobsSupported": "Jobs supported (FTE)",
+          "jobsSupported": "Jobs supported: Full-Time Equivalent (FTE)",
           "jobsCreated": "Jobs created vs baseline",
           "financing": "Outside financing received",
           "survival": "Survival",
@@ -500,7 +554,7 @@
           "mrr": "MRR",
           "paying_customer": "Paying customer",
           "active_user": "Active user",
-          "fte": "FTE",
+          "fte": "Full-Time Equivalent (FTE)",
           "churn_rate": "Churn rate",
           "retention": "Retention",
           "arpu": "ARPU",
@@ -664,6 +718,7 @@
     "noVentures": "No ventures yet. Create your first venture to get started.",
     "myVentures": "My Ventures",
     "profile": "Profile",
+    "baseline": "Baseline",
     "settings": "Settings",
     "cancel": "Cancel",
     "creating": "Creating...",
@@ -1601,19 +1656,24 @@
       "clear": "Clear"
     },
     "projects": {
-    "shouldStart": "Should have started",
-    "followUp": {
-      "title": "Are the assignees on their tasks? (tasks whose start date has come)",
-      "none": "No task has reached its start date yet.",
-      "assignee": "Assignee",
-      "due": "Should have started",
-      "working": "In progress / done",
-      "blocked": "Blocked",
-      "waiting": "Not started",
-      "verdict": "Status",
-      "nobody": "Nobody assigned",
-      "verdicts": { "onIt": "On it", "partial": "Partly started", "notStarted": "Has not started", "unassigned": "No assignee" }
-    },
+      "shouldStart": "Should have started",
+      "followUp": {
+        "title": "Are the assignees on their tasks? (tasks whose start date has come)",
+        "none": "No task has reached its start date yet.",
+        "assignee": "Assignee",
+        "due": "Should have started",
+        "working": "In progress / done",
+        "blocked": "Blocked",
+        "waiting": "Not started",
+        "verdict": "Status",
+        "nobody": "Nobody assigned",
+        "verdicts": {
+          "onIt": "On it",
+          "partial": "Partly started",
+          "notStarted": "Has not started",
+          "unassigned": "No assignee"
+        }
+      },
       "title": "Project Management",
       "subtitle": "Every milestone, activity and deliverable of this Venture, with the owner, the people supporting it and the dates that matter.",
       "open": "Open",
@@ -1715,7 +1775,7 @@
       "schedule": "Schedule",
       "scheduledToast": "Reminder scheduled {days} day(s) before.",
       "calendarHint": "The email carries the date as a calendar invite (.ics and Google Calendar link).",
-      "ruleLine": "{days} day(s) before the {trigger}",
+      "ruleLine": "{days} day(s) before {trigger}",
       "sendSuccessHint": "Check the inbox (and spam) of each address above.",
       "ccHint": "A copy is also sent to the Venture's Venture Manager.",
       "attachmentDropped": "The message went out, but the mail service could not carry the file.",
@@ -1754,7 +1814,6 @@
       "addRule": "Add a rule",
       "addStandard": "Add the standard rules",
       "confirmDeleteRule": "Remove this reminder rule? Reminders already sent are kept in the history.",
-      "ruleLine": "{days} day(s) before {trigger}",
       "trigger": {
         "start": "Start",
         "finish": "Finish"
@@ -1897,6 +1956,42 @@
       "prefix": "Note",
       "saved": "Note saved — it is in the Notes tab.",
       "memo": "Session memo"
+    },
+    "charts": {
+      "sectionTitle": "Growth & Performance Telemetry",
+      "sectionSubtitle": "Verified metrics computed from validated monthly reports and verified evidence",
+      "period3": "Past 3 Months",
+      "period6": "Past 6 Months",
+      "periodAll": "All Time",
+      "signalRetentionTitle": "Cohort Retention Warning",
+      "signalRetentionDesc": "Monthly customer retention has dropped below 50% target threshold.",
+      "signalCustDropTitle": "Customer Contraction Alert",
+      "signalCustDropDesc": "drop in paying customers from the previous month.",
+      "signalCustGrowthTitle": "Customer Growth Acceleration",
+      "signalCustGrowthDesc": "increase in paying customers over the previous period.",
+      "signalRunwayTitle": "Critical Runway Alert",
+      "signalRunwayDesc": "months of cash runway remaining. Review net burn and funding requirements.",
+      "emptyTitle": "Venture Growth & Unit Economics",
+      "emptyDesc": "Performance trajectories, recurring revenue, retention curves and operational runway will appear here as monthly reports are validated.",
+      "revenueTitle": "Monthly Recurring Revenue (MRR)",
+      "revenueSubtitle": "Total verified recurring software & service revenue",
+      "revenueDataSource": "Data source: Validated monthly report (mrr + other_revenue)",
+      "customerTitle": "Paying Customers",
+      "customerSubtitle": "Active accounts with a paid contract or subscription",
+      "customerDataSource": "Data source: Validated monthly report (paying_customers)",
+      "retentionTitle": "Cohort Retention Rate",
+      "retentionSubtitle": "Percentage of customers retained month-over-month",
+      "retentionDataSource": "Data source: Computed metric: (paying_customers - new_paying_customers) / previous_paying_customers",
+      "northStarTitle": "North Star Metric",
+      "northStarSubtitle": "Core venture value delivery indicator",
+      "northStarDataSource": "Data source: Validated monthly report (north_star_value)",
+      "runwayTitle": "Capital Runway & Net Burn Projection",
+      "runwaySubtitle": "Operational runway in months and net burn rate",
+      "runwayDataSource": "Data source: Computed metric: cash_in_bank / monthly_burn",
+      "unit": "Unit",
+      "customersCount": "Customers",
+      "monthsOfRunway": "Months Runway",
+      "netBurn": "Net Burn"
     }
   }
 }

@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import { ProfileTab } from "@/components/ventures/workspace/tabs/ProfileSettingsTabs";
+import VentureBaselineTab from "@/components/ventures/workspace/tabs/VentureBaselineTab";
 import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
@@ -69,7 +70,8 @@ export default function VentureWorkspaceView({
       {activeTab === "journey" && <JourneyTab />}
       {activeTab === "investment" && <InvestmentTab />}
       {activeTab === "dataRoom" && <VentureDataRoom ventureId={venture.venture_id || venture.id} />}
-      {activeTab === "profile" && <ProfileTab />}
+      {activeTab === "profile" && <ProfileTab ventureId={venture.venture_id || venture.id} />}
+      {activeTab === "baseline" && <VentureBaselineTab ventureId={venture.venture_id || venture.id} />}
       {activeTab === "team" && <TeamTab />}
 
       {/* The Venture Data Foundation: its own sub-tabs, inside the workspace the

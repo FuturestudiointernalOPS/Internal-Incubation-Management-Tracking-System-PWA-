@@ -5,15 +5,58 @@
       "subtitle": "Le dossier de la venture : qui elle est et d'où elle part.",
       "notApplicable": "Non applicable",
       "tabLabel": "Rapports",
-      "tab": { "dashboard": "Tableau de bord", "profile": "Profil", "founders": "Fondateurs", "team": "Équipe", "baseline": "Référence initiale", "monthly": "Mensuel", "quarterly": "Trimestriel", "events": "Événements", "stage": "Stade", "glossary": "Glossaire" },
-      "action": { "save": "Enregistrer", "newVersion": "Enregistrer comme nouvelle version", "supersede": "Remplacer" },
-      "version": { "current": "Version actuelle", "superseded": "Remplacée", "history": "Historique", "none": "Aucun profil" },
-      "message": { "saved": "Enregistré", "superseded": "Remplacée" },
-      "model": { "subscription": "Abonnement", "transactional": "Transactionnel", "marketplace": "Place de marché", "services": "Services", "other": "Autre" },
-      "accounting": { "cash": "Trésorerie", "accrual": "Engagement" },
-      "mode": { "exact": "Montant exact", "band": "Fourchette" },
-      "gender": { "female": "Femme", "male": "Homme", "other": "Autre", "undisclosed": "Non précisé" },
-      "employment": { "fullTime": "Temps plein", "partTime": "Temps partiel" },
+      "tab": {
+        "dashboard": "Tableau de bord",
+        "profile": "Profil",
+        "baseline": "Référence initiale",
+        "founders": "Fondateurs",
+        "team": "Équipe",
+        "monthly": "Mensuel",
+        "quarterly": "Trimestriel",
+        "events": "Événements",
+        "stage": "Stade",
+        "glossary": "Glossaire"
+      },
+      "action": {
+        "save": "Enregistrer",
+        "newVersion": "Enregistrer comme nouvelle version",
+        "supersede": "Remplacer"
+      },
+      "version": {
+        "current": "Version actuelle",
+        "superseded": "Remplacée",
+        "history": "Historique",
+        "none": "Aucun profil"
+      },
+      "message": {
+        "saved": "Enregistré",
+        "superseded": "Remplacée"
+      },
+      "model": {
+        "subscription": "Abonnement",
+        "transactional": "Transactionnel",
+        "marketplace": "Place de marché",
+        "services": "Services",
+        "other": "Autre"
+      },
+      "accounting": {
+        "cash": "Trésorerie",
+        "accrual": "Engagement"
+      },
+      "mode": {
+        "exact": "Montant exact",
+        "band": "Fourchette"
+      },
+      "gender": {
+        "female": "Femme",
+        "male": "Homme",
+        "other": "Autre",
+        "undisclosed": "Non précisé"
+      },
+      "employment": {
+        "fullTime": "Temps plein",
+        "partTime": "Temps partiel"
+      },
       "field": {
         "legalName": "Raison sociale",
         "tradeName": "Nom commercial",
@@ -34,7 +77,14 @@
         "problemStatement": "Énoncé du problème",
         "icp": "Client idéal (ICP)"
       },
-      "founder": { "name": "Nom", "gender": "Genre", "dateOfBirth": "Date de naissance", "role": "Rôle", "employment": "Temps de travail", "add": "Ajouter un fondateur" },
+      "founder": {
+        "name": "Nom",
+        "gender": "Genre",
+        "dateOfBirth": "Date de naissance",
+        "role": "Rôle",
+        "employment": "Temps de travail",
+        "add": "Ajouter un fondateur"
+      },
       "team": {
         "period": "Période",
         "womenEmployees": "Femmes salariées",
@@ -50,7 +100,7 @@
         "youthShare": "Part de jeunes (moins de 35 ans)"
       },
       "baseline": {
-        "fte": "ETP",
+        "fte": "Équivalent temps plein (ETP)",
         "payingCustomers": "Clients payants",
         "cash": "Trésorerie",
         "cashBand": "Fourchette de trésorerie",
@@ -226,8 +276,12 @@
           "insights": "Enseignements",
           "evidence": "Preuve (document ou lien)"
         },
-        "action": { "add": "Ajouter l'entretien" },
-        "message": { "added": "Entretien enregistré" },
+        "action": {
+          "add": "Ajouter l'entretien"
+        },
+        "message": {
+          "added": "Entretien enregistré"
+        },
         "validation": {
           "date": "Saisissez une date d'entretien réelle qui n'est pas dans le futur.",
           "evidence": "La preuve doit être un lien ou un document téléversé.",
@@ -335,7 +389,7 @@
         "minCustomersGrowth": "Croissance : clients payants minimum",
         "scalingMonths": "Échelle : croissance soutenue (mois)",
         "scalingRetention": "Échelle : rétention minimale (%)",
-        "scalingFte": "Échelle : ETP hors fondateurs minimum",
+        "scalingFte": "Échelle : Équivalent temps plein (ETP) hors fondateurs minimum",
         "reviewMonths": "Signal de revue : mois sous les critères",
         "monthlyDueDay": "Rapport mensuel attendu le jour",
         "monthlyDueMinute": "Rapport mensuel attendu à",
@@ -383,14 +437,14 @@
           "payingCustomers": "Clients payants",
           "retention": "Rétention",
           "runway": "Autonomie (mois)",
-          "fte": "ETP"
+          "fte": "Équivalent temps plein (ETP)"
         },
         "yearly": {
           "title": "12 derniers mois",
           "yoyMrr": "Croissance du MRR vs les 12 mois précédents",
           "customerGrowth": "Croissance des clients vs il y a 12 mois",
           "annualBurn": "Brûlage net (12 mois)",
-          "jobsSupported": "Emplois soutenus (ETP)",
+          "jobsSupported": "Emplois soutenus : Équivalent temps plein (ETP)",
           "jobsCreated": "Emplois créés vs la référence initiale",
           "financing": "Financement externe reçu",
           "survival": "Survie",
@@ -500,7 +554,7 @@
           "mrr": "MRR",
           "paying_customer": "Client payant",
           "active_user": "Utilisateur actif",
-          "fte": "ETP",
+          "fte": "Équivalent temps plein (ETP)",
           "churn_rate": "Taux d'attrition",
           "retention": "Rétention",
           "arpu": "ARPU",
@@ -1601,19 +1655,24 @@
       "clear": "Effacer"
     },
     "projects": {
-    "shouldStart": "Devraient avoir démarré",
-    "followUp": {
-      "title": "Les responsables sont-ils sur leurs tâches ? (tâches dont la date de début est arrivée)",
-      "none": "Aucune tâche n'a encore atteint sa date de début.",
-      "assignee": "Responsable",
-      "due": "Devraient avoir démarré",
-      "working": "En cours / terminées",
-      "blocked": "Bloquées",
-      "waiting": "Non démarrées",
-      "verdict": "État",
-      "nobody": "Personne d'assigné",
-      "verdicts": { "onIt": "Dessus", "partial": "Démarré en partie", "notStarted": "N'a pas démarré", "unassigned": "Sans responsable" }
-    },
+      "shouldStart": "Devraient avoir démarré",
+      "followUp": {
+        "title": "Les responsables sont-ils sur leurs tâches ? (tâches dont la date de début est arrivée)",
+        "none": "Aucune tâche n'a encore atteint sa date de début.",
+        "assignee": "Responsable",
+        "due": "Devraient avoir démarré",
+        "working": "En cours / terminées",
+        "blocked": "Bloquées",
+        "waiting": "Non démarrées",
+        "verdict": "État",
+        "nobody": "Personne d'assigné",
+        "verdicts": {
+          "onIt": "Dessus",
+          "partial": "Démarré en partie",
+          "notStarted": "N'a pas démarré",
+          "unassigned": "Sans responsable"
+        }
+      },
       "title": "Gestion de projet",
       "subtitle": "Tous les jalons, activités et livrables de ce Venture, avec le responsable, les personnes en appui et les dates qui comptent.",
       "open": "Ouvrir",
@@ -1715,7 +1774,7 @@
       "schedule": "Planifier",
       "scheduledToast": "Rappel planifié {days} jour(s) avant.",
       "calendarHint": "Le mail contient la date sous forme d'invitation calendrier (.ics et lien Google Agenda).",
-      "ruleLine": "{days} jour(s) avant : {trigger}",
+      "ruleLine": "{days} jour(s) avant le {trigger}",
       "sendSuccessHint": "Vérifiez la boîte de réception (et les spams) de chaque adresse ci-dessus.",
       "ccHint": "Une copie est également envoyée au lead manager du Venture.",
       "attachmentDropped": "Le message est parti, mais le service d'envoi n'a pas pu porter le fichier.",
@@ -1754,7 +1813,6 @@
       "addRule": "Ajouter une règle",
       "addStandard": "Ajouter les règles standard",
       "confirmDeleteRule": "Retirer cette règle de rappel ? Les rappels déjà envoyés restent dans l'historique.",
-      "ruleLine": "{days} jour(s) avant le {trigger}",
       "trigger": {
         "start": "Début",
         "finish": "Fin"
@@ -1897,6 +1955,42 @@
       "prefix": "Note",
       "saved": "Note enregistrée — elle est dans l'onglet Notes.",
       "memo": "Mémo de séance"
+    },
+    "charts": {
+      "sectionTitle": "Télémétrie de croissance & performance",
+      "sectionSubtitle": "Indicateurs vérifiés calculés à partir des rapports mensuels validés",
+      "period3": "3 derniers mois",
+      "period6": "6 derniers mois",
+      "periodAll": "Tout l'historique",
+      "signalRetentionTitle": "Alerte de rétention de cohorte",
+      "signalRetentionDesc": "Le taux de rétention client est passé sous le seuil cible de 50%.",
+      "signalCustDropTitle": "Alerte de contraction client",
+      "signalCustDropDesc": "de baisse des clients payants par rapport au mois précédent.",
+      "signalCustGrowthTitle": "Accélération de la clientèle",
+      "signalCustGrowthDesc": "de hausse des clients payants par rapport à la période précédente.",
+      "signalRunwayTitle": "Alerte de trésorerie critique",
+      "signalRunwayDesc": "mois de runway restants. Analysez le burn net et les besoins de financement.",
+      "emptyTitle": "Croissance de l'entreprise & économie unitaire",
+      "emptyDesc": "Les trajectoires de performance, revenus récurrents, courbes de rétention et runway s'afficheront ici au fur et à mesure de la validation des rapports mensuels.",
+      "revenueTitle": "Revenus récurrents mensuels (MRR)",
+      "revenueSubtitle": "Total des revenus récurrents validés",
+      "revenueDataSource": "Source : Rapport mensuel validé (mrr + other_revenue)",
+      "customerTitle": "Clients payants",
+      "customerSubtitle": "Comptes actifs bénéficiant d'un contrat ou abonnement payant",
+      "customerDataSource": "Source : Rapport mensuel validé (paying_customers)",
+      "retentionTitle": "Taux de rétention des cohortes",
+      "retentionSubtitle": "Pourcentage de clients conservés mois après mois",
+      "retentionDataSource": "Source : Métrique calculée : (clients_actuels - nouveaux_clients) / clients_précédents",
+      "northStarTitle": "Métrique North Star",
+      "northStarSubtitle": "Indicateur central de création de valeur de la startup",
+      "northStarDataSource": "Source : Rapport mensuel validé (north_star_value)",
+      "runwayTitle": "Runway de trésorerie & Burn Rate",
+      "runwaySubtitle": "Mois de trésorerie disponibles et taux de consommation net",
+      "runwayDataSource": "Source : Métrique calculée : trésorerie / burn_net_mensuel",
+      "unit": "Unité",
+      "customersCount": "Clients",
+      "monthsOfRunway": "Mois de runway",
+      "netBurn": "Burn net"
     }
   }
 }

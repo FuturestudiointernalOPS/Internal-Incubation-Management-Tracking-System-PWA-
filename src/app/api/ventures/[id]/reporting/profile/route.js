@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { selectVentureIdentity } from "@/models/ventureReportingStore";
+import { selectVentureIdentity, updateCurrentProfileCurrency } from "@/models/ventureReportingStore";
 import {
   getCurrentProfile,
   getProfileHistory,
@@ -55,4 +55,24 @@ export const POST = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: false, errors: result.errors }, { status: 400 });
   }
   return NextResponse.json({ success: true, profile: result.profile });
+});
+
+export const PATCH = createHandler(async (req, { params }) => {
+  const { id } = await params;
+  const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
+  if (access.error) return access.error;
+
+  const venture = await resolveVenture(id);
+  if (!venture) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
+
+  const body = await req.json().catch(() => ({}));
+  const currency = String(body.reportingCurrency || body.currency || "XOF").toUpperCase().trim();
+
+  await updateCurrentProfileCurrency({
+    ventureUuid: venture.id,
+    ventureCode: venture.venture_id,
+    currency,
+  });
+
+  return NextResponse.json({ success: true, reportingCurrency: currency });
 });
