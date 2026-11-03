@@ -9,6 +9,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
 import { formatMetric } from "./monthlyDisplay";
+import { formatCurrencyAmount } from "@/lib/currencies";
 import VentureStageCard from "./VentureStageCard";
 import VentureGlossary from "./VentureGlossary";
 
@@ -60,12 +61,12 @@ async function api(path, options) {
 
 const localeFor = (lang) => (lang === "fr" ? "fr-FR" : "en-GB");
 
-function moneyText(t, lang, money) {
+function moneyText(t, lang, money, currency) {
   if (!money || !money.mode) return t("venture.reporting.monthly.notProvided");
   if (money.mode === "band") return money.band || "—";
-  return `${new Intl.NumberFormat(localeFor(lang), { maximumFractionDigits: 0 }).format(
-    money.value ?? 0,
-  )} CFA`;
+  // The report's OWN currency, not today's setting: a month filed in CFA must
+  // keep reading as CFA after the Venture switches currency.
+  return formatCurrencyAmount(money.value ?? 0, currency, localeFor(lang));
 }
 
 const countText = (value) => (value === null || value === undefined ? "—" : String(value));
@@ -132,6 +133,11 @@ export default function VentureMonthlyReview({ ventureId }) {
     for (const metric of detail?.metrics || []) map[metric.key] = metric;
     return map;
   }, [detail]);
+
+  // The currency the month was FILED in (the report's stamp), falling back to
+  // the Venture's current setting for a month with no report yet.
+  const currency =
+    detail?.report?.currency || detail?.open?.currency || detail?.validated?.currency || detail?.currency || "XOF";
 
   const pendingReport = detail?.open?.status === "submitted" ? detail.open : null;
 
@@ -277,7 +283,7 @@ export default function VentureMonthlyReview({ ventureId }) {
                     {t(`venture.reporting.monthly.field.${field}`)}
                   </span>
                   <span className="text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
-                    {moneyText(t, lang, detail.report[field])}
+                    {moneyText(t, lang, detail.report[field], currency)}
                   </span>
                 </div>
               ))}
@@ -327,7 +333,7 @@ export default function VentureMonthlyReview({ ventureId }) {
                     {t(`venture.reporting.metric.${key}`)}
                   </span>
                   <span className="text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
-                    {formatMetric(t, lang, key, metrics[key])}
+                    {formatMetric(t, lang, key, metrics[key], currency)}
                   </span>
                 </div>
               ))}

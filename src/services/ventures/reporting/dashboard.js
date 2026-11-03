@@ -27,12 +27,20 @@ import { computeYearlyFigures, survivalAt, timeInStages, monthsBetween } from ".
 import { getStageStatus } from "./stage";
 
 /** A stored metric as a chart point: value, or its range when it was a band. */
-const pointOf = (metricsByPeriod, period, key) => {
+const pointOf = (metricsByPeriod, period, key, currency) => {
   const metric = metricsByPeriod.get(period)?.[key] || null;
   if (!metric || metric.status !== "computed") {
-    return { value: null, low: null, high: null, approximate: false, status: metric?.status || "not_applicable" };
+    return {
+      currency,
+      value: null,
+      low: null,
+      high: null,
+      approximate: false,
+      status: metric?.status || "not_applicable",
+    };
   }
   return {
+    currency,
     value: metric.value,
     low: metric.valueLow,
     high: metric.valueHigh,
@@ -58,6 +66,9 @@ export async function getVentureDashboard({ ventureUuid }) {
     ]);
 
   const profileRow = (profileResult.rows || [])[0] || null;
+  // The Venture's CURRENT setting — the fallback for months filed before the
+  // currency was recorded on the row.
+  const activeCurrency = String(profileRow?.reporting_currency || "XOF").toUpperCase();
   // Bands are already grouped by `getReportingSettings`.
   const settings = await getReportingSettings({ businessModel: profileRow?.business_model || "default" });
   const groupedBands = settings.bands || { flow: [], cash: [] };
@@ -75,18 +86,24 @@ export async function getVentureDashboard({ ventureUuid }) {
     .filter(Boolean)
     .sort((a, b) => (a.period < b.period ? -1 : 1));
 
-  const months = reports.map((month) => ({
-    period: month.period,
-    payingCustomers: month.payingCustomers,
-    newPayingCustomers: month.newPayingCustomers,
-    northStarValue: month.northStarValue,
-    lostCustomers: pointOf(metricsByPeriod, month.period, "lost_customers").value,
-    retention: pointOf(metricsByPeriod, month.period, "retention"),
-    totalRevenue: pointOf(metricsByPeriod, month.period, "total_revenue"),
-    netBurn: pointOf(metricsByPeriod, month.period, "net_burn"),
-    runway: pointOf(metricsByPeriod, month.period, "runway_months"),
-    fte: pointOf(metricsByPeriod, month.period, "fte"),
-  }));
+  const months = reports.map((month) => {
+    // The currency THIS month was filed in — not the Venture's current setting.
+    // Rows written before the stamp existed fall back to the current one.
+    const monthCurrency = month.currency || activeCurrency;
+    return {
+      period: month.period,
+      currency: monthCurrency,
+      payingCustomers: month.payingCustomers,
+      newPayingCustomers: month.newPayingCustomers,
+      northStarValue: month.northStarValue,
+      lostCustomers: pointOf(metricsByPeriod, month.period, "lost_customers", monthCurrency).value,
+      retention: pointOf(metricsByPeriod, month.period, "retention", monthCurrency),
+      totalRevenue: pointOf(metricsByPeriod, month.period, "total_revenue", monthCurrency),
+      netBurn: pointOf(metricsByPeriod, month.period, "net_burn", monthCurrency),
+      runway: pointOf(metricsByPeriod, month.period, "runway_months", monthCurrency),
+      fte: pointOf(metricsByPeriod, month.period, "fte", monthCurrency),
+    };
+  });
 
   const latest = months[months.length - 1] || null;
   const latestReport = reports[reports.length - 1] || null;
@@ -175,6 +192,8 @@ export async function getVentureDashboard({ ventureUuid }) {
       payingCustomers: latest?.payingCustomers ?? null,
       narrative: latestReport?.narrative || null,
       period: latest?.period || null,
+      // The unit of the most recent filing — what the charts are labelled in.
+      currency: latest?.currency || activeCurrency,
     },
     team: shares
       ? { womenShare: shares.womenShare, youthShare: shares.youthShare, total: shares.total }

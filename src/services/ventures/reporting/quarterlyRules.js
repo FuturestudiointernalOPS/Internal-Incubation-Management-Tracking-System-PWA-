@@ -147,6 +147,8 @@ export function quarterlyRowValues({ input = {}, actorCid = null }) {
     churned_value: churned.value,
     churned_band: churned.band,
     narrative: text(input.narrative) || null,
+    // Frozen on the row at save time, like the monthly report.
+    currency: input.currency ? String(input.currency).trim().toUpperCase() : null,
     created_by: actorCid,
   };
 }
@@ -176,5 +178,7 @@ export function rowToQuarterlyInput(row) {
     expansion: money("expansion"),
     churned: money("churned"),
     narrative: row.narrative ?? null,
+    // The currency this quarter was filed in (null on older rows).
+    currency: row.currency ? String(row.currency).toUpperCase() : null,
   };
 }

@@ -152,6 +152,8 @@ export function eventRowValues({ input = {}, actorCid = null }) {
     statusTo: text(input.statusTo) || null,
     evidence: text(input.evidence) || null,
     evidenceName: text(input.evidenceName) || null,
+    // The currency this amount was entered in, frozen with the event.
+    currency: input.currency ? String(input.currency).trim().toUpperCase() : null,
     actorCid,
   };
 }

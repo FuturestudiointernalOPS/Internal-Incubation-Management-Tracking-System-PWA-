@@ -9,6 +9,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
 import { formatMetric } from "./monthlyDisplay";
+import { formatCurrencyAmount } from "@/lib/currencies";
 
 /**
  * STUDIO — the quarterly review queue.
@@ -60,12 +61,11 @@ async function api(path, options) {
 
 const localeFor = (lang) => (lang === "fr" ? "fr-FR" : "en-GB");
 
-function moneyText(t, lang, money) {
+function moneyText(t, lang, money, currency) {
   if (!money || !money.mode) return t("venture.reporting.monthly.notProvided");
   if (money.mode === "band") return money.band || "—";
-  return `${new Intl.NumberFormat(localeFor(lang), { maximumFractionDigits: 0 }).format(
-    money.value ?? 0,
-  )} CFA`;
+  // The quarter's OWN currency, never a hardcoded one.
+  return formatCurrencyAmount(money.value ?? 0, currency, localeFor(lang));
 }
 
 const countText = (value) => (value === null || value === undefined ? "—" : String(value));
@@ -130,6 +130,10 @@ export default function VentureQuarterlyReview({ ventureId }) {
   }, [detail]);
 
   const pending = detail?.open?.status === "submitted" ? detail.open : null;
+
+  // The currency this quarter was filed in (its own stamp), else the current one.
+  const currency =
+    detail?.report?.currency || detail?.open?.currency || detail?.validated?.currency || detail?.currency || "XOF";
 
   const refresh = async () => {
     await Promise.all([loadList(), loadDetail(selected)]);
@@ -249,7 +253,7 @@ export default function VentureQuarterlyReview({ ventureId }) {
                     {t(`venture.reporting.quarterly.field.${field}`)}
                   </span>
                   <span className="text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
-                    {moneyText(t, lang, detail.report[field])}
+                    {moneyText(t, lang, detail.report[field], currency)}
                   </span>
                 </div>
               ))}
@@ -290,7 +294,7 @@ export default function VentureQuarterlyReview({ ventureId }) {
                     {t(`venture.reporting.quarterly.metric.${key}`)}
                   </span>
                   <span className="text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
-                    {formatMetric(t, lang, key, metrics[key])}
+                    {formatMetric(t, lang, key, metrics[key], currency)}
                   </span>
                 </div>
               ))}

@@ -30,6 +30,7 @@ import { groupBands } from "./rules";
 import { rowToMonthlyInput, dateStringOrNull, shapeMetric } from "./monthlyRules";
 import { normalizeQuarter, currentQuarter, validateQuarterlyReport, quarterlyRowValues, rowToQuarterlyInput } from "./quarterlyRules";
 import { computeQuarterlyMetrics } from "./quarterlyMetrics";
+import { currentReportingCurrency } from "./monthly";
 
 // ── Shaping ────────────────────────────────────────────────────────────────
 
@@ -54,6 +55,8 @@ function shapeQuarterly(row) {
     expansion: input.expansion,
     churned: input.churned,
     narrative: input.narrative,
+    // The currency this quarter was filed in, frozen at save time.
+    currency: input.currency || null,
     submittedAt: row.submitted_at ?? null,
     validatedAt: row.validated_at ?? null,
     rejectedAt: row.rejected_at ?? null,
@@ -120,6 +123,11 @@ export async function getQuarterlyReport({ ventureUuid, period }) {
   const open = versions.find((row) => row.status === "draft" || row.status === "submitted") || null;
   const validated = versions.find((row) => row.status === "validated" && !row.superseded_at) || null;
   const latest = open || validated || versions[0] || null;
+  // The quarter's own currency when it has been filed, else the Venture's
+  // current setting (the form has to be labelled in something).
+  const currency = latest?.currency
+    ? String(latest.currency).toUpperCase()
+    : await currentReportingCurrency(ventureUuid);
   const bands = groupBands(bandsResult.rows || []);
 
   let preview = null;
@@ -134,6 +142,7 @@ export async function getQuarterlyReport({ ventureUuid, period }) {
 
   return {
     period: normalised,
+    currency,
     report: shapeQuarterly(latest),
     open: shapeQuarterly(open),
     validated: shapeQuarterly(validated),
@@ -168,7 +177,9 @@ export async function saveQuarterlyReport({ ventureUuid, ventureCode, actorCid, 
   if (errors.length) return { errors };
 
   const submit = input.submit === true || input.submit === "yes";
-  const values = quarterlyRowValues({ input, actorCid });
+  // Stamped server-side from the Venture's setting, exactly like the month.
+  const currency = await currentReportingCurrency(ventureUuid);
+  const values = quarterlyRowValues({ input: { ...input, currency }, actorCid });
 
   const saved = await runInTransaction(async (query) => {
     const openResult = await selectOpenQuarterly(ventureUuid, period);

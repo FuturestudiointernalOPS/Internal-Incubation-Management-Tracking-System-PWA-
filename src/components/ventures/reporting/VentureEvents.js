@@ -9,6 +9,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
 import { formatBand } from "./monthlyDisplay";
+import { formatCurrencyAmount, getCurrencySymbol } from "@/lib/currencies";
 
 /**
  * FOUNDER — the Events tab (spec §7) and customer-discovery interviews.
@@ -133,10 +134,13 @@ function EvidencePicker({ value, name, onChange, slot, base, t }) {
   );
 }
 
-export default function VentureEvents({ ventureId }) {
+export default function VentureEvents({ ventureId, reloadKey = 0 }) {
   const { t, lang } = useI18n();
   const [events, setEvents] = useState([]);
   const [bands, setBands] = useState({ flow: [], cash: [] });
+  // The Venture's current currency — the fallback for amounts recorded before
+  // the currency was stamped on the event.
+  const [currency, setCurrency] = useState("XOF");
   const [summary, setSummary] = useState({ withEvidence: 0, minimum: 0, met: false });
   const [interviews, setInterviews] = useState([]);
 
@@ -158,11 +162,12 @@ export default function VentureEvents({ ventureId }) {
     if (eventsRes.ok) {
       setEvents(eventsRes.payload.events || []);
       setBands(eventsRes.payload.bands || { flow: [], cash: [] });
+      setCurrency(eventsRes.payload.currency || "XOF");
       setSummary(eventsRes.payload.interviews || { withEvidence: 0, minimum: 0, met: false });
     }
     if (interviewsRes.ok) setInterviews(interviewsRes.payload.interviews || []);
     setLoading(false);
-  }, [base]);
+  }, [base, reloadKey]);
 
   useEffect(() => {
     load();
@@ -299,7 +304,7 @@ export default function VentureEvents({ ventureId }) {
               <AppInput
                 type="number"
                 min="0"
-                label={t("venture.reporting.monthly.amount")}
+                label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
                 value={form.amountValue}
                 onChange={set("amountValue")}
               />
@@ -389,7 +394,13 @@ export default function VentureEvents({ ventureId }) {
                   <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
                     {event.date}
                     {event.amount?.mode === "band" ? ` · ${event.amount.band}` : ""}
-                    {event.amount?.mode === "exact" ? ` · ${event.amount.value} CFA` : ""}
+                    {event.amount?.mode === "exact"
+                      ? ` · ${formatCurrencyAmount(
+                          event.amount.value,
+                          event.currency || currency,
+                          lang === "fr" ? "fr-FR" : "en-GB",
+                        )}`
+                      : ""}
                     {event.marketDescription ? ` · ${event.marketDescription}` : ""}
                   </p>
                 </div>

@@ -28,6 +28,8 @@ const toStr = (value) =>
 jest.mock("@/models/ventureReportingStore", () => ({
   runInTransaction: jest.fn(async (fn) => fn(jest.fn())),
   selectBands: jest.fn(async () => ({ rows: mockState.bands })),
+  // Read when a report is saved: the currency it is filed in is stamped on the row.
+  selectCurrentProfile: jest.fn(async () => ({ rows: [{ reporting_currency: "XOF" }] })),
   // Read by getReportingSettings, now that a month carries its due date.
   selectStageSettings: jest.fn(async () => ({ rows: [] })),
   selectGlossary: jest.fn(async () => ({ rows: [] })),
@@ -507,6 +509,16 @@ describe("report lifecycle", () => {
     expect(result.errors).toBeUndefined();
     expect(result.report.version).toBe(1);
     expect(result.report.status).toBe("draft");
+  });
+
+  test("the currency in force when the month is filed is recorded on the row", async () => {
+    const store = jest.requireMock("@/models/ventureReportingStore");
+    store.selectCurrentProfile.mockResolvedValueOnce({ rows: [{ reporting_currency: "usd" }] });
+
+    const result = await saveMonthlyReport({ ...VENTURE, actorCid: "C1", input: monthlyInput() });
+
+    // Stamped from the Venture's setting, normalized — and carried back to the UI.
+    expect(result.report.currency).toBe("USD");
   });
 
   test("submitting moves it to submitted and stamps the date", async () => {

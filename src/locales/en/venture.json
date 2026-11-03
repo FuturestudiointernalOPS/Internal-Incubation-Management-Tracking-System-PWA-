@@ -102,11 +102,11 @@
       "baseline": {
         "fte": "Full-Time Equivalent (FTE)",
         "payingCustomers": "Paying customers",
-        "cash": "Cash in bank",
+        "cash": "Cash in bank ({currency})",
         "cashBand": "Cash range",
         "cashMode": "Cash entry mode",
         "financingMode": "Financing entry mode",
-        "outsideFinancing": "Outside financing to date",
+        "outsideFinancing": "Outside financing to date ({currency})",
         "outsideFinancingBand": "Outside financing range",
         "capture": "Capture baseline",
         "locked": "Baseline locked — supersede it with a reason.",
@@ -149,7 +149,7 @@
         "preview": "Preview — not yet validated",
         "notProvided": "Not provided",
         "mode": "Entry mode",
-        "amount": "Amount (CFA)",
+        "amount": "Amount ({currency})",
         "band": "Range",
         "calculated": "Calculated from the validated report",
         "selfSustaining": "Self-sustaining",
@@ -185,7 +185,8 @@
           "notSubmitted": "Only a submitted report can be validated or rejected.",
           "action": "Choose validate or reject.",
           "reason": "A reason is required to reject a report."
-        }
+        },
+        "amountGeneric": "Amount"
       },
       "metric": {
         "total_revenue": "Total revenue",

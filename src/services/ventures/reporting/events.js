@@ -13,6 +13,7 @@
 import {
   runInTransaction,
   selectBands,
+  selectCurrentProfile,
   selectEvents,
   insertEvent,
   softDeleteEvent,
@@ -24,6 +25,7 @@ import { ensureReportingSchema, getReportingSettings } from "./settings";
 import { groupBands } from "./rules";
 import { validateEvent, eventRowValues, isValidEvidenceValue, isValidEventDate } from "./eventRules";
 import { dateStringOrNull } from "./monthlyRules";
+import { currentReportingCurrency } from "./monthly";
 
 // ── Shaping ────────────────────────────────────────────────────────────────
 
@@ -49,6 +51,8 @@ function shapeEvent(row) {
     statusTo: row.status_to || null,
     evidence,
     evidenceName: row.evidence_name || null,
+    // The currency the amount was entered in (older rows carry none).
+    currency: row.currency ? String(row.currency).toUpperCase() : null,
     // The reviewer must never have to guess whether a value is a link or a
     // private file: the shape says so.
     evidenceIsLink: Boolean(evidence) && /^https?:\/\//i.test(evidence),
@@ -76,11 +80,17 @@ function shapeInterview(row) {
 
 export async function listEvents({ ventureUuid }) {
   await ensureReportingSchema();
-  const [result, settings] = await Promise.all([
+  const [result, settings, profile] = await Promise.all([
     selectEvents(ventureUuid),
     getReportingSettings({}),
+    selectCurrentProfile(ventureUuid),
   ]);
-  return { events: (result.rows || []).map(shapeEvent), bands: settings.bands };
+  return {
+    events: (result.rows || []).map(shapeEvent),
+    bands: settings.bands,
+    // The fallback unit for an event recorded before it was stamped.
+    currency: String(profile.rows?.[0]?.reporting_currency || "XOF").toUpperCase(),
+  };
 }
 
 /**
@@ -98,7 +108,10 @@ export async function createEvent({ ventureUuid, ventureCode, actorCid, input = 
   const errors = validateEvent(input, { bands });
   if (errors.length) return { errors };
 
-  const values = eventRowValues({ input, actorCid });
+  // Stamped server-side: the amount was entered in the Venture's currency at
+  // the moment the event was recorded.
+  const currency = await currentReportingCurrency(ventureUuid);
+  const values = eventRowValues({ input: { ...input, currency }, actorCid });
 
   const created = await runInTransaction(async (query) =>
     insertEvent(query, { ventureUuid, ventureCode, ...values }),

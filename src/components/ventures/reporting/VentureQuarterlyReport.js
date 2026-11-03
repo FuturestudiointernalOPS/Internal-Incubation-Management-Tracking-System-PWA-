@@ -9,6 +9,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
 import { formatMetric, formatBand } from "./monthlyDisplay";
+import { getCurrencySymbol } from "@/lib/currencies";
 
 /**
  * FOUNDER — the Quarterly tab (spec §9).
@@ -102,7 +103,7 @@ function reportToForm(report) {
   };
 }
 
-function MoneyRow({ prefix, labelKey, form, set, bands, disabled, t, lang }) {
+function MoneyRow({ prefix, labelKey, form, set, bands, disabled, t, lang, currency }) {
   const mode = form[`${prefix}Mode`] || "";
   const bandOptions = (bands?.flow || []).map((band) => ({
     value: band.code,
@@ -137,7 +138,7 @@ function MoneyRow({ prefix, labelKey, form, set, bands, disabled, t, lang }) {
           <AppInput
             type="number"
             min="0"
-            label={t("venture.reporting.monthly.amount")}
+            label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
             value={form[`${prefix}Value`] ?? ""}
             onChange={set(`${prefix}Value`)}
             disabled={disabled || !mode}
@@ -148,7 +149,7 @@ function MoneyRow({ prefix, labelKey, form, set, bands, disabled, t, lang }) {
   );
 }
 
-export default function VentureQuarterlyReport({ ventureId }) {
+export default function VentureQuarterlyReport({ ventureId, reloadKey = 0 }) {
   const { t, lang } = useI18n();
   const [month, setMonth] = useState(currentMonthValue());
   const [detail, setDetail] = useState(null);
@@ -171,7 +172,7 @@ export default function VentureQuarterlyReport({ ventureId }) {
       setErrors(result.payload.errors || [result.payload.error || "errors.somethingWrong"]);
     }
     setLoading(false);
-  }, [base, month]);
+  }, [base, month, reloadKey]);
 
   useEffect(() => {
     load();
@@ -219,6 +220,8 @@ export default function VentureQuarterlyReport({ ventureId }) {
 
   const open = detail?.open || null;
   const validated = detail?.validated || null;
+  // The quarter's own currency stamp, else the Venture's current setting.
+  const currency = detail?.currency || detail?.report?.currency || "XOF";
   const locked = open?.status === "submitted";
   const currentStatus = open?.status || validated?.status || null;
 
@@ -340,9 +343,9 @@ export default function VentureQuarterlyReport({ ventureId }) {
         />
 
         <div className="grid gap-4 md:grid-cols-3">
-          <MoneyRow prefix="salesMarketing" labelKey="venture.reporting.quarterly.field.salesMarketing" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} />
-          <MoneyRow prefix="expansion" labelKey="venture.reporting.quarterly.field.expansion" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} />
-          <MoneyRow prefix="churned" labelKey="venture.reporting.quarterly.field.churned" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} />
+          <MoneyRow prefix="salesMarketing" labelKey="venture.reporting.quarterly.field.salesMarketing" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} currency={currency} />
+          <MoneyRow prefix="expansion" labelKey="venture.reporting.quarterly.field.expansion" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} currency={currency} />
+          <MoneyRow prefix="churned" labelKey="venture.reporting.quarterly.field.churned" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} currency={currency} />
         </div>
 
         <div className="space-y-2">
@@ -385,7 +388,7 @@ export default function VentureQuarterlyReport({ ventureId }) {
                 {t(`venture.reporting.quarterly.metric.${key}`)}
               </span>
               <span className="text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
-                {formatMetric(t, lang, key, metrics[key])}
+                {formatMetric(t, lang, key, metrics[key], currency)}
               </span>
             </div>
           ))}

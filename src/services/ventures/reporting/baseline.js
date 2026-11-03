@@ -6,6 +6,7 @@ import {
 } from "@/models/ventureReportingStore";
 import { ensureReportingSchema } from "./settings";
 import { canCaptureBaseline, validateSupersedeReason, toAmount, toCount } from "./rules";
+import { currentReportingCurrency } from "./monthly";
 
 const shape = (row) =>
   row
@@ -21,6 +22,8 @@ const shape = (row) =>
         outsideFinancingValue:
           row.outside_financing_value === null ? null : Number(row.outside_financing_value),
         outsideFinancingBand: row.outside_financing_band,
+        // The currency the baseline was captured in (older rows carry none).
+        currency: row.currency ? String(row.currency).toUpperCase() : null,
         isLocked: row.is_locked,
       }
     : null;
@@ -38,6 +41,8 @@ const toPayload = ({ ventureUuid, ventureCode, actorCid, input = {} }) => ({
   outsideFinancingMode: input.outsideFinancingMode || null,
   outsideFinancingValue: toAmount(input.outsideFinancingValue),
   outsideFinancingBand: input.outsideFinancingBand || null,
+  // Stamped server-side, never taken from the browser.
+  currency: input.currency ? String(input.currency).trim().toUpperCase() : null,
   actorCid,
 });
 
@@ -72,7 +77,8 @@ export async function captureBaseline({ ventureUuid, ventureCode, actorCid, inpu
   if (!canCaptureBaseline((active.rows || [])[0])) {
     return { errors: ["venture.reporting.validation.baselineLocked"] };
   }
-  const payload = toPayload({ ventureUuid, ventureCode, actorCid, input });
+  const currency = await currentReportingCurrency(ventureUuid);
+  const payload = toPayload({ ventureUuid, ventureCode, actorCid, input: { ...input, currency } });
   const errors = validateMoney(payload);
   if (errors.length) return { errors };
   const result = await insertBaseline(payload);
@@ -92,7 +98,11 @@ export async function supersedeBaseline({ ventureUuid, ventureCode, actorCid, re
   await runInTransaction(async (query) => {
     await supersedeBaselineRow(query, { ventureUuid, actorCid, reason: String(reason).trim() });
     if (input) {
-      const result = await insertBaseline(toPayload({ ventureUuid, ventureCode, actorCid, input }), query);
+      const currency = await currentReportingCurrency(ventureUuid);
+      const result = await insertBaseline(
+        toPayload({ ventureUuid, ventureCode, actorCid, input: { ...input, currency } }),
+        query,
+      );
       inserted = (result.rows || [])[0];
     }
   });

@@ -363,6 +363,15 @@ export default [
 // never prove.
 "ALTER TABLE IF EXISTS venture_monthly_report ADD COLUMN IF NOT EXISTS channels TEXT[]",
 
+// ─── The currency a report was FILED IN ─────────────────────────────────────
+// The Venture's reporting currency is a CURRENT setting; the money in a report
+// is a historical fact. Stamping it on the row is what lets the studio change
+// the currency tomorrow without re-labelling figures already reported.
+"ALTER TABLE IF EXISTS venture_monthly_report ADD COLUMN IF NOT EXISTS currency TEXT",
+"ALTER TABLE IF EXISTS venture_quarterly_report ADD COLUMN IF NOT EXISTS currency TEXT",
+"ALTER TABLE IF EXISTS venture_event_log ADD COLUMN IF NOT EXISTS currency TEXT",
+"ALTER TABLE IF EXISTS venture_baseline ADD COLUMN IF NOT EXISTS currency TEXT",
+
 // ── Quarterly report (spec §9) ─────────────────────────────────────────────
 // Only what cannot be derived: the monthly figures already answer customers,
 // revenue, retention and runway, so the quarterly form asks the STAGE-SPECIFIC

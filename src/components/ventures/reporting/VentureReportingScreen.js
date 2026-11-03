@@ -24,6 +24,9 @@ const TABS = ["glossary", "monthly", "quarterly", "events"];
 export default function VentureReportingScreen({ ventureId }) {
   const { t } = useI18n();
   const [tab, setTab] = useState("glossary");
+  // Bumped when the reporting currency changes: the open form re-reads, so its
+  // amount labels show the currency the bar now says.
+  const [currencyVersion, setCurrencyVersion] = useState(0);
 
   return (
     <div className="space-y-5">
@@ -33,7 +36,12 @@ export default function VentureReportingScreen({ ventureId }) {
       />
 
       {/* ── Currency Notification & Quick Switcher Bar ── */}
-      {ventureId && <CurrencyNotificationBar ventureId={ventureId} />}
+      {ventureId && (
+        <CurrencyNotificationBar
+          ventureId={ventureId}
+          onCurrencyChanged={() => setCurrencyVersion((current) => current + 1)}
+        />
+      )}
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((item) => (
@@ -49,9 +57,9 @@ export default function VentureReportingScreen({ ventureId }) {
       </div>
 
       {tab === "glossary" && <VentureGlossary ventureId={ventureId} />}
-      {tab === "monthly" && <VentureMonthlyReport ventureId={ventureId} />}
-      {tab === "quarterly" && <VentureQuarterlyReport ventureId={ventureId} />}
-      {tab === "events" && <VentureEvents ventureId={ventureId} />}
+      {tab === "monthly" && <VentureMonthlyReport ventureId={ventureId} reloadKey={currencyVersion} />}
+      {tab === "quarterly" && <VentureQuarterlyReport ventureId={ventureId} reloadKey={currencyVersion} />}
+      {tab === "events" && <VentureEvents ventureId={ventureId} reloadKey={currencyVersion} />}
     </div>
   );
 }

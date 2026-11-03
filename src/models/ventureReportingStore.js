@@ -208,13 +208,13 @@ export async function insertBaseline(b, query) {
     `INSERT INTO venture_baseline
             (venture_uuid, venture_code, fte, paying_customers,
              cash_mode, cash_value, cash_band,
-             outside_financing_mode, outside_financing_value, outside_financing_band, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             outside_financing_mode, outside_financing_value, outside_financing_band, currency, created_by)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           RETURNING *`,
     [
       b.ventureUuid, b.ventureCode, b.fte, b.payingCustomers,
       b.cashMode, b.cashValue, b.cashBand,
-      b.outsideFinancingMode, b.outsideFinancingValue, b.outsideFinancingBand, b.actorCid || null,
+      b.outsideFinancingMode, b.outsideFinancingValue, b.outsideFinancingBand, b.currency || null, b.actorCid || null,
     ],
   );
 }
@@ -344,8 +344,8 @@ export async function insertMonthlyReport(query, r) {
         cash_mode, cash_value, cash_band,
         financing_received, active_users, paying_customers, new_paying_customers,
         full_time, part_time, part_time_days, full_time_founders,
-        north_star_value, narrative, channels, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        north_star_value, narrative, channels, currency, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
     [
       r.ventureUuid, r.ventureCode, r.period, r.version, r.status,
@@ -355,7 +355,7 @@ export async function insertMonthlyReport(query, r) {
       r.cash_mode, r.cash_value, r.cash_band,
       r.financing_received, r.active_users, r.paying_customers, r.new_paying_customers,
       r.full_time, r.part_time, r.part_time_days, r.full_time_founders,
-      r.north_star_value, r.narrative, r.channels, r.created_by,
+      r.north_star_value, r.narrative, r.channels, r.currency, r.created_by,
     ],
   );
 }
@@ -372,7 +372,7 @@ export async function updateOpenReport(query, id, r) {
         financing_received = ?, active_users = ?, paying_customers = ?,
         new_paying_customers = ?, full_time = ?, part_time = ?,
         part_time_days = ?, full_time_founders = ?, north_star_value = ?,
-        narrative = ?, channels = ?, updated_at = NOW()
+        narrative = ?, channels = ?, currency = ?, updated_at = NOW()
       WHERE id = ? AND status IN ('draft','submitted')
       RETURNING *`,
     [
@@ -383,7 +383,7 @@ export async function updateOpenReport(query, id, r) {
       r.financing_received, r.active_users, r.paying_customers,
       r.new_paying_customers, r.full_time, r.part_time,
       r.part_time_days, r.full_time_founders, r.north_star_value,
-      r.narrative, r.channels, id,
+      r.narrative, r.channels, r.currency, id,
     ],
   );
 }
@@ -517,13 +517,13 @@ export async function insertEvent(query, e) {
     `INSERT INTO venture_event_log
        (venture_uuid, venture_code, event_type, event_date, title, description,
         customer_name, amount_mode, amount_value, amount_band, financing_type, source,
-        market_description, status_from, status_to, evidence, evidence_name, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        market_description, status_from, status_to, evidence, evidence_name, currency, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
     [
       e.ventureUuid, e.ventureCode, e.eventType, e.eventDate, e.title, e.description,
       e.customerName, e.amountMode, e.amountValue, e.amountBand, e.financingType, e.source,
-      e.marketDescription, e.statusFrom, e.statusTo, e.evidence, e.evidenceName, e.actorCid,
+      e.marketDescription, e.statusFrom, e.statusTo, e.evidence, e.evidenceName, e.currency, e.actorCid,
     ],
   );
 }
@@ -803,8 +803,8 @@ export async function insertQuarterlyReport(query, r) {
         open_deals, sales_cycle_days, top3_share_band,
         expansion_mode, expansion_value, expansion_band,
         churned_mode, churned_value, churned_band,
-        narrative, created_by)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        narrative, currency, created_by)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      RETURNING *`,
     [
       r.ventureUuid, r.ventureCode, r.period, r.version, r.status,
@@ -814,7 +814,7 @@ export async function insertQuarterlyReport(query, r) {
       r.open_deals, r.sales_cycle_days, r.top3_share_band,
       r.expansion_mode, r.expansion_value, r.expansion_band,
       r.churned_mode, r.churned_value, r.churned_band,
-      r.narrative, r.created_by,
+      r.narrative, r.currency, r.created_by,
     ],
   );
 }
@@ -829,7 +829,7 @@ export async function updateOpenQuarterly(query, id, r) {
         open_deals = ?, sales_cycle_days = ?, top3_share_band = ?,
         expansion_mode = ?, expansion_value = ?, expansion_band = ?,
         churned_mode = ?, churned_value = ?, churned_band = ?,
-        narrative = ?, updated_at = NOW()
+        narrative = ?, currency = ?, updated_at = NOW()
       WHERE id = ? AND status IN ('draft','submitted')
       RETURNING *`,
     [
@@ -839,7 +839,7 @@ export async function updateOpenQuarterly(query, id, r) {
       r.open_deals, r.sales_cycle_days, r.top3_share_band,
       r.expansion_mode, r.expansion_value, r.expansion_band,
       r.churned_mode, r.churned_value, r.churned_band,
-      r.narrative, id,
+      r.narrative, r.currency, id,
     ],
   );
 }

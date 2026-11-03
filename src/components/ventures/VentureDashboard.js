@@ -13,6 +13,7 @@ import TeamCoachingColumn from "./venture-dashboard/TeamCoachingColumn";
 import ActivityColumn from "./venture-dashboard/ActivityColumn";
 import CockpitMetrics from "./cockpit/CockpitMetrics";
 import CockpitDecisions from "./cockpit/CockpitDecisions";
+import VentureReportingCharts from "./reporting/VentureReportingCharts";
 import { useReviewQueue } from "./cockpit/useReviewQueue";
 
 // ─── Read shapers (module scope: built once, never per render) ───────────
@@ -239,6 +240,11 @@ export default function VentureDashboard({ id, embedded = false }) {
           {/* Column 3 */}
           <ActivityColumn data={dashboardData} widgetState={widgetState} refreshWidget={refreshWidget} />
         </div>
+
+        {/* The same reporting charts the founder sees — the studio reads the
+            Venture's numbers where the Venture reports them, not a second
+            rendering of them. */}
+        <VentureReportingCharts ventureId={id} />
       </div>
     </>
   );

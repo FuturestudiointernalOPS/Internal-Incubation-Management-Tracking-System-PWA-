@@ -7,10 +7,10 @@
       "tabLabel": "Rapports",
       "tab": {
         "dashboard": "Tableau de bord",
-        "profile": "Profil",
+        "businessInfo": "Informations sur l'entreprise",
         "baseline": "Référence initiale",
         "founders": "Fondateurs",
-        "team": "Équipe",
+        "headcount": "Effectifs",
         "monthly": "Mensuel",
         "quarterly": "Trimestriel",
         "events": "Événements",
@@ -102,11 +102,11 @@
       "baseline": {
         "fte": "Équivalent temps plein (ETP)",
         "payingCustomers": "Clients payants",
-        "cash": "Trésorerie",
+        "cash": "Trésorerie ({currency})",
         "cashBand": "Fourchette de trésorerie",
         "cashMode": "Mode de saisie de la trésorerie",
         "financingMode": "Mode de saisie du financement",
-        "outsideFinancing": "Financement externe à ce jour",
+        "outsideFinancing": "Financement externe à ce jour ({currency})",
         "outsideFinancingBand": "Fourchette du financement externe",
         "capture": "Enregistrer la référence",
         "locked": "Référence verrouillée — remplacez-la avec un motif.",
@@ -149,7 +149,7 @@
         "preview": "Aperçu — pas encore validé",
         "notProvided": "Non renseigné",
         "mode": "Mode de saisie",
-        "amount": "Montant (FCFA)",
+        "amount": "Montant ({currency})",
         "band": "Tranche",
         "calculated": "Calculé à partir du rapport validé",
         "selfSustaining": "Autofinancé",
@@ -185,7 +185,8 @@
           "notSubmitted": "Seul un rapport soumis peut être validé ou refusé.",
           "action": "Choisissez valider ou refuser.",
           "reason": "Un motif est obligatoire pour refuser un rapport."
-        }
+        },
+        "amountGeneric": "Montant"
       },
       "metric": {
         "total_revenue": "Revenus totaux",
@@ -718,6 +719,7 @@
     "noVentures": "Aucune entreprise pour le moment. Créez votre première entreprise pour commencer.",
     "myVentures": "Mes entreprises",
     "profile": "Profil",
+    "baseline": "Référence initiale",
     "settings": "Paramètres",
     "cancel": "Annuler",
     "creating": "Création...",

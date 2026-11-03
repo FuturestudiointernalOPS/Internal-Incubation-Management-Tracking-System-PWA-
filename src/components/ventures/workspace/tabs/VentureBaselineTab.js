@@ -7,6 +7,7 @@ import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import SectionHead from "@/components/ui/SectionHead";
+import { formatCurrencyAmount, getCurrencySymbol } from "@/lib/currencies";
 
 async function api(path, options) {
   const response = await fetch(path, {
@@ -47,16 +48,22 @@ export default function VentureBaselineTab({ ventureId }) {
 
   const base = `/api/ventures/${encodeURIComponent(ventureId)}/reporting`;
 
+  // The Venture's CURRENT reporting currency: the unit the new baseline is
+  // entered in, and the fallback for one captured before it was stamped.
+  const [currentCurrency, setCurrentCurrency] = useState("XOF");
+
   const load = useCallback(async () => {
     setLoading(true);
     setErrors([]);
-    const [baselineRes, teamRes] = await Promise.all([
+    const [baselineRes, teamRes, profileRes] = await Promise.all([
       api(`${base}/baseline`),
       api(`${base}/team?period=${encodeURIComponent(teamPeriod)}`),
+      api(`${base}/profile`),
     ]);
 
     if (baselineRes.ok) setBaseline(baselineRes.payload.baseline || null);
     if (teamRes.ok) setTeam(teamRes.payload.team || null);
+    if (profileRes.ok) setCurrentCurrency(profileRes.payload.profile?.reportingCurrency || "XOF");
     setLoading(false);
   }, [base, teamPeriod]);
 
@@ -132,6 +139,24 @@ export default function VentureBaselineTab({ ventureId }) {
 
   if (loading) return <AppCard>{t("common.loading")}</AppCard>;
 
+  // The baseline's OWN currency when it has one, else the current setting.
+  const baselineCurrency = baseline?.currency || currentCurrency;
+  const currencySymbol = getCurrencySymbol(baselineCurrency);
+  const cashText = baseline
+    ? baseline.cashMode === "band"
+      ? baseline.cashBand
+      : baseline.cashValue != null
+        ? formatCurrencyAmount(baseline.cashValue, baselineCurrency)
+        : "—"
+    : "—";
+  const financingText = baseline
+    ? baseline.outsideFinancingMode === "band"
+      ? baseline.outsideFinancingBand
+      : baseline.outsideFinancingValue != null
+        ? formatCurrencyAmount(baseline.outsideFinancingValue, baselineCurrency)
+        : "—"
+    : "—";
+
   return (
     <div className="space-y-6">
       <SectionHead
@@ -168,8 +193,8 @@ export default function VentureBaselineTab({ ventureId }) {
             <div className="grid gap-3 md:grid-cols-2 text-xs" style={{ color: "var(--text-secondary)" }}>
               <span>{t("venture.reporting.baseline.fte")}: <strong className="text-[var(--text-primary)]">{baseline.fte ?? "—"}</strong></span>
               <span>{t("venture.reporting.baseline.payingCustomers")}: <strong className="text-[var(--text-primary)]">{baseline.payingCustomers ?? "—"}</strong></span>
-              <span>{t("venture.reporting.baseline.cash")}: <strong className="text-[var(--text-primary)]">{baseline.cashMode === "band" ? baseline.cashBand : baseline.cashValue ?? "—"}</strong></span>
-              <span>{t("venture.reporting.baseline.outsideFinancing")}: <strong className="text-[var(--text-primary)]">{baseline.outsideFinancingMode === "band" ? baseline.outsideFinancingBand : baseline.outsideFinancingValue ?? "—"}</strong></span>
+              <span>{t("venture.reporting.baseline.cash", { currency: currencySymbol })}: <strong className="text-[var(--text-primary)]">{cashText}</strong></span>
+              <span>{t("venture.reporting.baseline.outsideFinancing", { currency: currencySymbol })}: <strong className="text-[var(--text-primary)]">{financingText}</strong></span>
             </div>
             <div className="border-t pt-3 space-y-3" style={{ borderColor: "var(--border-primary)" }}>
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
@@ -196,7 +221,7 @@ export default function VentureBaselineTab({ ventureId }) {
                 ]}
               />
               {baselineForm.cashMode === "exact" ? (
-                <AppInput type="number" label={t("venture.reporting.baseline.cash")} value={baselineForm.cashValue} onChange={(event) => setBaselineForm((c) => ({ ...c, cashValue: event.target.value }))} />
+                <AppInput type="number" label={t("venture.reporting.baseline.cash", { currency: getCurrencySymbol(currentCurrency) })} value={baselineForm.cashValue} onChange={(event) => setBaselineForm((c) => ({ ...c, cashValue: event.target.value }))} />
               ) : (
                 <AppInput label={t("venture.reporting.baseline.cashBand")} value={baselineForm.cashBand} onChange={(event) => setBaselineForm((c) => ({ ...c, cashBand: event.target.value }))} />
               )}
@@ -210,7 +235,7 @@ export default function VentureBaselineTab({ ventureId }) {
                 ]}
               />
               {baselineForm.outsideFinancingMode === "exact" ? (
-                <AppInput type="number" label={t("venture.reporting.baseline.outsideFinancing")} value={baselineForm.outsideFinancingValue} onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingValue: event.target.value }))} />
+                <AppInput type="number" label={t("venture.reporting.baseline.outsideFinancing", { currency: getCurrencySymbol(currentCurrency) })} value={baselineForm.outsideFinancingValue} onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingValue: event.target.value }))} />
               ) : (
                 <AppInput label={t("venture.reporting.baseline.outsideFinancingBand")} value={baselineForm.outsideFinancingBand} onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingBand: event.target.value }))} />
               )}

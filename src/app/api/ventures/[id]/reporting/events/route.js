@@ -24,12 +24,12 @@ export const GET = createHandler(async (req, { params }) => {
   const venture = await resolveVenture(id);
   if (!venture) return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
 
-  const [{ events, bands }, interviews] = await Promise.all([
+  const [{ events, bands, currency }, interviews] = await Promise.all([
     listEvents({ ventureUuid: venture.id }),
     interviewSummary({ ventureUuid: venture.id }),
   ]);
 
-  return NextResponse.json({ success: true, events, bands, interviews });
+  return NextResponse.json({ success: true, events, bands, currency, interviews });
 });
 
 export const POST = createHandler(async (req, { params }) => {

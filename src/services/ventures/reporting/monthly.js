@@ -20,6 +20,7 @@
 import {
   runInTransaction,
   selectBands,
+  selectCurrentProfile,
   selectMonthlyReports,
   selectMonthlyReportVersions,
   selectOpenReport,
@@ -48,6 +49,21 @@ import { computeMonthlyMetrics } from "./metrics";
 
 // ── Shaping ────────────────────────────────────────────────────────────────
 
+/**
+ * The currency a NEW report is filed in: the Venture's reporting currency at
+ * the moment of filing. It is written ON the row, so a later change to the
+ * Venture's setting never re-labels a month that was already reported.
+ */
+export async function currentReportingCurrency(ventureUuid) {
+  try {
+    const result = await selectCurrentProfile(ventureUuid);
+    const code = (result.rows || [])[0]?.reporting_currency;
+    return code ? String(code).trim().toUpperCase() : "XOF";
+  } catch {
+    return "XOF";
+  }
+}
+
 function shapeReport(row) {
   if (!row) return null;
   const input = rowToMonthlyInput(row);
@@ -71,6 +87,9 @@ function shapeReport(row) {
     fullTimeFounders: input.fullTimeFounders,
     northStarValue: input.northStarValue,
     narrative: input.narrative,
+    // The currency this month was filed in. Older rows have none; the caller
+    // then falls back to the Venture's current reporting currency.
+    currency: input.currency || null,
     channels: input.channels || [],
     // Two dates on every record (spec §13.6): the period, and when it was sent.
     submittedAt: row.submitted_at ?? null,
@@ -129,6 +148,12 @@ export async function getMonthlyReport({ ventureUuid, period }) {
   const validated = versions.find((row) => row.status === "validated" && !row.superseded_at) || null;
   const latest = open || validated || versions[0] || null;
 
+  // The currency the FORM is labelled in: the report's own when one exists,
+  // otherwise the Venture's current setting (a month not yet filed in).
+  const currency = latest?.currency
+    ? String(latest.currency).toUpperCase()
+    : await currentReportingCurrency(ventureUuid);
+
   // The band ladders the founder chooses from, so the form never hardcodes the
   // studio's thresholds and a changed band shows up without a deploy.
   const groupedBands = groupBands(bandsResult.rows || []);
@@ -146,6 +171,7 @@ export async function getMonthlyReport({ ventureUuid, period }) {
 
   return {
     period: normalised,
+    currency,
     report: shapeReport(latest),
     open: shapeReport(open),
     validated: shapeReport(validated),
@@ -185,7 +211,10 @@ export async function saveMonthlyReport({ ventureUuid, ventureCode, actorCid, in
   if (errors.length) return { errors };
 
   const submit = input.submit === true || input.submit === "yes";
-  const values = monthlyRowValues({ input, actorCid });
+  // Stamped from the Venture's setting, never from the browser: the report is
+  // the record of what was filed, and a client cannot rewrite the unit.
+  const currency = await currentReportingCurrency(ventureUuid);
+  const values = monthlyRowValues({ input: { ...input, currency }, actorCid });
 
   const saved = await runInTransaction(async (query) => {
     const openResult = await selectOpenReport(ventureUuid, period);

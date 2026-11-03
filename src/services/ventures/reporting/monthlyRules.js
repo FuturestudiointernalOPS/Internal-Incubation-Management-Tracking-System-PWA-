@@ -224,6 +224,9 @@ export function rowToMonthlyInput(row) {
     fullTimeFounders: integerOrNull(row.full_time_founders),
     northStarValue: numericOrNull(row.north_star_value),
     narrative: row.narrative ?? null,
+    // The currency this month was filed in (null on rows written before it was
+    // recorded — the caller then falls back to the Venture's current setting).
+    currency: row.currency ? String(row.currency).toUpperCase() : null,
     // Per-month acquisition channels (Growth's repeatable-channel rule).
     channels: row.channels || [],
   };
@@ -250,6 +253,8 @@ export function monthlyRowValues({ input = {}, actorCid = null }) {
     full_time_founders: integerOrNull(input.fullTimeFounders),
     north_star_value: toAmount(input.northStarValue),
     narrative: textOrEmpty(input.narrative) || null,
+    // Frozen on the row at save time: the currency the founder filed in.
+    currency: input.currency ? String(input.currency).trim().toUpperCase() : null,
     channels: Array.isArray(input.channels)
       ? input.channels.map((channel) => String(channel).trim()).filter(Boolean)
       : null,

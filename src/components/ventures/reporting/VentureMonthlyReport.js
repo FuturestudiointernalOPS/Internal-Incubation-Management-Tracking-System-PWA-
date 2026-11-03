@@ -9,6 +9,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
 import { formatMetric, formatBand } from "./monthlyDisplay";
+import { getCurrencySymbol } from "@/lib/currencies";
 
 /**
  * FOUNDER — the monthly report tab.
@@ -136,7 +137,7 @@ const STATUS_VARIANT = {
   rejected: "danger",
 };
 
-function MoneyField({ field, form, set, bands, disabled, t, lang }) {
+function MoneyField({ field, form, set, bands, disabled, t, lang, currency }) {
   const mode = form[`${field.key}Mode`] || "";
   const bandOptions = (bands?.[field.kind] || []).map((band) => ({
     value: band.code,
@@ -176,7 +177,7 @@ function MoneyField({ field, form, set, bands, disabled, t, lang }) {
           <AppInput
             type="number"
             min="0"
-            label={t("venture.reporting.monthly.amount")}
+            label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
             value={form[`${field.key}Value`] ?? ""}
             onChange={set(`${field.key}Value`)}
             disabled={disabled || mode === ""}
@@ -187,7 +188,7 @@ function MoneyField({ field, form, set, bands, disabled, t, lang }) {
   );
 }
 
-export default function VentureMonthlyReport({ ventureId }) {
+export default function VentureMonthlyReport({ ventureId, reloadKey = 0 }) {
   const { t, lang } = useI18n();
   const [period, setPeriod] = useState(currentMonth());
   const [detail, setDetail] = useState(null);
@@ -210,7 +211,7 @@ export default function VentureMonthlyReport({ ventureId }) {
       setErrors(result.payload.errors || [result.payload.error || "errors.somethingWrong"]);
     }
     setLoading(false);
-  }, [base, period]);
+  }, [base, period, reloadKey]);
 
   useEffect(() => {
     load();
@@ -261,6 +262,9 @@ export default function VentureMonthlyReport({ ventureId }) {
 
   const open = detail?.open || null;
   const validated = detail?.validated || null;
+  // The currency this month is filed in: the report's own stamp, else the
+  // Venture's current setting. Every money label and figure below uses it.
+  const currency = detail?.currency || detail?.report?.currency || "XOF";
   const locked = open?.status === "submitted";
   const currentStatus = open?.status || validated?.status || null;
   // A rejected row is closed, so it never appears as `open` — it stays in the
@@ -350,6 +354,7 @@ export default function VentureMonthlyReport({ ventureId }) {
               disabled={locked}
               t={t}
               lang={lang}
+              currency={currency}
             />
           ))}
         </div>
@@ -452,7 +457,7 @@ export default function VentureMonthlyReport({ ventureId }) {
                 {t(`venture.reporting.metric.${key}`)}
               </span>
               <span className="text-[13px] font-bold" style={{ color: "var(--text-primary)" }}>
-                {formatMetric(t, lang, key, metrics[key])}
+                {formatMetric(t, lang, key, metrics[key], currency)}
               </span>
             </div>
           ))}

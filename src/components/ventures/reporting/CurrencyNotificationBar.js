@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Coins, Check, RefreshCw } from "lucide-react";
 import { STANDARD_CURRENCIES } from "@/lib/currencies";
 
-export default function CurrencyNotificationBar({ ventureId }) {
+export default function CurrencyNotificationBar({ ventureId, onCurrencyChanged }) {
   const [currency, setCurrency] = useState("XOF");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -43,6 +43,9 @@ export default function CurrencyNotificationBar({ ventureId }) {
       if (res.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
+        // Open forms re-read, so their amount labels follow the choice made here
+        // instead of waiting for a page reload.
+        if (onCurrencyChanged) onCurrencyChanged(nextCurrency);
       }
     } catch {
       // silent failure

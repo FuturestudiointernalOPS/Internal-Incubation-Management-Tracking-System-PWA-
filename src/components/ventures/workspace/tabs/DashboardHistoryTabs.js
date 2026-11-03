@@ -7,7 +7,7 @@ import KpiCard from "@/components/ui/KpiCard";
 import DashboardWorkQueue from "./DashboardWorkQueue";
 import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
 import FounderOnboardingWizard from "./FounderOnboardingWizard";
-import VentureFounderCharts from "./VentureFounderCharts";
+import VentureReportingCharts from "@/components/ventures/reporting/VentureReportingCharts";
 
 /**
  * Founder dashboard — the Venture's state at a glance, and what needs doing.
@@ -130,7 +130,7 @@ export function DashboardTab({ onSection }) {
       </div>
 
       {/* ── Venture Analytics & Growth Telemetry Charts ── */}
-      {params?.id && <VentureFounderCharts ventureId={params.id} />}
+      {params?.id && <VentureReportingCharts ventureId={params.id} />}
 
       {/* ── Active Journey Milestone Roadmap Hero ── */}
       <div

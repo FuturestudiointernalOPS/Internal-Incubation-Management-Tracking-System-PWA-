@@ -20,6 +20,7 @@ import CockpitSnapshot from "@/components/ventures/cockpit/CockpitSnapshot";
 import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
 import VentureTimelineView from "@/components/ventures/timeline/VentureTimelineView";
 import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
+import VentureReportingCharts from "@/components/ventures/reporting/VentureReportingCharts";
 import { useApi } from "@/lib/hooks/useApi";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
 import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
@@ -307,6 +308,10 @@ export default function StaffVentureWorkspace() {
         </div>
         <CockpitSnapshot members={members} sessions={sessions} />
       </div>
+
+      {/* The founder's own reporting charts, unmodified: the manager follows the
+          Venture against the numbers the Venture actually reported. */}
+      <VentureReportingCharts ventureId={id} />
 
       </>
       )}

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
+import { formatCurrencyAmount } from "@/lib/currencies";
 
 const PERIOD_OPTIONS = [
   { value: "3", key: "months3" },
@@ -32,7 +33,15 @@ const PERIOD_OPTIONS = [
   { value: "all", key: "allTime" },
 ];
 
-export default function VentureFounderCharts({ ventureId }) {
+/**
+ * THE VENTURE'S REPORTING CHARTS — one reading, three audiences.
+ *
+ * The founder, the Venture Manager and the Super Admin all open this same
+ * panel, so the figures they discuss are the figures the founder submitted.
+ * It reads ONLY `/api/ventures/[id]/reporting/dashboard` (the calculated layer):
+ * nothing here recomputes a metric, and an unvalidated month never appears.
+ */
+export default function VentureReportingCharts({ ventureId }) {
   const { t, lang } = useI18n();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -78,6 +87,9 @@ export default function VentureFounderCharts({ ventureId }) {
       return {
         period: m.period,
         label,
+        // The unit this month was FILED in. A month reported before the currency
+        // was recorded falls back to the latest one.
+        currency: m.currency || data?.latest?.currency || "XOF",
         payingCustomers: Number(m.payingCustomers) || 0,
         revenue: revValue,
         retention: m.retention?.value != null ? Number(m.retention.value) : 0,
@@ -152,8 +164,6 @@ export default function VentureFounderCharts({ ventureId }) {
     return sigs;
   }, [filteredMonths, t]);
 
-  const currencyUnit = data?.latest?.currency || "USD";
-
   if (loading && !data) {
     return (
       <AppCard padding="normal">
@@ -188,6 +198,11 @@ export default function VentureFounderCharts({ ventureId }) {
   }
 
   const latestMonth = filteredMonths[filteredMonths.length - 1];
+  // The charts are labelled in the currency of the most recent filing. Each
+  // point keeps its own, so a currency switch is visible rather than silent.
+  const currencyUnit = latestMonth?.currency || data?.latest?.currency || "XOF";
+  const locale = lang === "fr" ? "fr-FR" : "en-US";
+  const money = (value, code) => formatCurrencyAmount(value, code || currencyUnit, locale);
 
   return (
     <div className="space-y-6">
@@ -294,7 +309,7 @@ export default function VentureFounderCharts({ ventureId }) {
               </div>
               {filteredMonths.length > 0 && (
                 <span className="text-sm font-black" style={{ color: "var(--text-primary)" }}>
-                  {new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-US", { maximumFractionDigits: 0 }).format(latestMonth.revenue)} {currencyUnit}
+                  {money(latestMonth.revenue, latestMonth.currency)}
                 </span>
               )}
             </div>
@@ -313,7 +328,7 @@ export default function VentureFounderCharts({ ventureId }) {
                       fontSize: "11px",
                       color: "var(--text-primary)",
                     }}
-                    formatter={(val) => [`${new Intl.NumberFormat(lang === "fr" ? "fr-FR" : "en-US").format(val)} ${currencyUnit}`, t("venture.charts.revenueTitle") || "MRR"]}
+                    formatter={(val, name, item) => [money(val, item?.payload?.currency), t("venture.charts.revenueTitle") || "MRR"]}
                   />
                   <Line
                     type="monotone"
