@@ -16,7 +16,7 @@ import StatusBadge from "./StatusBadge";
 
 /** One curriculum week: a collapsible card with its sessions, deliverables,
  *  learning and material. `t` is passed in by the page. */
-export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
+export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, readOnly = false }) {
   const completedCount = week.deliverables.filter(
     (deliverable) => deliverable.submission?.status === "approved",
   ).length;
@@ -230,7 +230,7 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t }) {
                           </a>
                         );
                       })()}
-                    {!deliverable.submission && !week.locked && (
+                    {!deliverable.submission && !week.locked && !readOnly && (
                       <button
                         onClick={(event) => {
                           event.stopPropagation();

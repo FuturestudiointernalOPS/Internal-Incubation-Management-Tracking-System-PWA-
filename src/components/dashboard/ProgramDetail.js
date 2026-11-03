@@ -162,9 +162,11 @@ export default function ProgramDetail({ programId }) {
   } = data;
   const { metrics } = program;
 
-  // Completed / archived programs are view-only for participants.
+  // Completed seats and programs that are no longer active are VIEW-ONLY for
+  // participants: the door stays open, the write actions do not.
   const isViewOnlyProgram =
-    !!program?.status && String(program.status).toLowerCase() !== "active";
+    program?.readOnly === true ||
+    (!!program?.status && String(program.status).toLowerCase() !== "active");
 
   // The displayed status reflects the deliverables' actual state: once every
   // unlocked deliverable has an approved submission, show "Completed" rather
@@ -203,6 +205,11 @@ export default function ProgramDetail({ programId }) {
         <div className="flex-1">
           <div className="flex items-center gap-2 mb-1">
             <StatusBadge status={displayStatus} />
+            {isViewOnlyProgram && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--surface-2)] text-[var(--text-secondary)] border border-[var(--border-primary)]">
+                {t("participantMisc.programListing.viewOnly")}
+              </span>
+            )}
           </div>
           <h1 className="text-2xl md:text-3xl font-black uppercase tracking-tighter text-[var(--text-primary)]">
             {program.name}
@@ -318,6 +325,7 @@ export default function ProgramDetail({ programId }) {
                 onToggle={toggleWeek}
                 programId={programId}
                 t={t}
+                readOnly={isViewOnlyProgram}
                 onSubmit={(delId, weekNumber, delData) =>
                   setSubmitModal({
                     deliverableId: delId,
