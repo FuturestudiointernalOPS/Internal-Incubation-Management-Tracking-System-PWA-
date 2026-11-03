@@ -172,7 +172,7 @@ export default function StaffVentureWorkspace() {
         const taskMap = {};
         for (const task of fullTasks) if (task.id != null && task.title) taskMap[String(task.id)] = task.title;
         setTaskTitleById(taskMap);
-        setSessions((sessionsData.sessions || sessionsData.coaching_sessions || []).slice(0, 8));
+        setSessions(sessionsData.sessions || sessionsData.coaching_sessions || []);
         loadReviewQueue();
       } catch (error) {
         console.error("Failed to load staff venture workspace:", error);
