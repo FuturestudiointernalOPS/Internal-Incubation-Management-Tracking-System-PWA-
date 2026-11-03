@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
 import AppInput from "@/components/ui/AppInput";
@@ -148,6 +150,25 @@ export default function VentureReportingSettings() {
 
   return (
     <div className="space-y-5">
+      {/* Always-visible way back: this screen is global, so it is not inside a
+          Venture and has no Venture navigation bar above it. */}
+      <div className="flex flex-wrap items-center gap-5">
+        <Link
+          href="/admin/ventures"
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
+        </Link>
+        <Link
+          href="/admin"
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <LayoutDashboard className="w-3 h-3" /> {t("navigation.dashboard")}
+        </Link>
+      </div>
+
       <SectionHead
         title={t("venture.reporting.settings.title")}
         subtitle={t("venture.reporting.settings.subtitle")}
@@ -165,6 +186,63 @@ export default function VentureReportingSettings() {
       {saved && (
         <p className="text-xs font-bold text-emerald-600">{t("venture.reporting.settings.saved")}</p>
       )}
+
+      {/* The glossary comes FIRST: it defines what every number below means, so
+          it is read before the thresholds are changed, not after. */}
+      <AppCard padding="normal" className="space-y-4">
+        <p
+          className="text-[10px] font-bold uppercase tracking-wider"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          {t("venture.reporting.settings.groupGlossary")}
+        </p>
+        <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+          {t("venture.reporting.settings.glossaryHint")}
+        </p>
+        {!canEditGlossary && (
+          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+            {t("venture.reporting.settings.glossaryReadOnly")}
+          </p>
+        )}
+        {glossary.map((entry, index) => (
+          <div
+            key={entry.term}
+            className="rounded-xl border p-3 space-y-2"
+            style={{ borderColor: "var(--border-primary)" }}
+          >
+            <p className="text-[11px] font-bold" style={{ color: "var(--text-primary)" }}>
+              {t(`venture.reporting.glossary.term.${entry.term}`)}
+              <span className="ml-2 font-mono text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+                {entry.term}
+              </span>
+            </p>
+            <AppInput
+              label={t("venture.reporting.settings.definitionEn")}
+              value={entry.definition_en || ""}
+              disabled={!canEditGlossary}
+              onChange={(event) =>
+                setGlossary((current) =>
+                  current.map((row, rowIndex) =>
+                    rowIndex === index ? { ...row, definition_en: event.target.value } : row,
+                  ),
+                )
+              }
+            />
+            <AppInput
+              label={t("venture.reporting.settings.definitionFr")}
+              value={entry.definition_fr || ""}
+              disabled={!canEditGlossary}
+              onChange={(event) =>
+                setGlossary((current) =>
+                  current.map((row, rowIndex) =>
+                    rowIndex === index ? { ...row, definition_fr: event.target.value } : row,
+                  ),
+                )
+              }
+            />
+          </div>
+        ))}
+      </AppCard>
 
       <AppCard padding="normal" className="space-y-3">
         <AppSelect
@@ -250,60 +328,6 @@ export default function VentureReportingSettings() {
         </AppCard>
       ))}
 
-      <AppCard padding="normal" className="space-y-4">
-        <p
-          className="text-[10px] font-bold uppercase tracking-wider"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          {t("venture.reporting.settings.groupGlossary")}
-        </p>
-        <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
-          {t("venture.reporting.settings.glossaryHint")}
-        </p>
-        {!canEditGlossary && (
-          <p className="text-[11px]" style={{ color: "var(--text-tertiary)" }}>
-            {t("venture.reporting.settings.glossaryReadOnly")}
-          </p>
-        )}
-        {glossary.map((entry, index) => (
-          <div
-            key={entry.term}
-            className="rounded-xl border p-3 space-y-2"
-            style={{ borderColor: "var(--border-primary)" }}
-          >
-            <p className="text-[11px] font-bold" style={{ color: "var(--text-primary)" }}>
-              {t(`venture.reporting.glossary.term.${entry.term}`)}
-              <span className="ml-2 font-mono text-[10px]" style={{ color: "var(--text-tertiary)" }}>
-                {entry.term}
-              </span>
-            </p>
-            <AppInput
-              label={t("venture.reporting.settings.definitionEn")}
-              value={entry.definition_en || ""}
-              disabled={!canEditGlossary}
-              onChange={(event) =>
-                setGlossary((current) =>
-                  current.map((row, rowIndex) =>
-                    rowIndex === index ? { ...row, definition_en: event.target.value } : row,
-                  ),
-                )
-              }
-            />
-            <AppInput
-              label={t("venture.reporting.settings.definitionFr")}
-              value={entry.definition_fr || ""}
-              disabled={!canEditGlossary}
-              onChange={(event) =>
-                setGlossary((current) =>
-                  current.map((row, rowIndex) =>
-                    rowIndex === index ? { ...row, definition_fr: event.target.value } : row,
-                  ),
-                )
-              }
-            />
-          </div>
-        ))}
-      </AppCard>
 
       <AppCard padding="normal" className="space-y-3">
         <div className="flex flex-wrap gap-6 text-xs" style={{ color: "var(--text-secondary)" }}>

@@ -1,6 +1,8 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
+import Link from "next/link";
+import { ArrowLeft, LayoutDashboard } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import AppCard from "@/components/ui/AppCard";
 import AppBadge from "@/components/ui/AppBadge";
@@ -103,6 +105,25 @@ export default function VenturePortfolioRollup() {
 
   return (
     <div className="space-y-8 pb-20">
+      {/* Always-visible way back: this screen is global, so it is not inside a
+          Venture and has no Venture navigation bar above it. */}
+      <div className="flex flex-wrap items-center gap-5">
+        <Link
+          href="/admin/ventures"
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
+        </Link>
+        <Link
+          href="/admin"
+          className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
+          style={{ color: "var(--text-secondary)" }}
+        >
+          <LayoutDashboard className="w-3 h-3" /> {t("navigation.dashboard")}
+        </Link>
+      </div>
+
       <div className="space-y-2 border-b pb-6" style={{ borderColor: "var(--border-primary)" }}>
         <h1 className="text-2xl font-black" style={{ color: "var(--text-primary)" }}>
           {t("venture.reporting.portfolio.title")}
