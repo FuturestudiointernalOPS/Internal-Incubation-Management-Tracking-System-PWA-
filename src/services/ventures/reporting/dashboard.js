@@ -18,6 +18,7 @@ import {
   selectStageHistory,
   selectEvents,
   selectVentureCreatedAt,
+  selectValidatedQuarters,
 } from "@/models/ventureReportingStore";
 import { ensureReportingSchema, getReportingSettings } from "./settings";
 import { rowToMonthlyInput, dateStringOrNull, shapeMetric, numericOrNull } from "./monthlyRules";
@@ -52,7 +53,7 @@ const pointOf = (metricsByPeriod, period, key, currency) => {
 export async function getVentureDashboard({ ventureUuid }) {
   await ensureReportingSchema();
 
-  const [profileResult, reportsResult, seriesResult, teamResult, stage, baselineResult, historyResult, eventsResult, createdResult] =
+  const [profileResult, reportsResult, seriesResult, teamResult, stage, baselineResult, historyResult, eventsResult, createdResult, quartersResult] =
     await Promise.all([
       selectCurrentProfile(ventureUuid),
       selectValidatedReports(ventureUuid),
@@ -63,6 +64,7 @@ export async function getVentureDashboard({ ventureUuid }) {
       selectStageHistory(ventureUuid),
       selectEvents(ventureUuid),
       selectVentureCreatedAt(ventureUuid),
+      selectValidatedQuarters(ventureUuid).catch(() => ({ rows: [] })),
     ]);
 
   const profileRow = (profileResult.rows || [])[0] || null;
@@ -176,6 +178,19 @@ export async function getVentureDashboard({ ventureUuid }) {
     youthShare: shares?.youthShare ?? null,
   };
 
+  // ── Customer concentration ──────────────────────────────────────────────
+  // The share of revenue the top three customers hold is asked QUARTERLY, so
+  // the most recent validated quarter that answered it is the one that counts.
+  // A quarter that left it blank does not erase the answer before it.
+  let concentration = null;
+  const quarters = quartersResult.rows || [];
+  for (let index = quarters.length - 1; index >= 0; index -= 1) {
+    const band = quarters[index]?.top3_share_band;
+    if (!band) continue;
+    concentration = { band, period: dateStringOrNull(quarters[index].reporting_period) || null };
+    break;
+  }
+
   return {
     // The studio's own thresholds, so a screen can state "below the 9-month
     // line" instead of hard-coding a number the settings already own.
@@ -184,6 +199,9 @@ export async function getVentureDashboard({ ventureUuid }) {
       runwayAmberMonths: numericOrNull(settings.settings?.traffic_runway_amber_months),
       growthGreenPct: numericOrNull(settings.settings?.traffic_growth_green_pct),
     },
+    // `{ band, period }` from the latest validated quarter that answered it,
+    // or null when the Venture has never been asked / never answered.
+    concentration,
     northStar: {
       name: profileRow?.north_star_name || null,
       unit: profileRow?.north_star_unit || null,

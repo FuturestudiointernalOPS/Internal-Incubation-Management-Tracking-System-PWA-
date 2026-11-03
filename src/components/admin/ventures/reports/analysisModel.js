@@ -192,7 +192,7 @@ export function buildScorecard({ dashboard, lang }) {
  * The risks worth acting on, each traced to the studio's own setting (through
  * the traffic light), the reporting cadence, or the Data Room's requirements.
  */
-export function buildRisks({ dashboard, compliance, dataRoom, lang }) {
+export function buildRisks({ dashboard, compliance, dataRoom, lang, t }) {
   const risks = [];
   const months = dashboard?.months || [];
   const month = latestMonth(months);
@@ -244,12 +244,15 @@ export function buildRisks({ dashboard, compliance, dataRoom, lang }) {
     });
   }
 
-  if (dashboard?.concentration?.band) {
+  // Concentration is asked QUARTERLY and answered in a band. Under 30% is not a
+  // risk, so it is not printed as one; only the two bands above it are.
+  const concentrationBand = dashboard?.concentration?.band;
+  if (concentrationBand === "30_60" || concentrationBand === "over_60") {
     risks.push({
       key: "concentration",
-      tone: TONE.warn,
+      tone: concentrationBand === "over_60" ? TONE.bad : TONE.warn,
       detailKey: "vadmin.reportsRisks.concentrationDetail",
-      detail: { band: dashboard.concentration.band },
+      detail: { band: t(`venture.reporting.quarterly.top3.${concentrationBand}`) },
     });
   }
 

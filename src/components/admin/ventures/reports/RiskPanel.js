@@ -16,7 +16,7 @@ const TAG_TONE = { [TONE.bad]: "r", [TONE.warn]: "w", [TONE.good]: "g", [TONE.mu
 
 export default function RiskPanel({ dashboard, compliance, dataRoom }) {
   const { t, lang } = useI18n();
-  const risks = buildRisks({ dashboard, compliance, dataRoom, lang });
+  const risks = buildRisks({ dashboard, compliance, dataRoom, lang, t });
 
   return (
     <div className="stf-card" style={{ padding: 16, display: "grid", gap: 12 }}>
