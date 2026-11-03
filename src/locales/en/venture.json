@@ -4,6 +4,7 @@
       "title": "Venture reporting",
       "subtitle": "The studio's record of who the venture is and where it starts.",
       "notApplicable": "Not applicable",
+      "tabLabel": "Reporting",
       "tab": { "dashboard": "Dashboard", "profile": "Profile", "founders": "Founders", "team": "Team", "baseline": "Baseline", "monthly": "Monthly", "quarterly": "Quarterly", "events": "Events", "stage": "Stage", "glossary": "Glossary" },
       "action": { "save": "Save", "newVersion": "Save as new version", "supersede": "Supersede" },
       "version": { "current": "Current version", "superseded": "Superseded", "history": "History", "none": "No profile yet" },

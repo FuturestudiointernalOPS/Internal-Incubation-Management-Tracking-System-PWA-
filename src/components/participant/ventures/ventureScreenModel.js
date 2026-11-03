@@ -10,6 +10,22 @@ export const TABS = [
   "profile", "team",
 ];
 
+/**
+ * The Venture Data Foundation door.
+ *
+ * It is NOT part of `TABS` because it is conditional: the reporting forms are
+ * written by the Venture's own members (`ventures.edit`), so showing the door to
+ * a reader would promise a screen whose saves the server would refuse. The
+ * caller asks `tabsFor({ canReport })` once, with the verdict from
+ * `/api/ventures/[id]/my-access`, and uses the answer for BOTH the tab bar and
+ * the `?tab=` validation — so a deep link cannot open a door that is hidden.
+ */
+export const REPORTING_TAB = "reporting";
+
+/** The tabs this viewer may open, in order. Pure. */
+export const tabsFor = ({ canReport = false } = {}) =>
+  canReport ? [...TABS, REPORTING_TAB] : [...TABS];
+
 
 // The venture record, and the profile form it fills in. The form is the shape
 // the Venture's stored values take in the profile editor; it is built at module
@@ -57,6 +73,9 @@ export const pickProgress = pickThing("progress");
 // queue: the shaper returns null, and the screen reports the failure instead of
 // painting zeroes.
 export const pickMyWork = (payload) => (payload?.success ? payload.my_work || null : null);
+// "What may I do HERE?" — the guard's own verdict, so the screen never promises
+// a save the server would refuse. Returns null on a refusal, never `{}`.
+export const pickAccess = (payload) => (payload?.success ? payload : null);
 
 /**
  * The dashboard work queue, grouped for display.

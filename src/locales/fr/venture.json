@@ -4,6 +4,7 @@
       "title": "Rapports de la venture",
       "subtitle": "Le dossier de la venture : qui elle est et d'où elle part.",
       "notApplicable": "Non applicable",
+      "tabLabel": "Rapports",
       "tab": { "dashboard": "Tableau de bord", "profile": "Profil", "founders": "Fondateurs", "team": "Équipe", "baseline": "Référence initiale", "monthly": "Mensuel", "quarterly": "Trimestriel", "events": "Événements", "stage": "Stade", "glossary": "Glossaire" },
       "action": { "save": "Enregistrer", "newVersion": "Enregistrer comme nouvelle version", "supersede": "Remplacer" },
       "version": { "current": "Version actuelle", "superseded": "Remplacée", "history": "Historique", "none": "Aucun profil" },

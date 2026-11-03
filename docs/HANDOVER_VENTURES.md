@@ -118,6 +118,81 @@ Two things worth stating on their own:
 
 ---
 
+## 1.5 The founder's real entry point — routing, and why a file can be dead
+
+**Read this before adding any `/founder/…` page.** It has already cost one
+engineer a day of testing a screen that never renders.
+
+`next.config.mjs` does not only have `redirects()`. It also has **`rewrites()`**:
+
+```js
+rewrites: [
+  { source: "/founder/ventures/:path*", destination: "/participant/ventures/:path*" },
+  { source: "/founder/ventures",        destination: "/participant/ventures" },
+],
+```
+
+Those two lines were introduced by `4ae6591ca` (1 Nov 2026, *"founder adaptive
+dashboard"*). They are the product decision: **a founder works in the same
+Venture workspace as everyone else.**
+
+### What is actually served
+
+| URL opened | Rendered by | Tabs |
+|---|---|---|
+| `/founder` | `src/app/founder/page.js` — FounderExecutiveDashboard | — |
+| `/founder/ventures` | **rewrite** → `src/app/participant/ventures/page.js` | list |
+| `/founder/ventures/<id>` | **rewrite** → `src/app/participant/ventures/[id]/page.js` → `VentureWorkspaceView` | 6 |
+| `/admin/ventures/<id>` | admin detail (`VentureHubNav` + `VentureDetailView`) | 9 |
+
+### Why a route file can exist and never run
+
+Next resolves a request in this order (`node_modules/next/dist/docs/…/rewrites.md`):
+
+1. redirects
+2. `beforeFiles` rewrites
+3. static files
+4. **`afterFiles` rewrites** ← what an array returned by `rewrites()` becomes
+5. **dynamic routes** (`app/…/[id]/page.tsx`)
+
+The doc says it plainly: *"the first rewrite that resolves to a static file, page,
+or dynamic route is served"*, and dynamic routes are matched **after** that.
+
+So a file at `src/app/founder/ventures/[id]/page.js` is a **dynamic route**, and
+the rewrite above wins. It never renders. `/founder/ventures` has no `page.js` at
+all, so the rewrite is the only thing serving it — which is why the URL answers
+**200** while the directory looks empty.
+
+> That is exactly how the Venture **reporting** screen (spec: static profile,
+> founders, team, baseline, monthly, quarterly, events, stage, glossary) was
+> built, tested, and still unreachable: `/founder/ventures/<id>` rendered the
+> participant workspace instead. The fix was not a new route — it was to put the
+> reporting tabs **inside** the workspace a founder already opens (§1.4).
+
+### The two tab sets (do not confuse them)
+
+| Screen | Tabs |
+|---|---|
+| `VentureWorkspaceView` — the founder's real screen | `dashboard, journey, investment, dataRoom, profile, team`, plus `reporting` when the viewer may edit the Venture |
+| `VentureReportingScreen` — the data foundation | `dashboard, profile, founders, team, baseline, monthly, quarterly, events, stage, glossary` |
+
+The workspace's `profile` and `team` are the **Venture record**; the reporting
+screen's `profile` and `team` are the **data foundation**. Same words, different
+records. Nested on purpose: Reporting is one door in the workspace, and it keeps
+its own sub-tabs.
+
+### The rule for future work
+
+- Adding a page under `/founder/…`? **Check `rewrites()` first.** A matching
+  rewrite makes your page dead and gives no warning.
+- Never "fix" a founder route by deleting the rewrites: that removes journey,
+  investment, Data Room and team from every founder in one line.
+- The reporting tab is gated on `/api/ventures/<id>/my-access` →
+  `capabilities.edit.allowed`, which is the guard's own verdict. Do not gate it
+  on a role string.
+
+---
+
 # 2. How it is meant to be used
 
 ## 2.1 The cast
