@@ -20,7 +20,7 @@ jest.mock("@/lib/hooks/useApi", () => ({
     return { data: options.transform(payload), loading: false, error: null, refresh: jest.fn() };
   },
 }));
-const ParticipantCertificatesPage = require("@/app/member/participant/certificates/page").default;
+const ParticipantCertificatesPage = require("@/app/member/(contexts)/participant/certificates/page").default;
 
 const EMPTY = "No certificates yet. Certificates appear here once issued.";
 afterEach(() => { cleanup(); mockProgramCertificates = []; mockCourses = []; });

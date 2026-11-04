@@ -153,7 +153,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/ventures/assigned/route.js#M4",
   "src/app/api/ventures/lead-manager/home/route.js#M3",
   "src/app/api/ventures/route.js#M4",
-  "src/app/member/investor/organizations/page.js#M3",
+  "src/app/member/(contexts)/investor/organizations/page.js#M3",
   "src/app/staff/dashboard/page.js#M3",
   "src/components/shared/crm/useMembershipState.js#M3",
   "src/components/shared/dashboard/ProfileView.js#M3",

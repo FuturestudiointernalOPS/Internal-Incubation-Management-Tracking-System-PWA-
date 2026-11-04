@@ -48,6 +48,8 @@ d'entre eux ne conserve sa propre liste.
 src/
 ├── app/
 │   ├── member/            → /member/...           (participant, founder, investor…)
+│   ├── page.js        → le hub, hors coquille
+│   └── (contexts)/    → une seule coquille pour tous les contextes
 │   ├── staff/             → /staff/...            (pilote en cours)
 │   ├── admin/             → /admin/...            (déjà en place)
 │   └── api/               ← partagé, non découpé par espace

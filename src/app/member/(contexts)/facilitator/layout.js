@@ -3,14 +3,13 @@ import { getSession } from "@/server/auth/session";
 import { hasAnyFacilitatorAssignment } from "@/models/authorization/accessQueries";
 import { roleHomeHref } from "@/models/platform/roles";
 import { isPlatformOwnerRole } from "@/lib/identity";
-import DashboardLayout from "@/components/layout/DashboardLayout";
 
 export const dynamic = "force-dynamic";
 
 /**
  * Facilitator area gate (server-side).
  *
- * Access to /facilitator/* is granted only to:
+ * Access to /member/facilitator/* is granted only to:
  *   - super admins (system-defined global access), or
  *   - users who hold at least one v2_program_staff facilitator assignment.
  *
@@ -35,7 +34,5 @@ export default async function FacilitatorLayout({ children }) {
     }
   }
 
-  return (
-    <DashboardLayout role="facilitator">{children}</DashboardLayout>
-  );
+  return children;
 }

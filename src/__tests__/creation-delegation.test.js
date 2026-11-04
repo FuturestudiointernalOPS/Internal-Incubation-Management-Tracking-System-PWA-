@@ -88,7 +88,7 @@ describe("creation is an action, not a sidebar section", () => {
     // … and the views the records live in.
     expect(read("src/app/staff/program-manager/programs/page.js")).toContain('only={["program"]}');
     expect(read("src/spaces/staff/core/components/VenturesView.js")).toContain('only={["venture"]}');
-    expect(read("src/app/member/participant/ventures/page.js")).toContain('only={["venture"]}');
+    expect(read("src/app/member/(contexts)/participant/ventures/page.js")).toContain('only={["venture"]}');
   });
 
   test("the action row is driven by the shared capability catalogue", () => {

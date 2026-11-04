@@ -209,6 +209,8 @@ src/
 │   │   ├── finance/      ← finance context
 │   │   └── create/       ← delegated creation context
 │   ├── member/           ← MEMBER space routes (participant, founder, investor…)
+│   │   ├── page.js       ← the hub (outside the shell)
+│   │   └── (contexts)/   ← ONE shell for every member context
 │   └── api/              ← API routes (thin controllers, 403 handlers)
 ├── spaces/               ← the three spaces: views + components per context
 │   ├── registry.js       ← identity → space, operating denial, homes

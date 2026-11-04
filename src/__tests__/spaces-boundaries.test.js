@@ -135,9 +135,12 @@ describe("the routes follow the spaces", () => {
 
   test("the member contexts live under one member address family", () => {
     for (const context of ["participant", "founder", "investor", "facilitator", "team"]) {
-      expect(fs.existsSync(path.join(ROOT, "app", "member", context))).toBe(true);
+      expect(fs.existsSync(path.join(ROOT, "app", "member", "(contexts)", context))).toBe(true);
     }
+    // The hub is the space's chooser screen and stays outside the shell group.
     expect(fs.existsSync(path.join(ROOT, "app", "member", "page.js"))).toBe(true);
+    expect(fs.existsSync(path.join(ROOT, "app", "member", "(contexts)", "layout.js"))).toBe(true);
+    expect(fs.existsSync(path.join(ROOT, "app", "member", "layout.js"))).toBe(false);
   });
 
   test("the old member addresses are gone — the redirect is the only trace", () => {
@@ -162,11 +165,27 @@ describe("the routes follow the spaces", () => {
   });
 
   test("a context moved under an existing space does not mount a second shell", () => {
-    for (const context of ["program-manager", "finance", "crm"]) {
-      const layout = path.join(ROOT, "app", "staff", context, "layout.js");
+    const layouts = [
+      path.join(ROOT, "app", "staff", "program-manager", "layout.js"),
+      path.join(ROOT, "app", "staff", "finance", "layout.js"),
+      path.join(ROOT, "app", "staff", "crm", "layout.js"),
+      path.join(ROOT, "app", "staff", "create", "layout.js"),
+      path.join(ROOT, "app", "member", "(contexts)", "participant", "layout.js"),
+      path.join(ROOT, "app", "member", "(contexts)", "founder", "layout.js"),
+      path.join(ROOT, "app", "member", "(contexts)", "facilitator", "layout.js"),
+    ];
+    for (const layout of layouts) {
       if (!fs.existsSync(layout)) continue;
       expect(read(layout)).not.toContain("DashboardLayout");
     }
+  });
+
+  test("each space mounts its shell exactly once, in the space layout", () => {
+    expect(read(path.join(ROOT, "app", "staff", "layout.js"))).toContain("DashboardLayout");
+    expect(read(path.join(ROOT, "app", "member", "(contexts)", "layout.js"))).toContain(
+      "DashboardLayout",
+    );
+    expect(read(path.join(ROOT, "app", "admin", "layout.js"))).toContain("DashboardLayout");
   });
 });
 

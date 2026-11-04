@@ -54,7 +54,7 @@ describe("source pins", () => {
   });
 
   test("the founder venture tab lives in the address", () => {
-    const page = read("src/app/member/participant/ventures/[id]/page.js");
+    const page = read("src/app/member/(contexts)/participant/ventures/[id]/page.js");
     expect(page).toContain('searchParams?.get("tab")');
     expect(page).toContain("?tab=${section}");
     expect(page).not.toContain("setActiveTab");

@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 import React from "react";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
-import ParticipantDashboardPage from "@/app/member/participant/page";
+import ParticipantDashboardPage from "@/app/member/(contexts)/participant/page";
 const mockReplace = jest.fn();
 let mockRole = "participant";
 let mockInvestor = false;
