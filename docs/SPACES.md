@@ -97,6 +97,23 @@ Domaines déjà partagés :
 | `shared/kit/staff.css` | tous les rôles (le kit `stf-*`, chargé une fois) |
 | `shared/notify.js` | partout où l'on affiche un toast |
 
+## Les manifestes de contextes
+
+Chaque espace décrit ses contextes dans un fichier unique, lu par la coquille :
+
+| Espace | Fichier | Ce qu'il décide |
+|---|---|---|
+| membre | `src/spaces/member/contexts.js` | quelles relations ouvrent quel contexte, quelles portes il ajoute, et l'ordre |
+| staff | `src/spaces/staff/contexts.js` | ce qui rend vrais « lead manager » et « chef de programme » |
+| admin | — | un seul identifiant : les domaines sont des dossiers, pas des contextes de navigation |
+
+La coquille ne connaît plus les règles : elle demande les contextes actifs et
+compose leurs portes. Ajouter un contexte membre = ajouter une entrée au
+manifeste, pas modifier la navigation.
+
+Les manifestes sont verrouillés par `member-contexts.test.js` et
+`staff-contexts.test.js`, qui figent l'ordre et le contenu des portes.
+
 ## Correspondance des adresses
 
 | Ancienne adresse | Nouvelle adresse | État |

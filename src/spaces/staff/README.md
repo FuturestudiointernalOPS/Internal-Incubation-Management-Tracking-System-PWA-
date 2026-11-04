@@ -23,6 +23,10 @@ src/spaces/staff/
 A context's folder receives its screens and components as it migrates. Its
 route folder (`src/app/staff/<context>/`) stays a thin entry point.
 
+`contexts.js` declares what makes each context true (lead manager, programme
+manager). Finance and CRM open from the capability projection, not from this
+file.
+
 Rules:
 
 - The shell (and the guard) is rendered **once**, by the space layout. A

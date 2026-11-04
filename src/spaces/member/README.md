@@ -17,6 +17,10 @@ at once, and each context contributes its own screens and doors.
 
 The space hub is `/member` (what used to be the neutral workspaces page).
 
+The contexts themselves are declared in `contexts.js` of this folder: what makes
+each one true, which doors it adds, and in which order. The shell only composes
+them. Adding a context is one entry there, not a change to the navigation hook.
+
 Rules:
 
 - A context is **cumulative** — a founder who studies is both, never one.

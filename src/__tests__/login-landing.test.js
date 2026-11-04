@@ -218,9 +218,11 @@ describe("every caller uses that one rule", () => {
   });
 
   test("the personal menu and the dashboard read the same verdict", () => {
-    const shell = src("src/components/layout/shell/useDashboardNavigation.js");
+    const shell =
+      src("src/components/layout/shell/useDashboardNavigation.js") +
+      src("src/spaces/member/contexts.js");
     const dashboard = src("src/components/shared/dashboard/ParticipantDashboardHome.js");
-    expect(shell).toContain("rel.isProgramParticipant");
+    expect(shell).toContain("isProgramParticipant");
     expect(dashboard).toContain("/api/me/relationships");
   });
 
@@ -239,8 +241,9 @@ describe("every caller uses that one rule", () => {
   test("the personal sidebar offers the investor door from the profile, not the badge", () => {
     const shell =
       src("src/components/layout/DashboardLayout.js") +
-      src("src/components/layout/shell/useDashboardNavigation.js");
-    expect(shell).toContain("rel.isInvestor");
+      src("src/components/layout/shell/useDashboardNavigation.js") +
+      src("src/spaces/member/contexts.js");
+    expect(shell).toContain("rel?.isInvestor");
     expect(shell).toContain('href: "/member/investor/dashboard"');
   });
 
