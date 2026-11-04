@@ -133,6 +133,25 @@ describe("the routes follow the spaces", () => {
     }
   });
 
+  test("the member contexts live under one member address family", () => {
+    for (const context of ["participant", "founder", "investor", "facilitator", "team"]) {
+      expect(fs.existsSync(path.join(ROOT, "app", "member", context))).toBe(true);
+    }
+    expect(fs.existsSync(path.join(ROOT, "app", "member", "page.js"))).toBe(true);
+  });
+
+  test("the old member addresses are gone — the redirect is the only trace", () => {
+    for (const legacy of ["participant", "founder", "investor", "facilitator", "team", "workspaces"]) {
+      expect(fs.existsSync(path.join(ROOT, "app", legacy))).toBe(false);
+    }
+  });
+
+  test("each migrated member context owns its components", () => {
+    for (const context of ["investor", "facilitator", "team"]) {
+      expect(fs.existsSync(path.join(ROOT, "spaces", "member", context, "components"))).toBe(true);
+    }
+  });
+
   test("a context moved under an existing space does not mount a second shell", () => {
     for (const context of ["program-manager", "finance", "crm"]) {
       const layout = path.join(ROOT, "app", "staff", context, "layout.js");
@@ -156,6 +175,9 @@ describe("the shared layer", () => {
     // admin CRM screens. A copy under a space folder would drift.
     for (const shared of ["calendar", "crm", "dashboard", "ventures"]) {
       expect(fs.existsSync(path.join(ROOT, "components", "shared", shared))).toBe(true);
+    }
+    for (const gone of ["investor", "facilitator", "team"]) {
+      expect(fs.existsSync(path.join(ROOT, "components", gone))).toBe(false);
     }
   });
 });

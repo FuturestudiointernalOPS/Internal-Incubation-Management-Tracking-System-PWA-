@@ -34,7 +34,7 @@ module.exports = {
     "src/app/api/ventures/[id]/documents/route.js#M5",
     "src/app/api/ventures/[id]/progress/route.js#M5",
     "src/app/staff/crm/contacts/page.js#M5",
-    "src/app/workspaces/page.js#M5",
+    "src/app/member/page.js#M5",
     "src/components/shared/crm/TimelineScreen.js#M5",
     "src/components/shared/crm/people-detail/constants.js#M5",
     "src/components/layout/shell/useDashboardNavigation.js#M7",

@@ -135,7 +135,7 @@ export default function AssessmentTake({ courseId, assessmentId }) {
     setView("taking");
   };
 
-  const goToCourse = () => router.push(`/participant/learning/${courseId}`);
+  const goToCourse = () => router.push(`/member/participant/learning/${courseId}`);
 
   if (loading) {
     return (

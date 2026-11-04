@@ -293,7 +293,7 @@ export default function ProgramListing() {
     // Client-side navigation — ProgramListing lives inside the persistent
     // /participant shell, so a full page reload would remount the whole
     // dashboard (auth chain + badges) for no reason.
-    router.push(`/participant/${programId}`);
+    router.push(`/member/participant/${programId}`);
   };
 
   // ── Error State ──────────────────────────────────────────────────

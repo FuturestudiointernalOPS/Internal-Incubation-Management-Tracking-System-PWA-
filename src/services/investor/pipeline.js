@@ -201,7 +201,7 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
           recipient_id: investorInfo.user_id,
           venture_name: investorInfo.venture_name,
           investment_amount: investedAmount,
-          link: "/investor/portfolio",
+          link: "/member/investor/portfolio",
         });
       }
 

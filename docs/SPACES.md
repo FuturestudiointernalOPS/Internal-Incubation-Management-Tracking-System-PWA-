@@ -1,9 +1,11 @@
 # Les trois espaces — décision et migration
 
-Statut : **phase 1 faite, pilote staff fait** (branche `views`). Le contexte
-chef de programme a ses routes, ses écrans et ses composants dans l'espace
-staff ; finance et création ont leurs routes. Restent : CRM, espace membre,
-espace admin.
+Statut : **espaces staff et membre faits** (branche `views`). Les trois espaces
+ont leurs adresses : `/member`, `/staff`, `/admin`. Chaque contexte staff
+(chef de programme, finance, CRM, création) et membre (participant, fondateur,
+investisseur, facilitateur, équipe) vit sous son espace, avec ses composants.
+Reste : regrouper les composants de l'espace admin par domaine, et brancher les
+manifestes de contextes sur la navigation.
 
 ## Décision
 
@@ -46,7 +48,7 @@ d'entre eux ne conserve sa propre liste.
 ```text
 src/
 ├── app/
-│   ├── member/            → /member/...           (phase 3)
+│   ├── member/            → /member/...           (participant, founder, investor…)
 │   ├── staff/             → /staff/...            (pilote en cours)
 │   ├── admin/             → /admin/...            (déjà en place)
 │   └── api/               ← partagé, non découpé par espace
@@ -98,12 +100,13 @@ Domaines déjà partagés :
 | `/finance/**` | `/staff/finance/**` | ✅ routes, redirection temporaire |
 | `/create/**` | `/staff/create/**` | ✅ routes, redirection temporaire |
 | `/crm/**` | `/staff/crm/**` | ✅ routes + composants partagés, redirection temporaire |
-| `/participant/**` | `/member/participant/**` | ⏳ phase 3 |
-| `/founder/**` | `/member/founder/**` | ⏳ phase 3 |
-| `/investor/**` | `/member/investor/**` | ⏳ phase 3 |
-| `/facilitator/**` | `/member/facilitator/**` | ⏳ phase 3 |
-| `/team/**` | `/member/team/**` | ⏳ phase 3 |
-| `/workspaces` | `/member` | ⏳ phase 3 |
+| `/participant/**` | `/member/participant/**` | ✅ routes, redirection temporaire |
+| `/founder/**` | `/member/founder/**` | ✅ routes, redirection temporaire |
+| `/investor/**` | `/member/investor/**` | ✅ routes + composants |
+| `/facilitator/**` | `/member/facilitator/**` | ✅ routes + composants |
+| `/team/**` | `/member/team/**` | ✅ routes + composants |
+| `/workspaces` | `/member` | ✅ hub de l'espace |
+| `/founder/ventures/**` | `/member/participant/ventures/**` | ✅ redirection |
 | `/admin/**`, `/platform/**` | inchangé | ✅ |
 
 Les redirections sont temporaires (307) tant que la migration n'est pas validée

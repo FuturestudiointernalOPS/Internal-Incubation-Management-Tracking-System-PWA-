@@ -112,12 +112,12 @@ export default function PlatformLayout({ children }) {
 
   // Leave the platform workspace back to wherever the user came from (e.g. the
   // CRM section that links to the Forms tool), falling back to their role home.
-  const goBack = useSafeBack(roleHomeHref(user.role) || "/workspaces");
+  const goBack = useSafeBack(roleHomeHref(user.role) || "/member");
 
   // A DETERMINISTIC way out of the platform workspace. "Back" depends on the
   // in-app history, so from a deep link it can only guess; this link always
   // lands on the person's own dashboard.
-  const dashboardHref = roleHomeHref(user.role) || "/workspaces";
+  const dashboardHref = roleHomeHref(user.role) || "/member";
 
   const handleLogout = async () => {
     try {

@@ -308,7 +308,7 @@ export default function UnifiedDashboard({ role: propRole }) {
     );
   const openProgram = (program) => router.push(`/staff/program-manager/programs/${program.id}`);
   const openFacilitatorProgram = (program) =>
-    router.push(`/facilitator/program/${program.id}`);
+    router.push(`/member/facilitator/program/${program.id}`);
   const openProject = (project) =>
     router.push(`/admin/projects/${project.id}`);
   const openProjectFromEvent = (projectId) => {

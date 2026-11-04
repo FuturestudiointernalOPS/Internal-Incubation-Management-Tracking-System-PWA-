@@ -58,7 +58,7 @@ export default function LoginPage() {
           // this used to need a second request and now does not. The shared map
           // is the fallback for a response that arrives without an answer.
           let target =
-            data.user.home || roleHomeHref(data.user.role) || "/workspaces";
+            data.user.home || roleHomeHref(data.user.role) || "/member";
 
           // Profile completion gate: only enforce on the FIRST login. After
           // that the user is not repeatedly redirected, even if they skip it.
@@ -74,10 +74,10 @@ export default function LoginPage() {
                     : userRole === "program_manager"
                       ? "/staff/program-manager/profile"
                       : userRole === "facilitator"
-                          ? "/facilitator/profile"
+                          ? "/member/facilitator/profile"
                           : userRole === "applicant"
-                            ? "/workspaces"
-                            : "/participant/profile";
+                            ? "/member"
+                            : "/member/participant/profile";
               }
             } catch (_) {}
           }

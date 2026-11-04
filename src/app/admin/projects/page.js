@@ -323,7 +323,7 @@ export default function AdminProjects() {
       super_admin: "/admin",
       staff: "/staff",
       program_manager: "/staff/program-manager",
-      participant: "/participant",
+      participant: "/member/participant",
     };
     router.push(destMap[role] || "/admin");
   };

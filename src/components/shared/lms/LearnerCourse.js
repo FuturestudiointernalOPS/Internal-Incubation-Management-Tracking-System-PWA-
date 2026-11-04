@@ -81,7 +81,7 @@ export default function LearnerCourse({ courseId }) {
         <p className="text-xs font-bold uppercase tracking-wider max-w-sm" style={{ color: "var(--text-secondary)" }}>
           {t(error === "lms.errors.notEnrolled" ? "lms.player.noAccess" : error || "lms.errors.loadFailedCourse")}
         </p>
-        <AppButton variant="secondary" onClick={() => router.push("/participant/learning")}>
+        <AppButton variant="secondary" onClick={() => router.push("/member/participant/learning")}>
           {t("lms.learning.title")}
         </AppButton>
       </div>
@@ -91,10 +91,10 @@ export default function LearnerCourse({ courseId }) {
   const { course, progress, continueLesson, sections, certificate } = data;
 
   const openLesson = (lessonId) =>
-    router.push(`/participant/learning/${course.id}/lessons/${lessonId}`);
+    router.push(`/member/participant/learning/${course.id}/lessons/${lessonId}`);
 
   const openAssessment = (assessmentId) =>
-    router.push(`/participant/learning/${course.id}/assessments/${assessmentId}`);
+    router.push(`/member/participant/learning/${course.id}/assessments/${assessmentId}`);
 
   // ─── Which sections are open ─────────────────────────────────────────────
   // A section's lesson list folds away so the learner is not handed every
@@ -123,7 +123,7 @@ export default function LearnerCourse({ courseId }) {
       <div className="flex flex-col gap-4">
         <button
           type="button"
-          onClick={() => router.push("/participant/learning")}
+          onClick={() => router.push("/member/participant/learning")}
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest self-start transition-colors"
           style={{ color: "var(--text-tertiary)" }}
         >

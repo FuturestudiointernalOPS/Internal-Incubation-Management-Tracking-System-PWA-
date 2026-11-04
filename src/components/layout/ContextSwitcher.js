@@ -62,7 +62,7 @@ export default function ContextSwitcher() {
       }
     } catch (_) {}
     setOpen(false);
-    router.push(href || "/workspaces");
+    router.push(href || "/member");
   };
 
   const contexts = data?.contexts || null;
@@ -117,7 +117,7 @@ export default function ContextSwitcher() {
             key: "learning",
             title: t("navigation.learning"),
             labelKey: "roleLearner",
-            href: contexts.learning.href || "/participant/learning",
+            href: contexts.learning.href || "/member/participant/learning",
             type: "learning",
             contextId: "lms",
           },
@@ -130,7 +130,7 @@ export default function ContextSwitcher() {
   const activeItem = activeContextFromPathname(pathname, hatItems);
 
   // Where "back to my dashboard" goes, and whether we are already there.
-  const homeHref = data?.home || "/workspaces";
+  const homeHref = data?.home || "/member";
   const onDashboard = pathname === homeHref;
 
   // Baseline identity chip: only when the raw stored role is one of the three

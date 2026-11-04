@@ -257,9 +257,9 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, read
               {week.learning.map((item) => {
                 const href =
                   item.progress?.continueLesson && item.course?.id
-                    ? `/participant/learning/${item.course.id}/lessons/${item.progress.continueLesson.lessonId}`
+                    ? `/member/participant/learning/${item.course.id}/lessons/${item.progress.continueLesson.lessonId}`
                     : item.course?.id
-                      ? `/participant/learning/${item.course.id}`
+                      ? `/member/participant/learning/${item.course.id}`
                       : null;
                 const percent = item.progress?.percent || 0;
                 return (

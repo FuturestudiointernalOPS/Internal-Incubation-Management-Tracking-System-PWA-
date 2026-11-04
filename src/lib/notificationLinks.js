@@ -19,11 +19,11 @@ const STAFF_SURFACE = {
 };
 
 const MEMBER_SURFACE = {
-  venture: (ventureId) => `/participant/ventures/${ventureId}`,
-  journey_stage: (ventureId) => `/participant/ventures/${ventureId}/journey`,
-  milestone: (ventureId) => `/participant/ventures/${ventureId}/journey`,
-  task: (ventureId) => `/participant/ventures/${ventureId}/journey`,
-  session: (ventureId) => `/participant/ventures/${ventureId}/journey`,
+  venture: (ventureId) => `/member/participant/ventures/${ventureId}`,
+  journey_stage: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
+  milestone: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
+  task: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
+  session: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
 };
 
 /** Deepest entity present on the row wins (venture < journey < milestone < task/session). */

@@ -11,7 +11,7 @@ import { isDeniedInOperatingSpace, isOperatingSpace } from "@/spaces/registry";
  * The relationship-aware landing (a founder's own venture, a learner's course)
  * is resolved by the server at sign-in; this is the neutral fallback.
  */
-export const PERSONAL_HOME = "/workspaces";
+export const PERSONAL_HOME = "/member";
 
 /** Pure: should this role be turned away from an operating section? */
 export function isTurnedAway(role) {

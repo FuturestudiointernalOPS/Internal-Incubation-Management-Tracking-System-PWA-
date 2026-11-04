@@ -156,7 +156,7 @@ export function useDashboardNavigation({
       };
       // Investors use Investor Space as their home. Other personal accounts
       // keep the common participant dashboard, and team accounts keep /team.
-      const dashboardHref = activeRole === "team" ? "/team" : (rel.isFounder ? "/founder" : "/participant");
+      const dashboardHref = activeRole === "team" ? "/member/team" : (rel.isFounder ? "/member/founder" : "/member/participant");
       const investorAccount =
         carriesContextualValue(activeRole, "investor") || rel.isInvestor;
       const items = investorAccount ? [] : [
@@ -170,20 +170,20 @@ export function useDashboardNavigation({
           id: "learning",
           name: "MY LEARNING",
           icon: GraduationCap,
-          href: "/participant/learning",
+          href: "/member/participant/learning",
         });
       }
       if (rel.isProgramParticipant) {
-        items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
-        items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
+        items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/member/participant/dashboard" });
+        items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/member/participant/certificates" });
       }
-      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
+      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/member/participant/messages" });
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),
         // not buried after every participant item. Team members keep the
         // additive arrangement: their venture door comes last.
-        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/founder/ventures" };
+        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/member/participant/ventures" };
         if (rel.isFounder) {
           const progIndex = items.findIndex((navItem) => navItem.id === "programs");
           items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);
@@ -197,7 +197,7 @@ export function useDashboardNavigation({
       // doors, driven by what the server resolved for this person, never by the
       // role string.
       if (investorAccount) {
-        items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
+        items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/member/investor/dashboard" });
       }
       return items;
     }

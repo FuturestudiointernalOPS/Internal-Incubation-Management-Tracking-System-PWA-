@@ -131,10 +131,10 @@ export const ROLE_HOME = {
   super_admin: "/admin",
   program_manager: "/staff/program-manager",
   staff: "/staff",
-  facilitator: "/facilitator",
-  participant: "/participant",
+  facilitator: "/member/facilitator",
+  participant: "/member/participant",
   finance: "/staff/finance",
-  investor: "/investor/dashboard",
+  investor: "/member/investor/dashboard",
 };
 
 export function roleHomeHref(role) {
@@ -172,7 +172,7 @@ export function landingNeedsRelationships(role) {
   const home = roleHomeHref(normalizedRole);
   // No section of its own, or the Participant surface: both are decided by the
   // person's actual enrollments/memberships.
-  return !home || home === "/participant";
+  return !home || home === "/member/participant";
 }
 
 /**
@@ -218,7 +218,7 @@ export function resolveLanding({
 
   // An entity login IS the account (a team, a family), not a person whose
   // relationships would be read — it keeps its own space.
-  if (normalizedRole === "team") return teamId ? `/team/${teamId}` : "/team";
+  if (normalizedRole === "team") return teamId ? `/member/team/${teamId}` : "/member/team";
 
   // D-1 — a staff identity carrying the program-manager PROFILE works in the
   // PM space. The hidden role default still lands there through ROLE_HOME.
@@ -231,10 +231,10 @@ export function resolveLanding({
 
   const owned = (ventures || []).filter((venture) => isActiveVenture(venture) && isFounderMembership(venture));
   if (owned.length === 1 && owned[0].venture_id) {
-    return `/founder/ventures/${owned[0].venture_id}`;
+    return `/member/participant/ventures/${owned[0].venture_id}`;
   }
   if (owned.length > 1) {
-    return "/founder/ventures";
+    return "/member/participant/ventures";
   }
 
   // An approved investor context is a relationship the badge cannot carry:
@@ -245,9 +245,9 @@ export function resolveLanding({
   // THE PARTICIPANT PAGE IS A PROGRAM SEAT. Only an actual enrollment hands
   // out that destination; without one the person is offered the neutral hub,
   // which lists the contexts they really hold and refuses nobody.
-  if (!isProgramParticipant) return "/workspaces";
+  if (!isProgramParticipant) return "/member";
 
-  return home || "/participant";
+  return home || "/member/participant";
 }
 
 /**

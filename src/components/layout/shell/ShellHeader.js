@@ -60,7 +60,7 @@ export default function ShellHeader({
                 onDisconnect={googleCalendar.disconnect}
               />
               {/* Context Switcher — navigate between legitimate contexts (Phase 2C) */}
-              {!pathname?.startsWith("/participant") && <ContextSwitcher />}
+              {!pathname?.startsWith("/member/participant") && <ContextSwitcher />}
               {/* Theme Selector */}
               <div className="relative hidden sm:block">
                 <button
@@ -131,7 +131,7 @@ export default function ShellHeader({
                       ? `${t("navigation.notifications")} (${unreadCount})`
                       : t("navigation.notifications")
                   }
-                  className={pathname?.startsWith("/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
+                  className={pathname?.startsWith("/member/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
                 >
                   <Bell className="w-4 h-4" aria-hidden="true" />
                   {unreadCount > 0 && (
@@ -200,7 +200,7 @@ export default function ShellHeader({
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {
-                                router.push("/participant/announcements");
+                                router.push("/member/participant/announcements");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "message") {
@@ -212,7 +212,7 @@ export default function ShellHeader({
                                 else if (isInternalStaffRole(role))
                                   router.push("/staff/messages");
                                 else if (carriesContextualValue(role, "participant"))
-                                  router.push("/participant/messages");
+                                  router.push("/member/participant/messages");
                                 setShowNotifications(false);
                               }
                               if (

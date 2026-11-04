@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 import React from "react";
 import { render, screen, waitFor, cleanup } from "@testing-library/react";
-import ParticipantDashboardPage from "@/app/participant/page";
+import ParticipantDashboardPage from "@/app/member/participant/page";
 const mockReplace = jest.fn();
 let mockRole = "participant";
 let mockInvestor = false;
@@ -14,7 +14,7 @@ afterEach(cleanup);
 test.each([["investor", false], ["member", true]])("%s investor reaches Investor Space instead of the common home", async (role, investor) => {
   mockRole = role; mockInvestor = investor;
   render(<ParticipantDashboardPage />);
-  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/investor/dashboard"));
+  await waitFor(() => expect(mockReplace).toHaveBeenCalledWith("/member/investor/dashboard"));
   expect(screen.queryByText("Participant home")).toBeNull();
 });
 test("participant keeps their own dashboard", () => {

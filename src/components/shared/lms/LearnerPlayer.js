@@ -117,10 +117,10 @@ export default function LearnerPlayer({ courseId, lessonId }) {
   };
 
   const goToLesson = (targetLesson) =>
-    router.push(`/participant/learning/${courseId}/lessons/${targetLesson.id}`);
+    router.push(`/member/participant/learning/${courseId}/lessons/${targetLesson.id}`);
 
   const openAssessment = (assessmentId) =>
-    router.push(`/participant/learning/${courseId}/assessments/${assessmentId}`);
+    router.push(`/member/participant/learning/${courseId}/assessments/${assessmentId}`);
 
   if (loading) {
     return (
@@ -137,7 +137,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
         <p className="text-xs font-bold uppercase tracking-wider max-w-sm" style={{ color: "var(--text-secondary)" }}>
           {t(error === "lms.errors.notEnrolled" ? "lms.player.noAccess" : error || "lms.errors.loadFailedCourse")}
         </p>
-        <AppButton variant="secondary" onClick={() => router.push("/participant/learning")}>
+        <AppButton variant="secondary" onClick={() => router.push("/member/participant/learning")}>
           {t("lms.learning.title")}
         </AppButton>
       </div>
@@ -172,7 +172,7 @@ export default function LearnerPlayer({ courseId, lessonId }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => router.push(`/participant/learning/${course.id}`)}
+          onClick={() => router.push(`/member/participant/learning/${course.id}`)}
           className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest self-start transition-colors"
           style={{ color: "var(--text-tertiary)" }}
         >

@@ -35,20 +35,77 @@ const nextConfig = {
       },
     ];
   },
-  async rewrites() {
+
+  async redirects() {
     return [
+      // ── Spaces: the member contexts moved under /member ───────────────
+      // The founder's venture screens always lived with the participant
+      // ventures; the old /founder/ventures alias now points straight there.
       {
         source: "/founder/ventures/:path*",
-        destination: "/participant/ventures/:path*",
+        destination: "/member/participant/ventures/:path*",
+        permanent: false,
       },
       {
         source: "/founder/ventures",
-        destination: "/participant/ventures",
+        destination: "/member/participant/ventures",
+        permanent: false,
       },
-    ];
-  },
-  async redirects() {
-    return [
+      {
+        source: "/participant/:path*",
+        destination: "/member/participant/:path*",
+        permanent: false,
+      },
+      {
+        source: "/participant",
+        destination: "/member/participant",
+        permanent: false,
+      },
+      {
+        source: "/founder/:path*",
+        destination: "/member/founder/:path*",
+        permanent: false,
+      },
+      {
+        source: "/founder",
+        destination: "/member/founder",
+        permanent: false,
+      },
+      {
+        source: "/investor/:path*",
+        destination: "/member/investor/:path*",
+        permanent: false,
+      },
+      {
+        source: "/investor",
+        destination: "/member/investor",
+        permanent: false,
+      },
+      {
+        source: "/facilitator/:path*",
+        destination: "/member/facilitator/:path*",
+        permanent: false,
+      },
+      {
+        source: "/facilitator",
+        destination: "/member/facilitator",
+        permanent: false,
+      },
+      {
+        source: "/team/:path*",
+        destination: "/member/team/:path*",
+        permanent: false,
+      },
+      {
+        source: "/team",
+        destination: "/member/team",
+        permanent: false,
+      },
+      {
+        source: "/workspaces",
+        destination: "/member",
+        permanent: false,
+      },
       // ── Spaces: the staff sections moved under /staff ────────────────────
       // Temporary (307) on purpose: the migration is reversible while the
       // member space is being built. Flip to permanent once the move is

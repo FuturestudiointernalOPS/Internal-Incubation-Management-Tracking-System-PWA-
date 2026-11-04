@@ -100,7 +100,7 @@ describe("buildWorkspaceNavigation — the hub list", () => {
       title: "facilitator",
       program_id: "p1",
       program_name: "Alpha",
-      href: "/facilitator/program/p1",
+      href: "/member/facilitator/program/p1",
     });
     expect(nav.workspaces).toContainEqual({
       type: "program",
@@ -108,12 +108,12 @@ describe("buildWorkspaceNavigation — the hub list", () => {
       program_id: "p2",
       program_name: "Beta",
       completed: false,
-      href: "/participant",
+      href: "/member/participant",
     });
 
     // The legacy staff row is echoed as a program assignment (not mirrored).
     expect(nav.contexts.program_assignments).toEqual([
-      expect.objectContaining({ source: "v2_program_staff", href: "/facilitator/program/p1" }),
+      expect.objectContaining({ source: "v2_program_staff", href: "/member/facilitator/program/p1" }),
     ]);
 
     expect(nav.contexts.program_participations).toEqual([
@@ -126,7 +126,7 @@ describe("buildWorkspaceNavigation — the hub list", () => {
         completed_at: null,
         outcome: null,
         certificate_issued: false,
-        href: "/participant/p2",
+        href: "/member/participant/p2",
       },
     ]);
 
@@ -136,7 +136,7 @@ describe("buildWorkspaceNavigation — the hub list", () => {
     ]);
     expect(nav.contexts.learning).toEqual({
       enrolled: true,
-      href: "/participant/learning",
+      href: "/member/participant/learning",
     });
   });
 
@@ -198,11 +198,11 @@ describe("buildWorkspaceNavigation — the hub list", () => {
 
     // The door stays in the hub…
     expect(nav.workspaces).toContainEqual(
-      expect.objectContaining({ program_id: "p9", completed: true, href: "/participant" }),
+      expect.objectContaining({ program_id: "p9", completed: true, href: "/member/participant" }),
     );
     // …and the context says it is read-only.
     expect(nav.contexts.program_participations[0]).toEqual(
-      expect.objectContaining({ completed: true, readonly: true, href: "/participant/p9" }),
+      expect.objectContaining({ completed: true, readonly: true, href: "/member/participant/p9" }),
     );
   });
 });

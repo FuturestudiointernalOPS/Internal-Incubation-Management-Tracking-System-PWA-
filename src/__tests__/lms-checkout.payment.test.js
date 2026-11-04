@@ -296,7 +296,7 @@ describe("the payment notification", () => {
     const mail = sendStandaloneEmail.mock.calls[0][0];
     expect(mail.html).toContain("/setup-password/");
     // The one-time link carries WHERE to land, so the payer reaches the course.
-    expect(mail.html).toContain(`next=${encodeURIComponent("/participant/learning/crs-1")}`);
+    expect(mail.html).toContain(`next=${encodeURIComponent("/member/participant/learning/crs-1")}`);
     expect(mail.html).not.toContain("password:");
   });
 

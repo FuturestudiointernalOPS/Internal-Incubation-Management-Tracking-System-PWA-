@@ -32,7 +32,7 @@ export default function CreationAccessGuard({ children, requirements = null }) {
   const allowed = needed.some(({ module, capability }) => can(module, capability));
   // No creation hub exists, so an unmet requirement always lands back on the
   // caller's own workspace instead of a chooser screen.
-  const destination = "/workspaces";
+  const destination = "/member";
 
   useEffect(() => {
     if (!loading && !allowed) router.replace(destination);

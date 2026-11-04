@@ -1,6 +1,6 @@
 "use client";
 
-import NewProgramForm from "@/components/admin/programs/NewProgramForm";
+import NewProgramForm from "@/components/shared/forms/NewProgramForm";
 import CreationAccessGuard from "@/components/shared/create/CreationAccessGuard";
 
 /**

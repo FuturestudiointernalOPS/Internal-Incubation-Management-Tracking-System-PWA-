@@ -44,8 +44,8 @@ describe("global identities keep the section their badge owns", () => {
     ["super_admin", "/admin"],
     ["staff", "/staff"],
     ["program_manager", "/staff/program-manager"],
-    ["facilitator", "/facilitator"],
-    ["investor", "/investor/dashboard"],
+    ["facilitator", "/member/facilitator"],
+    ["investor", "/member/investor/dashboard"],
   ])("%s → %s", (role, home) => {
     expect(resolveLanding({ role })).toBe(home);
   });
@@ -60,49 +60,49 @@ describe("global identities keep the section their badge owns", () => {
 
 describe("an entity login keeps its own space", () => {
   test("a team account receives its team workspace", () => {
-    expect(resolveLanding({ role: "team", teamId: 7 })).toBe("/team/7");
+    expect(resolveLanding({ role: "team", teamId: 7 })).toBe("/member/team/7");
     // No identifier is still a destination, never an undefined path.
-    expect(resolveLanding({ role: "team" })).toBe("/team");
+    expect(resolveLanding({ role: "team" })).toBe("/member/team");
   });
 });
 
 describe("the personal world follows what the person OWNS", () => {
   test("founding exactly one active Venture lands inside it", () => {
     expect(resolveLanding({ role: "member", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
+      "/member/participant/ventures/VNT-1",
     );
   });
 
   test("the same is true for a legacy founder badge", () => {
     expect(resolveLanding({ role: "founder", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
+      "/member/participant/ventures/VNT-1",
     );
   });
 
   test("an identity the map does not know still gets its Venture", () => {
     expect(resolveLanding({ role: "security_officer", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
+      "/member/participant/ventures/VNT-1",
     );
   });
 
   test("with no Venture and no program, the person keeps the neutral hub", () => {
-    expect(resolveLanding({ role: "member", ventures: [] })).toBe("/workspaces");
-    expect(resolveLanding({ role: "participant" })).toBe("/workspaces");
+    expect(resolveLanding({ role: "member", ventures: [] })).toBe("/member");
+    expect(resolveLanding({ role: "participant" })).toBe("/member");
     // An identity with no section and no Venture has nowhere but the hub — the
     // one destination that refuses nobody.
-    expect(resolveLanding({ role: "security_officer" })).toBe("/workspaces");
+    expect(resolveLanding({ role: "security_officer" })).toBe("/member");
   });
 
   test("a program enrollment is what opens the Participant page", () => {
-    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/participant");
+    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/member/participant");
     // The badge alone never opens it — not even the legacy participant label.
-    expect(resolveLanding({ role: "participant", isProgramParticipant: false })).toBe("/workspaces");
+    expect(resolveLanding({ role: "participant", isProgramParticipant: false })).toBe("/member");
   });
 
   test("SEVERAL Ventures is not a decision the rule takes for the person", () => {
     expect(
       resolveLanding({ role: "member", ventures: [venture(), venture({ venture_id: "VNT-2" })] }),
-    ).toBe("/workspaces");
+    ).toBe("/member");
     // …unless they are also participants of a program.
     expect(
       resolveLanding({
@@ -110,21 +110,21 @@ describe("the personal world follows what the person OWNS", () => {
         ventures: [venture(), venture({ venture_id: "VNT-2" })],
         isProgramParticipant: true,
       }),
-    ).toBe("/participant");
+    ).toBe("/member/participant");
   });
 
   test("a dormant Venture is not the one to land in", () => {
     expect(resolveLanding({ role: "member", ventures: [venture({ status: "archived" })] })).toBe(
-      "/workspaces",
+      "/member",
     );
     expect(resolveLanding({ role: "member", ventures: [venture({ status: "completed" })] })).toBe(
-      "/workspaces",
+      "/member",
     );
   });
 
   test("belonging to a Venture without founding it is NOT the shortcut", () => {
     const asTeamMember = venture({ member_type: "team_member", is_owner: false });
-    expect(resolveLanding({ role: "member", ventures: [asTeamMember] })).toBe("/workspaces");
+    expect(resolveLanding({ role: "member", ventures: [asTeamMember] })).toBe("/member");
   });
 
   test("one active Venture AMONG dormant ones still lands inside it", () => {
@@ -133,27 +133,27 @@ describe("the personal world follows what the person OWNS", () => {
         role: "member",
         ventures: [venture(), venture({ venture_id: "VNT-2", status: "archived" })],
       }),
-    ).toBe("/participant/ventures/VNT-1");
+    ).toBe("/member/participant/ventures/VNT-1");
   });
 });
 
 describe("an assigned investor context lands in the investor space", () => {
   test("a baseline member who was made an investor belongs in their investor space", () => {
-    expect(resolveLanding({ role: "member", isInvestor: true })).toBe("/investor/dashboard");
+    expect(resolveLanding({ role: "member", isInvestor: true })).toBe("/member/investor/dashboard");
   });
 
   test("no investor context leaves the personal landing untouched", () => {
-    expect(resolveLanding({ role: "member", isInvestor: false })).toBe("/workspaces");
-    expect(resolveLanding({ role: "member" })).toBe("/workspaces");
+    expect(resolveLanding({ role: "member", isInvestor: false })).toBe("/member");
+    expect(resolveLanding({ role: "member" })).toBe("/member");
     expect(
       resolveLanding({ role: "member", isInvestor: false, isProgramParticipant: true }),
-    ).toBe("/participant");
+    ).toBe("/member/participant");
   });
 
   test("an owned Venture keeps the Venture landing — the investor door remains in the sidebar", () => {
     expect(
       resolveLanding({ role: "member", ventures: [venture()], isInvestor: true }),
-    ).toBe("/participant/ventures/VNT-1");
+    ).toBe("/member/participant/ventures/VNT-1");
   });
 
   test("a global identity is never moved by an investor context", () => {
@@ -241,7 +241,7 @@ describe("every caller uses that one rule", () => {
       src("src/components/layout/DashboardLayout.js") +
       src("src/components/layout/shell/useDashboardNavigation.js");
     expect(shell).toContain("rel.isInvestor");
-    expect(shell).toContain('href: "/investor/dashboard"');
+    expect(shell).toContain('href: "/member/investor/dashboard"');
   });
 
   test("the relationships read exposes the investor context the sidebar consumes", () => {

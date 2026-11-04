@@ -168,26 +168,26 @@ const FIXTURE = {
     },
   ],
 
-  facilitator: [{ id: "dashboard", href: "/participant", subItems: null }],
+  facilitator: [{ id: "dashboard", href: "/member/participant", subItems: null }],
 
-  member: [{ id: "dashboard", href: "/participant", subItems: null }],
+  member: [{ id: "dashboard", href: "/member/participant", subItems: null }],
 
   // Phase H — participant / founder have no role mask any more: their surfaces
   // are relationship-driven, so the mask projects to the member baseline.
-  participant: [{ id: "dashboard", href: "/participant", subItems: null }],
+  participant: [{ id: "dashboard", href: "/member/participant", subItems: null }],
 
-  founder: [{ id: "dashboard", href: "/participant", subItems: null }],
+  founder: [{ id: "dashboard", href: "/member/participant", subItems: null }],
 
   team: [
-    { id: "dashboard", href: "/team", subItems: null },
-    { id: "programs", href: "/team", subItems: null },
+    { id: "dashboard", href: "/member/team", subItems: null },
+    { id: "programs", href: "/member/team", subItems: null },
   ],
 
-  investor: [{ id: "dashboard", href: "/participant", subItems: null }],
+  investor: [{ id: "dashboard", href: "/member/participant", subItems: null }],
 
   finance: [
     { id: "dashboard", href: "/staff/finance", subItems: null },
-    { id: "profile", href: "/participant/profile", subItems: null },
+    { id: "profile", href: "/member/participant/profile", subItems: null },
   ],
 
   crm: [

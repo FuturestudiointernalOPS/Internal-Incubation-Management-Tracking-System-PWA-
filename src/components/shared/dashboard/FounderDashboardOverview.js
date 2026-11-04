@@ -119,7 +119,7 @@ export default function FounderDashboardOverview({
               className="text-xs font-bold"
               onClick={(e) => {
                 e.stopPropagation();
-                router.push(`/founder/ventures/${ventureId}`);
+                router.push(`/member/participant/ventures/${ventureId}`);
               }}
             >
               Open Workspace
@@ -205,7 +205,7 @@ export default function FounderDashboardOverview({
           data={ventures}
           loading={loading}
           emptyMessage="No ventures linked to your account. Click '+ Add Venture' to provision one."
-          onRowClick={(row) => router.push(`/founder/ventures/${row.venture_id || row.id}`)}
+          onRowClick={(row) => router.push(`/member/participant/ventures/${row.venture_id || row.id}`)}
         />
       </AppCard>
     </div>

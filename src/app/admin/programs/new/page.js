@@ -1,6 +1,6 @@
 "use client";
 
-import NewProgramForm from "@/components/admin/programs/NewProgramForm";
+import NewProgramForm from "@/components/shared/forms/NewProgramForm";
 
 export default function NewProgramPage() {
   return <NewProgramForm />;

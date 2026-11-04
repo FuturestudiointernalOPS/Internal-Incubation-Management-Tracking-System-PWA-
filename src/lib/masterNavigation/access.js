@@ -70,14 +70,14 @@ export const ROLE_ACCESS = {
     // The dashboard is the page that owns the calendar. A member has no
     // program context yet, so it is the participant dashboard's empty state —
     // NOT the /workspaces hub, which made "the workspace show first".
-    hrefs: { dashboard: "/participant" },
+    hrefs: { dashboard: "/member/participant" },
     icons: {},
   },
 
   team: {
     top: ["dashboard", "programs"],
     children: {},
-    hrefs: { dashboard: "/team", programs: "/team" },
+    hrefs: { dashboard: "/member/team", programs: "/member/team" },
     icons: {},
   },
 
@@ -86,7 +86,7 @@ export const ROLE_ACCESS = {
     children: {},
     hrefs: {
       dashboard: "/staff/finance",
-      profile: "/participant/profile",
+      profile: "/member/participant/profile",
     },
     icons: { dashboard: "barChart3" },
   },

@@ -208,7 +208,7 @@ src/
 │   │   ├── program-manager/ ← programme-manager context
 │   │   ├── finance/      ← finance context
 │   │   └── create/       ← delegated creation context
-│   ├── participant/      ← MEMBER space routes (participant, founder, investor…)
+│   ├── member/           ← MEMBER space routes (participant, founder, investor…)
 │   └── api/              ← API routes (thin controllers, 403 handlers)
 ├── spaces/               ← the three spaces: views + components per context
 │   ├── registry.js       ← identity → space, operating denial, homes
@@ -245,7 +245,7 @@ There are three spaces, and an identity belongs to exactly one:
 
 | Space | Who | Address |
 |---|---|---|
-| `member` | a person in their own programmes, ventures, learning | `/participant`, `/founder`, `/investor`, `/facilitator`, `/team`, `/workspaces` |
+| `member` | a person in their own programmes, ventures, learning | `/member` (+ `/member/participant`, `/member/founder`, `/member/investor`, `/member/facilitator`, `/member/team`) |
 | `staff` | an internal function | `/staff` (+ `/staff/<context>`) |
 | `admin` | the platform owner | `/admin`, `/platform` |
 
@@ -291,12 +291,13 @@ no re-fetch of the auth/badge chain on every link click):
 | `/admin/*` | `src/app/admin/layout.js` | `super_admin` (from session) |
 | `/staff/*` | `src/app/staff/layout.js` | `staff` |
 | `/staff/program-manager/*` | `src/app/staff/layout.js` (shared) | `program_manager` (from session) |
-| `/participant/*` | `src/app/participant/layout.js` | `participant` |
-| `/facilitator/*` | `src/app/facilitator/layout.js` | `facilitator` |
-| `/investor/*` | `src/app/investor/layout.js` | `investor` |
+| `/member/participant/*` | `src/app/member/participant/layout.js` | `participant` |
+| `/member/facilitator/*` | `src/app/member/facilitator/layout.js` | `facilitator` |
+| `/member/investor/*` | `src/app/member/investor/layout.js` | `investor` |
 | `/staff/finance/*` | `src/app/staff/layout.js` (shared) | `finance` (from session) |
-| `/crm/*` | `src/app/crm/layout.js` | `crm` |
-| `/team/*` | `src/app/team/layout.js` | `team` |
+| `/staff/crm/*` | `src/app/staff/layout.js` (shared) | `crm` (from session) |
+| `/member/team/*` | `src/app/member/team/layout.js` | `team` |
+| `/member/founder/*` | `src/app/member/founder/layout.js` | `founder` |
 
 **Do NOT wrap a page in `<DashboardLayout>` anymore.** Pages simply return their own
 content; the section layout provides the shell. The `role` prop is only a pre-session

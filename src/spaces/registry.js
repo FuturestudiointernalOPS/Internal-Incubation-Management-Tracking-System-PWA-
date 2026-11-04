@@ -30,7 +30,7 @@ export const SPACE_KEYS = ["member", "staff", "admin"];
 export const SPACES = {
   member: {
     key: "member",
-    home: "/workspaces",
+    home: "/member",
     identities: ["member", "participant", "founder", "investor", "facilitator", "team"],
   },
   staff: {

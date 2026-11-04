@@ -3,7 +3,7 @@
  *
  * THE REPORTING DOOR IN THE FOUNDER'S WORKSPACE.
  *
- * `/founder/ventures/<id>` is rewritten to `/participant/ventures/<id>`
+ * `/member/participant/ventures/<id>` is rewritten to `/member/participant/ventures/<id>`
  * (next.config.mjs), so the Venture Data Foundation lives INSIDE that workspace
  * as one more tab. Two properties have to hold:
  *

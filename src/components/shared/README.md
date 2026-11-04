@@ -13,6 +13,7 @@ copying the same screen into two space folders.
 | `messaging/` | member, staff and admin (chat, threads) |
 | `tasks/` | staff and admin (task manager, detail) |
 | `create/` | member, staff and admin (the delegated creation actions) |
+| `forms/` | admin programme creation and the staff delegated creation |
 | `contacts/` | staff CRM screens (and the shared CRM domain) |
 | `crm/` | admin CRM and staff CRM |
 | `kit/staff.css` | every role (the `stf-*` interface kit, loaded once by the root layout) |

@@ -22,7 +22,7 @@ import {
 
 function assignmentHref(role, programId) {
   const normalizedRole = String(role || "").toLowerCase();
-  if (normalizedRole === "facilitator") return `/facilitator/program/${programId}`;
+  if (normalizedRole === "facilitator") return `/member/facilitator/program/${programId}`;
   return roleHomeHref(normalizedRole);
 }
 
@@ -96,7 +96,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
       title: role,
       program_id: row.program_id,
       program_name: row.program_name || row.program_id,
-      href: assignmentHref(role, row.program_id) || "/workspaces",
+      href: assignmentHref(role, row.program_id) || "/member",
     });
   }
 
@@ -108,7 +108,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
       program_id: row.program_id,
       program_name: row.program_name || row.program_id,
       completed: row.completed === true,
-      href: "/participant",
+      href: "/member/participant",
     });
   }
 
@@ -137,8 +137,8 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
         completed: false,
         href:
           roleKey === "facilitator"
-            ? `/facilitator/program/${row.program_id}`
-            : roleHomeHref(roleKey) || "/workspaces",
+            ? `/member/facilitator/program/${row.program_id}`
+            : roleHomeHref(roleKey) || "/member",
       };
     });
     const mirroredKeys = new Set(
@@ -167,8 +167,8 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
         completed: false,
         href:
           roleKey === "facilitator"
-            ? `/facilitator/program/${row.program_id}`
-            : roleHomeHref(roleKey) || "/workspaces",
+            ? `/member/facilitator/program/${row.program_id}`
+            : roleHomeHref(roleKey) || "/member",
       });
     }
   } catch (_) {}
@@ -185,7 +185,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
       completed_at: membership.completed_at || null,
       outcome: membership.outcome || null,
       certificate_issued: membership.certificate_issued === true,
-      href: `/participant/${membership.program_id}`,
+      href: `/member/participant/${membership.program_id}`,
     }));
   } catch (_) {}
 
@@ -208,7 +208,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
     });
     contexts.org_memberships = [...groups].sort().map((groupName) => ({
       group_name: groupName,
-      href: roleHomeHref(session.role) || "/workspaces",
+      href: roleHomeHref(session.role) || "/member",
     }));
     contexts.org_history = history;
   } catch (_) {}
@@ -221,7 +221,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
         ? "/staff/finance"
         : String(row.key || "").toLowerCase().includes("crm")
           ? "/staff/crm"
-          : "/workspaces",
+          : "/member",
     }));
   } catch (_) {}
 
@@ -229,7 +229,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
   try {
     contexts.venture_memberships = rowsOf(venturesSettled).map((row) => ({
       ...row,
-      href: `/participant/ventures/${row.venture_id}`,
+      href: `/member/participant/ventures/${row.venture_id}`,
     }));
   } catch (_) {}
 
@@ -238,7 +238,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
   //    nav gate). Learner access itself is always enforced server-side by
   //    the LMS routes from lms_enrollments.
   contexts.learning = valueOf(learningSettled, false)
-    ? { enrolled: true, href: "/participant/learning" }
+    ? { enrolled: true, href: "/member/participant/learning" }
     : { enrolled: false };
 
   return { workspaces, contexts };

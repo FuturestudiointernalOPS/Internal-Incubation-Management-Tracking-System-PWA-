@@ -121,7 +121,7 @@ export default function TeamsTable({
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button
-                          onClick={() => router.push(`/team/${team.id}`)}
+                          onClick={() => router.push(`/member/team/${team.id}`)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/20 text-[var(--brand-orange)] text-[10px] font-black uppercase tracking-wider hover:bg-brand-orange/20 transition-all"
                         >
                           <ExternalLink className="w-3 h-3" />

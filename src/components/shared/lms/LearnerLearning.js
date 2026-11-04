@@ -62,9 +62,9 @@ export default function LearnerLearning() {
 
   const openCourse = (course, continueLesson) => {
     if (continueLesson) {
-      router.push(`/participant/learning/${course.id}/lessons/${continueLesson.lessonId}`);
+      router.push(`/member/participant/learning/${course.id}/lessons/${continueLesson.lessonId}`);
     } else {
-      router.push(`/participant/learning/${course.id}`);
+      router.push(`/member/participant/learning/${course.id}`);
     }
   };
 
