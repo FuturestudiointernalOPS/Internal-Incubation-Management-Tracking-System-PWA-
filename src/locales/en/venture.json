@@ -1,16 +1,43 @@
 {
   "venture": {
+    "wizard": {
+      "dismiss": "Dismiss",
+      "dismissHint": "Hide this checklist for good — your Venture is set up."
+    },
     "reporting": {
       "title": "Venture reporting",
       "subtitle": "The studio's record of who the venture is and where it starts.",
       "notApplicable": "Not applicable",
+      "hint": {
+        "accountingBasis": "Cash: money counts when it is received or paid. Accrual: money counts when it is earned or owed, whatever the payment date.",
+        "socialProtection": "Yes if the venture contributes to a social protection scheme for its team — pension, health cover, maternity or accident insurance.",
+        "northStarName": "The one number the venture steers by — the measure that best shows it is winning. It is reported every month, beside revenue.",
+        "sectionFinancial": "The venture's starting line in money and customers: cash in the bank, funding already received and paying customers when the studio first recorded it. Every growth figure is measured from here.",
+        "sectionWorkforce": "Who was already working in the venture at the baseline. Jobs created are counted against this snapshot.",
+        "baselineFte": "Full-Time Equivalent (FTE): a capacity measure, not the number of people employed. Full-time employees + (part-time days ÷ 20) + full-time founders. Ten part-timers working two days each are ten people but only one FTE.",
+        "baselinePayingCustomers": "Paying customers at the baseline date — the count all later growth and churn are measured from.",
+        "baselineAmountMode": "Exact: type the amount. Band: pick the studio's range, for a founder who only knows roughly.",
+        "baselineCash": "Cash in the bank at the baseline date, in the venture's reporting currency.",
+        "baselineBand": "Choose the studio's range that contains the amount. It is used at its midpoint and marked approximate.",
+        "baselineFinancing": "Money received from outside investors, lenders or grants before the baseline date — not revenue.",
+        "baselineSupersedeReason": "Why this baseline is being replaced. The old one is kept in history; nothing is deleted.",
+        "fullTimeFounders": "Founders working full time. Counted in FTE, but excluded from the 'non-founder hiring' test.",
+        "partTimeFounders": "Founders working part time. Their days belong in the part-time days field.",
+        "fullTimeEmployees": "Non-founder employees on a full-time contract.",
+        "partTimeEmployees": "Non-founder employees on a part-time contract, counted by the days they work.",
+        "partTimeDays": "Total part-time days worked — divided by 20 to become full-time equivalents.",
+        "womenEmployees": "How many employees are women. Used for the team's gender share.",
+        "menEmployees": "How many employees are men. Used with the women count for the team's gender share.",
+        "under35Women": "Women under 35 — the youth measure the studio reports.",
+        "under35Men": "Men under 35 — the youth measure the studio reports."
+      },
       "tabLabel": "Reporting",
       "tab": {
         "dashboard": "Dashboard",
         "businessInfo": "Business Info",
         "founders": "Founders",
         "headcount": "Headcount",
-        "baseline": "Baseline",
+        "baseline": "Venture Baseline",
         "monthly": "Monthly",
         "quarterly": "Quarterly",
         "events": "Events",
@@ -59,6 +86,7 @@
       },
       "field": {
         "legalName": "Legal name",
+        "legalNameHint": "Filled in from the venture name — change it if the registered legal name differs.",
         "tradeName": "Trade name",
         "foundingDate": "Founding date",
         "registrationStatus": "Registration status",
@@ -101,6 +129,15 @@
       },
       "baseline": {
         "fte": "Full-Time Equivalent (FTE)",
+        "sectionPositionTitle": "1. Initial Financial & Customer Position",
+        "sectionWorkforceTitle": "2. Starting Workforce & Full-Time Equivalent",
+        "lockedNote": "This baseline is locked as the historical reference for growth and job-creation calculations. It is never edited — supersede it instead.",
+        "saveWorkforce": "Save workforce snapshot",
+        "fteComputed": "Calculated from the workforce figures below and saved with the baseline.",
+        "fteCaptured": "Saved when the baseline was captured.",
+        "fteMissing": "Not recorded — this baseline predates the workforce card. Supersede it to fill the FTE from the current team.",
+        "period": "Period",
+        "subtitle": "The venture's starting line: initial finances, customer traction and starting workforce.",
         "payingCustomers": "Paying customers",
         "cash": "Cash in bank ({currency})",
         "cashBand": "Cash range",
@@ -151,6 +188,8 @@
         "mode": "Entry mode",
         "amount": "Amount ({currency})",
         "band": "Range",
+        "bandCurrencyNote": "These ranges are written in {currency} — the studio has no ladder in this venture's reporting currency yet.",
+        "legacyBand": "Saved as an estimated range ({band}). Enter the actual amount to save it again.",
         "calculated": "Calculated from the validated report",
         "selfSustaining": "Self-sustaining",
         "lockedNote": "This month is under review. It cannot be edited until the studio validates or rejects it.",
@@ -647,6 +686,7 @@
       },
       "versionLabel": "Version",
       "validation": {
+        "bandRemoved": "Ranges are no longer accepted — enter the actual amount.",
         "legalName": "Legal name is required.",
         "foundingDate": "Founding date is required.",
         "businessModel": "Business model is required.",
@@ -730,7 +770,7 @@
     "noVentures": "No ventures yet. Create your first venture to get started.",
     "myVentures": "My Ventures",
     "profile": "Profile",
-    "baseline": "Baseline",
+    "baseline": "Venture Baseline",
     "settings": "Settings",
     "cancel": "Cancel",
     "creating": "Creating...",
@@ -783,6 +823,8 @@
     "memberSince": "Member since",
     "addMember": "Add Member",
     "addMemberFounderHint": "Add another founder to this Venture. They receive an email and join as a founder once they accept the link.",
+    "addMemberTeamHint": "Invite a team member. They get workspace access but no role — roles stay a Venture Manager or Super Admin decision.",
+    "memberType": "Add as",
     "memberRole": "Role",
     "confirmRemove": "Remove this member?",
     "confirmRemoveAdvisor": "Remove this advisor?",
@@ -1058,10 +1100,8 @@
       "desc": "How much of the planned Journey work is done — journeys, milestones, tasks and deliverables."
     },
     "dataRoomReadiness": {
-      "title": "Investment readiness",
+      "title": "Data Room readiness",
       "desc": "Share of the required Data Room categories that are filed and verified.",
-      "hint": "Investment readiness is the Data Room's own completeness figure. It answers a different question from roadmap progress, so the two are never merged into one number.",
-      "where": "Where this comes from: the documents you file in the Data Room, measured against the requirements set for your business stage.",
       "indeterminate": "Not measurable yet — no Data Room category is marked required for this Venture.",
       "counts": "{verified} of {total} required categories verified"
     },
@@ -2003,13 +2043,16 @@
       "northStarTitle": "North Star Metric",
       "northStarSubtitle": "Core venture value delivery indicator",
       "northStarDataSource": "Data source: Validated monthly report (north_star_value)",
-      "runwayTitle": "Capital Runway & Net Burn Projection",
-      "runwaySubtitle": "Operational runway in months and net burn rate",
+      "runwayTitle": "Runway",
+      "runwaySubtitle": "Months of cash left at the reported burn rate",
       "runwayDataSource": "Data source: Computed metric: cash_in_bank / monthly_burn",
       "unit": "Unit",
       "customersCount": "Customers",
-      "monthsOfRunway": "Months Runway",
-      "netBurn": "Net Burn"
+      "monthsOfRunway": "Runway",
+      "netBurn": "Net Burn",
+      "netBurnTitle": "Net Burn",
+      "netBurnSubtitle": "Cash spent each month — below zero means profitable",
+      "netBurnDataSource": "Data source: Computed metric: expenses − revenue"
     }
   }
 }

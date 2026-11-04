@@ -1,14 +1,41 @@
 {
   "venture": {
+    "wizard": {
+      "dismiss": "Masquer",
+      "dismissHint": "Masquer définitivement cette liste — votre venture est configurée."
+    },
     "reporting": {
       "title": "Rapports de la venture",
       "subtitle": "Le dossier de la venture : qui elle est et d'où elle part.",
       "notApplicable": "Non applicable",
+      "hint": {
+        "accountingBasis": "Trésorerie : les montants comptent à l'encaissement ou au décaissement. Engagement : les montants comptent quand ils sont acquis ou dus, quelle que soit la date de paiement.",
+        "socialProtection": "Oui si la venture cotise à un régime de protection sociale pour son équipe — retraite, couverture santé, maternité ou assurance accident.",
+        "northStarName": "Le chiffre unique qui guide la venture — la mesure qui montre le mieux qu'elle progresse. Il est déclaré chaque mois, à côté des revenus.",
+        "sectionFinancial": "Le point de départ de la venture en argent et en clients : trésorerie, financement déjà reçu et clients payants au moment où le studio l'a enregistrée. Toute la croissance se mesure à partir d'ici.",
+        "sectionWorkforce": "Qui travaillait déjà dans la venture à la référence. Les emplois créés se comptent par rapport à cette photographie.",
+        "baselineFte": "Équivalent temps plein (ETP) : une mesure de capacité, pas le nombre de personnes employées. Employés à temps plein + (jours à temps partiel ÷ 20) + fondateurs à temps plein. Dix personnes à temps partiel travaillant deux jours chacune représentent dix personnes mais un seul ETP.",
+        "baselinePayingCustomers": "Clients payants à la date de référence — le point de départ de toute la croissance et de l'attrition.",
+        "baselineAmountMode": "Exact : vous saisissez le montant. Tranche : vous choisissez la tranche du studio, si vous ne connaissez qu'un ordre de grandeur.",
+        "baselineCash": "Trésorerie disponible à la date de référence, dans la devise de reporting de la venture.",
+        "baselineBand": "Choisissez la tranche du studio qui contient le montant. Elle est utilisée en son milieu et marquée approximative.",
+        "baselineFinancing": "Fonds reçus d'investisseurs, de prêteurs ou de subventions avant la date de référence — ce n'est pas du revenu.",
+        "baselineSupersedeReason": "Pourquoi cette référence est remplacée. L'ancienne reste dans l'historique ; rien n'est supprimé.",
+        "fullTimeFounders": "Fondateurs à temps plein. Comptés dans l'ETP, mais exclus du test « embauche hors fondateurs ».",
+        "partTimeFounders": "Fondateurs à temps partiel. Leurs jours se saisissent dans le champ des jours à temps partiel.",
+        "fullTimeEmployees": "Employés (hors fondateurs) en contrat à temps plein.",
+        "partTimeEmployees": "Employés (hors fondateurs) en contrat à temps partiel, comptés selon les jours travaillés.",
+        "partTimeDays": "Total des jours à temps partiel travaillés — divisé par 20 pour devenir des équivalents temps plein.",
+        "womenEmployees": "Nombre d'employées femmes. Sert à la part de genre de l'équipe.",
+        "menEmployees": "Nombre d'employés hommes. Sert avec le nombre de femmes à la part de genre de l'équipe.",
+        "under35Women": "Femmes de moins de 35 ans — la mesure jeunesse rapportée par le studio.",
+        "under35Men": "Hommes de moins de 35 ans — la mesure jeunesse rapportée par le studio."
+      },
       "tabLabel": "Rapports",
       "tab": {
         "dashboard": "Tableau de bord",
         "businessInfo": "Informations sur l'entreprise",
-        "baseline": "Référence initiale",
+        "baseline": "Référence de la venture",
         "founders": "Fondateurs",
         "headcount": "Effectifs",
         "monthly": "Mensuel",
@@ -59,6 +86,7 @@
       },
       "field": {
         "legalName": "Raison sociale",
+        "legalNameHint": "Repris du nom de la venture — modifiez-le si la raison sociale enregistrée diffère.",
         "tradeName": "Nom commercial",
         "foundingDate": "Date de création",
         "registrationStatus": "Statut d'enregistrement",
@@ -101,6 +129,15 @@
       },
       "baseline": {
         "fte": "Équivalent temps plein (ETP)",
+        "sectionPositionTitle": "1. Position financière et clients de départ",
+        "sectionWorkforceTitle": "2. Effectif de départ et équivalent temps plein",
+        "lockedNote": "Cette référence est verrouillée : elle sert de point de départ aux calculs de croissance et de création d'emplois. Elle ne se modifie pas — elle se remplace.",
+        "saveWorkforce": "Enregistrer l'effectif",
+        "fteComputed": "Calculé à partir des chiffres d'effectif ci-dessous et enregistré avec la référence.",
+        "fteCaptured": "Enregistré au moment de la référence.",
+        "fteMissing": "Non renseigné — cette référence précède la fiche d'effectif. Remplacez-la pour calculer l'ETP à partir de l'équipe actuelle.",
+        "period": "Période",
+        "subtitle": "La position de départ de la venture : finances initiales, traction client et effectif de départ.",
         "payingCustomers": "Clients payants",
         "cash": "Trésorerie ({currency})",
         "cashBand": "Fourchette de trésorerie",
@@ -151,6 +188,8 @@
         "mode": "Mode de saisie",
         "amount": "Montant ({currency})",
         "band": "Tranche",
+        "bandCurrencyNote": "Ces tranches sont exprimées en {currency} — le studio n'a pas encore de barème dans la devise de reporting de cette venture.",
+        "legacyBand": "Enregistré comme fourchette estimée ({band}). Saisissez le montant réel pour enregistrer à nouveau.",
         "calculated": "Calculé à partir du rapport validé",
         "selfSustaining": "Autofinancé",
         "lockedNote": "Ce mois est en cours de revue. Il ne peut pas être modifié tant que le studio ne l'a pas validé ou refusé.",
@@ -647,6 +686,7 @@
       },
       "versionLabel": "Version",
       "validation": {
+        "bandRemoved": "Les fourchettes ne sont plus acceptées — saisissez le montant réel.",
         "legalName": "La raison sociale est obligatoire.",
         "foundingDate": "La date de création est obligatoire.",
         "businessModel": "Le modèle économique est obligatoire.",
@@ -730,7 +770,7 @@
     "noVentures": "Aucune entreprise pour le moment. Créez votre première entreprise pour commencer.",
     "myVentures": "Mes entreprises",
     "profile": "Profil",
-    "baseline": "Référence initiale",
+    "baseline": "Référence de la venture",
     "settings": "Paramètres",
     "cancel": "Annuler",
     "creating": "Création...",
@@ -783,6 +823,8 @@
     "memberSince": "Membre depuis",
     "addMember": "Ajouter un membre",
     "addMemberFounderHint": "Ajoute un autre founder à cette Venture. Il reçoit un e-mail et la rejoint comme founder dès qu'il accepte le lien.",
+    "addMemberTeamHint": "Invitez un membre d'équipe. Il obtient l'accès à l'espace de travail mais aucun rôle — les rôles restent une décision du Venture Manager ou du Super Admin.",
+    "memberType": "Ajouter en tant que",
     "memberRole": "Rôle",
     "permissions": "Autorisations",
     "confirmRemove": "Retirer ce membre ?",
@@ -1058,10 +1100,8 @@
       "desc": "Part du travail prévu au parcours qui est terminée — parcours, jalons, tâches et livrables."
     },
     "dataRoomReadiness": {
-      "title": "Préparation à l'investissement",
+      "title": "Complétude du Data Room",
       "desc": "Part des catégories obligatoires de la Data Room qui sont déposées et vérifiées.",
-      "hint": "La préparation à l'investissement est le taux de complétude de la Data Room elle-même. Elle répond à une autre question que l'avancement du parcours : les deux ne sont jamais fusionnés en un seul chiffre.",
-      "where": "D'où cela vient : les documents que vous déposez dans la Data Room, mesurés aux exigences définies pour votre stade de développement.",
       "indeterminate": "Pas encore mesurable — aucune catégorie de la Data Room n'est marquée obligatoire pour cette Venture.",
       "counts": "{verified} catégories obligatoires sur {total} vérifiées"
     },
@@ -2003,13 +2043,16 @@
       "northStarTitle": "Métrique North Star",
       "northStarSubtitle": "Indicateur central de création de valeur de la startup",
       "northStarDataSource": "Source : Rapport mensuel validé (north_star_value)",
-      "runwayTitle": "Runway de trésorerie & Burn Rate",
-      "runwaySubtitle": "Mois de trésorerie disponibles et taux de consommation net",
+      "runwayTitle": "Autonomie financière",
+      "runwaySubtitle": "Mois de trésorerie restants au rythme de consommation déclaré",
       "runwayDataSource": "Source : Métrique calculée : trésorerie / burn_net_mensuel",
       "unit": "Unité",
       "customersCount": "Clients",
-      "monthsOfRunway": "Mois de runway",
-      "netBurn": "Burn net"
+      "monthsOfRunway": "Autonomie",
+      "netBurn": "Burn net",
+      "netBurnTitle": "Consommation nette",
+      "netBurnSubtitle": "Trésorerie consommée chaque mois — en dessous de zéro, la venture est rentable",
+      "netBurnDataSource": "Source : indicateur calculé : dépenses − revenus"
     }
   }
 }

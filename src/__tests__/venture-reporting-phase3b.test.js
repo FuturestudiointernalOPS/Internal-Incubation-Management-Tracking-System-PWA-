@@ -74,7 +74,16 @@ describe("quarterly validation", () => {
         { salesMarketingMode: "band", salesMarketingBand: "F9" },
         { bands: BANDS },
       ),
-    ).toContain("venture.reporting.quarterly.validation.salesMarketingBand");
+    ).toContain("venture.reporting.validation.bandRemoved");
+  });
+
+  test("a known band is refused as well", () => {
+    expect(
+      validateQuarterlyReport(
+        { salesMarketingMode: "band", salesMarketingBand: "F1" },
+        { bands: BANDS },
+      ),
+    ).toContain("venture.reporting.validation.bandRemoved");
   });
 
   test("a negative count is refused", () => {

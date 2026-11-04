@@ -6,6 +6,7 @@ import {
   Line,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -26,6 +27,8 @@ import {
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
 import { formatCurrencyAmount } from "@/lib/currencies";
+import DisplayCurrencySelect from "@/components/finance/DisplayCurrencySelect";
+import { useDisplayCurrency, useFxRate } from "@/lib/hooks/useDisplayCurrency";
 
 const PERIOD_OPTIONS = [
   { value: "3", key: "months3" },
@@ -81,8 +84,10 @@ export default function VentureReportingCharts({ ventureId }) {
           ? Number(m.mrr)
           : 0;
 
-      const runwayVal = m.runway?.value != null ? Number(m.runway.value) : 0;
-      const netBurnVal = m.netBurn?.value != null ? Number(m.netBurn.value) : 0;
+      // A metric that was NOT computed stays null. Coercing it to 0 drew a month
+      // of "no cash left" / "no money spent" that the engine never said.
+      const runwayVal = m.runway?.value != null ? Number(m.runway.value) : null;
+      const netBurnVal = m.netBurn?.value != null ? Number(m.netBurn.value) : null;
 
       return {
         period: m.period,
@@ -106,6 +111,15 @@ export default function VentureReportingCharts({ ventureId }) {
     if (periodFilter === "6") return allMonths.slice(-6);
     return allMonths;
   }, [allMonths, periodFilter]);
+
+  // The unit the figures were FILED in — every chart below is written in it.
+  const latestMonth = filteredMonths[filteredMonths.length - 1] || null;
+  const currencyUnit = latestMonth?.currency || data?.latest?.currency || "XOF";
+
+  // A PERSONAL reading preference. The rate is fetched from our own API and
+  // applied to the display only; the stored amounts never move.
+  const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
+  const fx = useFxRate(currencyUnit, displayCurrency);
 
   // Compute strategic signals (alerts / growth indicators)
   const signals = useMemo(() => {
@@ -197,12 +211,16 @@ export default function VentureReportingCharts({ ventureId }) {
     );
   }
 
-  const latestMonth = filteredMonths[filteredMonths.length - 1];
-  // The charts are labelled in the currency of the most recent filing. Each
-  // point keeps its own, so a currency switch is visible rather than silent.
-  const currencyUnit = latestMonth?.currency || data?.latest?.currency || "XOF";
   const locale = lang === "fr" ? "fr-FR" : "en-US";
-  const money = (value, code) => formatCurrencyAmount(value, code || currencyUnit, locale);
+  // Converted figures are marked `≈` so a reader can never mistake a display
+  // conversion for the amount the founder actually filed.
+  const money = (value, code) => {
+    const unit = code || currencyUnit;
+    if (fx && fx.rate && value !== null && value !== undefined) {
+      return `≈ ${formatCurrencyAmount(Number(value) * fx.rate, fx.quote, locale)}`;
+    }
+    return formatCurrencyAmount(value, unit, locale);
+  };
 
   return (
     <div className="space-y-6">
@@ -219,22 +237,29 @@ export default function VentureReportingCharts({ ventureId }) {
         </div>
 
         {/* Time Filter Controls */}
-        <div className="flex items-center gap-1 p-1 rounded-xl border" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>
-          {PERIOD_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => setPeriodFilter(opt.value)}
-              className="px-3 py-1 rounded-lg text-xs font-bold transition-all"
-              style={{
-                background: periodFilter === opt.value ? "var(--surface-3)" : "transparent",
-                color: periodFilter === opt.value ? "var(--text-primary)" : "var(--text-secondary)",
-                boxShadow: periodFilter === opt.value ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
-              }}
-            >
-              {opt.value === "3" ? (t("venture.charts.period3") || "Past 3 Months") : opt.value === "6" ? (t("venture.charts.period6") || "Past 6 Months") : (t("venture.charts.periodAll") || "All Time")}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <DisplayCurrencySelect
+            value={displayCurrency}
+            onChange={setDisplayCurrency}
+            ventureCurrency={currencyUnit}
+          />
+          <div className="flex items-center gap-1 p-1 rounded-xl border" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>
+            {PERIOD_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setPeriodFilter(opt.value)}
+                className="px-3 py-1 rounded-lg text-xs font-bold transition-all"
+                style={{
+                  background: periodFilter === opt.value ? "var(--surface-3)" : "transparent",
+                  color: periodFilter === opt.value ? "var(--text-primary)" : "var(--text-secondary)",
+                  boxShadow: periodFilter === opt.value ? "0 1px 2px rgba(0,0,0,0.05)" : "none",
+                }}
+              >
+                {opt.value === "3" ? (t("venture.charts.period3") || "Past 3 Months") : opt.value === "6" ? (t("venture.charts.period6") || "Past 6 Months") : (t("venture.charts.periodAll") || "All Time")}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -478,7 +503,9 @@ export default function VentureReportingCharts({ ventureId }) {
           </div>
         </div>
 
-        {/* 4. Capital Runway & Burn Rate Projection (Universal Startup Standard) */}
+        {/* 4. RUNWAY — months of cash left. One parameter, one card: the two
+            were previously presented under a single "Capital Runway & Burn"
+            heading, which read as if months and money were the same axis. */}
         <div
           className="rounded-2xl p-5 border space-y-3 flex flex-col justify-between"
           style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
@@ -491,16 +518,18 @@ export default function VentureReportingCharts({ ventureId }) {
                 </div>
                 <div>
                   <h4 className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
-                    {t("venture.charts.runwayTitle") || "Capital Runway & Burn Rate"}
+                    {t("venture.charts.runwayTitle") || "Runway"}
                   </h4>
                   <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
-                    {t("venture.charts.runwaySubtitle") || "Operational runway in months based on cash reserves & net burn"}
+                    {t("venture.charts.runwaySubtitle") || "Months of cash left at the reported burn rate"}
                   </p>
                 </div>
               </div>
               {filteredMonths.length > 0 && (
                 <span className="text-sm font-black" style={{ color: "var(--text-primary)" }}>
-                  {latestMonth.runway} {t("time.months.short") || "mo"}
+                  {latestMonth.runway == null
+                    ? "—"
+                    : `${latestMonth.runway} ${t("time.months.short") || "mo"}`}
                 </span>
               )}
             </div>
@@ -521,11 +550,7 @@ export default function VentureReportingCharts({ ventureId }) {
                     }}
                     formatter={(val) => [`${val} ${t("time.months.short") || "months"}`, t("venture.charts.monthsOfRunway") || "Runway"]}
                   />
-                  <Bar
-                    dataKey="runway"
-                    fill="var(--brand-orange)"
-                    radius={[4, 4, 0, 0]}
-                  />
+                  <Bar dataKey="runway" fill="var(--brand-orange)" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -536,6 +561,81 @@ export default function VentureReportingCharts({ ventureId }) {
             <Database size={11} className="shrink-0 text-[var(--brand-orange)]" />
             <span>
               {t("venture.charts.runwayDataSource") || "Data source: Computed metric: cash_in_bank / monthly_burn"}
+            </span>
+          </div>
+        </div>
+
+        {/* 5. NET BURN — money spent per month. A separate parameter from
+            runway, on its own axis and in its own unit (currency, not months). */}
+        <div
+          className="rounded-2xl p-5 border space-y-3 flex flex-col justify-between"
+          style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+        >
+          <div>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[color-mix(in_srgb,var(--brand-orange)_15%,transparent)] text-[var(--brand-orange)]">
+                  <TrendingDown size={15} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-extrabold uppercase tracking-wide" style={{ color: "var(--text-primary)" }}>
+                    {t("venture.charts.netBurnTitle") || "Net Burn"}
+                  </h4>
+                  <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
+                    {t("venture.charts.netBurnSubtitle") || "Cash spent each month — below zero means profitable"}
+                  </p>
+                </div>
+              </div>
+              {filteredMonths.length > 0 && (
+                <span className="text-sm font-black" style={{ color: "var(--text-primary)" }}>
+                  {latestMonth.netBurn == null
+                    ? "—"
+                    : money(latestMonth.netBurn, latestMonth.currency)}
+                </span>
+              )}
+            </div>
+
+            <div className="pt-3" style={{ width: "100%", height: 190 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={filteredMonths} margin={{ top: 10, right: 12, bottom: 0, left: -4 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-primary)" opacity={0.6} />
+                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: "var(--text-secondary)" }} />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "var(--text-secondary)" }}
+                    width={52}
+                    tickFormatter={(value) =>
+                      new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 }).format(value)
+                    }
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--surface-2)",
+                      borderColor: "var(--border-primary)",
+                      borderRadius: "10px",
+                      fontSize: "11px",
+                      color: "var(--text-primary)",
+                    }}
+                    formatter={(val) => [money(val, currencyUnit), t("venture.charts.netBurnTitle") || "Net Burn"]}
+                  />
+                  <Bar dataKey="netBurn" radius={[4, 4, 0, 0]}>
+                    {filteredMonths.map((entry) => (
+                      <Cell
+                        key={entry.label}
+                        // Burn is money going out; below zero, the month made money.
+                        fill={entry.netBurn > 0 ? "var(--brand-orange)" : "var(--status-green, #10b981)"}
+                      />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Explicit Data Source Footnote */}
+          <div className="pt-2 border-t flex items-center gap-1.5 text-[10px]" style={{ borderColor: "var(--border-primary)", color: "var(--text-secondary)" }}>
+            <Database size={11} className="shrink-0 text-[var(--brand-orange)]" />
+            <span>
+              {t("venture.charts.netBurnDataSource") || "Data source: Computed metric: expenses − revenue"}
             </span>
           </div>
         </div>

@@ -15,6 +15,10 @@ export function ProfileTab({ ventureId }) {
   const { t } = useI18n();
   const { form, setForm, saving, handleSave, optionLists, inputStyle, cardStyle } = useVenture();
   const fileInputRef = useRef(null);
+  // The Business & Legal Identity section registers its saver here, so the ONE
+  // Save button below writes the whole page.
+  const businessSaveRef = useRef(null);
+  const [submittingAll, setSubmittingAll] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [logoError, setLogoError] = useState(null);
 
@@ -55,12 +59,18 @@ export function ProfileTab({ ventureId }) {
     setLogoError(null);
   };
 
-  const submitProfile = (event) => {
-    if (["linkedin", "instagram", "twitter", "facebook"].some(socialInvalid)) {
-      event.preventDefault();
-      return;
+  const submitProfile = async (event) => {
+    event.preventDefault();
+    if (["linkedin", "instagram", "twitter", "facebook"].some(socialInvalid)) return;
+    // One Save, the whole page: the Venture record first, then the Business &
+    // Legal Identity section (which skips itself when nothing changed).
+    setSubmittingAll(true);
+    try {
+      await handleSave(event);
+      await businessSaveRef.current?.();
+    } finally {
+      setSubmittingAll(false);
     }
-    return handleSave(event);
   };
 
   return (
@@ -181,32 +191,21 @@ export function ProfileTab({ ventureId }) {
           </div>
         </div>
 
-        {/* ── Industry & Sector ── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">{t("venture.industry")}</label>
-            <input
-              list="venture-industry-options"
-              value={form.industry || ""}
-              onChange={(event) => setForm({ ...form, industry: event.target.value })}
-              className="w-full px-3 py-2 rounded-lg outline-none border"
-              style={inputStyle}
-            />
-            <datalist id="venture-industry-options">
-              {(optionLists?.industry && optionLists.industry.length ? optionLists.industry : INDUSTRY_FALLBACK).map((ind) => (
-                <option key={ind} value={ind} />
-              ))}
-            </datalist>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t("venture.sector")}</label>
-            <input
-              value={form.sector || ""}
-              onChange={(event) => setForm({ ...form, sector: event.target.value })}
-              className="w-full px-3 py-2 rounded-lg outline-none border"
-              style={inputStyle}
-            />
-          </div>
+        {/* ── Industry ── */}
+        <div>
+          <label className="block text-sm font-medium mb-1">{t("venture.industry")}</label>
+          <input
+            list="venture-industry-options"
+            value={form.industry || ""}
+            onChange={(event) => setForm({ ...form, industry: event.target.value })}
+            className="w-full px-3 py-2 rounded-lg outline-none border"
+            style={inputStyle}
+          />
+          <datalist id="venture-industry-options">
+            {(optionLists?.industry && optionLists.industry.length ? optionLists.industry : INDUSTRY_FALLBACK).map((ind) => (
+              <option key={ind} value={ind} />
+            ))}
+          </datalist>
         </div>
 
         {/* ── Business Stage (Read-only) ── */}
@@ -304,18 +303,23 @@ export function ProfileTab({ ventureId }) {
         </div>
       </div>
 
-      {/* ── Business & Legal Identity Section (Organized within Profile) ── */}
-      {ventureId && <VentureBusinessProfileSection ventureId={ventureId} />}
+      {/* ── Business & Legal Identity Section (saved by the button below) ── */}
+      {ventureId && (
+        <VentureBusinessProfileSection
+          ventureId={ventureId}
+          registerSave={(saver) => { businessSaveRef.current = saver; }}
+        />
+      )}
 
       <div className="flex justify-end pt-4 border-t" style={{ borderColor: "var(--border-primary)" }}>
         <button
           type="submit"
-          disabled={saving || uploadingLogo}
+          disabled={saving || submittingAll || uploadingLogo}
           className="flex items-center gap-2 px-6 py-2 rounded-xl text-black font-extrabold disabled:opacity-50 transition-colors shadow-sm"
           style={{ backgroundColor: "var(--brand-orange)" }}
         >
-          {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          <span>{saving ? t("venture.saving") : t("venture.save")}</span>
+          {saving || submittingAll ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+          <span>{saving || submittingAll ? t("venture.saving") : t("venture.save")}</span>
         </button>
       </div>
     </form>

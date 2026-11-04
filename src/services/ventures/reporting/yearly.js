@@ -26,7 +26,7 @@ export function growthBetween(current, previous) {
 
 /**
  * @param {object} input
- * @param {Array<{period, mrrValue, payingCustomers, netBurn}>} input.months
+ * @param {Array<{period, currency, mrrValue, payingCustomers, netBurn}>} input.months
  *        oldest → newest, e.g. from `shiftPeriod`-friendly `YYYY-MM-01` strings
  * @param {string|null} input.latestPeriod
  * @param {number|null} input.latestFte
@@ -57,6 +57,18 @@ export function computeYearlyFigures({ months = [], latestPeriod = null, latestF
   const windowMrr = sum(window.map((month) => month?.mrrValue ?? null));
   const priorMrr = sum(prior.map((month) => month?.mrrValue ?? null));
 
+  // A rolling money figure is only meaningful in ONE currency. If the venture
+  // switched reporting currency inside the two-year window, the 12-month totals
+  // and their growth are withheld rather than computed across units. Customer
+  // counts are currency-free and stay available.
+  const reference = byPeriod.get(latestPeriod)?.currency || null;
+  const mixedCurrency =
+    Boolean(reference) &&
+    [...window, ...prior].some(
+      (month) =>
+        month?.currency && String(month.currency).toUpperCase() !== String(reference).toUpperCase(),
+    );
+
   const latest = byPeriod.get(latestPeriod) || null;
   const twelveAgo = byPeriod.get(shiftPeriod(latestPeriod, -12)) || null;
 
@@ -68,12 +80,12 @@ export function computeYearlyFigures({ months = [], latestPeriod = null, latestF
 
   return {
     monthsCovered: months.length,
-    yoyMrrGrowth: growthBetween(windowMrr, priorMrr),
+    yoyMrrGrowth: mixedCurrency ? null : growthBetween(windowMrr, priorMrr),
     annualCustomerGrowth: growthBetween(
       latest?.payingCustomers ?? null,
       twelveAgo?.payingCustomers ?? null,
     ),
-    annualBurn: sum(window.map((month) => month?.netBurn ?? null)),
+    annualBurn: mixedCurrency ? null : sum(window.map((month) => month?.netBurn ?? null)),
     jobsSupported: latestFte,
     jobsCreated: jobsNet === null ? null : Math.max(0, jobsNet),
     jobsLost: jobsNet === null ? null : Math.max(0, -jobsNet),

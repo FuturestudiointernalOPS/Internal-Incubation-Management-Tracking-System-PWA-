@@ -143,21 +143,25 @@ export function findBand(bands, kind, code) {
  * `bands` is the `groupBands()` output, so a band code the studio has since
  * removed is refused rather than silently stored and never resolvable.
  */
-export function validateMonthlyReport(input = {}, { bands = {} } = {}) {
+export function validateMonthlyReport(input = {}) {
   const errors = [];
 
-  // Money — required fields must carry a usable exact amount or a known band.
+  // Money — required fields must carry an exact amount. Ranges were withdrawn
+  // from the studio's reporting (see the assessment, Phase 4): an estimate is
+  // not a report. Legacy validated months keep their band; a NEW or corrected
+  // filing must state the actual figure.
   for (const field of REQUIRED_MONEY) {
     const money = normaliseMoney(input, field);
+    if (money.mode === "band") {
+      errors.push("venture.reporting.validation.bandRemoved");
+      continue;
+    }
     if (!money.mode) {
       errors.push(`venture.reporting.monthly.validation.${field}`);
       continue;
     }
-    if (money.mode === "exact" && money.value === null) {
+    if (money.value === null) {
       errors.push(`venture.reporting.monthly.validation.${field}`);
-    }
-    if (money.mode === "band" && !findBand(bands, MONEY_FIELDS[field], money.band)) {
-      errors.push(`venture.reporting.monthly.validation.${field}Band`);
     }
   }
 
@@ -165,12 +169,13 @@ export function validateMonthlyReport(input = {}, { bands = {} } = {}) {
   for (const field of Object.keys(MONEY_FIELDS)) {
     if (REQUIRED_MONEY.includes(field)) continue;
     const money = normaliseMoney(input, field);
-    if (!money.mode) continue;
-    if (money.mode === "exact" && money.value === null) {
-      errors.push(`venture.reporting.monthly.validation.${field}`);
+    if (money.mode === "band") {
+      errors.push("venture.reporting.validation.bandRemoved");
+      continue;
     }
-    if (money.mode === "band" && !findBand(bands, MONEY_FIELDS[field], money.band)) {
-      errors.push(`venture.reporting.monthly.validation.${field}Band`);
+    if (!money.mode) continue;
+    if (money.value === null) {
+      errors.push(`venture.reporting.monthly.validation.${field}`);
     }
   }
 

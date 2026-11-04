@@ -8,7 +8,7 @@ import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
-import { formatMetric, formatBand } from "./monthlyDisplay";
+import { formatMetric } from "./monthlyDisplay";
 import { getCurrencySymbol } from "@/lib/currencies";
 
 /**
@@ -103,48 +103,42 @@ function reportToForm(report) {
   };
 }
 
-function MoneyRow({ prefix, labelKey, form, set, bands, disabled, t, lang, currency }) {
-  const mode = form[`${prefix}Mode`] || "";
-  const bandOptions = (bands?.flow || []).map((band) => ({
-    value: band.code,
-    label: formatBand(lang, band),
-  }));
+/**
+ * Ranges were withdrawn (Phase 4). Every money field is submitted as an exact
+ * amount, or left unanswered; the band codes are cleared.
+ */
+function exactMoney(form) {
+  const next = { ...form };
+  for (const prefix of ["salesMarketing", "expansion", "churned"]) {
+    const value = next[`${prefix}Value`];
+    const answered = value !== "" && value !== null && value !== undefined;
+    next[`${prefix}Mode`] = answered ? "exact" : "";
+    next[`${prefix}Band`] = "";
+  }
+  return next;
+}
+
+function MoneyRow({ prefix, labelKey, form, set, disabled, t, currency }) {
+  const legacyBand = form[`${prefix}Mode`] === "band" ? form[`${prefix}Band`] : "";
   return (
     <div className="rounded-xl border p-3 space-y-3" style={{ borderColor: "var(--border-primary)" }}>
       <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
         {t(labelKey)}
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <AppSelect
-          label={t("venture.reporting.monthly.mode")}
-          value={mode}
-          onChange={set(`${prefix}Mode`)}
-          disabled={disabled}
-          options={[
-            { value: "", label: t("venture.reporting.monthly.notProvided") },
-            { value: "exact", label: t("venture.reporting.mode.exact") },
-            { value: "band", label: t("venture.reporting.mode.band") },
-          ]}
-        />
-        {mode === "band" ? (
-          <AppSelect
-            label={t("venture.reporting.monthly.band")}
-            value={form[`${prefix}Band`] || ""}
-            onChange={set(`${prefix}Band`)}
-            disabled={disabled}
-            options={bandOptions}
-          />
-        ) : (
-          <AppInput
-            type="number"
-            min="0"
-            label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
-            value={form[`${prefix}Value`] ?? ""}
-            onChange={set(`${prefix}Value`)}
-            disabled={disabled || !mode}
-          />
-        )}
-      </div>
+      {/* Exact only: ranges were withdrawn from new filings (Phase 4). */}
+      <AppInput
+        type="number"
+        min="0"
+        label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
+        value={form[`${prefix}Value`] ?? ""}
+        onChange={set(`${prefix}Value`)}
+        disabled={disabled}
+      />
+      {legacyBand ? (
+        <p className="text-[10px] leading-snug" style={{ color: "var(--text-tertiary)" }}>
+          {t("venture.reporting.monthly.legacyBand", { band: legacyBand })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -194,7 +188,7 @@ export default function VentureQuarterlyReport({ ventureId, reloadKey = 0 }) {
     setStatus("");
     const result = await api(base, {
       method: "POST",
-      body: JSON.stringify({ ...form, period: month, submit }),
+      body: JSON.stringify({ ...exactMoney(form), period: month, submit }),
     });
     setSaving(false);
     if (!result.ok) {
@@ -343,9 +337,9 @@ export default function VentureQuarterlyReport({ ventureId, reloadKey = 0 }) {
         />
 
         <div className="grid gap-4 md:grid-cols-3">
-          <MoneyRow prefix="salesMarketing" labelKey="venture.reporting.quarterly.field.salesMarketing" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} currency={currency} />
-          <MoneyRow prefix="expansion" labelKey="venture.reporting.quarterly.field.expansion" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} currency={currency} />
-          <MoneyRow prefix="churned" labelKey="venture.reporting.quarterly.field.churned" form={form} set={set} bands={detail?.bands} disabled={locked} t={t} lang={lang} currency={currency} />
+          <MoneyRow prefix="salesMarketing" labelKey="venture.reporting.quarterly.field.salesMarketing" form={form} set={set} disabled={locked} t={t} currency={currency} />
+          <MoneyRow prefix="expansion" labelKey="venture.reporting.quarterly.field.expansion" form={form} set={set} disabled={locked} t={t} currency={currency} />
+          <MoneyRow prefix="churned" labelKey="venture.reporting.quarterly.field.churned" form={form} set={set} disabled={locked} t={t} currency={currency} />
         </div>
 
         <div className="space-y-2">

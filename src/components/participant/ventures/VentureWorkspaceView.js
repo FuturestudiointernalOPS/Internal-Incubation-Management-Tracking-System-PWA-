@@ -8,7 +8,10 @@ import { TeamTab } from "@/components/ventures/workspace/tabs/MembersTabs";
 import { DashboardTab } from "@/components/ventures/workspace/tabs/DashboardHistoryTabs";
 import { JourneyTab } from "@/components/ventures/workspace/tabs/JourneyPlaybookTabs";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
-import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import {
+  DataRoomReadinessCard,
+  RoadmapReadinessCard,
+} from "@/components/ventures/workspace/tabs/GrowthTabs";
 import VentureReportingScreen from "@/components/ventures/reporting/VentureReportingScreen";
 import { REPORTING_TAB, tabsFor } from "@/components/participant/ventures/ventureScreenModel";
 
@@ -67,9 +70,20 @@ export default function VentureWorkspaceView({
 
       {/* Dashboard is the overview. Journey is the operating workspace. */}
       {activeTab === "dashboard" && <DashboardTab onSection={onSection} />}
-      {activeTab === "journey" && <JourneyTab />}
-      {activeTab === "investment" && <InvestmentTab />}
-      {activeTab === "dataRoom" && <VentureDataRoom ventureId={venture.venture_id || venture.id} />}
+      {/* Two indicators, each beside the thing that changes it: roadmap progress
+          with the roadmap, Data Room readiness with the documents. */}
+      {activeTab === "journey" && (
+        <div className="space-y-4">
+          <RoadmapReadinessCard />
+          <JourneyTab />
+        </div>
+      )}
+      {activeTab === "dataRoom" && (
+        <div className="space-y-4">
+          <DataRoomReadinessCard />
+          <VentureDataRoom ventureId={venture.venture_id || venture.id} />
+        </div>
+      )}
       {activeTab === "profile" && <ProfileTab ventureId={venture.venture_id || venture.id} />}
       {activeTab === "baseline" && <VentureBaselineTab ventureId={venture.venture_id || venture.id} />}
       {activeTab === "team" && <TeamTab />}

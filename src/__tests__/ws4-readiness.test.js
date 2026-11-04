@@ -22,21 +22,21 @@ const UUID_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const REQUIREMENTS = [
   { venture_id: UUID_A, category: "company_overview", level: "required" },
   { venture_id: UUID_A, category: "legal_corporate", level: "required" },
-  { venture_id: UUID_A, category: "financial", level: "required" },
-  { venture_id: UUID_A, category: "pitch_materials", level: "required" },
-  { venture_id: UUID_A, category: "team", level: "recommended" },
+  { venture_id: UUID_A, category: "financials_projections", level: "required" },
+  { venture_id: UUID_A, category: "pitch_deck_business_plan", level: "required" },
+  { venture_id: UUID_A, category: "impact_sustainability", level: "recommended" },
   // Venture B stores requirements, but none of them is `required`.
   { venture_id: UUID_B, category: "company_overview", level: "recommended" },
-  { venture_id: UUID_B, category: "financial", level: "recommended" },
+  { venture_id: UUID_B, category: "financials_projections", level: "recommended" },
 ];
 
 const DOCUMENTS = [
   { venture_id: UUID_A, category: "company_overview", status: "verified" },
   { venture_id: UUID_A, category: "legal_corporate", status: "verified" },
-  { venture_id: UUID_A, category: "financial", status: "uploaded" },
+  { venture_id: UUID_A, category: "financials_projections", status: "uploaded" },
   // Legacy Data Bank row: verified, but not a Data Room category.
   { venture_id: UUID_A, category: "business_plan", status: "verified" },
-  { venture_id: UUID_A, category: "team", status: "verified" },
+  { venture_id: UUID_A, category: "impact_sustainability", status: "verified" },
 ];
 
 function respond(sql) {

@@ -79,7 +79,7 @@ export function isValidEventDate(value, now = new Date()) {
  * `bands` is the `groupBands()` output so a financing amount entered as a band
  * must name a band the studio still publishes.
  */
-export function validateEvent(input = {}, { bands = {}, now = new Date() } = {}) {
+export function validateEvent(input = {}, { now = new Date() } = {}) {
   const errors = [];
   const type = text(input.eventType);
 
@@ -105,17 +105,16 @@ export function validateEvent(input = {}, { bands = {}, now = new Date() } = {})
 
   if (spec.amount) {
     const mode = text(input.amountMode);
-    if (!["exact", "band"].includes(mode)) {
+    if (mode === "band") {
+      // Ranges withdrawn (Phase 4): an event records what actually moved.
+      errors.push("venture.reporting.validation.bandRemoved");
+    } else if (mode !== "exact") {
       errors.push("venture.reporting.events.validation.amount");
-    } else if (mode === "exact") {
+    } else {
       const value = Number(input.amountValue);
       if (!Number.isFinite(value) || value < 0) {
         errors.push("venture.reporting.events.validation.amount");
       }
-    } else {
-      const code = text(input.amountBand);
-      const known = (bands.flow || []).some((band) => band.code === code);
-      if (!known) errors.push("venture.reporting.events.validation.amountBand");
     }
   }
 

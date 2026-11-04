@@ -33,16 +33,16 @@ const mockDb = {
       return { rows: [
         { venture_id: VENTURE_DB_ID, category: "company_overview", level: "required" },
         { venture_id: VENTURE_DB_ID, category: "legal_corporate", level: "required" },
-        { venture_id: VENTURE_DB_ID, category: "financial", level: "required" },
-        { venture_id: VENTURE_DB_ID, category: "pitch_materials", level: "required" },
-        { venture_id: VENTURE_DB_ID, category: "team", level: "recommended" },
+        { venture_id: VENTURE_DB_ID, category: "financials_projections", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "pitch_deck_business_plan", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "impact_sustainability", level: "recommended" },
       ] };
     }
     if (sql.includes("FROM venture_documents d")) {
       return { rows: [
         { venture_id: VENTURE_DB_ID, category: "company_overview", status: "verified" },
         { venture_id: VENTURE_DB_ID, category: "legal_corporate", status: "verified" },
-        { venture_id: VENTURE_DB_ID, category: "financial", status: "uploaded" },
+        { venture_id: VENTURE_DB_ID, category: "financials_projections", status: "uploaded" },
         // A legacy Data Bank row: not a Data Room category, so it must not
         // count towards a requirement — but it is still a stored document.
         { venture_id: VENTURE_DB_ID, category: "business_plan", status: "verified" },

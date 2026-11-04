@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Building2, Mail, Plus, Briefcase, UserCheck, Layers, Tag } from "lucide-react";
+import { Building2, Mail, Plus, UserCheck, Tag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
@@ -9,22 +9,19 @@ import AppButton from "@/components/ui/AppButton";
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-const STAGE_OPTIONS = [
-  { value: "idea", label: "Idea" },
-  { value: "prototype", label: "Prototype / MVP" },
-  { value: "validation", label: "Validation" },
-  { value: "early_traction", label: "Early Traction" },
-  { value: "growth", label: "Growth / Scaling" },
-];
-
 const STAFF_ROLES = new Set([
   "super_admin", "staff", "program_manager",
   "facilitator", "finance", "crm", "team",
 ]);
 
 /**
- * The "Add a Venture" form — record the venture, assign a program & lead handler,
- * and invite its founder.
+ * The "Add a Venture" form — record the venture, assign a lead handler and
+ * invite its founder.
+ *
+ * The Program/Cohort and the business stage are NOT asked for here: a Venture
+ * joins a program through its own intake/assignment flow, and its stage is a
+ * reporting decision owned by the stage engine, not a value typed at creation.
+ * The creation endpoint never read either field.
  */
 export default function AddVentureForm({
   onCancel = null,
@@ -38,12 +35,9 @@ export default function AddVentureForm({
     company_name: "",
     founder_email: "",
     industry: "",
-    business_stage: "idea",
-    program_id: "",
     handler_id: "",
   });
 
-  const [programs, setPrograms] = useState([]);
   const [staffList, setStaffList] = useState([]);
   const [loadingOptions, setLoadingOptions] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,20 +48,16 @@ export default function AddVentureForm({
     const fetchOptions = async () => {
       setLoadingOptions(true);
       try {
-        // 1. Fetch active programs
-        const pRes = await fetch("/api/programs");
-        const pData = await pRes.json().catch(() => ({}));
-        if (mounted && pData?.success && Array.isArray(pData.programs)) {
-          setPrograms(
-            pData.programs.map((p) => ({
-              value: p.id,
-              label: p.name || p.title || "Untitled Program",
-            }))
-          );
-        }
-
-        // 2. Fetch staff contacts for Handler dropdown
-        const cRes = await fetch("/api/contacts/search?q=a");
+        // Fetch staff contacts for the Handler dropdown.
+        //
+        // This used to call `/api/contacts/search?q=a`. That endpoint refuses
+        // any query shorter than 2 characters and answers `contacts: []`, so the
+        // list was ALWAYS empty and the select showed only its disabled
+        // placeholder — a dropdown with nothing to click. The registry endpoint
+        // takes the roles directly (it splits on commas), which is one request
+        // and exactly the set this dropdown offers.
+        const roles = encodeURIComponent([...STAFF_ROLES].join(","));
+        const cRes = await fetch(`/api/contacts?role=${roles}`);
         const cData = await cRes.json().catch(() => ({}));
         if (mounted && cData?.success && Array.isArray(cData.contacts)) {
           const eligibleStaff = cData.contacts.filter((c) => STAFF_ROLES.has(c.role));
@@ -131,8 +121,6 @@ export default function AddVentureForm({
           company_name: companyName,
           founder_email: founderEmail,
           industry: form.industry.trim() || null,
-          business_stage: form.business_stage || "idea",
-          program_id: form.program_id || null,
           handler_id: form.handler_id || null,
         }),
       });
@@ -155,8 +143,6 @@ export default function AddVentureForm({
         company_name: "",
         founder_email: "",
         industry: "",
-        business_stage: "idea",
-        program_id: "",
         handler_id: "",
       });
       if (onCreated) onCreated(payload);
@@ -195,7 +181,7 @@ export default function AddVentureForm({
         />
       </div>
 
-      {/* Row 2: Industry & Stage */}
+      {/* Row 2: Industry & Lead Handler */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <AppInput
           icon={Tag}
@@ -203,25 +189,6 @@ export default function AddVentureForm({
           placeholder="e.g. CleanTech, EdTech, FinTech"
           value={form.industry}
           onChange={change("industry")}
-        />
-        <AppSelect
-          icon={Layers}
-          label={t("venture.businessStage")}
-          value={form.business_stage}
-          onChange={change("business_stage")}
-          options={STAGE_OPTIONS}
-        />
-      </div>
-
-      {/* Row 3: Program & Lead Handler Assignment */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <AppSelect
-          icon={Briefcase}
-          label="Cohort / Program"
-          placeholder={loadingOptions ? "Loading programs..." : "Select program (optional)..."}
-          value={form.program_id}
-          onChange={change("program_id")}
-          options={programs}
         />
         <AppSelect
           icon={UserCheck}

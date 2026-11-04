@@ -2,9 +2,11 @@
 
 import { useId } from "react";
 import { ChevronDown } from "lucide-react";
+import InfoHint from "./InfoHint";
 
 export default function AppSelect({
   label,
+  hint,
   options = [],
   value,
   onChange,
@@ -26,10 +28,12 @@ export default function AppSelect({
       {label && (
         <label
           htmlFor={selectId}
-          className="text-[10px] font-bold uppercase tracking-wider ml-1"
+          className="text-[10px] font-bold uppercase tracking-wider ml-1 inline-flex items-center gap-1"
           style={{ color: "var(--text-secondary)" }}
         >
           {label}
+          {/* `hint` is the one-line explanation behind an (i) beside the label. */}
+          {hint ? <InfoHint text={hint} label={label} /> : null}
         </label>
       )}
       <div className="relative">

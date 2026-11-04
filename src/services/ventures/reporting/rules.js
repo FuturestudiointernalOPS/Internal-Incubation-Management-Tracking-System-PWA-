@@ -9,12 +9,11 @@ export const REQUIRED_PROFILE_FIELDS = [
   "legalName",
   "foundingDate",
   "businessModel",
-  "sector",
-  "problemStatement",
-  "idealCustomerProfile",
-  "northStarName",
-  "northStarDefinition",
-  "northStarUnit",
+  // The rest of the business description is NOT required at registration:
+  // `sector`, `northStarDefinition`, `problemStatement`, `idealCustomerProfile`,
+  // `northStarName` and `northStarUnit` are deliberately optional. A founder
+  // who does not yet have a north-star metric should not be blocked from
+  // saving — a field forced to "anything" is worse than an empty one.
 ];
 
 const text = (v) => (v === null || v === undefined ? "" : String(v).trim());
@@ -90,12 +89,26 @@ export function topBandHigh(low) {
  * is a set of absolute amounts, so a CFA ladder can never grade a USD report:
  * filtering is what keeps a band answer honest. No currency (the admin settings
  * screen, portfolio aggregates) returns every ladder, as before.
+ *
+ * FALLBACK — the studio seeds ONE ladder (the CFA one). A Venture reporting in a
+ * currency that has no ladder of its own would otherwise be offered an empty
+ * picker: a mode with nothing to choose. Rather than hide the feature, the base
+ * ladder is returned and the result SAYS SO (`fallback: true`, `currency`), so
+ * the form can label the ranges with the unit they are really written in.
  */
 export function groupBands(rows = [], currency = null) {
   const wanted = currency ? String(currency).trim().toUpperCase() : null;
-  const grouped = { flow: [], cash: [] };
-  for (const row of rows) {
-    if (wanted && String(row.currency || "XOF").toUpperCase() !== wanted) continue;
+  const matches = (row) => String(row.currency || "XOF").toUpperCase() === wanted;
+
+  let selected = wanted ? rows.filter(matches) : rows;
+  let fallback = false;
+  if (wanted && selected.length === 0 && rows.length > 0) {
+    selected = rows;
+    fallback = true;
+  }
+
+  const grouped = { flow: [], cash: [], fallback, currency: wanted };
+  for (const row of selected) {
     if (!grouped[row.band_kind]) grouped[row.band_kind] = [];
     grouped[row.band_kind].push({
       code: row.band_code,
@@ -104,7 +117,64 @@ export function groupBands(rows = [], currency = null) {
       midpoint: row.midpoint === null ? null : Number(row.midpoint),
     });
   }
+
+  // The unit the ranges are actually written in: the requested one when its own
+  // ladder exists, otherwise the ladder's own stamp.
+  if (fallback) {
+    grouped.currency = String(selected[0]?.currency || "XOF").toUpperCase();
+  }
+
   return grouped;
+}
+
+/**
+ * FULL-TIME EQUIVALENT — the single definition, shared by the metric and the
+ * stage rules (they used to hold two copies of the same formula).
+ *
+ *   FTE = full-time people + (part-time days ÷ 20) + full-time founders
+ *
+ * The 20 is the studio's convention for a full month of part-time work. A
+ * missing full-time count is NOT zero — it returns null so the caller can say
+ * "not reported". Part-time DAYS are what convert; part-time headcount alone
+ * cannot, because two people working two days are not two full-timers.
+ */
+export function computeFte({ fullTime, partTimeDays, fullTimeFounders, includeFounders = true } = {}) {
+  const full = Number(fullTime);
+  if (fullTime === null || fullTime === undefined || !Number.isFinite(full)) return null;
+
+  let founders = 0;
+  if (includeFounders) {
+    if (fullTimeFounders === null || fullTimeFounders === undefined) return null;
+    founders = Number(fullTimeFounders);
+    if (!Number.isFinite(founders)) return null;
+  }
+
+  const days = Number(partTimeDays ?? 0);
+  const partTime = Number.isFinite(days) ? days / 20 : 0;
+
+  return full + partTime + founders;
+}
+
+/**
+ * FTE of a workforce SNAPSHOT — the shape both the baseline capture and the
+ * workforce card need. An all-zero snapshot is "not reported", never a measured
+ * zero: `toCount` coerces an untouched field to 0, so a cleared form must not
+ * become a 0-FTE baseline that every later job is measured against.
+ */
+export function snapshotFte({ fullTime, partTimeDays, fullTimeFounders } = {}) {
+  const fte = computeFte({ fullTime, partTimeDays, fullTimeFounders });
+  return fte === 0 ? null : fte;
+}
+
+/** People on the books, regardless of hours: full-time + part-time + founders. */
+export function computeHeadcount({ fullTime, partTime, fullTimeFounders } = {}) {
+  const parts = [fullTime, partTime, fullTimeFounders].map((value) => {
+    if (value === null || value === undefined || value === "") return null;
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? numeric : null;
+  });
+  if (parts.every((value) => value === null)) return null;
+  return parts.reduce((total, value) => total + (value ?? 0), 0);
 }
 
 /**

@@ -951,7 +951,9 @@
       "retentionTitle": "Retention",
       "retentionSubtitle": "Share of customers kept month over month",
       "runwayTitle": "Runway",
-      "runwaySubtitle": "Months of cash left, at the reported burn"
+      "runwaySubtitle": "Months of cash left, at the reported burn",
+      "netBurnTitle": "Net Burn",
+      "netBurnSubtitle": "Cash spent each month — below zero means profitable"
     },
     "reportsVerdict": {
       "title": "What this means",
@@ -1007,8 +1009,10 @@
       "title": "Impact",
       "jobsCreated": "Jobs created since baseline",
       "jobsLost": "lost",
-      "jobsSupported": "Jobs supported (FTE)",
+      "jobsSupported": "FTE supported (includes founders)",
       "fteHint": "Full-time equivalent, latest validated month",
+      "headcount": "Headcount",
+      "headcountHint": "People on the books: full-time + part-time + founders",
       "womenShare": "Women in the team",
       "youthShare": "Team under 35",
       "teamHint": "Latest validated team snapshot",
