@@ -7,9 +7,9 @@ import { ArrowLeft, FolderKanban } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/Skeleton";
-import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
-import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePanel";
-import VentureRemindersPanel from "@/components/ventures/projects/VentureRemindersPanel";
+import ProjectsWorkItemsView from "@/components/shared/ventures/console/projects/ProjectsWorkItemsView";
+import VenturePeoplePanel from "@/components/shared/ventures/console/projects/VenturePeoplePanel";
+import VentureRemindersPanel from "@/components/shared/ventures/console/projects/VentureRemindersPanel";
 
 /**
  * Ventures -> Project Management -> one Venture (Phase 1, read-only).

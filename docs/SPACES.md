@@ -58,10 +58,37 @@ src/
 ```
 
 Un fichier de page reste un **point d'entrée mince** : il va chercher son écran
-dans `src/spaces/<espace>/<contexte>/`. Les composants neutres (cartes, tableaux,
-boutons, badges) restent dans `src/components/ui/` et sont partagés par les trois
-espaces. Un composant dont deux espaces ont réellement besoin va dans
-`src/components/shared/` — il n'est jamais recopié.
+dans `src/spaces/<espace>/<contexte>/`.
+
+## Où vit un composant
+
+Trois couches, et une seule question à se poser : **combien d'espaces
+l'utilisent ?**
+
+| Couche | Emplacement | Règle |
+|---|---|---|
+| Primitives neutres | `src/components/ui/` | cartes, tableaux, boutons, badges — aucune logique métier |
+| Composant d'un contexte | `src/spaces/<espace>/<contexte>/components/` | utilisé par **un seul** contexte |
+| Composant partagé | `src/components/shared/<domaine>/` | utilisé par **deux espaces ou plus** — une seule copie |
+
+Un composant partagé n'importe jamais un espace (`@/spaces/**`) : il ne doit pas
+dépendre de l'écran qui l'utilise en premier. Vérifié par le test de frontière.
+
+Domaines déjà partagés :
+
+| Dossier | Utilisé par |
+|---|---|
+| `shared/calendar/` | tableau de bord staff + tableau de bord admin |
+| `shared/dashboard/` | membre, staff, admin |
+| `shared/ventures/console/` | admin, staff, membre |
+| `shared/ventures/workspace/` | membre, staff |
+| `shared/lms/` | membre, staff, admin |
+| `shared/messaging/` | membre, staff, admin |
+| `shared/tasks/` | staff, admin |
+| `shared/create/` | membre, staff, admin |
+| `shared/contacts/`, `shared/crm/` | CRM admin + CRM staff |
+| `shared/kit/staff.css` | tous les rôles (le kit `stf-*`, chargé une fois) |
+| `shared/notify.js` | partout où l'on affiche un toast |
 
 ## Correspondance des adresses
 

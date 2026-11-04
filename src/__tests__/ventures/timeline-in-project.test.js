@@ -24,7 +24,7 @@ test("the old timeline address forwards to the Project page's Timeline view", ()
 });
 
 test("embedded drops the page header but keeps the view switch", () => {
-  const view = read("src/components/ventures/timeline/VentureTimelineView.js");
+  const view = read("src/components/shared/ventures/console/timeline/VentureTimelineView.js");
   expect(view).toContain("{!embedded && (");
   expect(view).toContain('["gantt", "progress", "delay"]');
 });

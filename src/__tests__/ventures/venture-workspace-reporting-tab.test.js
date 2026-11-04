@@ -16,15 +16,15 @@
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 
-jest.mock("@/components/ventures/reporting/VentureReportingScreen", () => {
+jest.mock("@/components/shared/ventures/console/reporting/VentureReportingScreen", () => {
   const React = require("react");
   return function VentureReportingScreen() {
     return React.createElement("div", { "data-testid": "reporting-screen" });
   };
 });
 
-const { tabsFor, REPORTING_TAB, TABS } = require("@/components/participant/ventures/ventureScreenModel");
-const VentureWorkspaceView = require("@/components/participant/ventures/VentureWorkspaceView").default;
+const { tabsFor, REPORTING_TAB, TABS } = require("@/components/shared/ventures/workspace/ventureScreenModel");
+const VentureWorkspaceView = require("@/components/shared/ventures/workspace/VentureWorkspaceView").default;
 
 const venture = {
   venture_id: "VNT-1",

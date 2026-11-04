@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { ArrowRight } from "lucide-react";
-import CreateActions from "@/components/create/CreateActions";
+import CreateActions from "@/components/shared/create/CreateActions";
 import AppTable from "@/components/ui/AppTable";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";

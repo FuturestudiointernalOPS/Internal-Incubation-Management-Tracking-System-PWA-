@@ -1,6 +1,6 @@
 "use client";
 
-import ProgressView from "@/components/dashboard/ProgressView";
+import ProgressView from "@/components/shared/dashboard/ProgressView";
 
 /**
  * PARTICIPANT PROGRESS PAGE

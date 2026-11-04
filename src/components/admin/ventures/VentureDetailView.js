@@ -14,11 +14,11 @@ import {
   Users,
 } from "lucide-react";
 import { activityLabel, activityDetails } from "@/lib/ventureActivity";
-import VentureDashboard from "@/components/ventures/VentureDashboard";
+import VentureDashboard from "@/components/shared/ventures/console/VentureDashboard";
 import VentureWizardTab from "./VentureWizardTab";
 import VentureTeamTab from "./VentureTeamTab";
 import VentureActivityTab from "./VentureActivityTab";
-import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
+import VentureProfileReadOnly from "@/components/shared/ventures/console/VentureProfileReadOnly";
 
 const WIZARD_STEPS = [
   { step: 1, name: "vadmin.detail.startupIdentity", icon: Building2 },

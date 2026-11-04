@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import CreationAccessGuard from "@/components/create/CreationAccessGuard";
+import CreationAccessGuard from "@/components/shared/create/CreationAccessGuard";
 
 /**
  * CREATION — the delegated creation surface, inside the STAFF space.

@@ -73,7 +73,7 @@ describe("LMS course authoring is delegable", () => {
   });
 
   test("the create action lives in the Courses view, gated by lms.create", () => {
-    const src = read("src/components/lms/CourseList.js");
+    const src = read("src/components/shared/lms/CourseList.js");
     expect(src).toMatch(/can\("lms", cap\)/);
     expect(src).toMatch(/allow\("create"\)/);
     expect(src).toContain("${basePath}/new");

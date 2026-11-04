@@ -15,8 +15,8 @@ import {
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
-import AddVentureForm from "@/components/create/AddVentureForm";
-import BroadcastCensusModal from "@/components/ventures/BroadcastCensusModal";
+import AddVentureForm from "@/components/shared/create/AddVentureForm";
+import BroadcastCensusModal from "@/components/shared/ventures/console/BroadcastCensusModal";
 import { Send } from "lucide-react";
 
 const VENTURE_STAGES = {

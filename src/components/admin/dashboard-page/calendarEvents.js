@@ -1,4 +1,4 @@
-import { dateKey, addDays, parseKey } from "@/components/staff/calendarModel";
+import { dateKey, addDays, parseKey } from "@/components/shared/calendar/calendarModel";
 
 const dayOf = (value) => (value ? String(value).split("T")[0].split(" ")[0] : "");
 

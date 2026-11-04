@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import LearnerCourse from "@/components/lms/LearnerCourse";
+import LearnerCourse from "@/components/shared/lms/LearnerCourse";
 
 /**
  * PARTICIPANT — COURSE OVERVIEW (learner view)

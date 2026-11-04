@@ -30,14 +30,14 @@ jest.mock("@/components/ui/TaskDetailModal", () => ({
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const StaffDashboard = require("@/components/staff/StaffDashboard").default;
+const StaffDashboard = require("@/spaces/staff/core/components/StaffDashboard").default;
 const { __push: push } = require("next/navigation");
 
 const pad = (value) => String(value).padStart(2, "0");
 const key = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 const NOW = new Date();
 const TODAY = key(NOW);
-const { isoWeek } = require("@/components/staff/calendarModel");
+const { isoWeek } = require("@/components/shared/calendar/calendarModel");
 const WEEK = isoWeek(NOW);
 
 const at = (hours, minutes) => new Date(NOW.getFullYear(), NOW.getMonth(), NOW.getDate(), hours, minutes).toISOString();

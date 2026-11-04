@@ -1,6 +1,6 @@
 "use client";
 
-import MessagingChat from "@/components/messaging/MessagingChat";
+import MessagingChat from "@/components/shared/messaging/MessagingChat";
 
 export default function ParticipantMessages() {
   return (

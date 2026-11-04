@@ -17,8 +17,8 @@ export function isValidYouTubeVideoId(value) {
 
 // Default player parameters shared by every embed (learner player, admin/PM
 // course presentation, admin lesson preview). The player always runs inside our
-// own hardened container (see components/lms/EmbeddedVideo.js and its hardened
-// renderer components/lms/YouTubePlayer.js) which blocks the right-click menu
+// own hardened container (see components/shared/lms/EmbeddedVideo.js and its
+// hardened renderer components/shared/lms/YouTubePlayer.js) which blocks the right-click menu
 // and renders its own playback controls, so YouTube's chrome is hidden here.
 // Rationale:
 //   - youtube-nocookie.com        keep the player on-page without YouTube's

@@ -8,7 +8,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const HealthSummary = require("@/components/ventures/venture-dashboard/HealthSummary").default;
+const HealthSummary = require("@/components/shared/ventures/console/venture-dashboard/HealthSummary").default;
 
 const data = { venture: { business_stage: "idea" }, team: { active: 1 }, investment_readiness: { score: 4 } };
 
@@ -59,5 +59,5 @@ test("without a way to open it (standalone page) the Profile tile stays a plain 
 test("the hub embeds the cockpit both screens share; the founder card still opens Profile", () => {
   const fs = require("node:fs");
   expect(fs.readFileSync("src/components/admin/ventures/VentureDetailView.js", "utf8")).toContain("<VentureDashboard id={id} embedded />");
-  expect(fs.readFileSync("src/components/ventures/workspace/tabs/DashboardHistoryTabs.js", "utf8")).toContain('onSection("profile")');
+  expect(fs.readFileSync("src/components/shared/ventures/console/workspace/tabs/DashboardHistoryTabs.js", "utf8")).toContain('onSection("profile")');
 });

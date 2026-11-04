@@ -14,7 +14,7 @@ import RequestsTab from "@/components/investor/diligence/RequestsTab";
 import FoundersTab from "@/components/investor/diligence/FoundersTab";
 import RisksTab from "@/components/investor/diligence/RisksTab";
 import NotesTab from "@/components/investor/diligence/NotesTab";
-import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
+import VentureDataRoom from "@/components/shared/ventures/console/data-room/VentureDataRoom";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";

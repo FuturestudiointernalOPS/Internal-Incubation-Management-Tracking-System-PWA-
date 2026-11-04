@@ -7,7 +7,7 @@ import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import ParticipantDashboardHome from "@/components/dashboard/ParticipantDashboardHome";
+import ParticipantDashboardHome from "@/components/shared/dashboard/ParticipantDashboardHome";
 import DashboardStats from "@/components/investor/dashboard-page/DashboardStats";
 import DashboardTabs from "@/components/investor/dashboard-page/DashboardTabs";
 import CampaignsSection from "@/components/investor/dashboard-page/CampaignsSection";

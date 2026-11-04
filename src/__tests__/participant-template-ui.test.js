@@ -27,7 +27,7 @@ jest.mock("@/lib/hooks/useApi", () => ({
   useApiMulti: () => ({ data: {}, loading: false, error: null }),
 }));
 const { default: ParticipantCommandCalendar, calendarRange, placeCalendarItems } = require("@/components/ui/ParticipantCommandCalendar");
-const ParticipantDashboardHome = require("@/components/dashboard/ParticipantDashboardHome").default;
+const ParticipantDashboardHome = require("@/components/shared/dashboard/ParticipantDashboardHome").default;
 
 beforeEach(() => { mockRole = "participant"; mockInvestor = false; jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-08T12:00:00Z")); });
 afterEach(() => { cleanup(); jest.useRealTimers(); });

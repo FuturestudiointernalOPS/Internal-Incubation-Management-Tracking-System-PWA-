@@ -142,6 +142,24 @@ describe("the routes follow the spaces", () => {
   });
 });
 
+describe("the shared layer", () => {
+  test("shared components never depend on a space", () => {
+    const offenders = walk(path.join(ROOT, "components", "shared"))
+      .filter((file) => /\.(js|jsx)$/.test(file))
+      .filter((file) => /@\/spaces\/(member|staff|admin)/.test(read(file)))
+      .map((file) => path.relative(ROOT, file));
+    expect(offenders).toEqual([]);
+  });
+
+  test("a component two spaces need is not kept inside one of them", () => {
+    // The staff kit is used by the admin dashboard too; the CRM console by the
+    // admin CRM screens. A copy under a space folder would drift.
+    for (const shared of ["calendar", "crm", "dashboard", "ventures"]) {
+      expect(fs.existsSync(path.join(ROOT, "components", "shared", shared))).toBe(true);
+    }
+  });
+});
+
 describe("the entry guard reads the registry", () => {
   test("SectionRoleGuard keeps no private identity list", () => {
     const guard = read(path.join(ROOT, "components", "layout", "SectionRoleGuard.js"));

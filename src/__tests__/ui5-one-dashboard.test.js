@@ -33,7 +33,7 @@ describe("one dashboard — the calendar page is the only dashboard", () => {
     // The page renders the staff dashboard, whose centrepiece is the calendar;
     // contexts stay out of it (they are doors in the sidebar).
     const page = read("src/app/staff/page.js");
-    const dashboard = read("src/components/staff/StaffDashboard.js");
+    const dashboard = read("src/spaces/staff/core/components/StaffDashboard.js");
     expect(page).toContain("StaffDashboard");
     expect(dashboard).toContain("StaffCalendar");
     expect(page).not.toContain("ContextCards");
@@ -41,8 +41,8 @@ describe("one dashboard — the calendar page is the only dashboard", () => {
   });
 
   test("the retired context-card row is deleted, not kept around", () => {
-    expect(exists("src/components/dashboard/ContextCardsPanel.js")).toBe(false);
-    expect(exists("src/components/dashboard/contextCards.js")).toBe(false);
+    expect(exists("src/components/shared/dashboard/ContextCardsPanel.js")).toBe(false);
+    expect(exists("src/components/shared/dashboard/contextCards.js")).toBe(false);
   });
 
   test("the retired second dashboard forwards to the real one", () => {

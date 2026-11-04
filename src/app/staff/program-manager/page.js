@@ -1,6 +1,6 @@
 "use client";
 
-import UnifiedDashboard from "@/components/dashboard/UnifiedDashboard";
+import UnifiedDashboard from "@/components/shared/dashboard/UnifiedDashboard";
 
 /**
  * PROGRAM MANAGER DASHBOARD

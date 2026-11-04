@@ -207,7 +207,7 @@ describe("GET /api/ventures/[id]/verification — signed document URLs", () => {
 
 describe("verification screens — no public bucket handshake left", () => {
   const ADMIN_PAGE = "src/app/admin/ventures/[id]/verification/page.js";
-  const FOUNDER_TAB = "src/components/ventures/workspace/tabs/VerificationTab.js";
+  const FOUNDER_TAB = "src/components/shared/ventures/console/workspace/tabs/VerificationTab.js";
 
   test("both screens upload multipart through the Venture verification route", () => {
     for (const file of [ADMIN_PAGE, FOUNDER_TAB]) {

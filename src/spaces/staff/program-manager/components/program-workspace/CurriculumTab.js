@@ -1,6 +1,6 @@
 import { useI18n } from "@/lib/i18n";
 import { Plus } from "lucide-react";
-import CoachingRequestsPanel from "@/components/lms/CoachingRequestsPanel";
+import CoachingRequestsPanel from "@/components/shared/lms/CoachingRequestsPanel";
 import SessionCard from "./SessionCard";
 import SessionExpanded from "./SessionExpanded";
 

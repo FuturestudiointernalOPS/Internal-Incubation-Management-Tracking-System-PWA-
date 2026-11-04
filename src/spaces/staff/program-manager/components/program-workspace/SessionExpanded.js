@@ -1,6 +1,6 @@
 import Phase1Logistics from "./Phase1Logistics";
 import Phase2Curriculum from "./Phase2Curriculum";
-import ProgramLearningSection from "@/components/lms/ProgramLearningSection";
+import ProgramLearningSection from "@/components/shared/lms/ProgramLearningSection";
 
 export default function SessionExpanded({
   session,

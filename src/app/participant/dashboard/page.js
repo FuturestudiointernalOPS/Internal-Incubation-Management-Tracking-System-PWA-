@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import ProgramListing from "@/components/dashboard/ProgramListing";
+import ProgramListing from "@/components/shared/dashboard/ProgramListing";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";

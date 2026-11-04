@@ -1,7 +1,7 @@
 "use client";
 
-import CreationAccessGuard from "@/components/create/CreationAccessGuard";
-import InvestorInvitePanel from "@/components/create/InvestorInvitePanel";
+import CreationAccessGuard from "@/components/shared/create/CreationAccessGuard";
+import InvestorInvitePanel from "@/components/shared/create/InvestorInvitePanel";
 import { useI18n } from "@/lib/i18n";
 
 /**

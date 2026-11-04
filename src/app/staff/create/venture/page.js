@@ -1,8 +1,8 @@
 "use client";
 
 import { Rocket } from "lucide-react";
-import CreationAccessGuard from "@/components/create/CreationAccessGuard";
-import AddVentureForm from "@/components/create/AddVentureForm";
+import CreationAccessGuard from "@/components/shared/create/CreationAccessGuard";
+import AddVentureForm from "@/components/shared/create/AddVentureForm";
 import { useI18n } from "@/lib/i18n";
 
 /**

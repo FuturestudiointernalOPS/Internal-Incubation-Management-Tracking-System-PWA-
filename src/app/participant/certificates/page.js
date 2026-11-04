@@ -6,7 +6,7 @@ import { formatLocaleDate } from "@/lib/constants";
 import AppCard from "@/components/ui/AppCard";
 import AppTable from "@/components/ui/AppTable";
 import AppStatusBadge from "@/components/ui/AppStatusBadge";
-import CertificateCard from "@/components/lms/CertificateCard";
+import CertificateCard from "@/components/shared/lms/CertificateCard";
 const pickCertificates = payload => payload?.success ? payload.certificates || [] : [];
 const pickCourses = payload => payload?.success ? payload.courses || [] : [];
 

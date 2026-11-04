@@ -11,7 +11,7 @@ import path from "node:path";
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
 const { I18nProvider } = require("@/lib/i18n");
-const QuickActions = require("@/components/ventures/venture-dashboard/QuickActions").default;
+const QuickActions = require("@/components/shared/ventures/console/venture-dashboard/QuickActions").default;
 
 test("the quick actions no longer offer Invite Founder", () => {
   render(<I18nProvider><QuickActions id="VNT-1" /></I18nProvider>);

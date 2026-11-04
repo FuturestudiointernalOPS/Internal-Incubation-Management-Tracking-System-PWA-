@@ -7,7 +7,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 
 const { I18nProvider } = require("@/lib/i18n");
-const DataRoomActivity = require("@/components/ventures/data-room/DataRoomActivity").default;
+const DataRoomActivity = require("@/components/shared/ventures/console/data-room/DataRoomActivity").default;
 
 const history = [
   { id: 1, action: "DATA_ROOM_DOCUMENT_DELETED", details: { category: "company_overview" }, actor_name: "Chris", created_at: "2026-10-23T09:00:00Z" },

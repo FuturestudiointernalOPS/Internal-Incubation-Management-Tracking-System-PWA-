@@ -6,8 +6,8 @@ import { Route } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import PageHero from "@/components/ui/PageHero";
-import ProjectsWorkItemsView from "@/components/ventures/projects/ProjectsWorkItemsView";
-import VentureTimelineView from "@/components/ventures/timeline/VentureTimelineView";
+import ProjectsWorkItemsView from "@/components/shared/ventures/console/projects/ProjectsWorkItemsView";
+import VentureTimelineView from "@/components/shared/ventures/console/timeline/VentureTimelineView";
 
 const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
 

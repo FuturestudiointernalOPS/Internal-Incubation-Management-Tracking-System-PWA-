@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import VentureQuarterlyReview from "@/components/ventures/reporting/VentureQuarterlyReview";
+import VentureQuarterlyReview from "@/components/shared/ventures/console/reporting/VentureQuarterlyReview";
 
 /**
  * /admin/ventures/[id]/reporting/quarterly

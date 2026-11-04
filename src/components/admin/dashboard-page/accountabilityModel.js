@@ -2,7 +2,7 @@
  * TEAM ACCOUNTABILITY MODEL — the pure rules behind the admin dashboard's
  * stand-up / retro / blocker figures.
  *
- * It applies the staff dashboard's own rules (`@/components/staff/dashboardModel`)
+ * It applies the staff dashboard's own rules (`@/components/shared/dashboardModel`)
  * to the whole team, so a person reads the same regularity on their dashboard
  * and on the admin's:
  *  - only SUBMITTED reports count, over the last four ISO weeks;
@@ -17,7 +17,7 @@
  * blocker, not two. Nothing here fetches or renders.
  */
 
-import { recentWeeks, weekRecord, regularity } from "@/components/staff/dashboardModel";
+import { recentWeeks, weekRecord, regularity } from "@/components/shared/dashboardModel";
 
 const WINDOW_WEEKS = 4;
 

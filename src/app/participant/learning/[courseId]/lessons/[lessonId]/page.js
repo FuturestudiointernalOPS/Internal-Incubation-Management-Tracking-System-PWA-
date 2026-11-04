@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import LearnerPlayer from "@/components/lms/LearnerPlayer";
+import LearnerPlayer from "@/components/shared/lms/LearnerPlayer";
 
 /**
  * PARTICIPANT — COURSE PLAYER (learner view)

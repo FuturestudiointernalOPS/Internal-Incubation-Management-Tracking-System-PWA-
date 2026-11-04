@@ -1,6 +1,6 @@
 "use client";
 
-import RitualsView from "@/components/dashboard/RitualsView";
+import RitualsView from "@/components/shared/dashboard/RitualsView";
 
 /**
  * PARTICIPANT RITUALS PAGE

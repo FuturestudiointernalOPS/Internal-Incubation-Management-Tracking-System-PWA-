@@ -1,7 +1,7 @@
 "use client";
 
 import NewProgramForm from "@/components/admin/programs/NewProgramForm";
-import CreationAccessGuard from "@/components/create/CreationAccessGuard";
+import CreationAccessGuard from "@/components/shared/create/CreationAccessGuard";
 
 /**
  * CREATE → Program — the SAME wizard the Super Admin uses, reachable by anyone

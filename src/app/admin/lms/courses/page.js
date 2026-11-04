@@ -1,6 +1,6 @@
 "use client";
 
-import CourseList from "@/components/lms/CourseList";
+import CourseList from "@/components/shared/lms/CourseList";
 
 /**
  * ADMIN — LMS COURSES

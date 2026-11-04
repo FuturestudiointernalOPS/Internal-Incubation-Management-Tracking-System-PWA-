@@ -12,7 +12,7 @@ import AppButton from "@/components/ui/AppButton";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { notify } from "@/components/staff/notify";
+import { notify } from "@/components/shared/notify";
 
 const STATUS_ICONS = {
   pending_review: { icon: Clock, color: "text-amber-400" },

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useApi } from "@/lib/hooks/useApi";
 import { carriesContextualValue } from "@/lib/identity";
-import ParticipantDashboardHome from "@/components/dashboard/ParticipantDashboardHome";
+import ParticipantDashboardHome from "@/components/shared/dashboard/ParticipantDashboardHome";
 
 export default function ParticipantDashboardPage() {
   const router = useRouter();

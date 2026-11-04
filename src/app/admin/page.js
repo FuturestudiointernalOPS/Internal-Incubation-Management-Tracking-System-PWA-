@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import DashboardHeader from "@/components/admin/dashboard-page/DashboardHeader";
 import StatCard from "@/components/admin/dashboard-page/StatCard";
 import SectionHeader from "@/components/admin/dashboard-page/SectionHeader";
-import StaffCalendar from "@/components/staff/StaffCalendar";
+import StaffCalendar from "@/components/shared/calendar/StaffCalendar";
 import UpcomingWidget from "@/components/admin/dashboard-page/UpcomingWidget";
 import {
   TasksSummaryWidget,

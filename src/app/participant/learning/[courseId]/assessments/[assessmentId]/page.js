@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import AssessmentTake from "@/components/lms/AssessmentTake";
+import AssessmentTake from "@/components/shared/lms/AssessmentTake";
 
 /**
  * PARTICIPANT — ASSESSMENT (learner view)

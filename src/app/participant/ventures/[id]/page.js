@@ -6,16 +6,16 @@ import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWorkspaceScreen";
+import VentureWorkspaceScreen from "@/components/shared/ventures/workspace/VentureWorkspaceScreen";
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
   pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP,
   pickInvestmentReadiness, pickOptionLists, pickAccess, tabsFor,
-} from "@/components/participant/ventures/ventureScreenModel";
+} from "@/components/shared/ventures/workspace/ventureScreenModel";
 import {
   ventureToPayload, inputStyle, cardStyle, notifyMsg,
-} from "@/components/participant/ventures/ventureScreenHelpers";
-import { createVentureLoaders } from "@/components/participant/ventures/ventureScreenLoaders";
+} from "@/components/shared/ventures/workspace/ventureScreenHelpers";
+import { createVentureLoaders } from "@/components/shared/ventures/workspace/ventureScreenLoaders";
 
 export default function VentureDetail() {
   const [saving, setSaving] = useState(false);

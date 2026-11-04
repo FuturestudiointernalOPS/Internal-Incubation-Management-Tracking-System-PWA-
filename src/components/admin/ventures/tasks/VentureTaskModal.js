@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Plus, X } from "lucide-react";
-import VenturePersonField from "@/components/ventures/VenturePersonField";
+import VenturePersonField from "@/components/shared/ventures/console/VenturePersonField";
 import { STATUS_ORDER, STATUS_CFG } from "./taskConstants";
 
 export default function VentureTaskModal({

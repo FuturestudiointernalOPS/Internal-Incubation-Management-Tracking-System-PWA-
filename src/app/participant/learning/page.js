@@ -1,6 +1,6 @@
 "use client";
 
-import LearnerLearning from "@/components/lms/LearnerLearning";
+import LearnerLearning from "@/components/shared/lms/LearnerLearning";
 
 /**
  * PARTICIPANT — MY LEARNING

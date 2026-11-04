@@ -15,7 +15,7 @@ import WorkspaceListView from "@/components/admin/investor-relationships/Workspa
 import CreateMeetingModal from "@/components/admin/investor-relationships/CreateMeetingModal";
 import CompleteMeetingModal from "@/components/admin/investor-relationships/CompleteMeetingModal";
 import AddDdRequestModal from "@/components/admin/investor-relationships/AddDdRequestModal";
-import { notify } from "@/components/staff/notify";
+import { notify } from "@/components/shared/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

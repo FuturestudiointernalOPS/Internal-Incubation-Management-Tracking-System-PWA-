@@ -219,7 +219,7 @@ describe("every caller uses that one rule", () => {
 
   test("the personal menu and the dashboard read the same verdict", () => {
     const shell = src("src/components/layout/shell/useDashboardNavigation.js");
-    const dashboard = src("src/components/dashboard/ParticipantDashboardHome.js");
+    const dashboard = src("src/components/shared/dashboard/ParticipantDashboardHome.js");
     expect(shell).toContain("rel.isProgramParticipant");
     expect(dashboard).toContain("/api/me/relationships");
   });

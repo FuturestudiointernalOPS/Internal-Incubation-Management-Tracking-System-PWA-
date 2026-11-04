@@ -18,8 +18,8 @@ import AppStatusBadge from "@/components/ui/AppStatusBadge";
 import PageHero from "@/components/ui/PageHero";
 import KpiCard from "@/components/ui/KpiCard";
 import ParticipantCommandCalendar from "@/components/ui/ParticipantCommandCalendar";
-import CreateActions from "@/components/create/CreateActions";
-import StartupBroadcastBanner from "@/components/ventures/StartupBroadcastBanner";
+import CreateActions from "@/components/shared/create/CreateActions";
+import StartupBroadcastBanner from "@/components/shared/ventures/console/StartupBroadcastBanner";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 

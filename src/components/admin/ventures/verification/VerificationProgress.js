@@ -1,6 +1,6 @@
 import { CheckCircle2, Clock, Eye, FileText, Loader2, Send, X } from "lucide-react";
-import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "@/components/ventures/documentTypeMeta";
-import DataBankDocumentRow from "@/components/ventures/DataBankDocumentRow";
+import { documentTypeIcon, documentTypeName, isUploadDocumentType } from "@/components/shared/ventures/console/documentTypeMeta";
+import DataBankDocumentRow from "@/components/shared/ventures/console/DataBankDocumentRow";
 import { VerificationItemStatusBadge } from "./verificationStatus";
 
 export default function VerificationProgress({

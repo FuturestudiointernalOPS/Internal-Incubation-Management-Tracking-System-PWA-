@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const { I18nProvider } = require("@/lib/i18n");
-const VentureProfileReadOnly = require("@/components/ventures/VentureProfileReadOnly").default;
+const VentureProfileReadOnly = require("@/components/shared/ventures/console/VentureProfileReadOnly").default;
 
 const venture = {
   name: "AgroTech",

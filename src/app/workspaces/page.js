@@ -8,7 +8,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { LayoutGrid, LogOut, Loader2, ArrowRight, User, Building2, GraduationCap, Rocket } from "lucide-react";
-import CreateActions from "@/components/create/CreateActions";
+import CreateActions from "@/components/shared/create/CreateActions";
 
 /**
  * WORKSPACES HUB — CONTEXTUAL SELECTOR (Phase 2B)

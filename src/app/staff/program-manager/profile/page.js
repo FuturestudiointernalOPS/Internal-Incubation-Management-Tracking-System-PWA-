@@ -1,6 +1,6 @@
 "use client";
 
-import ProfileView from "@/components/dashboard/ProfileView";
+import ProfileView from "@/components/shared/dashboard/ProfileView";
 
 /**
  * PM PROFILE — Unified Profile Page

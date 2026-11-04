@@ -1,6 +1,6 @@
 "use client";
 
-import AssignmentsView from "@/components/dashboard/AssignmentsView";
+import AssignmentsView from "@/components/shared/dashboard/AssignmentsView";
 
 /**
  * PARTICIPANT ASSIGNMENTS PAGE

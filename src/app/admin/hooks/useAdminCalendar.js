@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { buildMeetingPayload, buildTaskPayload } from "@/components/staff/calendarModel";
+import { buildMeetingPayload, buildTaskPayload } from "@/components/shared/calendar/calendarModel";
 import { tasksToEvents, googleEventsToEvents } from "@/components/admin/dashboard-page/calendarEvents";
 
 async function send(url, method, body) {

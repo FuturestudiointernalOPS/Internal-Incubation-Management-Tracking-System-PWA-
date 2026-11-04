@@ -1,6 +1,6 @@
 "use client";
 
-import CourseList from "@/components/lms/CourseList";
+import CourseList from "@/components/shared/lms/CourseList";
 
 export const dynamic = "force-dynamic";
 

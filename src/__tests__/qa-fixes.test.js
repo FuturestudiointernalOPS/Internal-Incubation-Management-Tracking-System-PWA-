@@ -48,9 +48,9 @@ describe("the page language follows the chosen language", () => {
 
 describe("source pins", () => {
   test("the founder journey offers no Report button (the notes API refuses founders)", () => {
-    const source = read("src/components/ventures/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables.js");
+    const source = read("src/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables.js");
     expect(source).not.toContain("<ActivityReport");
-    expect(source).not.toContain("components/ventures/journey/ActivityReport");
+    expect(source).not.toContain("components/shared/ventures/console/journey/ActivityReport");
   });
 
   test("the founder venture tab lives in the address", () => {
@@ -61,19 +61,19 @@ describe("source pins", () => {
   });
 
   test("an unknown or forbidden venture says so", () => {
-    const screenSource = read("src/components/participant/ventures/VentureWorkspaceScreen.js");
+    const screenSource = read("src/components/shared/ventures/workspace/VentureWorkspaceScreen.js");
     expect(screenSource).toContain('t("venture.notFound")');
     expect(read("src/locales/en/venture.json")).toContain('"notFound"');
     expect(read("src/locales/fr/venture.json")).toContain('"notFound"');
   });
 
   test("the roster is not 'empty' until it has answered", () => {
-    const tabs = read("src/components/ventures/workspace/tabs/MembersTabs.js");
+    const tabs = read("src/components/shared/ventures/console/workspace/tabs/MembersTabs.js");
     expect(tabs).toContain("!membersLoading && members.length === 0");
   });
 
   test("a search that matches nothing does not claim the category is empty", () => {
-    const room = read("src/components/ventures/data-room/VentureDataRoom.js");
+    const room = read("src/components/shared/ventures/console/data-room/VentureDataRoom.js");
     expect(room).toContain('t("dataRoom.noMatch")');
   });
 

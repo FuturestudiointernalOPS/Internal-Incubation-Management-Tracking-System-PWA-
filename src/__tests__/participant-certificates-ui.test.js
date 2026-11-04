@@ -6,7 +6,7 @@ jest.mock("@/lib/i18n", () => ({ useI18n: () => ({ lang: "en", t: (key) => {
   const namespaces = { ...require("@/locales/en/participant.json"), ...require("@/locales/en/common.json"), ...require("@/locales/en/navigation.json") };
   return key.split(".").reduce((obj, part) => obj?.[part], namespaces) || key;
 } }) }));
-jest.mock("@/components/lms/CertificateCard", () => function CertificateCard({ certificate }) {
+jest.mock("@/components/shared/lms/CertificateCard", () => function CertificateCard({ certificate }) {
   return <div data-testid="course-certificate">{certificate.id}</div>;
 });
 

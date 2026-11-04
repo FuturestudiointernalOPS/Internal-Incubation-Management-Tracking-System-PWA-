@@ -1,4 +1,4 @@
-import TaskManager from "@/components/tasks/TaskManager";
+import TaskManager from "@/components/shared/tasks/TaskManager";
 
 export default function DetailTasksTab({ project, members, onRefresh }) {
   return (
