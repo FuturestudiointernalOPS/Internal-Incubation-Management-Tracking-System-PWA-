@@ -83,10 +83,19 @@ export function topBandHigh(low) {
   return Number(low) * 1.25;
 }
 
-/** Group bands by kind, each list ordered. */
-export function groupBands(rows = []) {
+/**
+ * Group bands by kind, each list ordered.
+ *
+ * When a currency is given, only that currency's ladder is returned. The ladder
+ * is a set of absolute amounts, so a CFA ladder can never grade a USD report:
+ * filtering is what keeps a band answer honest. No currency (the admin settings
+ * screen, portfolio aggregates) returns every ladder, as before.
+ */
+export function groupBands(rows = [], currency = null) {
+  const wanted = currency ? String(currency).trim().toUpperCase() : null;
   const grouped = { flow: [], cash: [] };
   for (const row of rows) {
+    if (wanted && String(row.currency || "XOF").toUpperCase() !== wanted) continue;
     if (!grouped[row.band_kind]) grouped[row.band_kind] = [];
     grouped[row.band_kind].push({
       code: row.band_code,
@@ -101,18 +110,35 @@ export function groupBands(rows = []) {
 /**
  * Team shares. A zero denominator is NOT zero: it returns null so the caller
  * can show “not applicable”.
+ *
+ * `womenLed` is a FOUNDING fact and needs the founder records. The old rule —
+ * "at least one woman among the employees" — is not what the term means: a
+ * Venture with one woman in a team of forty was marked women-led. The rule now
+ * is "at least one woman founder, and women are at least half of the current
+ * founding team", and `null` (unknown) when no founder records exist, rather
+ * than a false negative.
  */
-export function computeTeamShares(team = {}) {
+export function computeTeamShares(team = {}, founders = []) {
   const women = Number(team.women_employees ?? team.womenEmployees ?? 0) || 0;
   const men = Number(team.men_employees ?? team.menEmployees ?? 0) || 0;
   const under35Women = Number(team.under35_women ?? team.under35Women ?? 0) || 0;
   const under35Men = Number(team.under35_men ?? team.under35Men ?? 0) || 0;
   const total = women + men;
   const youth = under35Women + under35Men;
+
+  const founderRows = Array.isArray(founders) ? founders.filter(Boolean) : [];
+  const founderCount = founderRows.length;
+  const womenFounders = founderRows.filter(
+    (founder) => String(founder.gender || "").toLowerCase() === "female",
+  ).length;
+
   return {
     womenShare: total > 0 ? Math.round((women / total) * 100) : null,
     youthShare: total > 0 ? Math.round((youth / total) * 100) : null,
-    womenLed: women >= 1,
+    womenLed:
+      founderCount > 0 ? womenFounders >= 1 && womenFounders * 2 >= founderCount : null,
+    womenFounders: founderCount > 0 ? womenFounders : null,
+    founderCount: founderCount > 0 ? founderCount : null,
     total,
   };
 }

@@ -19,10 +19,12 @@ import {
   selectEvents,
   selectVentureCreatedAt,
   selectValidatedQuarters,
+  selectCurrentFounders,
 } from "@/models/ventureReportingStore";
 import { ensureReportingSchema, getReportingSettings } from "./settings";
 import { rowToMonthlyInput, dateStringOrNull, shapeMetric, numericOrNull } from "./monthlyRules";
 import { computeTeamShares } from "./rules";
+import { settingValue } from "./settingDefinitions";
 import { moneyBounds } from "./metrics";
 import { computeYearlyFigures, survivalAt, timeInStages, monthsBetween } from "./yearly";
 import { getStageStatus } from "./stage";
@@ -53,7 +55,7 @@ const pointOf = (metricsByPeriod, period, key, currency) => {
 export async function getVentureDashboard({ ventureUuid }) {
   await ensureReportingSchema();
 
-  const [profileResult, reportsResult, seriesResult, teamResult, stage, baselineResult, historyResult, eventsResult, createdResult, quartersResult] =
+  const [profileResult, reportsResult, seriesResult, teamResult, stage, baselineResult, historyResult, eventsResult, createdResult, quartersResult, foundersResult] =
     await Promise.all([
       selectCurrentProfile(ventureUuid),
       selectValidatedReports(ventureUuid),
@@ -65,14 +67,21 @@ export async function getVentureDashboard({ ventureUuid }) {
       selectEvents(ventureUuid),
       selectVentureCreatedAt(ventureUuid),
       selectValidatedQuarters(ventureUuid).catch(() => ({ rows: [] })),
+      selectCurrentFounders(ventureUuid).catch(() => ({ rows: [] })),
     ]);
 
   const profileRow = (profileResult.rows || [])[0] || null;
   // The Venture's CURRENT setting — the fallback for months filed before the
   // currency was recorded on the row.
   const activeCurrency = String(profileRow?.reporting_currency || "XOF").toUpperCase();
-  // Bands are already grouped by `getReportingSettings`.
-  const settings = await getReportingSettings({ businessModel: profileRow?.business_model || "default" });
+  // Bands are already grouped by `getReportingSettings` — and they are grouped
+  // FOR THIS VENTURE'S CURRENCY. A ladder defined in CFA can never measure a
+  // report filed in USD; when the currency has no ladder, the list is empty and
+  // a band answer evaluates to `not_applicable` instead of a wrong number.
+  const settings = await getReportingSettings({
+    businessModel: profileRow?.business_model || "default",
+    currency: activeCurrency,
+  });
   const groupedBands = settings.bands || { flow: [], cash: [] };
 
   const metricsByPeriod = new Map();
@@ -114,6 +123,9 @@ export async function getVentureDashboard({ ventureUuid }) {
       grossMargin: pointOf(metricsByPeriod, month.period, "gross_margin", monthCurrency),
       churnRate: pointOf(metricsByPeriod, month.period, "churn_rate", monthCurrency),
       mrrGrowth3m: pointOf(metricsByPeriod, month.period, "mrr_growth_3m", monthCurrency),
+      // Customer growth is the traffic light's own input; the studio's reading
+      // shows it beside revenue growth so the two can never be confused.
+      customerGrowth3m: pointOf(metricsByPeriod, month.period, "customer_growth_3m", monthCurrency),
     };
   });
 
@@ -121,7 +133,10 @@ export async function getVentureDashboard({ ventureUuid }) {
   const latestReport = reports[reports.length - 1] || null;
 
   const teamRow = (teamResult.rows || [])[0] || null;
-  const shares = teamRow ? computeTeamShares(teamRow) : null;
+  // "Women-led" is a FOUNDING fact, not a headcount fact: a Venture with one
+  // woman among forty employees is not women-led. It needs the founder records.
+  const founders = (foundersResult.rows || []).map((row) => ({ gender: row.gender }));
+  const shares = teamRow ? computeTeamShares(teamRow, founders) : null;
 
   // ── Yearly roll-ups (§10) ──────────────────────────────────────────────
   const yearlyMonths = reports.map((month) => {
@@ -176,6 +191,9 @@ export async function getVentureDashboard({ ventureUuid }) {
     ),
     womenShare: shares?.womenShare ?? null,
     youthShare: shares?.youthShare ?? null,
+    womenLed: shares?.womenLed ?? null,
+    womenFounders: shares?.womenFounders ?? null,
+    founderCount: shares?.founderCount ?? null,
   };
 
   // ── Customer concentration ──────────────────────────────────────────────
@@ -193,11 +211,19 @@ export async function getVentureDashboard({ ventureUuid }) {
 
   return {
     // The studio's own thresholds, so a screen can state "below the 9-month
-    // line" instead of hard-coding a number the settings already own.
+    // line" instead of hard-coding a number the settings already own. Every one
+    // goes through `settingValue`, which applies the definition's fallback — so
+    // a studio that has never opened the settings screen still gets the spec's
+    // numbers, and one that has gets its own.
     thresholds: {
-      runwayGreenMonths: numericOrNull(settings.settings?.traffic_runway_green_months),
-      runwayAmberMonths: numericOrNull(settings.settings?.traffic_runway_amber_months),
-      growthGreenPct: numericOrNull(settings.settings?.traffic_growth_green_pct),
+      runwayGreenMonths: settingValue(settings.settings, "traffic_runway_green_months"),
+      runwayAmberMonths: settingValue(settings.settings, "traffic_runway_amber_months"),
+      growthGreenPct: settingValue(settings.settings, "traffic_growth_green_pct"),
+      // The business reading's four (verdict + risk panel).
+      readingGrowthGreenPct: settingValue(settings.settings, "reading_growth_green_pct"),
+      readingGrowthRedPct: settingValue(settings.settings, "reading_growth_red_pct"),
+      retentionFloorPct: settingValue(settings.settings, "reading_retention_floor_pct"),
+      minLtvCac: settingValue(settings.settings, "reading_min_ltv_cac"),
     },
     // `{ band, period }` from the latest validated quarter that answered it,
     // or null when the Venture has never been asked / never answered.

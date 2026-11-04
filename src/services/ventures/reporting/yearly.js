@@ -41,6 +41,8 @@ export function computeYearlyFigures({ months = [], latestPeriod = null, latestF
       annualBurn: null,
       jobsSupported: latestFte,
       jobsCreated: null,
+      jobsLost: null,
+      jobsNet: null,
     };
   }
 
@@ -58,6 +60,12 @@ export function computeYearlyFigures({ months = [], latestPeriod = null, latestF
   const latest = byPeriod.get(latestPeriod) || null;
   const twelveAgo = byPeriod.get(shiftPeriod(latestPeriod, -12)) || null;
 
+  // Jobs are reported in THREE pieces, never one signed number called
+  // "created": a Venture that shrank from 6 FTE to 4 has created 0 jobs and
+  // lost 2 — printing "−2 jobs created" is not a smaller truth, it is a wrong
+  // label. `jobsNet` is the signed change, for whoever wants the arithmetic.
+  const jobsNet = jobsDelta(latestFte, baselineFte);
+
   return {
     monthsCovered: months.length,
     yoyMrrGrowth: growthBetween(windowMrr, priorMrr),
@@ -67,11 +75,20 @@ export function computeYearlyFigures({ months = [], latestPeriod = null, latestF
     ),
     annualBurn: sum(window.map((month) => month?.netBurn ?? null)),
     jobsSupported: latestFte,
-    jobsCreated:
-      latestFte !== null && baselineFte !== null && latestFte !== undefined && baselineFte !== undefined
-        ? latestFte - baselineFte
-        : null,
+    jobsCreated: jobsNet === null ? null : Math.max(0, jobsNet),
+    jobsLost: jobsNet === null ? null : Math.max(0, -jobsNet),
+    jobsNet,
   };
+}
+
+/** FTE change against the locked baseline, or null when either side is unknown. */
+export function jobsDelta(latestFte, baselineFte) {
+  const latest = Number(latestFte);
+  const baseline = Number(baselineFte);
+  if (latestFte === null || latestFte === undefined) return null;
+  if (baselineFte === null || baselineFte === undefined) return null;
+  if (!Number.isFinite(latest) || !Number.isFinite(baseline)) return null;
+  return latest - baseline;
 }
 
 /** Whole months between two dates, floored at 0. */

@@ -156,11 +156,12 @@ describe("team shares", () => {
     expect(computeTeamShares({ women_employees: 0, men_employees: 0 })).toMatchObject({
       womenShare: null,
       youthShare: null,
-      womenLed: false,
+      // No founder records means UNKNOWN, not a confident "not women-led".
+      womenLed: null,
     });
   });
 
-  test("women-led and youth share are computed", () => {
+  test("women share and youth share are computed", () => {
     expect(
       computeTeamShares({
         women_employees: 2,
@@ -168,7 +169,21 @@ describe("team shares", () => {
         under35_women: 1,
         under35_men: 1,
       }),
-    ).toMatchObject({ womenShare: 50, youthShare: 50, womenLed: true });
+    ).toMatchObject({ womenShare: 50, youthShare: 50 });
+  });
+
+  test("women-led is a founding fact, not a headcount fact", () => {
+    const team = { women_employees: 1, men_employees: 39 };
+    // One woman among forty employees used to mark the Venture women-led.
+    expect(
+      computeTeamShares(team, [{ gender: "male" }, { gender: "male" }]).womenLed,
+    ).toBe(false);
+    // A woman founder, and women at least half of the founding team.
+    expect(computeTeamShares(team, [{ gender: "female" }, { gender: "male" }]).womenLed).toBe(true);
+    // A minority woman founder is not "women-led" under this rule.
+    expect(
+      computeTeamShares(team, [{ gender: "female" }, { gender: "male" }, { gender: "male" }]).womenLed,
+    ).toBe(false);
   });
 });
 

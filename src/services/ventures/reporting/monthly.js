@@ -155,8 +155,9 @@ export async function getMonthlyReport({ ventureUuid, period }) {
     : await currentReportingCurrency(ventureUuid);
 
   // The band ladders the founder chooses from, so the form never hardcodes the
-  // studio's thresholds and a changed band shows up without a deploy.
-  const groupedBands = groupBands(bandsResult.rows || []);
+  // studio's thresholds and a changed band shows up without a deploy. Only the
+  // ladder of the currency this report is denominated in is offered.
+  const groupedBands = groupBands(bandsResult.rows || [], currency);
 
   // A draft (and a submitted report awaiting review) gets a live preview. It is
   // computed, never stored — nothing unvalidated may reach the metrics table.
@@ -204,8 +205,14 @@ export async function saveMonthlyReport({ ventureUuid, ventureCode, actorCid, in
   if (!period) return { errors: ["venture.reporting.monthly.validation.period"] };
   if (period > currentPeriod()) return { errors: ["venture.reporting.monthly.validation.futurePeriod"] };
 
+  // ONE read of the Venture's currency, used for both the band ladder and the
+  // stamp on the row: two reads could disagree if the setting changed between
+  // them, and the report must carry the unit it was validated against.
+  const currency = await currentReportingCurrency(ventureUuid);
   const bandsResult = await selectBands();
-  const bands = groupBands(bandsResult.rows || []);
+  // Validate band codes against the ladder of the currency the month will be
+  // filed in — a CFA code on a USD report is not a valid answer.
+  const bands = groupBands(bandsResult.rows || [], currency);
 
   const errors = validateMonthlyReport(input, { bands });
   if (errors.length) return { errors };
@@ -213,7 +220,6 @@ export async function saveMonthlyReport({ ventureUuid, ventureCode, actorCid, in
   const submit = input.submit === true || input.submit === "yes";
   // Stamped from the Venture's setting, never from the browser: the report is
   // the record of what was filed, and a client cannot rewrite the unit.
-  const currency = await currentReportingCurrency(ventureUuid);
   const values = monthlyRowValues({ input: { ...input, currency }, actorCid });
 
   const saved = await runInTransaction(async (query) => {
@@ -344,9 +350,12 @@ export async function recomputeMonthlyMetrics({ ventureUuid, ventureCode, period
     selectBands(),
     selectValidatedReports(ventureUuid),
   ]);
-  const bands = groupBands(bandsResult.rows || []);
+  // Bands are read in the currency of the month being recomputed: the ladder is
+  // absolute amounts and cannot grade another currency.
   const rows = validatedResult.rows || [];
   const history = buildHistory(rows);
+  const currency = history.get(period)?.currency || (await currentReportingCurrency(ventureUuid));
+  const bands = groupBands(bandsResult.rows || [], currency);
   const reportIdByPeriod = new Map(rows.map((row) => [rowToMonthlyInput(row)?.period, row.id]));
 
   const written = [];

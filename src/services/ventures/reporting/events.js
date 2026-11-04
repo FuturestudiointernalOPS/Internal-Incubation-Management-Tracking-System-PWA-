@@ -80,16 +80,18 @@ function shapeInterview(row) {
 
 export async function listEvents({ ventureUuid }) {
   await ensureReportingSchema();
-  const [result, settings, profile] = await Promise.all([
+  const [result, profile] = await Promise.all([
     selectEvents(ventureUuid),
-    getReportingSettings({}),
     selectCurrentProfile(ventureUuid),
   ]);
+  // The fallback unit for an event recorded before it was stamped.
+  const currency = String(profile.rows?.[0]?.reporting_currency || "XOF").toUpperCase();
+  // Only this Venture's currency ladder: amounts are absolute, not symbolic.
+  const settings = await getReportingSettings({ currency });
   return {
     events: (result.rows || []).map(shapeEvent),
     bands: settings.bands,
-    // The fallback unit for an event recorded before it was stamped.
-    currency: String(profile.rows?.[0]?.reporting_currency || "XOF").toUpperCase(),
+    currency,
   };
 }
 
@@ -103,14 +105,16 @@ export async function createEvent({ ventureUuid, ventureCode, actorCid, input = 
   await ensureReportingSchema();
 
   const bandsResult = await selectBands();
-  const bands = groupBands(bandsResult.rows || []);
+  // Validate the band code against the ladder of the Venture's own currency.
+  const filingCurrency = await currentReportingCurrency(ventureUuid);
+  const bands = groupBands(bandsResult.rows || [], filingCurrency);
 
   const errors = validateEvent(input, { bands });
   if (errors.length) return { errors };
 
   // Stamped server-side: the amount was entered in the Venture's currency at
   // the moment the event was recorded.
-  const currency = await currentReportingCurrency(ventureUuid);
+  const currency = filingCurrency;
   const values = eventRowValues({ input: { ...input, currency }, actorCid });
 
   const created = await runInTransaction(async (query) =>

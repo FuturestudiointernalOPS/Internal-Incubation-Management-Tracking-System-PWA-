@@ -52,11 +52,11 @@ export async function insertStageSetting({ settingKey, businessModel, value, val
 
 export async function selectBands() {
   return db.execute({
-    sql: `SELECT DISTINCT ON (band_kind, band_code)
-                 band_kind, band_code, sort_order, low, high, midpoint
+    sql: `SELECT DISTINCT ON (band_kind, band_code, currency)
+                 band_kind, band_code, sort_order, low, high, midpoint, currency
           FROM venture_band_settings
           WHERE effective_from <= CURRENT_DATE
-          ORDER BY band_kind, band_code, sort_order, effective_from DESC`,
+          ORDER BY band_kind, band_code, currency, sort_order, effective_from DESC`,
     args: [],
   });
 }
