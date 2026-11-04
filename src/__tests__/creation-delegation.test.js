@@ -86,7 +86,7 @@ describe("creation is an action, not a sidebar section", () => {
     // … the neutral hub a personal account lands on without a program …
     expect(read("src/app/workspaces/page.js")).toContain("CreateActions");
     // … and the views the records live in.
-    expect(read("src/app/pm/programs/page.js")).toContain('only={["program"]}');
+    expect(read("src/app/staff/program-manager/programs/page.js")).toContain('only={["program"]}');
     expect(read("src/components/staff/VenturesView.js")).toContain('only={["venture"]}');
     expect(read("src/app/participant/ventures/page.js")).toContain('only={["venture"]}');
   });

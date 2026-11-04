@@ -285,8 +285,8 @@ export default function StaffDashboard() {
       <ProgramsSection
         activity={data?.activity || EMPTY}
         programs={programs}
-        onOpenProgram={(program) => go(`/pm/programs/${program.id}`)}
-        onOpenAll={() => go("/pm/programs")}
+        onOpenProgram={(program) => go(`/staff/program-manager/programs/${program.id}`)}
+        onOpenAll={() => go("/staff/program-manager/programs")}
       />
       <OperationsSection totals={operationTotals(reports)} summary={summary} onGo={go} />
       <RegularitySection record={record} regularity={standing} open={sectionOpen} onToggle={() => setSectionOpen(!sectionOpen)} />

@@ -45,7 +45,7 @@ describe("LMS course authoring is delegable", () => {
       expect(section).toBeDefined();
       const courses = section.subItems.find((item) => item.id === "lms_courses");
       expect(courses).toBeDefined();
-      expect(courses.href).toBe("/pm/lms/courses");
+      expect(courses.href).toBe("/staff/program-manager/lms/courses");
       expect(courses.href.startsWith("/admin")).toBe(false);
     }
     // The section opens for any of the three, never only for `view`.

@@ -49,6 +49,40 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // ── Spaces: the staff sections moved under /staff ────────────────────
+      // Temporary (307) on purpose: the migration is reversible while the
+      // member space is being built. Flip to permanent once the move is
+      // validated in production.
+      {
+        source: "/pm/:path*",
+        destination: "/staff/program-manager/:path*",
+        permanent: false,
+      },
+      {
+        source: "/pm",
+        destination: "/staff/program-manager",
+        permanent: false,
+      },
+      {
+        source: "/finance/:path*",
+        destination: "/staff/finance/:path*",
+        permanent: false,
+      },
+      {
+        source: "/finance",
+        destination: "/staff/finance",
+        permanent: false,
+      },
+      {
+        source: "/create/:path*",
+        destination: "/staff/create/:path*",
+        permanent: false,
+      },
+      {
+        source: "/create",
+        destination: "/staff/create",
+        permanent: false,
+      },
       {
         source: "/sa-hq-sp-2026-v1/:path*",
         destination: "/admin",

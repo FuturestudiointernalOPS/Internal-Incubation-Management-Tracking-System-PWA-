@@ -141,7 +141,7 @@ const FIXTURE = {
   program_manager: [
     { id: "dashboard", href: "/staff", subItems: null },
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
-    { id: "programs", href: "/pm/programs", subItems: null },
+    { id: "programs", href: "/staff/program-manager/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
@@ -156,7 +156,7 @@ const FIXTURE = {
   staff: [
     { id: "dashboard", href: "/staff", subItems: null },
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
-    { id: "programs", href: "/pm/programs", subItems: null },
+    { id: "programs", href: "/staff/program-manager/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
@@ -186,7 +186,7 @@ const FIXTURE = {
   investor: [{ id: "dashboard", href: "/participant", subItems: null }],
 
   finance: [
-    { id: "dashboard", href: "/finance", subItems: null },
+    { id: "dashboard", href: "/staff/finance", subItems: null },
     { id: "profile", href: "/participant/profile", subItems: null },
   ],
 
@@ -436,7 +436,7 @@ describe("capability projection — buildAccessNav contract", () => {
     const nav = buildAccessNav("staff", { finance: { view: 1 } });
     const finance = nav.find((item) => item.id === "finance");
     expect(finance).toBeDefined();
-    expect(finance.href).toBe("/finance");
+    expect(finance.href).toBe("/staff/finance");
   });
 
   test("a role's own doors keep their hrefs (no /admin surgery on the base)", () => {
@@ -475,7 +475,7 @@ describe("capability projection — buildAccessNav contract", () => {
     // Program manager → the non-admin landing (never an /admin link).
     const pmLms = buildAccessNav("program_manager", everything).find((item) => item.id === "lms");
     expect(pmLms).toBeDefined();
-    expect(pmLms.subItems[0].href).toBe("/pm/lms/courses");
+    expect(pmLms.subItems[0].href).toBe("/staff/program-manager/lms/courses");
   });
 
   test("non-admin navigation never renders an /admin link", () => {

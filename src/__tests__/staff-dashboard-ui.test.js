@@ -294,6 +294,6 @@ describe("navigation from the dashboard", () => {
     fireEvent.click(screen.getByText("ImpactOS"));
     expect(push).toHaveBeenCalledWith("/staff/projects/4");
     fireEvent.click(screen.getByText("COME UP"));
-    expect(push).toHaveBeenCalledWith("/pm/programs/7");
+    expect(push).toHaveBeenCalledWith("/staff/program-manager/programs/7");
   });
 });

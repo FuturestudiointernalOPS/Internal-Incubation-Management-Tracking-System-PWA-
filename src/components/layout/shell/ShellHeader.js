@@ -208,7 +208,7 @@ export default function ShellHeader({
                                 if (isPlatformOwnerRole(role))
                                   router.push("/admin/internal-comms");
                                 else if (isLegacyProgramManagerRole(role))
-                                  router.push("/pm/messages");
+                                  router.push("/staff/program-manager/messages");
                                 else if (isInternalStaffRole(role))
                                   router.push("/staff/messages");
                                 else if (carriesContextualValue(role, "participant"))

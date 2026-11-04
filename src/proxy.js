@@ -146,7 +146,8 @@ const softAuthPaths = [
   "/api/engineering",
   "/api/user-groups",
   "/api/migrate",
-  "/finance",
+  "/finance", // legacy address, kept for the redirect to the staff space
+  "/staff/finance",
   "/api/finance",
 ];
 

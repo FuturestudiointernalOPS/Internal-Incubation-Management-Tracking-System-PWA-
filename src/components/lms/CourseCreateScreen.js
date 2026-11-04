@@ -25,7 +25,7 @@ const EMPTY = {
  * CREATE COURSE — shared by the admin and PM surfaces.
  *
  * Creates a DRAFT course (never auto-published), then opens its editor.
- * `basePath` is the surface the screen lives on (e.g. "/pm/lms/courses"), so
+ * `basePath` is the surface the screen lives on (e.g. "/staff/program-manager/lms/courses"), so
  * Back and the post-create redirect stay inside that surface instead of
  * bouncing the user to the admin routes it cannot open.
  */

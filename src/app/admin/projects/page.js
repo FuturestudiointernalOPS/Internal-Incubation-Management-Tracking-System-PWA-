@@ -322,7 +322,7 @@ export default function AdminProjects() {
     const destMap = {
       super_admin: "/admin",
       staff: "/staff",
-      program_manager: "/pm",
+      program_manager: "/staff/program-manager",
       participant: "/participant",
     };
     router.push(destMap[role] || "/admin");

@@ -3,7 +3,7 @@
  *
  * A program manager's inbox is narrower than the staff inbox: it offers the
  * contacts of the programs they manage, not the whole directory. That mode used
- * to be selected by the PAGE (`/pm/messages` passed `role="program_manager"`),
+ * to be selected by the PAGE (`/staff/program-manager/messages` passed `role="program_manager"`),
  * which meant the same person got two different scopes depending on the door
  * they came through — the bell sent them to `/staff/messages`, the sidebar to
  * another route, and the scope followed the URL.

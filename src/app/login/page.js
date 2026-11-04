@@ -72,7 +72,7 @@ export default function LoginPage() {
                   userRole === "super_admin" || userRole === "staff"
                     ? "/admin/profile"
                     : userRole === "program_manager"
-                      ? "/pm/profile"
+                      ? "/staff/program-manager/profile"
                       : userRole === "facilitator"
                           ? "/facilitator/profile"
                           : userRole === "applicant"

@@ -218,7 +218,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
     contexts.responsibilities = rowsOf(responsibilitiesSettled).map((row) => ({
       ...row,
       href: String(row.key || "").toLowerCase().includes("finance")
-        ? "/finance"
+        ? "/staff/finance"
         : String(row.key || "").toLowerCase().includes("crm")
           ? "/crm"
           : "/workspaces",

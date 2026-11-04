@@ -254,11 +254,11 @@ export function useDashboardNavigation({
                 },
               ]
             : [
-                { id: "all_programs", name: "OVERVIEW", href: "/pm/programs" },
+                { id: "all_programs", name: "OVERVIEW", href: "/staff/program-manager/programs" },
                 {
                   id: "submissions",
                   name: "SUBMISSIONS",
-                  href: "/pm/submissions",
+                  href: "/staff/program-manager/submissions",
                 },
               ];
 

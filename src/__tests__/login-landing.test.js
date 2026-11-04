@@ -43,7 +43,7 @@ describe("global identities keep the section their badge owns", () => {
   test.each([
     ["super_admin", "/admin"],
     ["staff", "/staff"],
-    ["program_manager", "/pm"],
+    ["program_manager", "/staff/program-manager"],
     ["facilitator", "/facilitator"],
     ["investor", "/investor/dashboard"],
   ])("%s → %s", (role, home) => {

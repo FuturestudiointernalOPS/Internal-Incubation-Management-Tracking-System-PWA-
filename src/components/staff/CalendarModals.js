@@ -90,7 +90,7 @@ export function EventDetailModal({ detail, setDetail, locale }) {
           {detail.raw?.description && <p className="stf-sub" style={{ margin: 0 }}>{detail.raw.description}</p>}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
             {detail.source === "program" && (
-              <button type="button" className="stf-btn" onClick={() => router.push(`/pm/programs/${detail.relatedId}`)}>
+              <button type="button" className="stf-btn" onClick={() => router.push(`/staff/program-manager/programs/${detail.relatedId}`)}>
                 {t("staffMisc.front.calendar.openProgram")}
               </button>
             )}

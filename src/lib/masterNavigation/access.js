@@ -58,7 +58,7 @@ export const ROLE_ACCESS = {
     },
     hrefs: {
       dashboard: "/staff",
-      programs: "/pm/programs",
+      programs: "/staff/program-manager/programs",
       messages: "/staff/messages",
     },
     icons: {},
@@ -85,7 +85,7 @@ export const ROLE_ACCESS = {
     top: ["dashboard", "profile"],
     children: {},
     hrefs: {
-      dashboard: "/finance",
+      dashboard: "/staff/finance",
       profile: "/participant/profile",
     },
     icons: { dashboard: "barChart3" },
@@ -228,7 +228,7 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
 // OTHER /admin node is dropped for a non-admin role: the sidebar never renders
 // a link the role would be redirected away from.
 export const NON_ADMIN_HREF_FALLBACKS = {
-  finance: "/finance",
+  finance: "/staff/finance",
   crm_dashboard: "/crm",
   all_contacts: "/crm/contacts",
   crm_organizations: "/crm/organizations",
@@ -242,5 +242,5 @@ export const NON_ADMIN_HREF_FALLBACKS = {
   crm_duplicates: "/crm/duplicates",
   crm_timeline: "/crm/timeline",
   forms: "/platform",
-  lms_courses: "/pm/lms/courses",
+  lms_courses: "/staff/program-manager/lms/courses",
 };

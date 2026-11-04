@@ -47,7 +47,7 @@ export const MASTER_NAVIGATION = [
       { id: "messages", name: "MESSAGES", icon: "send", href: "/admin/internal-comms" },
       { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
       { id: "forms", name: "FORMS", icon: "fileText", href: "/platform" },
-      { id: "groups", name: "GROUPS", href: "/pm/communications/contacts" },
+      { id: "groups", name: "GROUPS", href: "/staff/program-manager/communications/contacts" },
     ],
   },
 

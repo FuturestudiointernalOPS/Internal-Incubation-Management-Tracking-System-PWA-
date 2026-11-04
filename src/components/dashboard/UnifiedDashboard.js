@@ -306,7 +306,7 @@ export default function UnifiedDashboard({ role: propRole }) {
     router.push(
       isPlatformOwnerRole(effectiveRole) ? "/admin/projects" : "/staff/projects",
     );
-  const openProgram = (program) => router.push(`/pm/programs/${program.id}`);
+  const openProgram = (program) => router.push(`/staff/program-manager/programs/${program.id}`);
   const openFacilitatorProgram = (program) =>
     router.push(`/facilitator/program/${program.id}`);
   const openProject = (project) =>
@@ -315,7 +315,7 @@ export default function UnifiedDashboard({ role: propRole }) {
     setSelectedEvent(null);
     router.push(`/admin/projects/${projectId}`);
   };
-  const openAllPrograms = () => router.push("/pm/programs");
+  const openAllPrograms = () => router.push("/staff/program-manager/programs");
   const openAllActivity = () => router.push("/admin/op-reports");
 
   // A task on the month grid is read first, so the drawer shows the whole task;

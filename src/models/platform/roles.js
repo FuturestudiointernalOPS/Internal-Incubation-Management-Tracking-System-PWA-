@@ -129,11 +129,11 @@ export function resolveEffectiveRole({
  */
 export const ROLE_HOME = {
   super_admin: "/admin",
-  program_manager: "/pm",
+  program_manager: "/staff/program-manager",
   staff: "/staff",
   facilitator: "/facilitator",
   participant: "/participant",
-  finance: "/finance",
+  finance: "/staff/finance",
   investor: "/investor/dashboard",
 };
 

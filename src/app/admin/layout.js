@@ -71,7 +71,7 @@ export default function AdminLayout({ children }) {
           // Redirect non-admin users to their correct dashboard
           const redirectMap = {
             staff: "/staff",
-            program_manager: "/pm",
+            program_manager: "/staff/program-manager",
             participant: "/participant",
           };
           // A signed-in person with another role goes to their hub — sending them to the
