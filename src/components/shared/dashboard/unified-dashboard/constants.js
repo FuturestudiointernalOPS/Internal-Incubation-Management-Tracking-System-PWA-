@@ -175,9 +175,7 @@ export function isToday(date) {
   );
 }
 
-export function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
+export { cn } from "@/lib/cn";
 
 // ─── MODULE-SCOPE READER ───────────────────────────────────────────────────
 // The reading hook keys its internal work on this, so it is built once here

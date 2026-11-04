@@ -152,6 +152,15 @@ describe("the routes follow the spaces", () => {
     }
   });
 
+  test("the admin components live in the admin space", () => {
+    for (const domain of ["components", "finance", "permissions"]) {
+      expect(fs.existsSync(path.join(ROOT, "spaces", "admin", domain))).toBe(true);
+    }
+    for (const gone of ["admin", "finance", "permissions"]) {
+      expect(fs.existsSync(path.join(ROOT, "components", gone))).toBe(false);
+    }
+  });
+
   test("a context moved under an existing space does not mount a second shell", () => {
     for (const context of ["program-manager", "finance", "crm"]) {
       const layout = path.join(ROOT, "app", "staff", context, "layout.js");
@@ -173,7 +182,16 @@ describe("the shared layer", () => {
   test("a component two spaces need is not kept inside one of them", () => {
     // The staff kit is used by the admin dashboard too; the CRM console by the
     // admin CRM screens. A copy under a space folder would drift.
-    for (const shared of ["calendar", "crm", "dashboard", "ventures"]) {
+    for (const shared of [
+      "calendar",
+      "crm",
+      "dashboard",
+      "integrations",
+      "membership",
+      "platform",
+      "public",
+      "ventures",
+    ]) {
       expect(fs.existsSync(path.join(ROOT, "components", "shared", shared))).toBe(true);
     }
     for (const gone of ["investor", "facilitator", "team"]) {

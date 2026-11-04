@@ -20,7 +20,7 @@ import {
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { isSystemActor } from "@/lib/ventureActivity";
-import VentureDetailView from "@/components/admin/ventures/VentureDetailView";
+import VentureDetailView from "@/spaces/admin/components/ventures/VentureDetailView";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { isPlatformOwnerRole } from "@/lib/identity";
-import BlockersHeader from "@/components/admin/blockers/BlockersHeader";
-import BlockersStats from "@/components/admin/blockers/BlockersStats";
-import BlockersFilters from "@/components/admin/blockers/BlockersFilters";
-import BlockersTable from "@/components/admin/blockers/BlockersTable";
-import BlockerDetailModal from "@/components/admin/blockers/BlockerDetailModal";
+import BlockersHeader from "@/spaces/admin/components/blockers/BlockersHeader";
+import BlockersStats from "@/spaces/admin/components/blockers/BlockersStats";
+import BlockersFilters from "@/spaces/admin/components/blockers/BlockersFilters";
+import BlockersTable from "@/spaces/admin/components/blockers/BlockersTable";
+import BlockerDetailModal from "@/spaces/admin/components/blockers/BlockerDetailModal";
 
 // Module scope on purpose: the hook keys its internal callback on these functions,
 // so inline arrows would give them a new identity on every render and refetch in

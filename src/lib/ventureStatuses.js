@@ -181,7 +181,7 @@ const STORED_TO_WORD = {
   submitted: "awaiting_review",
   rejected: "changes_requested",
   approved: "approved",
-  // tasks — the kanban board's own words (components/admin/ventures/tasks/
+  // tasks — the kanban board's own words (spaces/admin/components/ventures/tasks/
   // taskConstants) mapped onto the SAME shared vocabulary, so a management view
   // and the board never describe one task with two different labels. `cancelled`
   // is deliberately absent: the shared set has no word for it, and an unmapped

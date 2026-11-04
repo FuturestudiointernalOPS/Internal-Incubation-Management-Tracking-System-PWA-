@@ -7,9 +7,7 @@
  * two different ways.
  */
 
-export function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
+export { cn } from "@/lib/cn";
 
 export const STATUS_CONFIG = {
   pending: { color: "text-slate-400", bg: "bg-slate-500/10" },

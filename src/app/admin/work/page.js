@@ -18,7 +18,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import KanbanBoard from "@/components/admin/work/KanbanBoard";
+import KanbanBoard from "@/spaces/admin/components/work/KanbanBoard";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on the list below, so it is built once

@@ -7,8 +7,8 @@ import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { uploadFile } from "@/lib/storage";
-import ProgramsTable from "@/components/admin/programs/ProgramsTable";
-import EditProgramModal from "@/components/admin/programs/EditProgramModal";
+import ProgramsTable from "@/spaces/admin/components/programs/ProgramsTable";
+import EditProgramModal from "@/spaces/admin/components/programs/EditProgramModal";
 
 // ─── Read shapers (module scope: built once, never per render) ──────────────
 const pickPrograms = (payload) =>

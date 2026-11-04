@@ -4,13 +4,13 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import BulkConfirmModal from "@/components/admin/platform-scores/BulkConfirmModal";
-import ScoresHeader from "@/components/admin/platform-scores/ScoresHeader";
-import ScoresControls from "@/components/admin/platform-scores/ScoresControls";
-import ScoresStats from "@/components/admin/platform-scores/ScoresStats";
-import ScoresFilters from "@/components/admin/platform-scores/ScoresFilters";
-import BulkActionBar from "@/components/admin/platform-scores/BulkActionBar";
-import RespondentsTable from "@/components/admin/platform-scores/RespondentsTable";
+import BulkConfirmModal from "@/spaces/admin/components/platform-scores/BulkConfirmModal";
+import ScoresHeader from "@/spaces/admin/components/platform-scores/ScoresHeader";
+import ScoresControls from "@/spaces/admin/components/platform-scores/ScoresControls";
+import ScoresStats from "@/spaces/admin/components/platform-scores/ScoresStats";
+import ScoresFilters from "@/spaces/admin/components/platform-scores/ScoresFilters";
+import BulkActionBar from "@/spaces/admin/components/platform-scores/BulkActionBar";
+import RespondentsTable from "@/spaces/admin/components/platform-scores/RespondentsTable";
 
 export default function ScoresPage() {
   const { t } = useI18n();

@@ -8,9 +8,9 @@ import { useI18n } from '@/lib/i18n';
 import { formatLocaleDate } from '@/lib/constants';
 import { useSafeBack } from '@/lib/useSafeBack';
 import { useDialogs } from '@/components/ui/DialogProvider';
-import CampaignsCreateModal from '@/components/admin/communications/campaigns/CampaignsCreateModal';
-import CampaignsDetailsModal from '@/components/admin/communications/campaigns/CampaignsDetailsModal';
-import CampaignsList from '@/components/admin/communications/campaigns/CampaignsList';
+import CampaignsCreateModal from '@/spaces/admin/components/communications/campaigns/CampaignsCreateModal';
+import CampaignsDetailsModal from '@/spaces/admin/components/communications/campaigns/CampaignsDetailsModal';
+import CampaignsList from '@/spaces/admin/components/communications/campaigns/CampaignsList';
 
 const GROUP_LABELS = { UNASSIGNED: 'crm.contacts.unassigned' };
 

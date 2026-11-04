@@ -19,15 +19,15 @@ const FR = require("@/locales/fr/engineering.json");
 const {
   computeAlerts,
   journalKpis,
-} = require("@/components/permissions/center/centerAlerts");
+} = require("@/spaces/admin/permissions/center/centerAlerts");
 const {
   PERSON_TABS,
   CENTER_SECTIONS,
   CENTER_TABS,
   firstTab,
   sectionTabs,
-} = require("@/components/permissions/center/centerNav");
-const { PERMISSION_NAV } = require("@/components/permissions/permissionNav");
+} = require("@/spaces/admin/permissions/center/centerNav");
+const { PERMISSION_NAV } = require("@/spaces/admin/permissions/permissionNav");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -36,20 +36,20 @@ const resolveKey = (bundle, dotted) =>
 /** Every literal `t("…")` key the centre's sources ask for. */
 function staticKeys() {
   const files = [
-    "src/components/permissions/PermissionCenter.js",
-    "src/components/permissions/center/centerAlerts.js",
+    "src/spaces/admin/permissions/PermissionCenter.js",
+    "src/spaces/admin/permissions/center/centerAlerts.js",
     ...fs
-      .readdirSync(path.join(process.cwd(), "src/components/permissions/center"))
+      .readdirSync(path.join(process.cwd(), "src/spaces/admin/permissions/center"))
       .filter((name) => name.endsWith(".js"))
-      .map((name) => `src/components/permissions/center/${name}`),
+      .map((name) => `src/spaces/admin/permissions/center/${name}`),
     ...fs
-      .readdirSync(path.join(process.cwd(), "src/components/permissions/center/sections"))
+      .readdirSync(path.join(process.cwd(), "src/spaces/admin/permissions/center/sections"))
       .filter((name) => name.endsWith(".js"))
-      .map((name) => `src/components/permissions/center/sections/${name}`),
+      .map((name) => `src/spaces/admin/permissions/center/sections/${name}`),
     ...fs
-      .readdirSync(path.join(process.cwd(), "src/components/permissions/center/drawers"))
+      .readdirSync(path.join(process.cwd(), "src/spaces/admin/permissions/center/drawers"))
       .filter((name) => name.endsWith(".js"))
-      .map((name) => `src/components/permissions/center/drawers/${name}`),
+      .map((name) => `src/spaces/admin/permissions/center/drawers/${name}`),
   ];
   const keys = new Set();
   for (const file of files) {
@@ -191,7 +191,7 @@ describe("the navigation vocabulary", () => {
   });
 
   test("each door of the real routing maps onto a section", () => {
-    const { NAV_KEY_TO_SECTION } = require("@/components/permissions/center/centerNav");
+    const { NAV_KEY_TO_SECTION } = require("@/spaces/admin/permissions/center/centerNav");
     const mapped = PERMISSION_NAV.map((item) => NAV_KEY_TO_SECTION[item.key]);
     expect(mapped).toEqual(["people", "profiles", "rules", "journal"]);
   });

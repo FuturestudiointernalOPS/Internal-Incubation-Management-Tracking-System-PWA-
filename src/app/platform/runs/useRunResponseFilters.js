@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { EMPTY_SELECTION } from "@/components/platform/runs/helpers";
+import { EMPTY_SELECTION } from "@/components/shared/platform/runs/helpers";
 
 /**
  * The respondent table's filter combination and everything remembered WITH it.

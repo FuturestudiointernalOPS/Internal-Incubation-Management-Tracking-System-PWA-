@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import ResponsesRetargetModal from "@/components/admin/communications/responses/ResponsesRetargetModal";
+import ResponsesRetargetModal from "@/spaces/admin/components/communications/responses/ResponsesRetargetModal";
 
 const RESPONSE_STATUS_LABELS = {
   pending_response: "crm.responses.statusPendingResponse",

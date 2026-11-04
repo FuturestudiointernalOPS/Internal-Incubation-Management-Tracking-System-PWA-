@@ -21,7 +21,7 @@ import {
   ConfirmModal,
   HistoryModal,
   DetailModal,
-} from "@/components/membership/MembershipModals";
+} from "@/components/shared/membership/MembershipModals";
 import { useMembershipState } from "./useMembershipState";
 import { useCrmCapabilities } from "./useCrmCapabilities";
 import { MembershipHeader } from "./MembershipHeader";

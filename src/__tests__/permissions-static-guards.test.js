@@ -240,9 +240,9 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   // centre actif sont de l'affichage/validation (liste des rôles d'un profil),
   // jamais une décision d'accès. Les sept autres préexistaient à ce lot et
   // restent à traiter séparément.
-  "src/components/permissions/center/drawers/CreateProfileDrawer.js#M2",
-  "src/components/permissions/center/drawers/CreateProfileDrawer.js#M4",
-  "src/components/permissions/center/personAccess.js#M4",
+  "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js#M2",
+  "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js#M4",
+  "src/spaces/admin/permissions/center/personAccess.js#M4",
   "src/services/programs/teams.js#M3",
   "src/services/ventures/people.js#M2",
 ]);

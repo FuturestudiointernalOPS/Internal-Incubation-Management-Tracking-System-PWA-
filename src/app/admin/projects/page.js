@@ -11,9 +11,9 @@ import {
   pickActiveStaff,
   pickAnalytics,
   pickProjects,
-} from "@/components/admin/projects/list/constants";
-import ProjectsContent from "@/components/admin/projects/list/ProjectsContent";
-import ProjectsModals from "@/components/admin/projects/list/ProjectsModals";
+} from "@/spaces/admin/components/projects/list/constants";
+import ProjectsContent from "@/spaces/admin/components/projects/list/ProjectsContent";
+import ProjectsModals from "@/spaces/admin/components/projects/list/ProjectsModals";
 
 /**
  * SUPER ADMIN PROJECTS DASHBOARD

@@ -25,7 +25,7 @@ const {
   SELF_SCOPED_ROUTES,
   OPEN_ASSUMED_ROUTES,
 } = require("@/services/authorization/actionDeclarations");
-const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
+const { CENTER_TABS } = require("@/spaces/admin/permissions/center/centerNav");
 
 describe("API — GET /api/engineering/permissions/open-actions", () => {
   beforeEach(() => {
@@ -68,7 +68,7 @@ describe("contrat d'interface — onglet « openActions » sous Rules", () => {
   });
 
   test("RulesSection rend le composant de la liste pour cet onglet", () => {
-    const src = read("src/components/permissions/center/sections/RulesSection.js");
+    const src = read("src/spaces/admin/permissions/center/sections/RulesSection.js");
     expect(src).toContain("OpenActionsTab");
     expect(src).toContain('tab === "openActions"');
   });

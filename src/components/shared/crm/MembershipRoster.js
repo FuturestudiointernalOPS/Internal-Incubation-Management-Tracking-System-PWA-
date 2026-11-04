@@ -18,7 +18,7 @@ import {
   STATUS_STYLE,
   ACCOUNT_STYLE,
   Badge,
-} from "@/components/membership/MembershipModals";
+} from "@/components/shared/membership/MembershipModals";
 
 export function MembershipRoster({
   t,

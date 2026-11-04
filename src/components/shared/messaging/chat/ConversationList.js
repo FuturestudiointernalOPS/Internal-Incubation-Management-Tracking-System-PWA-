@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/components/shared/messaging/chat/cn";
+import { cn } from "@/lib/cn";
 import { MessageSquare, Search, Check } from "lucide-react";
 import { formatTime } from "@/components/shared/messaging/chat/formatTime";
 

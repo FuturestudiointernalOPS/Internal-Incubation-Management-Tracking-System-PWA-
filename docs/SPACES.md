@@ -1,11 +1,10 @@
 # Les trois espaces — décision et migration
 
-Statut : **espaces staff et membre faits** (branche `views`). Les trois espaces
-ont leurs adresses : `/member`, `/staff`, `/admin`. Chaque contexte staff
-(chef de programme, finance, CRM, création) et membre (participant, fondateur,
-investisseur, facilitateur, équipe) vit sous son espace, avec ses composants.
-Reste : regrouper les composants de l'espace admin par domaine, et brancher les
-manifestes de contextes sur la navigation.
+Statut : **les trois espaces sont en place** (branche `views`). Les trois ont
+leurs adresses — `/member`, `/staff`, `/admin` — et leurs composants :
+contexte par contexte pour staff et membre, par domaine pour l'admin. Reste :
+brancher les manifestes de contextes sur la navigation, et passer les
+redirections en permanentes après validation.
 
 ## Décision
 
@@ -76,6 +75,10 @@ l'utilisent ?**
 Un composant partagé n'importe jamais un espace (`@/spaces/**`) : il ne doit pas
 dépendre de l'écran qui l'utilise en premier. Vérifié par le test de frontière.
 
+Les fonctions pures d'une ligne n'ont qu'un seul domicile. La jonction de classes
+est `@/lib/cn` : elle était recopiée dans neuf écrans, et ces copies forçaient des
+modules partagés à importer un espace juste pour l'atteindre.
+
 Domaines déjà partagés :
 
 | Dossier | Utilisé par |
@@ -88,7 +91,9 @@ Domaines déjà partagés :
 | `shared/messaging/` | membre, staff, admin |
 | `shared/tasks/` | staff, admin |
 | `shared/create/` | membre, staff, admin |
-| `shared/contacts/`, `shared/crm/` | CRM admin + CRM staff |
+| `shared/contacts/`, `shared/crm/`, `shared/membership/` | CRM admin + CRM staff |
+| `shared/integrations/` | la coquille globale + le tableau de bord admin |
+| `shared/platform/`, `shared/public/` | le form runner admin + le formulaire public |
 | `shared/kit/staff.css` | tous les rôles (le kit `stf-*`, chargé une fois) |
 | `shared/notify.js` | partout où l'on affiche un toast |
 

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { PERMISSION_BASE } from "@/components/permissions/permissionNav";
+import { PERMISSION_BASE } from "@/spaces/admin/permissions/permissionNav";
 
 /**
  * Retired "Where it applies" door.

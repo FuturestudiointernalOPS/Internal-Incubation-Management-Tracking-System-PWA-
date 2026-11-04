@@ -4,7 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { deriveMembershipStatus, sortGroups } from "@/lib/membership-ui";
-import { runMembershipAction } from "@/components/membership/MembershipModals";
+import { runMembershipAction } from "@/components/shared/membership/MembershipModals";
 
 const MEMBERSHIP_URL = "/api/org-membership";
 

@@ -5,16 +5,16 @@ import { ChevronLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import RelationshipsToast from "@/components/admin/investor-relationships/RelationshipsToast";
-import RelationshipsHeader from "@/components/admin/investor-relationships/RelationshipsHeader";
-import WorkspaceSummaryCard from "@/components/admin/investor-relationships/WorkspaceSummaryCard";
-import DetailTabs from "@/components/admin/investor-relationships/DetailTabs";
-import MeetingsPanel from "@/components/admin/investor-relationships/MeetingsPanel";
-import DiligencePanel from "@/components/admin/investor-relationships/DiligencePanel";
-import WorkspaceListView from "@/components/admin/investor-relationships/WorkspaceListView";
-import CreateMeetingModal from "@/components/admin/investor-relationships/CreateMeetingModal";
-import CompleteMeetingModal from "@/components/admin/investor-relationships/CompleteMeetingModal";
-import AddDdRequestModal from "@/components/admin/investor-relationships/AddDdRequestModal";
+import RelationshipsToast from "@/spaces/admin/components/investor-relationships/RelationshipsToast";
+import RelationshipsHeader from "@/spaces/admin/components/investor-relationships/RelationshipsHeader";
+import WorkspaceSummaryCard from "@/spaces/admin/components/investor-relationships/WorkspaceSummaryCard";
+import DetailTabs from "@/spaces/admin/components/investor-relationships/DetailTabs";
+import MeetingsPanel from "@/spaces/admin/components/investor-relationships/MeetingsPanel";
+import DiligencePanel from "@/spaces/admin/components/investor-relationships/DiligencePanel";
+import WorkspaceListView from "@/spaces/admin/components/investor-relationships/WorkspaceListView";
+import CreateMeetingModal from "@/spaces/admin/components/investor-relationships/CreateMeetingModal";
+import CompleteMeetingModal from "@/spaces/admin/components/investor-relationships/CompleteMeetingModal";
+import AddDdRequestModal from "@/spaces/admin/components/investor-relationships/AddDdRequestModal";
 import { notify } from "@/components/shared/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────

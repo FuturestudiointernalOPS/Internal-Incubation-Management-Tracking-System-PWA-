@@ -22,6 +22,7 @@ import { useI18n } from "@/lib/i18n";
 import { getActiveModules } from "@/models/platform/registry";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { roleHomeHref } from "@/models/platform/roles";
+import { cn } from "@/lib/cn";
 
 /**
  * PLATFORM LAYOUT
@@ -50,10 +51,6 @@ const PLATFORM_MODULE_LABELS = {
 };
 
 export const dynamic = "force-dynamic";
-
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function PlatformLayout({ children }) {
   const { t, switchLang, lang } = useI18n();

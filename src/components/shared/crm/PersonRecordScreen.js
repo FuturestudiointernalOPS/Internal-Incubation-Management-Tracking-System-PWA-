@@ -8,7 +8,7 @@ import AppModal from "@/components/ui/AppModal";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import MembershipSection from "@/components/membership/MembershipSection";
+import MembershipSection from "@/components/shared/membership/MembershipSection";
 import { useApi } from "@/lib/hooks/useApi";
 import { useCrmCapabilities } from "@/components/shared/crm/useCrmCapabilities";
 import PersonHeader from "@/components/shared/crm/people-detail/PersonHeader";

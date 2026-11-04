@@ -3,7 +3,7 @@
  *
  * The screen (`src/app/admin/platform/import/page.js`) keeps the state, the
  * file parsing and the handlers; its wizard markup lives in
- * `src/components/admin/platform/import/ImportView.js`, which reads everything
+ * `src/spaces/admin/components/shared/platform/import/ImportView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No type connects the two
  * sides and no behavioural test renders the screen, so a key that stops being
  * declared - or a name the view reads that the screen never puts in `ctx` - is
@@ -15,7 +15,7 @@ const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
 const PARENT = path.join(ROOT, "app", "admin", "platform", "import", "page.js");
-const VIEW = path.join(ROOT, "components", "admin", "platform", "import", "ImportView.js");
+const VIEW = path.join(ROOT, "spaces", "admin", "components", "platform", "import", "ImportView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 

@@ -11,8 +11,8 @@ import {
 } from "@/lib/identity";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { notificationText } from "@/lib/notificationText";
-import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
-import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
+import { useGoogleCalendar } from "@/components/shared/integrations/useGoogleCalendar";
+import GoogleCalendarConnect from "@/components/shared/integrations/GoogleCalendarConnect";
 
 export default function ShellHeader({
   pathname,
