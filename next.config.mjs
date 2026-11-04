@@ -1,3 +1,5 @@
+import { spaceRedirects } from "./src/spaces/redirects.js";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -38,118 +40,10 @@ const nextConfig = {
 
   async redirects() {
     return [
-      // ── Spaces: the member contexts moved under /member ───────────────
-      // The founder's venture screens always lived with the participant
-      // ventures; the old /founder/ventures alias now points straight there.
-      {
-        source: "/founder/ventures/:path*",
-        destination: "/member/participant/ventures/:path*",
-        permanent: false,
-      },
-      {
-        source: "/founder/ventures",
-        destination: "/member/participant/ventures",
-        permanent: false,
-      },
-      {
-        source: "/participant/:path*",
-        destination: "/member/participant/:path*",
-        permanent: false,
-      },
-      {
-        source: "/participant",
-        destination: "/member/participant",
-        permanent: false,
-      },
-      {
-        source: "/founder/:path*",
-        destination: "/member/founder/:path*",
-        permanent: false,
-      },
-      {
-        source: "/founder",
-        destination: "/member/founder",
-        permanent: false,
-      },
-      {
-        source: "/investor/:path*",
-        destination: "/member/investor/:path*",
-        permanent: false,
-      },
-      {
-        source: "/investor",
-        destination: "/member/investor",
-        permanent: false,
-      },
-      {
-        source: "/facilitator/:path*",
-        destination: "/member/facilitator/:path*",
-        permanent: false,
-      },
-      {
-        source: "/facilitator",
-        destination: "/member/facilitator",
-        permanent: false,
-      },
-      {
-        source: "/team/:path*",
-        destination: "/member/team/:path*",
-        permanent: false,
-      },
-      {
-        source: "/team",
-        destination: "/member/team",
-        permanent: false,
-      },
-      {
-        source: "/workspaces",
-        destination: "/member",
-        permanent: false,
-      },
-      // ── Spaces: the staff sections moved under /staff ────────────────────
-      // Temporary (307) on purpose: the migration is reversible while the
-      // member space is being built. Flip to permanent once the move is
-      // validated in production.
-      {
-        source: "/pm/:path*",
-        destination: "/staff/program-manager/:path*",
-        permanent: false,
-      },
-      {
-        source: "/pm",
-        destination: "/staff/program-manager",
-        permanent: false,
-      },
-      {
-        source: "/finance/:path*",
-        destination: "/staff/finance/:path*",
-        permanent: false,
-      },
-      {
-        source: "/finance",
-        destination: "/staff/finance",
-        permanent: false,
-      },
-      {
-        source: "/crm/:path*",
-        destination: "/staff/crm/:path*",
-        permanent: false,
-      },
-      {
-        source: "/crm",
-        destination: "/staff/crm",
-        permanent: false,
-      },
-      {
-        source: "/create/:path*",
-        destination: "/staff/create/:path*",
-        permanent: false,
-      },
-      {
-        source: "/create",
-        destination: "/staff/create",
-        permanent: false,
-      },
+      // Every legacy space address → its new home. The list lives in a plain
+      // module so it can be tested; SPACE_REDIRECTS_PERMANENT flips the whole
+      // set from temporary (307, reversible) to permanent (308, cached).
+      ...spaceRedirects(),
       {
         source: "/sa-hq-sp-2026-v1/:path*",
         destination: "/admin",

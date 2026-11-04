@@ -134,7 +134,41 @@ Les manifestes sont verrouillés par `member-contexts.test.js` et
 | `/admin/**`, `/platform/**` | inchangé | ✅ |
 
 Les redirections sont temporaires (307) tant que la migration n'est pas validée
-en production ; elles passent en permanentes à la fin.
+en production ; elles passent en permanentes à la fin (voir la bascule ci-dessous).
+
+## Bascule des redirections en permanentes
+
+La table des redirections vit dans `src/spaces/redirects.js` et un seul
+interrupteur la fait basculer : `SPACE_REDIRECTS_PERMANENT`. Aucune modification
+de code n'est nécessaire.
+
+**Ne basculer qu'après** la vérification de production sur les nouvelles
+adresses (`docs/PRODUCTION_TEST.md`). Une redirection permanente est mise en
+cache par le navigateur : la désactiver ensuite ne la retire pas pour les
+personnes qui l'ont déjà suivie.
+
+1. Déployer la migration avec les redirections temporaires.
+2. Vérifier les anciennes adresses sur l'environnement cible :
+
+   ```bash
+   npm run check:redirects -- https://<hôte>
+   ```
+
+   Chaque ligne doit afficher `ok … (307)`. Si toutes les lignes renvoient vers
+   la connexion, fournir une session :
+
+   ```bash
+   SPACE_CHECK_COOKIE="impactos_session=…" npm run check:redirects -- https://<hôte>
+   ```
+
+3. Renseigner `SPACE_REDIRECTS_PERMANENT=1` dans l'environnement du build de
+   production, puis redéployer (la configuration est lue au build).
+4. Relancer la vérification : les mêmes lignes doivent afficher `(308)`.
+5. Garder la variable. Pour revenir en arrière : la retirer et redéployer — en
+   gardant en tête le cache navigateur des 308 déjà suivis.
+
+Les invariants de la table (sources uniques, pas de boucle, alias spécifique
+avant son parent) sont vérifiés par `src/__tests__/space-redirects.test.js`.
 
 ## Ajouter un contexte
 

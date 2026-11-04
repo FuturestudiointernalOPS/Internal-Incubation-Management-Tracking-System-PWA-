@@ -20,6 +20,7 @@
     "authz:metrics": "node scripts/authz-metrics.js",
     "authz:metrics:check": "node scripts/authz-metrics.js --check",
     "i18n:parity": "node scripts/i18n-parity.mjs",
+    "check:redirects": "node scripts/check-space-redirects.mjs",
     "db:align": "node scripts/db-audit/apply-align-migration.mjs",
     "db:venture-identity": "node scripts/migrations/apply_venture_identity_phase0.mjs",
     "backfill:founder-ledger": "node scripts/backfill-founder-ledger.mjs",
