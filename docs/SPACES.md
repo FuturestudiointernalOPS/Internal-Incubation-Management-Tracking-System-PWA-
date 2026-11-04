@@ -70,7 +70,7 @@ espaces. Un composant dont deux espaces ont réellement besoin va dans
 | `/pm/**` | `/staff/program-manager/**` | ✅ routes + composants, redirection temporaire |
 | `/finance/**` | `/staff/finance/**` | ✅ routes, redirection temporaire |
 | `/create/**` | `/staff/create/**` | ✅ routes, redirection temporaire |
-| `/crm/**` | `/staff/crm/**` | ⏳ à faire |
+| `/crm/**` | `/staff/crm/**` | ✅ routes + composants partagés, redirection temporaire |
 | `/participant/**` | `/member/participant/**` | ⏳ phase 3 |
 | `/founder/**` | `/member/founder/**` | ⏳ phase 3 |
 | `/investor/**` | `/member/investor/**` | ⏳ phase 3 |

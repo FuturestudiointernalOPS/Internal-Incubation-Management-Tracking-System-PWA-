@@ -24,18 +24,18 @@ const FIXTURE = {
       id: "crm",
       href: null,
       subItems: [
-        { id: "crm_dashboard", href: "/crm", subItems: null },
-        { id: "all_contacts", href: "/crm/contacts", subItems: null },
-        { id: "crm_organizations", href: "/crm/organizations", subItems: null },
-        { id: "crm_leads", href: "/crm/leads", subItems: null },
-        { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },
-        { id: "crm_pipelines", href: "/crm/pipelines", subItems: null },
-        { id: "crm_activities", href: "/crm/activities", subItems: null },
-        { id: "crm_segments", href: "/crm/segments", subItems: null },
-        { id: "crm_automations", href: "/crm/automations", subItems: null },
-        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
-        { id: "crm_membership", href: "/crm/membership", subItems: null },
-        { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
+        { id: "crm_dashboard", href: "/staff/crm", subItems: null },
+        { id: "all_contacts", href: "/staff/crm/contacts", subItems: null },
+        { id: "crm_organizations", href: "/staff/crm/organizations", subItems: null },
+        { id: "crm_leads", href: "/staff/crm/leads", subItems: null },
+        { id: "crm_opportunities", href: "/staff/crm/opportunities", subItems: null },
+        { id: "crm_pipelines", href: "/staff/crm/pipelines", subItems: null },
+        { id: "crm_activities", href: "/staff/crm/activities", subItems: null },
+        { id: "crm_segments", href: "/staff/crm/segments", subItems: null },
+        { id: "crm_automations", href: "/staff/crm/automations", subItems: null },
+        { id: "crm_timeline", href: "/staff/crm/timeline", subItems: null },
+        { id: "crm_membership", href: "/staff/crm/membership", subItems: null },
+        { id: "crm_duplicates", href: "/staff/crm/duplicates", subItems: null },
         { id: "pending_users", href: "/admin/pending-users", subItems: null },
         { id: "bulk_upload", href: "/admin/bulk-upload", subItems: null },
       ],
@@ -195,18 +195,18 @@ const FIXTURE = {
       id: "crm",
       href: null,
       subItems: [
-        { id: "crm_dashboard", href: "/crm", subItems: null },
-        { id: "all_contacts", href: "/crm/contacts", subItems: null },
-        { id: "crm_organizations", href: "/crm/organizations", subItems: null },
-        { id: "crm_leads", href: "/crm/leads", subItems: null },
-        { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },
-        { id: "crm_pipelines", href: "/crm/pipelines", subItems: null },
-        { id: "crm_activities", href: "/crm/activities", subItems: null },
-        { id: "crm_segments", href: "/crm/segments", subItems: null },
-        { id: "crm_automations", href: "/crm/automations", subItems: null },
-        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
-        { id: "crm_membership", href: "/crm/membership", subItems: null },
-        { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
+        { id: "crm_dashboard", href: "/staff/crm", subItems: null },
+        { id: "all_contacts", href: "/staff/crm/contacts", subItems: null },
+        { id: "crm_organizations", href: "/staff/crm/organizations", subItems: null },
+        { id: "crm_leads", href: "/staff/crm/leads", subItems: null },
+        { id: "crm_opportunities", href: "/staff/crm/opportunities", subItems: null },
+        { id: "crm_pipelines", href: "/staff/crm/pipelines", subItems: null },
+        { id: "crm_activities", href: "/staff/crm/activities", subItems: null },
+        { id: "crm_segments", href: "/staff/crm/segments", subItems: null },
+        { id: "crm_automations", href: "/staff/crm/automations", subItems: null },
+        { id: "crm_timeline", href: "/staff/crm/timeline", subItems: null },
+        { id: "crm_membership", href: "/staff/crm/membership", subItems: null },
+        { id: "crm_duplicates", href: "/staff/crm/duplicates", subItems: null },
       ],
     },
     // Forms and runs live under Communication, never under CRM.
@@ -378,9 +378,9 @@ describe("capability projection — buildAccessNav contract", () => {
       "crm_timeline",
     ]);
     expect(crm.subItems.map((subItem) => subItem.href)).toEqual([
-      "/crm",
-      "/crm/contacts",
-      "/crm/timeline",
+      "/staff/crm",
+      "/staff/crm/contacts",
+      "/staff/crm/timeline",
     ]);
   });
 
@@ -399,14 +399,14 @@ describe("capability projection — buildAccessNav contract", () => {
       "crm_automations",
     ]);
     expect(crm.subItems.map((subItem) => subItem.href)).toEqual([
-      "/crm",
-      "/crm/organizations",
-      "/crm/leads",
-      "/crm/opportunities",
-      "/crm/pipelines",
-      "/crm/activities",
-      "/crm/segments",
-      "/crm/automations",
+      "/staff/crm",
+      "/staff/crm/organizations",
+      "/staff/crm/leads",
+      "/staff/crm/opportunities",
+      "/staff/crm/pipelines",
+      "/staff/crm/activities",
+      "/staff/crm/segments",
+      "/staff/crm/automations",
     ]);
   });
 
@@ -415,7 +415,7 @@ describe("capability projection — buildAccessNav contract", () => {
     const crm = nav.find((item) => item.id === "crm");
     expect(crm).toBeDefined();
     expect(crm.subItems.map((subItem) => subItem.id)).toEqual(["crm_membership"]);
-    expect(crm.subItems[0].href).toBe("/crm/membership");
+    expect(crm.subItems[0].href).toBe("/staff/crm/membership");
   });
 
   test("membership appears only when org_membership.view is held", () => {
@@ -429,7 +429,7 @@ describe("capability projection — buildAccessNav contract", () => {
     const crm = withMembership.find((item) => item.id === "crm");
     const membership = crm.subItems.find((subItem) => subItem.id === "crm_membership");
     expect(membership).toBeDefined();
-    expect(membership.href).toBe("/crm/membership");
+    expect(membership.href).toBe("/staff/crm/membership");
   });
 
   test("a granted leaf (finance) is added through its non-admin fallback", () => {

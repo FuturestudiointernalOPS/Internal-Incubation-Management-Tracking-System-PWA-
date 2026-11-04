@@ -443,7 +443,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     fullWidth ||
     (typeof pathname === "string" &&
       (pathname.startsWith("/admin/communications/contacts") ||
-        pathname.startsWith("/crm/contacts")));
+        pathname.startsWith("/staff/crm/contacts")));
 
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;

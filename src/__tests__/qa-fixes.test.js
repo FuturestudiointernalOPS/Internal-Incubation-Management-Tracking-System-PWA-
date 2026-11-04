@@ -93,7 +93,6 @@ describe("source pins", () => {
     // the guard once for the whole space. A section that moves under it must
     // NOT re-wrap itself (a second shell would mount twice).
     expect(read("src/app/staff/layout.js")).toContain("SectionRoleGuard");
-    expect(read("src/app/crm/layout.js")).toContain("SectionRoleGuard");
     // The delegated creation surface keeps its own capability gate instead.
     expect(read("src/app/staff/create/layout.js")).toContain("CreationAccessGuard");
   });

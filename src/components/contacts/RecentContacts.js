@@ -60,7 +60,7 @@ export default function RecentContacts({ contacts = [], loading = false, limit =
             return (
               <Link
                 key={contact.cid}
-                href={`/crm/people/${contact.cid}`}
+                href={`/staff/crm/people/${contact.cid}`}
                 className="flex items-center gap-3 px-4 py-3 hover:bg-[var(--surface-3)] transition-colors"
               >
                 <span className="w-9 h-9 shrink-0 rounded-full bg-brand-orange/10 text-[var(--brand-orange)] text-xs font-bold flex items-center justify-center uppercase">

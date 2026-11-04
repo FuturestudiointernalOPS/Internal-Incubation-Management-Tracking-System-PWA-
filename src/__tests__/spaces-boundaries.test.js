@@ -122,19 +122,19 @@ describe("the space folders", () => {
 
 describe("the routes follow the spaces", () => {
   test("the staff contexts live under one staff address family", () => {
-    for (const context of ["program-manager", "finance", "create"]) {
+    for (const context of ["program-manager", "finance", "crm", "create"]) {
       expect(fs.existsSync(path.join(ROOT, "app", "staff", context))).toBe(true);
     }
   });
 
   test("the old staff addresses are gone — the redirect is the only trace", () => {
-    for (const legacy of ["pm", "finance", "create"]) {
+    for (const legacy of ["pm", "finance", "crm", "create"]) {
       expect(fs.existsSync(path.join(ROOT, "app", legacy))).toBe(false);
     }
   });
 
   test("a context moved under an existing space does not mount a second shell", () => {
-    for (const context of ["program-manager", "finance"]) {
+    for (const context of ["program-manager", "finance", "crm"]) {
       const layout = path.join(ROOT, "app", "staff", context, "layout.js");
       if (!fs.existsSync(layout)) continue;
       expect(read(layout)).not.toContain("DashboardLayout");

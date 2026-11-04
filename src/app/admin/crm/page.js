@@ -11,5 +11,5 @@ export const dynamic = "force-dynamic";
  * working.
  */
 export default function LegacyCrmDashboardRedirect() {
-  redirect("/crm");
+  redirect("/staff/crm");
 }

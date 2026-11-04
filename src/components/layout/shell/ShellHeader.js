@@ -196,7 +196,7 @@ export default function ShellHeader({
                                 notification.type === "verification" ||
                                 notification.title.includes("ACCESS")
                               ) {
-                                router.push("/crm/contacts");
+                                router.push("/staff/crm/contacts");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {

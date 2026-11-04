@@ -9,7 +9,7 @@ Where an **internal function** works. It is reached through one shell, at
 | Programme manager | the programme-manager profile | `/staff/program-manager` |
 | Lead manager | at least one venture assignment | `/staff/ventures` |
 | Finance | the finance responsibility or role | `/staff/finance` |
-| CRM | the CRM responsibility or role | `/crm` (moving to `/staff/crm`) |
+| CRM | the CRM responsibility or role | `/staff/crm` |
 | Creation | a creation capability | `/staff/create` |
 
 Where the code lives:

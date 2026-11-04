@@ -74,6 +74,16 @@ const nextConfig = {
         permanent: false,
       },
       {
+        source: "/crm/:path*",
+        destination: "/staff/crm/:path*",
+        permanent: false,
+      },
+      {
+        source: "/crm",
+        destination: "/staff/crm",
+        permanent: false,
+      },
+      {
         source: "/create/:path*",
         destination: "/staff/create/:path*",
         permanent: false,

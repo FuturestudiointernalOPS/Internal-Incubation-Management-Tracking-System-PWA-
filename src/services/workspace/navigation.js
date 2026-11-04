@@ -220,7 +220,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
       href: String(row.key || "").toLowerCase().includes("finance")
         ? "/staff/finance"
         : String(row.key || "").toLowerCase().includes("crm")
-          ? "/crm"
+          ? "/staff/crm"
           : "/workspaces",
     }));
   } catch (_) {}
