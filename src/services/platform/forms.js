@@ -39,7 +39,7 @@ import {
   updatePlatformFormSection,
 } from "@/models/forms";
 import { assertSingleInvestorForm, ensureSingleInvestorFormIndex } from "@/models/investorIntake";
-import { createFormRun } from "@/models/formRuns";
+import { createFormRun, getActiveRunForFormId, updateRunFormVersionById } from "@/models/formRuns";
 import { onRunCreated } from "@/models/platform/automation";
 
 /** The unguessable public slug every run gets (same format as run creation). */
@@ -132,13 +132,16 @@ export async function guardInvestorIntake({ form_id = null, settings } = {}) {
 }
 
 /**
- * Publish = save the builder, snapshot what was saved, then create the run that
- * carries that snapshot.
+ * Publish = save the builder, snapshot what was saved, then point the form's
+ * live run at that snapshot.
  *
  * Saving first is what makes the snapshot the truth: the builder's payload can
  * still hold temporary section ids that exist only in the browser, and a
  * snapshot of those would pin a layout the database never had (the "scattered"
  * public form). Reading the rows back after the save pins real ids.
+ *
+ * A form has one live run: publishing again moves that run to the new version
+ * rather than minting a second run and a second public link.
  *
  * @returns {Promise<{status: number, body: Object}>}
  */
@@ -177,24 +180,44 @@ export async function publishFormVersion({ id, fields, sections, evaluation_fram
   await createPlatformFormVersion(formId, newVersion, JSON.stringify(snapshot), session?.cid || null);
   await publishPlatformForm(formId, newVersion);
 
-  // ── 3. The run that carries this version, live from the moment it exists.
-  //    Its name says which version it pins, so two runs of one form are never
-  //    mistaken for each other in the Runs list.
-  const createdRun = await createFormRun({
-    form_id: formId,
-    form_version: newVersion,
-    name: `${currentForm.name} v${newVersion}`,
-    description: currentForm.description || null,
-    opens_at: null,
-    closes_at: null,
-    settings: {},
-    owner_id: session?.cid || null,
-    created_by: session?.cid || null,
-    public_slug: newPublicSlug(),
-    status: "active",
-  });
-  const run = createdRun?.rows?.[0] || null;
-  if (run) onRunCreated(run, session);
+  // ── 3. The run that carries this version.
+  //
+  //    A form has ONE live run: republishing (the button an already-published
+  //    form shows) moves that run to the new version instead of minting another
+  //    one. Only a form with no live run gets a run created — the first publish,
+  //    or a form whose run was archived.
+  const liveRun = await getActiveRunForFormId(formId);
+  const existingRun = liveRun.rows?.[0] || null;
+
+  let run = null;
+  if (existingRun) {
+    // Keep an auto-generated "<form> v<N>" name in step with the version it now
+    // pins. A run renamed by hand is left exactly as the team named it.
+    const autoName = `${currentForm.name} v${existingRun.form_version}`;
+    const updated = await updateRunFormVersionById({
+      id: existingRun.id,
+      formVersion: newVersion,
+      name: existingRun.name === autoName ? `${currentForm.name} v${newVersion}` : undefined,
+    });
+    run = updated?.rows?.[0] || { ...existingRun, form_version: newVersion };
+  } else {
+    const createdRun = await createFormRun({
+      form_id: formId,
+      form_version: newVersion,
+      name: `${currentForm.name} v${newVersion}`,
+      description: currentForm.description || null,
+      opens_at: null,
+      closes_at: null,
+      settings: {},
+      owner_id: session?.cid || null,
+      created_by: session?.cid || null,
+      public_slug: newPublicSlug(),
+      status: "active",
+    });
+    run = createdRun?.rows?.[0] || null;
+    // Creation automation only runs for a run that was actually created.
+    if (run) onRunCreated(run, session);
+  }
 
   return { status: 200, body: { success: true, version: newVersion, run } };
 }

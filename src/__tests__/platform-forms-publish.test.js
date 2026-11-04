@@ -7,7 +7,8 @@
  * behaviours pinned here are the contract:
  *   1. publish saves the builder first,
  *   2. the snapshot is the SAVED rows (real ids, real section links),
- *   3. a run pinned to that version is created, live, with a versioned name.
+ *   3. a run pinned to that version is created on the first publish, and the
+ *      form's live run is repointed to it on every republish (one form, one run).
  */
 jest.mock("@/models/forms", () => ({
   archivePlatformForm: jest.fn(),
@@ -41,6 +42,8 @@ jest.mock("@/models/investorIntake", () => ({
 
 jest.mock("@/models/formRuns", () => ({
   createFormRun: jest.fn(),
+  getActiveRunForFormId: jest.fn(),
+  updateRunFormVersionById: jest.fn(),
 }));
 
 jest.mock("@/models/platform/automation", () => ({
@@ -55,7 +58,7 @@ const {
   getPlatformFormFields,
   createPlatformFormSection,
 } = require("@/models/forms");
-const { createFormRun } = require("@/models/formRuns");
+const { createFormRun, getActiveRunForFormId, updateRunFormVersionById } = require("@/models/formRuns");
 const { onRunCreated } = require("@/models/platform/automation");
 const { publishFormVersion } = require("@/services/platform/forms");
 
@@ -73,6 +76,8 @@ beforeEach(() => {
   createFormRun.mockResolvedValue({
     rows: [{ id: 77, form_id: 5, form_version: 2, name: "Founder Application v2", status: "active", public_slug: "r0123456789" }],
   });
+  getActiveRunForFormId.mockResolvedValue({ rows: [] });
+  updateRunFormVersionById.mockResolvedValue({ rows: [] });
 });
 
 describe("publishFormVersion — save, snapshot, run", () => {
@@ -132,5 +137,45 @@ describe("publishFormVersion — save, snapshot, run", () => {
     expect(status).toBe(404);
     expect(createPlatformFormVersion).not.toHaveBeenCalled();
     expect(createFormRun).not.toHaveBeenCalled();
+  });
+
+  test("republishing repoints the form's live run instead of creating a second one", async () => {
+    getActiveRunForFormId.mockResolvedValue({
+      rows: [{ id: 42, form_id: 5, form_version: 1, name: "Founder Application v1", status: "active" }],
+    });
+    updateRunFormVersionById.mockResolvedValue({
+      rows: [{ id: 42, form_id: 5, form_version: 2, name: "Founder Application v2", status: "active" }],
+    });
+
+    const { body } = await publishFormVersion({
+      id: 5,
+      fields: LIVE_FIELDS,
+      sections: LIVE_SECTIONS,
+      session: { cid: "U-ADMIN" },
+    });
+
+    expect(createFormRun).not.toHaveBeenCalled();
+    // A repointed run is not a new run: creation automation stays silent.
+    expect(onRunCreated).not.toHaveBeenCalled();
+    expect(updateRunFormVersionById).toHaveBeenCalledWith({
+      id: 42,
+      formVersion: 2,
+      name: "Founder Application v2",
+    });
+    expect(body).toMatchObject({ success: true, version: 2, run: { id: 42, form_version: 2 } });
+  });
+
+  test("republishing keeps a name the team chose, and only renames the auto-generated one", async () => {
+    getActiveRunForFormId.mockResolvedValue({
+      rows: [{ id: 42, form_id: 5, form_version: 2, name: "Cohorte 5 — candidatures", status: "active" }],
+    });
+
+    await publishFormVersion({ id: 5, session: { cid: "U-ADMIN" } });
+
+    expect(updateRunFormVersionById).toHaveBeenCalledWith({
+      id: 42,
+      formVersion: 2,
+      name: undefined,
+    });
   });
 });
