@@ -1,8 +1,5 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
-import { getSession } from "@/server/auth/session";
-import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
-import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { logVentureActivity, addVentureHistory } from "@/services/ventures/activity";
 import { getVentureById, updateVenture } from "@/services/ventures/record";
@@ -66,104 +63,88 @@ export const GET = createHandler(
  * PATCH /api/ventures/[id]
  *
  * Update a venture's information.
- * Only super_admin can update.
+ * Requires `ventures.edit` on a Venture the caller belongs to, or the explicit
+ * `ventures.edit_all` right for the whole portfolio.
  */
 export const PATCH = createHandler(async (req, { params }) => {
-  const capError = await requireAuthorization("ventures", "edit");
-  if (capError) return capError;
   const { id } = await params;
 
-    // Phase 5c — capability is not enough: the venture must be THEIRS.
-    {
-      const session = await getSession();
-      const authzContext = await getAuthorizationContext(session);
-      if (!authzContext?.isSuperAdmin) {
-        const scopeId = await resolveVentureScopeId(id);
-        const within =
-          Boolean(scopeId) &&
-          (await isWithinScope("venture_own", session?.cid, scopeId));
-        if (!within) {
-          const response = NextResponse.json(
-            {
-              success: false,
-              error: "errors.insufficientPermissions",
-              missing: { capability: "ventures.edit", scope: "venture_own" },
-            },
-            { status: 403 },
-          );
-          response.headers.set("X-Authz-Decision", "out-of-scope");
-          return response;
-        }
-      }
-    }
+  // The canonical write gate: action capability + perimeter (an assigned
+  // Venture, or the explicit `ventures.edit_all` right). No role bypass.
+  const access = await requireVentureScopedAccess({
+    ventureId: id,
+    module: "ventures",
+    capability: "edit",
+  });
+  if (access.error) return access.error;
 
-    // Check venture exists
-    const existingVenture = await getVentureById(id);
-    if (!existingVenture) {
-      return NextResponse.json(
-        { success: false, error: "Venture not found" },
-        { status: 404 },
-      );
-    }
-
-    // Archived Ventures are immutable historical records — no mutations for
-    // anyone (including staff) until the Venture is resumed (Phase 3).
-    try {
-      const { getSession } = await import("@/server/auth/session");
-      const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
-      const session = await getSession();
-      const gate = await requireOperationalVentureAccess({ ventureId: id, session, mutate: true });
-      if (!gate.ok && gate.code === "archived") {
-        return NextResponse.json(
-          { success: false, code: "VENTURE_ARCHIVED", error: gate.reason },
-          { status: 409 },
-        );
-      }
-    } catch (_) {}
-
-    const body = await req.json();
-
-    // Validate if company_name is being updated
-    if (body.company_name !== undefined && !body.company_name.trim()) {
-      return NextResponse.json(
-        { success: false, error: "Company name cannot be empty" },
-        { status: 400 },
-      );
-    }
-
-    // Update the venture
-    await updateVenture(id, body);
-
-    // Log activity
-    const changedFields = Object.keys(body).filter(
-      (field) => body[field] !== undefined && field !== "session",
+  // Check venture exists
+  const existingVenture = await getVentureById(id);
+  if (!existingVenture) {
+    return NextResponse.json(
+      { success: false, error: "Venture not found" },
+      { status: 404 },
     );
-    if (changedFields.length > 0) {
-      await logVentureActivity({
-        venture_id: id,
-        action: "VENTURE_UPDATED",
-        actor_cid: req.session?.cid || "system",
-        actor_name: req.session?.name || "System",
-        details: {
-          updated_fields: changedFields,
-        },
-      });
+  }
 
-      await addVentureHistory({
-        venture_id: id,
-        event_type: "VENTURE_UPDATED",
-        description: `Venture information updated: ${changedFields.join(", ")}`,
-        metadata: {
-          updated_fields: changedFields,
-        },
-      });
+  // Archived Ventures are immutable historical records — no mutations for
+  // anyone (including staff) until the Venture is resumed (Phase 3).
+  try {
+    const { getSession } = await import("@/server/auth/session");
+    const { requireOperationalVentureAccess } = await import("@/lib/ventureAuth");
+    const session = await getSession();
+    const gate = await requireOperationalVentureAccess({ ventureId: id, session, mutate: true });
+    if (!gate.ok && gate.code === "archived") {
+      return NextResponse.json(
+        { success: false, code: "VENTURE_ARCHIVED", error: gate.reason },
+        { status: 409 },
+      );
     }
+  } catch (_) {}
 
-    // Fetch updated venture
-    const updatedVenture = await getVentureById(id);
+  const body = await req.json();
 
-    return NextResponse.json({
-      success: true,
-      venture: updatedVenture,
+  // Validate if company_name is being updated
+  if (body.company_name !== undefined && !body.company_name.trim()) {
+    return NextResponse.json(
+      { success: false, error: "Company name cannot be empty" },
+      { status: 400 },
+    );
+  }
+
+  // Update the venture
+  await updateVenture(id, body);
+
+  // Log activity
+  const changedFields = Object.keys(body).filter(
+    (field) => body[field] !== undefined && field !== "session",
+  );
+  if (changedFields.length > 0) {
+    await logVentureActivity({
+      venture_id: id,
+      action: "VENTURE_UPDATED",
+      actor_cid: req.session?.cid || "system",
+      actor_name: req.session?.name || "System",
+      details: {
+        updated_fields: changedFields,
+      },
     });
+
+    await addVentureHistory({
+      venture_id: id,
+      event_type: "VENTURE_UPDATED",
+      description: `Venture information updated: ${changedFields.join(", ")}`,
+      metadata: {
+        updated_fields: changedFields,
+      },
+    });
+  }
+
+  // Fetch updated venture
+  const updatedVenture = await getVentureById(id);
+
+  return NextResponse.json({
+    success: true,
+    venture: updatedVenture,
+  });
 });

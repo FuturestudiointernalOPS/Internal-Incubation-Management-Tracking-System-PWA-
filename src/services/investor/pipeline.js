@@ -28,6 +28,7 @@ import {
   markRelationshipWorkspaceActiveInvestment,
   upsertInvestmentPipeline,
 } from "@/models/investor";
+import { emitInvestorEvent } from "@/services/investor/activity";
 
 // The internal roles that see every pipeline row.
 const MANAGEMENT_ROLES = ["super_admin", "staff", "program_manager"];
@@ -111,6 +112,16 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
     venture_id: ventureId,
     stage: newStage,
     notes,
+  });
+
+  // Every stage move is recorded for the metrics (E2/E3). `emitInvestorEvent`
+  // never throws, so logging cannot break the pipeline write.
+  await emitInvestorEvent({
+    session,
+    eventType: "pipeline_stage_changed",
+    ventureId: ventureId ? String(ventureId) : null,
+    relatedId: result.rows?.[0]?.id ?? null,
+    metadata: { stage: newStage },
   });
 
   // Meeting requested → notify super admins and drop a calendar placeholder.

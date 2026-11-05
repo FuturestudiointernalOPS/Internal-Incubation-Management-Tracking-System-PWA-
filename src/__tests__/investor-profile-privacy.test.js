@@ -17,6 +17,12 @@ jest.mock("@/models/investorRelations", () => ({
   upgradeContactRoleToInvestor: jest.fn(),
 }));
 jest.mock("@/services/investor", () => ({ buildInvestorDashboard: jest.fn() }));
+jest.mock("@/models/investor/expansionSchema", () => ({
+  ensureInvestorExpansionSchema: jest.fn().mockResolvedValue(undefined),
+}));
+jest.mock("@/services/investor/activity", () => ({
+  emitInvestorEvent: jest.fn().mockResolvedValue(undefined),
+}));
 
 const db = require("@/lib/db").default;
 const { requireAuth } = require("@/server/auth/guards");
@@ -24,6 +30,8 @@ const { getSession } = require("@/server/auth/session");
 const { requireInvestorSelfServiceAuthorization } = require("@/models/authorization/investorSelfService");
 const models = require("@/models/investorRelations");
 const { buildInvestorDashboard } = require("@/services/investor");
+const { emitInvestorEvent } = require("@/services/investor/activity");
+const { ensureInvestorExpansionSchema } = require("@/models/investor/expansionSchema");
 const { INVESTOR_FLAGS, readInvestorFlags } = require("@/services/investor/featureFlags");
 const { toInvestorSelfProfile } = require("@/services/investor/profilePrivacy");
 const profileRoute = require("@/app/api/investor/profile/route");
@@ -169,6 +177,12 @@ describe("self-service HTTP responses", () => {
     expect(body.pipeline).toEqual([{ id: "pipeline-existing" }]);
     expect(body.stats).toEqual({ total_pipeline: 1 });
     expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(ensureInvestorExpansionSchema).toHaveBeenCalledTimes(1);
+    expect(emitInvestorEvent).toHaveBeenCalledTimes(1);
+    expect(emitInvestorEvent).toHaveBeenCalledWith({
+      session: { cid: "DEMO-MEMBER", role: "member" },
+      eventType: "list_viewed", metadata: { surface: "dashboard" },
+    });
   });
 
   test("disabled profile switch preserves the legacy payload", async () => {

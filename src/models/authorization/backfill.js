@@ -26,6 +26,7 @@ import {
   ensureVentureMemberEditBackfill,
   ensureVentureOpsProfileSeed,
   ensureDelegatedCapabilityDefaults,
+  ensureVenturePortfolioCapabilityDefaults,
 } from "./profileCatalogueSeed";
 import { backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
@@ -196,6 +197,14 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration(
             "profile-capability-defaults-v1",
             ensureDelegatedCapabilityDefaults,
+          ),
+          // The Venture portfolio perimeter (`view_all` / `edit_all`) replaces
+          // the Super Admin role bypass on Venture routes. The platform owner
+          // keeps the access as a RIGHT on their default profile; insert-only,
+          // so an administrator's later revocation survives the next boot.
+          runAuthzMigration(
+            "venture-portfolio-capabilities-v1",
+            ensureVenturePortfolioCapabilityDefaults,
           ),
           // The per-assignment profile override moved from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. That

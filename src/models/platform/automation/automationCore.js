@@ -383,6 +383,26 @@ const RULES = [
           }
         }
 
+        // ── Invitation linkage: mark the invitation submitted and stamp the
+        //    profile's source, so A8/A9 (invitation conversion, source mix)
+        //    are accurate. Best-effort; never fails the approval.
+        if (isApproved && contact?.cid && contactEmail) {
+          try {
+            const { getLatestInvitationByEmail, markInvitationSubmitted } = await import("@/models/investor/invitations");
+            const invitation = await getLatestInvitationByEmail(contactEmail);
+            const invitationRow = invitation.rows?.[0];
+            if (invitationRow && !invitationRow.submitted_at) {
+              await markInvitationSubmitted({ id: invitationRow.id, submissionId: ctx.submission?.id || null });
+              await db.execute({
+                sql: "UPDATE investor_profiles SET source = 'invited', invitation_id = ?, updated_at = NOW() WHERE user_id = ?",
+                args: [invitationRow.id, contact.cid],
+              });
+            }
+          } catch (error) {
+            console.error("[Automation] Invitation linkage failed:", error.message);
+          }
+        }
+
         // 3. Workflow toggle for the email itself
         if (!shouldSendActivation) {
           await recordEmailStatus({

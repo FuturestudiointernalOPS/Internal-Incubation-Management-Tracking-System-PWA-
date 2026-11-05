@@ -182,6 +182,21 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "medium", description: "Register ventures" },
         edit: { label: "Edit", risk: "medium", description: "Edit ventures" },
         delete: { label: "Delete", risk: "high", description: "Delete ventures" },
+        // The PORTFOLIO perimeter. `view`/`edit` say WHAT the caller may do;
+        // these say WHERE — every Venture, not only the ones they belong to or
+        // are assigned to. They replace the old Super Admin bypass on Venture
+        // routes, so the perimeter is a right like any other: grantable,
+        // restrictable, and revocable even from a Super Admin.
+        view_all: {
+          label: "View All Ventures",
+          risk: "medium",
+          description: "See every Venture, not only the ones the caller belongs to or is assigned to",
+        },
+        edit_all: {
+          label: "Manage All Ventures",
+          risk: "high",
+          description: "Act on every Venture, not only the ones the caller is assigned to",
+        },
         // Venture Setup — taxonomies and playbooks. The route comment already
         // anticipated this key; it keeps the right separate from editing a
         // Venture's own content.

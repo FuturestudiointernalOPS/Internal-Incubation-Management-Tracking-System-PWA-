@@ -9,15 +9,16 @@ import { selectFounderIdByEmail, selectFounderMemberIdByCid, selectVentureCodeBy
 import {
   isInternalStaffRole,
   isLegacyProgramManagerRole,
-  isPlatformOwnerRole,
 } from "@/lib/identity";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 
 /**
  * Check if a user is authorized to edit a venture's startup profile.
  */
 export async function canEditStartupProfile(ventureId, session) {
   if (!session) return false;
-  if (isPlatformOwnerRole(session.role)) return true;
+  // The unscoped write authority is the explicit `ventures.edit_all` right.
+  if ((await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed) return true;
 
   // Check if user is a founder of this venture
   const founderRes = await selectFounderIdByEmail(ventureId, session.email || "");
@@ -56,7 +57,8 @@ async function hasDelegatedVentureAssignment(ventureId, session) {
  */
 export async function canReadStartupProfile(ventureId, session) {
   if (!session) return false;
-  if (isPlatformOwnerRole(session.role)) return true;
+  // The unscoped read authority is the explicit `ventures.view_all` right.
+  if ((await resolveVenturePortfolioAccess({ session, action: "view" })).allowed) return true;
 
   // Delegated staff (Phase 2): read access derives from an explicit Venture
   // assignment — never from the staff role alone.
