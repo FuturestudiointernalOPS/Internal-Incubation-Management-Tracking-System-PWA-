@@ -1,0 +1,855 @@
+{
+  "date": "2026-11-05",
+  "project_ref": "mbpaxrfhqqclzyiefuab",
+  "branch": "venture-A",
+  "commit": "13a54d5fd",
+  "read_only": [
+    {
+      "read_only": "on"
+    }
+  ],
+  "metadata_only": true,
+  "constraints": [
+    {
+      "constraint_name": "introduction_requests_pkey",
+      "table_name": "introduction_requests",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "constraint_name": "investment_pipeline_investor_id_fkey",
+      "table_name": "investment_pipeline",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (investor_id) REFERENCES investor_profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "investment_pipeline_investor_id_venture_id_key",
+      "table_name": "investment_pipeline",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (investor_id, venture_id)"
+    },
+    {
+      "constraint_name": "investment_pipeline_pkey",
+      "table_name": "investment_pipeline",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "constraint_name": "investment_pipeline_stage_check",
+      "table_name": "investment_pipeline",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK ((stage = ANY (ARRAY['interested'::text, 'watching'::text, 'meeting_requested'::text, 'due_diligence'::text, 'negotiation'::text, 'invested'::text, 'declined'::text])))"
+    },
+    {
+      "constraint_name": "investor_activity_log_pkey",
+      "table_name": "investor_activity_log",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (event_id)"
+    },
+    {
+      "constraint_name": "investor_invitations_pkey",
+      "table_name": "investor_invitations",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "constraint_name": "investor_profiles_approval_status_check",
+      "table_name": "investor_profiles",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK ((approval_status = ANY (ARRAY['pending_review'::text, 'approved'::text, 'rejected'::text, 'suspended'::text])))"
+    },
+    {
+      "constraint_name": "investor_profiles_pkey",
+      "table_name": "investor_profiles",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "constraint_name": "investor_profiles_qualification_status_check",
+      "table_name": "investor_profiles",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK ((qualification_status = ANY (ARRAY['incomplete'::text, 'pending_review'::text, 'under_review'::text, 'approved'::text, 'rejected'::text, 'more_info_needed'::text])))"
+    },
+    {
+      "constraint_name": "investor_profiles_user_id_fkey",
+      "table_name": "investor_profiles",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (user_id) REFERENCES contacts(cid) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "relationship_workspaces_investor_id_fkey",
+      "table_name": "relationship_workspaces",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (investor_id) REFERENCES investor_profiles(id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "relationship_workspaces_pipeline_id_fkey",
+      "table_name": "relationship_workspaces",
+      "type": "f",
+      "validated": true,
+      "definition": "FOREIGN KEY (pipeline_id) REFERENCES investment_pipeline(id) ON DELETE CASCADE"
+    },
+    {
+      "constraint_name": "relationship_workspaces_pipeline_id_key",
+      "table_name": "relationship_workspaces",
+      "type": "u",
+      "validated": true,
+      "definition": "UNIQUE (pipeline_id)"
+    },
+    {
+      "constraint_name": "relationship_workspaces_pkey",
+      "table_name": "relationship_workspaces",
+      "type": "p",
+      "validated": true,
+      "definition": "PRIMARY KEY (id)"
+    },
+    {
+      "constraint_name": "relationship_workspaces_status_check",
+      "table_name": "relationship_workspaces",
+      "type": "c",
+      "validated": true,
+      "definition": "CHECK ((status = ANY (ARRAY['active'::text, 'closed'::text])))"
+    }
+  ],
+  "rls": [
+    {
+      "table_name": "introduction_requests",
+      "rls_enabled": false,
+      "rls_forced": false
+    },
+    {
+      "table_name": "investment_pipeline",
+      "rls_enabled": false,
+      "rls_forced": false
+    },
+    {
+      "table_name": "investor_activity_log",
+      "rls_enabled": false,
+      "rls_forced": false
+    },
+    {
+      "table_name": "investor_invitations",
+      "rls_enabled": false,
+      "rls_forced": false
+    },
+    {
+      "table_name": "investor_profiles",
+      "rls_enabled": false,
+      "rls_forced": false
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "rls_enabled": false,
+      "rls_forced": false
+    }
+  ],
+  "policies": [],
+  "triggers": [],
+  "browser_role_grants": [
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "anon",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "introduction_requests",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "anon",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "anon",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "anon",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investor_invitations",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "anon",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "investor_profiles",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "anon",
+      "privilege_type": "UPDATE"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "DELETE"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "INSERT"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "REFERENCES"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "SELECT"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "TRIGGER"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "TRUNCATE"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "grantee": "authenticated",
+      "privilege_type": "UPDATE"
+    }
+  ],
+  "matching_flags": [],
+  "selected_identity_columns": [
+    {
+      "table_name": "deal_flow_decks",
+      "column_name": "id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "deal_flow_entries",
+      "column_name": "id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "deal_flow_entries",
+      "column_name": "venture_id",
+      "data_type": "text",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "introduction_requests",
+      "column_name": "id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "introduction_requests",
+      "column_name": "investor_id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "introduction_requests",
+      "column_name": "venture_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "introduction_requests",
+      "column_name": "pipeline_id",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "introduction_requests",
+      "column_name": "workspace_id",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "column_name": "investor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investment_pipeline",
+      "column_name": "venture_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "column_name": "investor_id",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_activity_log",
+      "column_name": "venture_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_investments",
+      "column_name": "id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_investments",
+      "column_name": "investor_id",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_investments",
+      "column_name": "pipeline_id",
+      "data_type": "bigint",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_investments",
+      "column_name": "venture_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_invitations",
+      "column_name": "id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_notes",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_notes",
+      "column_name": "investor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_notes",
+      "column_name": "venture_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_notes",
+      "column_name": "pipeline_id",
+      "data_type": "uuid",
+      "is_nullable": "YES"
+    },
+    {
+      "table_name": "investor_org_members",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_org_members",
+      "column_name": "investor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_organizations",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_outbox",
+      "column_name": "id",
+      "data_type": "bigint",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_preferences",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_preferences",
+      "column_name": "investor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_profiles",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_watchlist",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_watchlist",
+      "column_name": "investor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "investor_watchlist",
+      "column_name": "venture_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "column_name": "pipeline_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "column_name": "investor_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "relationship_workspaces",
+      "column_name": "venture_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "venture_investor_matches",
+      "column_name": "id",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "venture_investor_matches",
+      "column_name": "venture_id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "venture_investor_matches",
+      "column_name": "investor_id",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "venture_investor_preferences",
+      "column_name": "id",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "venture_investor_preferences",
+      "column_name": "investor_id",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "venture_investors",
+      "column_name": "id",
+      "data_type": "integer",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ventures",
+      "column_name": "id",
+      "data_type": "uuid",
+      "is_nullable": "NO"
+    },
+    {
+      "table_name": "ventures",
+      "column_name": "venture_id",
+      "data_type": "text",
+      "is_nullable": "YES"
+    }
+  ],
+  "limitations": [
+    "No application records queried",
+    "No authenticated HTTP or Supabase REST request executed",
+    "No function-body or ownership audit; no immutability write probes",
+    "Flag search limited to investor key substring plus investment_module and data_room"
+  ]
+}

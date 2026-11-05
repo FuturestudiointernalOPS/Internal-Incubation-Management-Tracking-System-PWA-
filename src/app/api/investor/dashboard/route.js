@@ -4,6 +4,10 @@ import { getSession } from "@/server/auth/session";
 
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 import { buildInvestorDashboard } from "@/services/investor";
+import { readInvestorFlags } from "@/services/investor/featureFlags";
+import { protectInvestorProfile } from "@/services/investor/profilePrivacy";
+
+const PRIVATE_RESPONSE = { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } };
 
 /**
  * GET /api/investor/dashboard — investor's personalized dashboard data
@@ -17,10 +21,15 @@ export async function GET(_req) {
     const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
 
+    const flags = await readInvestorFlags();
     const dashboard = await buildInvestorDashboard({ session: await getSession() });
 
-    return NextResponse.json({ success: true, ...dashboard });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({
+      success: true,
+      ...dashboard,
+      profile: protectInvestorProfile(dashboard.profile, flags.profilePrivacy),
+    }, PRIVATE_RESPONSE);
+  } catch (_error) {
+    return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { ...PRIVATE_RESPONSE, status: 500 });
   }
 }

@@ -12,6 +12,10 @@ import {
   upgradeContactRoleToInvestor,
 } from "@/models/investorRelations";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
+import { readInvestorFlags } from "@/services/investor/featureFlags";
+import { protectInvestorProfile } from "@/services/investor/profilePrivacy";
+
+const PRIVATE_RESPONSE = { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } };
 
 /** GET  /api/investor/profile — current investor's profile */
 export async function GET(_req) {
@@ -26,12 +30,13 @@ export async function GET(_req) {
 
     const session = await getSession();
     const user = session;
+    const flags = await readInvestorFlags();
     const result = await getInvestorProfileWithPreferences(user.cid || user.id);
 
-    const profile = result.rows[0] || null;
-    return NextResponse.json({ success: true, profile });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const profile = protectInvestorProfile(result.rows[0] || null, flags.profilePrivacy);
+    return NextResponse.json({ success: true, profile }, PRIVATE_RESPONSE);
+  } catch (_error) {
+    return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { ...PRIVATE_RESPONSE, status: 500 });
   }
 }
 
@@ -44,6 +49,9 @@ export async function POST(req) {
 
     const session = await getSession();
     const user = session;
+    // Resolve the switch before writing: an unavailable flag store must never
+    // cause a save followed by an unsafe response or a misleading save error.
+    const flags = await readInvestorFlags();
     const body = await req.json();
     const { organization_name, biography, website, linkedin, photo_url } = body;
 
@@ -76,9 +84,9 @@ export async function POST(req) {
     // Also update contact record's role to investor if not already
     await upgradeContactRoleToInvestor(user.cid || user.id);
 
-    return NextResponse.json({ success: true, profile });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, profile: protectInvestorProfile(profile, flags.profilePrivacy) }, PRIVATE_RESPONSE);
+  } catch (_error) {
+    return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { ...PRIVATE_RESPONSE, status: 500 });
   }
 }
 
