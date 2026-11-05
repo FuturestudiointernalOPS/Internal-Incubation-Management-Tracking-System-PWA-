@@ -4,6 +4,7 @@ import { getSession } from "@/server/auth/session";
 import { signEvidencePath } from "@/lib/ventureEvidence";
 import { computeVentureDocumentReadiness } from "@/models/ventureReadiness";
 import { isActiveVentureMember } from "@/models/ventureWorkspace";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 import { getOrCreateVerification, submitVerification, resubmitVerification, uploadVerificationDocument, deleteVerificationDocument, addVerificationComment, canSubmitVerification } from "@/services/ventures/verification";
 
 /**
@@ -11,9 +12,12 @@ import { getOrCreateVerification, submitVerification, resubmitVerification, uplo
  * active member (founder) of the venture, or delegated staff assigned to it.
  * Shared by the read path and the mutating actions so the two cannot drift.
  */
-async function canAccessVerification(id, session) {
+async function canAccessVerification(id, session, action = "view") {
   if (!session) return false;
-  if (["super_admin"].includes(session.role)) return true;
+  // The unscoped authority is the explicit portfolio right (`view_all` to read,
+  // `edit_all` to write), never the Super Admin role.
+  const portfolio = await resolveVenturePortfolioAccess({ session, action });
+  if (portfolio.allowed) return true;
   const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
   const member = await isActiveVentureMember(id, session.cid).catch(() => ({ rows: [] }));
   if (member.rows?.length) return true;
@@ -31,15 +35,10 @@ export const GET = createHandler(
     const session = await getSession();
     if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
 
-    // Phase 4 guard: only global roles, active members (founders) or
+    // Phase 4 guard: the portfolio read right, active members (founders) or
     // delegated staff with an assignment may read verification state.
-    if (!["super_admin"].includes(session.role)) {
-      const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-      const member = await isActiveVentureMember(id, session.cid).catch(() => ({ rows: [] }));
-      const assigned = await hasActiveVentureAssignment(id, session.cid);
-      if (!member.rows?.length && !assigned) {
-        return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
-      }
+    if (!(await canAccessVerification(id, session, "view"))) {
+      return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
     const verificationResult = await getOrCreateVerification(id);
@@ -129,7 +128,7 @@ export const POST = createHandler(
       // Object-level authorization: the document must belong to THIS venture's
       // verification. Previously any authenticated user could delete any
       // venture's verification document by id.
-      if (!(await canAccessVerification(id, session))) {
+      if (!(await canAccessVerification(id, session, "edit"))) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }
       const verificationResult = await getOrCreateVerification(id);
@@ -147,7 +146,7 @@ export const POST = createHandler(
       // Same gate as the read path: a comment is written only by someone who
       // may see the verification, and its author type is derived from the
       // session — never taken from the body (which let a caller pose as staff).
-      if (!(await canAccessVerification(id, session))) {
+      if (!(await canAccessVerification(id, session, "edit"))) {
         return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
       }
       const verificationResult = await getOrCreateVerification(id);

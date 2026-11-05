@@ -51,7 +51,10 @@ async function api(path, options) {
   return { ok: response.ok, payload };
 }
 
-export default function VentureReportingSettings() {
+export default function VentureReportingSettings({
+  backHref = "/admin/ventures",
+  homeHref = "/admin",
+}) {
   const { t } = useI18n();
   const [payload, setPayload] = useState(null);
   const [model, setModel] = useState("default");
@@ -154,14 +157,14 @@ export default function VentureReportingSettings() {
           Venture and has no Venture navigation bar above it. */}
       <div className="flex flex-wrap items-center gap-5">
         <Link
-          href="/admin/ventures"
+          href={backHref}
           className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
           style={{ color: "var(--text-secondary)" }}
         >
           <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
         </Link>
         <Link
-          href="/admin"
+          href={homeHref}
           className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
           style={{ color: "var(--text-secondary)" }}
         >

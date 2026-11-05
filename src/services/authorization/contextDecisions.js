@@ -5,11 +5,19 @@
  * without touching a database. That is what makes the permission rules testable
  * on their own, and it is why this module reads no session and no repository.
  *
- * The rules, unchanged:
- *   - Super Admin is DENIED only if explicitly restricted, or downgraded by an
- *     explicit grant below minLevel. Eligibility is bypassed entirely.
+ * The rules:
+ *   - Super Admin is DENIED if explicitly restricted, downgraded by an explicit
+ *     grant below minLevel, or — for the `ventures` module — missing the right
+ *     from their effective matrix. Eligibility is bypassed entirely.
  *   - Everyone else is ELIGIBLE (the feature, which fails closed) AND their
  *     effective level >= minLevel.
+ *
+ * WHY VENTURES IS DIFFERENT: seeing and acting on EVERY Venture used to be a
+ * property of the Super Admin role (the bypass itself). It is now an explicit
+ * right (`ventures.view_all` / `ventures.edit_all`, plus the action rights), so
+ * the owner's matrix is authoritative too: an administrator can grant or revoke
+ * those rights from the Permissions screen. The rest of the platform keeps the
+ * historical bypass.
  *   - `buildPermissionExplanation` reports the identity rows that produced each
  *     eligibility verdict, because "why does this person have access" is a
  *     question an administrator asks with the data in front of them.
@@ -26,9 +34,9 @@ import { explainEligibility } from "./eligibility";
 /**
  * Pure decision: "Can this context perform ACTION on FEATURE?"
  *
- * Super Admin: DENY only if explicitly restricted (or downgraded by an
- * explicit grant below minLevel — V2 edge case, preserved).
- * Everyone else: ELIGIBLE (feature) AND effective level >= minLevel.
+ * Super Admin: DENY on an explicit restriction, a downgrade below minLevel, or
+ * a missing `ventures` right. Everyone else: ELIGIBLE (feature) AND effective
+ * level >= minLevel.
  */
 export const AUTHZ_REASONS = {
   GRANTED: "granted",
@@ -61,6 +69,19 @@ export function explainAuthorization(ctx, module, capability, minLevel = 1) {
       return Number(grantLevel) >= minLevel
         ? { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel }
         : { allowed: false, reason: AUTHZ_REASONS.INSUFFICIENT_LEVEL, minLevel };
+    }
+    // VENTURES — the perimeter and its actions are rights, not a role
+    // property. The effective matrix is the profile's rows plus grants minus
+    // restrictions, so revoking the right from the default profile (or from the
+    // person) denies the owner exactly as it denies anyone else.
+    if (module === "ventures") {
+      const level = Number(ctx.effective?.ventures?.[capability] ?? 0);
+      if (level >= minLevel) return { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel };
+      return {
+        allowed: false,
+        reason: level > 0 ? AUTHZ_REASONS.INSUFFICIENT_LEVEL : AUTHZ_REASONS.MISSING_PERMISSION,
+        minLevel,
+      };
     }
     return { allowed: true, reason: AUTHZ_REASONS.SUPER_ADMIN, minLevel };
   }

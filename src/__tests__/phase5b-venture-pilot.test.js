@@ -65,12 +65,44 @@ beforeEach(() => {
 });
 
 describe("Phase 5c — the venture gate (strict only)", () => {
-  test("Super Admin bypasses capability and scope (no extra lookups)", async () => {
-    mockCtx = { isSuperAdmin: true };
+  test("the portfolio right reaches any Venture without a scope lookup", async () => {
+    // The right is in the effective matrix — for a Super Admin by default, for a
+    // staff member only when it was granted. Either way this is a PERIMETER, not
+    // a role bypass: the capability above still has to be held.
+    mockCtx = {
+      isSuperAdmin: true,
+      role: "super_admin",
+      effective: { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } },
+      restrictions: {},
+    };
     const out = await callHelper();
     expect(out.path).toBe("super-admin");
-    expect(requireAuthorization).not.toHaveBeenCalled();
     expect(isWithinScope).not.toHaveBeenCalled();
+  });
+
+  test("a staff member granted the portfolio right reaches any Venture", async () => {
+    mockCtx = {
+      isSuperAdmin: false,
+      role: "staff",
+      effective: { ventures: { view: 5, view_all: 5 } },
+      restrictions: {},
+    };
+    const out = await callHelper();
+    expect(out.path).toBe("portfolio");
+    expect(isWithinScope).not.toHaveBeenCalled();
+  });
+
+  test("a Super Admin WITHOUT the portfolio right is limited to their own Ventures", async () => {
+    mockCtx = {
+      isSuperAdmin: true,
+      role: "super_admin",
+      effective: { ventures: { view: 5 } },
+      restrictions: {},
+    };
+    const out = await callHelper();
+    expect(out.error.status).toBe(403);
+    expect(out.error.headers.get("X-Authz-Decision")).toBe("out-of-scope");
+    expect(isWithinScope).toHaveBeenCalled();
   });
 
   test("unauthenticated → 401, nothing else evaluated", async () => {

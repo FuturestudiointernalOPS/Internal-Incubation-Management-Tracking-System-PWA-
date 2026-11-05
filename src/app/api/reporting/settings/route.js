@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getAuthorizationContext } from "@/models/authorization/index";
+import { isInternalVentureIdentity } from "@/services/ventures/portfolioAccess";
 import { getReportingSettings, updateReportingSettings, updateGlossary } from "@/services/ventures/reporting/settings";
 import { dueDateFor } from "@/services/ventures/reporting/schedule";
 import { currentPeriod } from "@/services/ventures/reporting/rules";
@@ -18,6 +19,14 @@ import { currentQuarter } from "@/services/ventures/reporting/quarterlyRules";
  * These are GLOBAL settings, which is why the path is not under /ventures/[id].
  */
 export const GET = createHandler(async (req) => {
+  // The studio's reporting configuration is a staff surface.
+  if (!isInternalVentureIdentity(req.session?.role)) {
+    return NextResponse.json(
+      { success: false, error: "errors.insufficientPermissions" },
+      { status: 403 },
+    );
+  }
+
   const authError = await requireAuthorization("ventures", "setup", 3);
   if (authError) return authError;
 
@@ -52,6 +61,14 @@ export const GET = createHandler(async (req) => {
 });
 
 export const PUT = createHandler(async (req) => {
+  // The studio's reporting configuration is a staff surface.
+  if (!isInternalVentureIdentity(req.session?.role)) {
+    return NextResponse.json(
+      { success: false, error: "errors.insufficientPermissions" },
+      { status: 403 },
+    );
+  }
+
   const authError = await requireAuthorization("ventures", "setup", 3);
   if (authError) return authError;
 

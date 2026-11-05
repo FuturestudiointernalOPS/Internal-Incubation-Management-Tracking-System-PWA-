@@ -76,7 +76,10 @@ function Bar({ value, total, label }) {
   );
 }
 
-export default function VenturePortfolioRollup() {
+export default function VenturePortfolioRollup({
+  backHref = "/admin/ventures",
+  homeHref = "/admin",
+}) {
   const { t, lang } = useI18n();
   const { data, loading, error } = useApi("/api/reporting/portfolio", { defaultValue: null });
 
@@ -109,14 +112,14 @@ export default function VenturePortfolioRollup() {
           Venture and has no Venture navigation bar above it. */}
       <div className="flex flex-wrap items-center gap-5">
         <Link
-          href="/admin/ventures"
+          href={backHref}
           className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
           style={{ color: "var(--text-secondary)" }}
         >
           <ArrowLeft className="w-3 h-3" /> {t("vadmin.detail.backToVentures")}
         </Link>
         <Link
-          href="/admin"
+          href={homeHref}
           className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest transition-all hover:opacity-80"
           style={{ color: "var(--text-secondary)" }}
         >
