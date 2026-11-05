@@ -153,6 +153,7 @@ ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS outcome_code TEXT;
 ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS confirmation_email_sent_at TIMESTAMPTZ;
 ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMPTZ;
 ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_1h_sent_at TIMESTAMPTZ;
+ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_6h_sent_at TIMESTAMPTZ;
 
 -- ── Phase 7 — investment confirmation ────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS investor_investments (

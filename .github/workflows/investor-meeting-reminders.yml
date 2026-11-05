@@ -1,0 +1,23 @@
+name: investor-meeting-reminders
+
+# Vercel Hobby only allows cron jobs that run once per day, so the 6-hourly
+# investor meeting reminder is scheduled here instead. It calls the protected
+# endpoint with the same `x-cron-secret` the platform's other sweeps use.
+#
+# Required repository secrets:
+#   APP_URL      — e.g. https://your-app.vercel.app
+#   CRON_SECRET  — the same value configured in the deployment's environment
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger investor meeting reminders
+        run: |
+          curl -fsS -X POST "${{ secrets.APP_URL }}/api/investor/meetings/reminders" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}"

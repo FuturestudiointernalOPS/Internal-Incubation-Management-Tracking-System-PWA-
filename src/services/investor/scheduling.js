@@ -9,8 +9,7 @@ import {
   updateMeetingOutcome,
   markConfirmationEmailSent,
   markReminderSent,
-  listMeetingsDueIn24h,
-  listMeetingsDueIn1h,
+  listMeetingsDueIn6h,
   listSlotsForWorkspace,
   listWorkspacesByInvestor,
   listWorkspacesByVentureIds,
@@ -215,24 +214,21 @@ export async function recordMeetingOutcome({ meetingId, status, outcomeCode = nu
   return { ok: true, meeting: result.rows?.[0] };
 }
 
-/** Send the 24h and 1h reminders for due confirmed meetings. */
+/** Send the 6-hour-before reminder for due confirmed meetings. */
 export async function sendDueMeetingReminders({ session }) {
   let sent = 0;
+  const due = (await listMeetingsDueIn6h()).rows || [];
 
-  const due24 = (await listMeetingsDueIn24h()).rows || [];
-  for (const meeting of due24) {
-    if (await sendReminder(meeting, "24h")) {
-      await markReminderSent({ meetingId: meeting.id, which: "24h" });
-      await emitInvestorEvent({ session, eventType: "meeting_reminder_sent", relatedId: meeting.id, actorType: "system", metadata: { window: "24h" } });
-      sent += 1;
-    }
-  }
-
-  const due1 = (await listMeetingsDueIn1h()).rows || [];
-  for (const meeting of due1) {
-    if (await sendReminder(meeting, "1h")) {
-      await markReminderSent({ meetingId: meeting.id, which: "1h" });
-      await emitInvestorEvent({ session, eventType: "meeting_reminder_sent", relatedId: meeting.id, actorType: "system", metadata: { window: "1h" } });
+  for (const meeting of due) {
+    if (await sendReminder(meeting, "6 hours")) {
+      await markReminderSent({ meetingId: meeting.id, which: "6h" });
+      await emitInvestorEvent({
+        session,
+        eventType: "meeting_reminder_sent",
+        relatedId: meeting.id,
+        actorType: "system",
+        metadata: { window: "6h" },
+      });
       sent += 1;
     }
   }

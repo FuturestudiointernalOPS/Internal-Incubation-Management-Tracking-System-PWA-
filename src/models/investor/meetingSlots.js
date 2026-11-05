@@ -103,7 +103,12 @@ export async function markConfirmationEmailSent(meetingId) {
 }
 
 export async function markReminderSent({ meetingId, which }) {
-  const column = which === "24h" ? "reminder_24h_sent_at" : "reminder_1h_sent_at";
+  const column =
+    which === "24h"
+      ? "reminder_24h_sent_at"
+      : which === "1h"
+        ? "reminder_1h_sent_at"
+        : "reminder_6h_sent_at";
   return db.execute({
     sql: `UPDATE relationship_meetings SET ${column} = NOW() WHERE id = ?`,
     args: [meetingId],
@@ -124,6 +129,19 @@ export async function listMeetingsDueIn1h() {
     sql: `SELECT * FROM relationship_meetings
            WHERE status = 'confirmed' AND start_at > NOW() + INTERVAL '30 minutes'
              AND start_at <= NOW() + INTERVAL '1 hour' AND reminder_1h_sent_at IS NULL`,
+    args: [],
+  });
+}
+
+/** The 6-hour-before sweep: any confirmed meeting starting within the next
+ *  six hours that has not yet been reminded. */
+export async function listMeetingsDueIn6h() {
+  return db.execute({
+    sql: `SELECT * FROM relationship_meetings
+           WHERE status = 'confirmed'
+             AND start_at > NOW()
+             AND start_at <= NOW() + INTERVAL '6 hours'
+             AND reminder_6h_sent_at IS NULL`,
     args: [],
   });
 }

@@ -160,6 +160,7 @@ export function ensureInvestorExpansionSchema() {
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS confirmation_email_sent_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_24h_sent_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_1h_sent_at TIMESTAMPTZ");
+      await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_6h_sent_at TIMESTAMPTZ");
 
       // ── Phase 7 — investment confirmation ─────────────────────────────
       await db.execute(`CREATE TABLE IF NOT EXISTS investor_investments (
