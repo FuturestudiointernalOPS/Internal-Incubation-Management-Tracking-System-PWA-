@@ -47,6 +47,7 @@ export default function PlatformFormsView({ ctx }) {
     handleLaunchRun,
     handlePublish,
     handleRemoveAiEvalFramework,
+    handleRestorePublished,
     handleSaveAiEvalDetailed,
     handleSaveAiEvalFramework,
     handleSaveTemplates,
@@ -192,6 +193,7 @@ export default function PlatformFormsView({ ctx }) {
         onRepublish={() => saveFields(true)}
         onPublish={() => handlePublish()}
         onLaunchRun={handleLaunchRun}
+        onRestorePublished={handleRestorePublished}
       />
 
       {/* Scoring Configuration Panel */}

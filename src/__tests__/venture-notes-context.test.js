@@ -102,7 +102,9 @@ describe("POST /api/ventures/[id]/notes — attachments", () => {
 
     const insert = executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"));
     expect(insert.sql).toContain("attachments");
-    const attachments = JSON.parse(insert.args[7]);
+    // note_kind sits before the JSONB attachments (8th arg).
+    expect(insert.args[7]).toBe("milestone");
+    const attachments = JSON.parse(insert.args[8]);
     expect(attachments).toEqual([
       { name: "Validation link", url: "https://docs.example/validation", type: "link", size: null },
       { name: "Report.pdf", url: "/files/report.pdf", type: "application/pdf", size: 2048 },
@@ -119,7 +121,34 @@ describe("POST /api/ventures/[id]/notes — attachments", () => {
     );
     const insert = executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"));
     expect(insert.sql).not.toContain("attachments");
-    expect(insert.args.length).toBe(7);
+    // Seven legacy columns + note_kind. A note written on the milestone itself
+    // defaults to "milestone" — the API never guesses a kind.
+    expect(insert.args.length).toBe(8);
+    expect(insert.args[7]).toBe("milestone");
+  });
+
+  test("an activity report is stored with note_kind \"activity\"", async () => {
+    await POST(
+      new Request("http://localhost/x", {
+        method: "POST",
+        body: JSON.stringify({ title: "FT-01 · Visit the bank", body: "Account opened.", scope_ref_type: "milestone", scope_ref_id: "m1", note_kind: "activity" }),
+      }),
+      ctx,
+    );
+    const insert = executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"));
+    expect(insert.args[7]).toBe("activity");
+  });
+
+  test("an unknown note_kind is refused as a milestone note", async () => {
+    await POST(
+      new Request("http://localhost/x", {
+        method: "POST",
+        body: JSON.stringify({ title: "x", body: "y", scope_ref_type: "milestone", scope_ref_id: "m1", note_kind: "invented" }),
+      }),
+      ctx,
+    );
+    const insert = executed.find((entry) => entry.sql.includes("INSERT INTO venture_notes"));
+    expect(insert.args[7]).toBe("milestone");
   });
 });
 

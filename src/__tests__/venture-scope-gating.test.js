@@ -6,12 +6,12 @@
  *   - POST /api/ventures/[id]/tasks/[taskId]/submissions { action:"review" }:
  *     a delegated (non-global) reviewer may only review submissions whose task
  *     lies inside one of his ACTIVE assignment scopes on the Venture. Global
- *     roles and venture-wide / lead_manager assignments pass Venture-wide;
+ *     roles and venture-wide / venture_manager assignments pass Venture-wide;
  *     actors WITHOUT assignment rows keep the legacy behavior; a scope
  *     resolution error FAILS CLOSED (403) so a bug can never over-grant.
  *   - GET /api/ventures/[id]/submissions/review-queue: delegated actors only
  *     see pending submissions whose task is in scope; global roles,
- *     venture-wide / lead_manager scopes and actors without assignment rows
+ *     venture-wide / venture_manager scopes and actors without assignment rows
  *     keep the existing full-Venture queue (LIMIT-20 semantics unchanged).
  */
 
@@ -216,8 +216,8 @@ describe("ventureScope helpers — scope matching rules", () => {
     expect(isTaskInScope([{ scope_type: "workstream", scope_ref_id: "w1" }], { id: TASK_1, milestone_id: MILESTONE_1 })).toBe(false);
   });
 
-  test("lead_manager assignment implies Venture-wide reach even under a typed scope", () => {
-    expect(hasVentureWideReach([{ scope_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "lead_manager" }])).toBe(true);
+  test("venture_manager assignment implies Venture-wide reach even under a typed scope", () => {
+    expect(hasVentureWideReach([{ scope_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "venture_manager" }])).toBe(true);
     expect(hasVentureWideReach([{ scope_type: "venture_wide", responsibility_code: "facilitator" }])).toBe(true);
     expect(hasVentureWideReach([{ scope_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "coach" }])).toBe(false);
   });
@@ -277,8 +277,8 @@ describe("POST submissions {action:'review'} — assignment-scope gate", () => {
     expect(outStage.status).toBe(403);
   });
 
-  test("lead_manager assignment may review anywhere in the Venture (typed scope)", async () => {
-    mockDb.flags.assignments = [{ scope_type: "milestone", scope_ref_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "lead_manager" }];
+  test("venture_manager assignment may review anywhere in the Venture (typed scope)", async () => {
+    mockDb.flags.assignments = [{ scope_type: "milestone", scope_ref_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "venture_manager" }];
     const res = await reviewPOST(reviewRequest(TASK_2, REVIEW_BODY), { params: { id: "VNT-TEST", taskId: String(TASK_2) } });
     expect(res.status).toBe(200);
   });
@@ -354,8 +354,8 @@ describe("GET submissions/review-queue — assignment-scoped attention list", ()
     expect(data.items.map((item) => item.task_id)).toEqual([TASK_2]);
   });
 
-  test("lead_manager assignment sees the whole queue (typed scope still Venture-wide)", async () => {
-    mockDb.flags.assignments = [{ scope_type: "milestone", scope_ref_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "lead_manager" }];
+  test("venture_manager assignment sees the whole queue (typed scope still Venture-wide)", async () => {
+    mockDb.flags.assignments = [{ scope_type: "milestone", scope_ref_type: "milestone", scope_ref_id: MILESTONE_1, responsibility_code: "venture_manager" }];
     const res = await queueGET(new Request("http://localhost/api/ventures/VNT-TEST/submissions/review-queue"), { params: { id: "VNT-TEST" } });
     expect(res.status).toBe(200);
     const data = await readJson(res);

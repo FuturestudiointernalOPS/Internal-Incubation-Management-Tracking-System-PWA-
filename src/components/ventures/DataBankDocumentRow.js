@@ -27,7 +27,7 @@ import { useDialogs } from "@/components/ui/DialogProvider";
  *                 look-alike rows.
  *
  * The delete/version calls live here so every screen that renders a document
- * (founder, Super Admin, Lead Manager) behaves identically; the parent only
+ * (founder, Super Admin, Venture Manager) behaves identically; the parent only
  * re-reads through `onChanged`.
  */
 

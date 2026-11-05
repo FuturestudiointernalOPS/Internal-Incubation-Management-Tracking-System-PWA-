@@ -1,8 +1,8 @@
 /**
  * Deliverables — authority contract (agreed model).
  *
- *   define (create/edit) : Lead Manager or Super Admin
- *   review               : Lead Manager, Super Admin, or staff whose active
+ *   define (create/edit) : Venture Manager or Super Admin
+ *   review               : Venture Manager, Super Admin, or staff whose active
  *                          assignment scope covers the milestone / stage
  *
  * Pure helpers with an injected db double — no module mocking.
@@ -41,7 +41,7 @@ function db({ assignments = [], lead = false, failAssignments = false } = {}) {
               scope_type: "venture_wide",
               scope_ref_type: null,
               scope_ref_id: null,
-              responsibility_code: "lead_manager",
+              responsibility_code: "venture_manager",
             },
           ],
         };
@@ -51,7 +51,7 @@ function db({ assignments = [], lead = false, failAssignments = false } = {}) {
     // Definition authority is the matrix cell `milestones.edit`: the Lead
     // Manager holds it; nobody else in the seeded set does.
     if (sql.includes("venture_permission_matrix")) {
-      return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
+      return { rows: [{ allowed: args[0] === "venture_manager" ? 1 : 0 }] };
     }
     if (sql.includes("FROM ventures WHERE")) return { rows: [{ venture_id: VENTURE }] };
     return { rows: [] };
@@ -60,13 +60,13 @@ function db({ assignments = [], lead = false, failAssignments = false } = {}) {
   return { execute };
 }
 
-describe("deliverable definition authority (Lead Manager / Super Admin)", () => {
+describe("deliverable definition authority (Venture Manager / Super Admin)", () => {
   test("super_admin may define", async () => {
     db();
     expect(await canDefineDeliverables({ id: VENTURE, cid: "u1", role: "super_admin" })).toBe(true);
   });
 
-  test("an assigned Lead Manager may define", async () => {
+  test("an assigned Venture Manager may define", async () => {
     db({ lead: true });
     expect(await canDefineDeliverables({ id: VENTURE, cid: "lm-1", role: "staff" })).toBe(true);
   });
@@ -88,8 +88,8 @@ describe("deliverable review authority", () => {
     expect(await canReviewDeliverable({ id: VENTURE, cid: "s1", role: "staff", milestoneId: MILESTONE })).toBe(true);
   });
 
-  test("a lead_manager assignment may review regardless of scope column", async () => {
-    db({ assignments: [{ scope_type: "milestone", scope_ref_id: "MS-OTHER", responsibility_code: "lead_manager" }] });
+  test("a venture_manager assignment may review regardless of scope column", async () => {
+    db({ assignments: [{ scope_type: "milestone", scope_ref_id: "MS-OTHER", responsibility_code: "venture_manager" }] });
     expect(await canReviewDeliverable({ id: VENTURE, cid: "lm-1", role: "staff", milestoneId: MILESTONE })).toBe(true);
   });
 

@@ -266,7 +266,12 @@ const RULES = [
               ? "participant"
               : "member";
         const existingContact = await db.execute({
-          sql: "SELECT cid, name, email, password, role FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
+          // `status` is read because it IS the activation signal just below: a
+          // lookup that omits it makes every existing account look
+          // un-activated, and every approval then rewrites an already-activated
+          // account back to "approved" (which hides the person from the program
+          // participant lists and sends them a second password-setup email).
+          sql: "SELECT cid, name, email, password, role, status FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
           args: [contactEmail],
         });
 
@@ -375,6 +380,26 @@ const RULES = [
             console.log("[Automation] Investor provisioning result:", investorResult);
           } catch (error) {
             console.error("[Automation] Investor provisioning failed:", error.message);
+          }
+        }
+
+        // ── Invitation linkage: mark the invitation submitted and stamp the
+        //    profile's source, so A8/A9 (invitation conversion, source mix)
+        //    are accurate. Best-effort; never fails the approval.
+        if (isApproved && contact?.cid && contactEmail) {
+          try {
+            const { getLatestInvitationByEmail, markInvitationSubmitted } = await import("@/models/investor/invitations");
+            const invitation = await getLatestInvitationByEmail(contactEmail);
+            const invitationRow = invitation.rows?.[0];
+            if (invitationRow && !invitationRow.submitted_at) {
+              await markInvitationSubmitted({ id: invitationRow.id, submissionId: ctx.submission?.id || null });
+              await db.execute({
+                sql: "UPDATE investor_profiles SET source = 'invited', invitation_id = ?, updated_at = NOW() WHERE user_id = ?",
+                args: [invitationRow.id, contact.cid],
+              });
+            }
+          } catch (error) {
+            console.error("[Automation] Invitation linkage failed:", error.message);
           }
         }
 

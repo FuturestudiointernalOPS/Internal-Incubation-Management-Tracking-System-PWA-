@@ -64,7 +64,7 @@ function labelRow(label, value, { bold = false } = {}) {
  *                                          the transport expects them
  *                                          ({ filename, content, contentType })
  * @param {string[]} [input.cc]            — addresses to COPY (the Venture's
- *                                          Lead Managers, the sender). They
+ *                                          Venture Managers, the sender). They
  *                                          receive the same message, never a
  *                                          second reminder.
  */

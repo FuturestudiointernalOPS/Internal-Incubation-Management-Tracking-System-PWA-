@@ -38,9 +38,15 @@ jest.mock("uuid", () => ({
 // so the gate is mocked as granted.
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
-  // Phase 5c: the venture gate asks the resolver for the context (Super Admin
-  // bypass) and checks record scope on the converted routes.
-  getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
+  // Phase 5c: the venture gate asks the resolver for the context and checks the
+  // portfolio right / record scope on the converted routes. A Super Admin holds
+  // the perimeter by default through the profile, not through the role.
+  getAuthorizationContext: jest.fn().mockResolvedValue({
+    isSuperAdmin: true,
+    role: "super_admin",
+    effective: { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } },
+    restrictions: {},
+  }),
   authorize: jest.fn().mockReturnValue(true),
 }));
 

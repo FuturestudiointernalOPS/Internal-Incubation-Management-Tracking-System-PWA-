@@ -17,8 +17,8 @@ const { getRequiredEvidence } = require("@/services/ventures/dataRoom/readiness"
 const requirements = [
   { venture_id: "u1", category: "company_overview", level: "required" },
   { venture_id: "u1", category: "legal_corporate", level: "required" },
-  { venture_id: "u1", category: "financial", level: "required" },
-  { venture_id: "u1", category: "team", level: "recommended" },
+  { venture_id: "u1", category: "financials_projections", level: "required" },
+  { venture_id: "u1", category: "impact_sustainability", level: "recommended" },
 ];
 
 beforeEach(() => {
@@ -31,14 +31,14 @@ test("lists each required category with its documents and verdict", async () => 
     rows: [
       { id: "d1", title: "Certificate", venture_id: "u1", category: "company_overview", status: "verified" },
       { id: "d2", title: "Statutes", venture_id: "u1", category: "legal_corporate", status: "uploaded" },
-      { id: "d3", title: "Team CV", venture_id: "u1", category: "team", status: "verified" },
+      { id: "d3", title: "Impact note", venture_id: "u1", category: "impact_sustainability", status: "verified" },
     ],
   });
 
   const result = await getRequiredEvidence("VNT-1");
 
-  // the recommended Team category is not part of the evidence
-  expect(result.items.map((item) => item.category)).toEqual(["company_overview", "legal_corporate", "financial"]);
+  // the recommended Impact category is not part of the evidence
+  expect(result.items.map((item) => item.category)).toEqual(["company_overview", "legal_corporate", "financials_projections"]);
   expect(result.items.map((item) => item.status)).toEqual(["verified", "awaiting", "missing"]);
   expect(result.items[0].documents).toEqual([{ id: "d1", title: "Certificate", status: "verified" }]);
   expect(result.items[1].documents[0].status).toBe("awaiting");
@@ -57,7 +57,7 @@ test("approving the awaiting document raises the percentage", async () => {
 
 test("nothing required is not measurable, never 0% or 100%", async () => {
   mockStore.selectDataRoomRequirementsForVentures.mockResolvedValue({
-    rows: [{ venture_id: "u1", category: "team", level: "recommended" }],
+    rows: [{ venture_id: "u1", category: "impact_sustainability", level: "recommended" }],
   });
   mockStore.selectDataRoomDocumentStatusesForVentures.mockResolvedValue({ rows: [] });
   const result = await getRequiredEvidence("VNT-1");

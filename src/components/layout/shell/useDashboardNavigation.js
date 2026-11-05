@@ -156,7 +156,7 @@ export function useDashboardNavigation({
       };
       // Investors use Investor Space as their home. Other personal accounts
       // keep the common participant dashboard, and team accounts keep /team.
-      const dashboardHref = activeRole === "team" ? "/team" : "/participant";
+      const dashboardHref = activeRole === "team" ? "/team" : (rel.isFounder ? "/founder" : "/participant");
       const investorAccount =
         carriesContextualValue(activeRole, "investor") || rel.isInvestor;
       const items = investorAccount ? [] : [
@@ -177,20 +177,22 @@ export function useDashboardNavigation({
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
-      if (activeRole !== "team") items.push({ id: "announcements", name: "ANNOUNCEMENTS", icon: Bell, href: "/participant/announcements" });
       if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),
         // not buried after every participant item. Team members keep the
         // additive arrangement: their venture door comes last.
-        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" };
+        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/founder/ventures" };
         if (rel.isFounder) {
           const progIndex = items.findIndex((navItem) => navItem.id === "programs");
           items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);
         } else {
           items.push(ventureDoor);
         }
+      }
+      if (rel.isFounder) {
+        items.push({ id: "founder_meetings", name: "MEETINGS", icon: Calendar, href: "/founder/meetings" });
       }
       // The investor context: an APPROVED investor profile is a relationship the
       // baseline badge cannot carry, so a "member" who was taken as an investor
@@ -199,13 +201,15 @@ export function useDashboardNavigation({
       // role string.
       if (investorAccount) {
         items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
+        items.push({ id: "investor_deal_flow", name: "DEAL FLOW", icon: Briefcase, href: "/investor/deal-flow" });
       }
       return items;
     }
 
-    // SIDEBAR ADDITION — the ventures console appears only when this staff
-    // member actually holds venture assignments. Navigation belongs in the
-    // sidebar, not on the dashboard: clicking it opens ALL ventures.
+    // SIDEBAR ADDITION — the ventures console appears when this staff member
+    // actually holds venture assignments, and the PORTFOLIO doors appear when
+    // they hold the portfolio right. Both are capability/relationship facts, so
+    // the menu can never offer a door the API would refuse.
     const withVentureConsole = (list) => {
       if (
         !isInternalStaffRole(activeRole) &&
@@ -213,19 +217,55 @@ export function useDashboardNavigation({
       ) {
         return list;
       }
-      if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
-        return list;
-      }
+      const canViewAll = hasCapability(effectiveCaps, "ventures", "view_all");
+      const canConfigure = hasCapability(effectiveCaps, "ventures", "setup", 3);
+      const hasAssignments =
+        typeof ventureAssignCount === "number" && ventureAssignCount > 0;
+      if (!hasAssignments && !canViewAll) return list;
+
       const next = list.slice();
-      if (!next.some((navItem) => navItem.id === "ventures")) {
-        const dashIndex = next.findIndex((navItem) => navItem.id === "dashboard");
-        const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
-        next.splice(insertAt, 0, {
+      const insertAfter = (afterId, item) => {
+        if (next.some((navItem) => navItem.id === item.id)) return;
+        const anchor = next.findIndex((navItem) => navItem.id === afterId);
+        const insertAt =
+          anchor !== -1
+            ? anchor + 1
+            : Math.max(
+                0,
+                next.findIndex((navItem) => navItem.id === "dashboard") + 1,
+              );
+        next.splice(insertAt, 0, item);
+      };
+
+      if (hasAssignments) {
+        insertAfter("dashboard", {
           id: "ventures",
           name: "MY VENTURES",
           icon: Rocket,
           href: "/staff/ventures",
         });
+      }
+      if (canViewAll) {
+        insertAfter("ventures", {
+          id: "all_ventures",
+          name: "ALL VENTURES",
+          icon: Rocket,
+          href: "/staff/ventures/all",
+        });
+        insertAfter("all_ventures", {
+          id: "portfolio",
+          name: "PORTFOLIO",
+          icon: BarChart3,
+          href: "/staff/ventures/portfolio",
+        });
+        if (canConfigure) {
+          insertAfter("portfolio", {
+            id: "venture_reporting_settings",
+            name: "REPORTING SETTINGS",
+            icon: FileText,
+            href: "/staff/ventures/reporting-settings",
+          });
+        }
       }
       return next;
     };

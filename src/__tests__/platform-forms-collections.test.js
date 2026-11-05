@@ -58,6 +58,7 @@ const {
   getFormDetail,
   saveFormBuilder,
   guardInvestorIntake,
+  restoreFormFromLatestVersion,
 } = require("@/services/platform/forms");
 const { listCollections, createCollection } = require("@/services/platform/collections");
 
@@ -138,6 +139,84 @@ describe("saveFormBuilder — FK-safe ordering", () => {
   test("a missing id is a 400", async () => {
     const { status } = await saveFormBuilder({ fields: [] });
     expect(status).toBe(400);
+  });
+});
+
+describe("restoreFormFromLatestVersion", () => {
+  test("re-creates the lost section and re-attaches the question that survived", async () => {
+    mockForms.getPlatformFormById.mockResolvedValue({ rows: [{ id: 1, version: 3 }] });
+    mockForms.getLatestPlatformFormVersion.mockResolvedValue({
+      rows: [
+        {
+          snapshot: {
+            sections: [{ id: 10, title: "Account" }],
+            fields: [{ id: 20, section_id: "10", label: "Email", field_type: "email", sort_order: 0 }],
+          },
+        },
+      ],
+    });
+    // The damage being repaired: no section is left, the question is detached.
+    mockForms.getPlatformFormSections.mockResolvedValue({ rows: [] });
+    mockForms.getPlatformFormFields.mockResolvedValue({
+      rows: [{ id: 88, label: "Email", field_type: "email", sort_order: 0, section_id: null }],
+    });
+    mockForms.createPlatformFormSection.mockResolvedValue({ rows: [{ id: 91 }] });
+
+    const { status } = await restoreFormFromLatestVersion({ id: 1 });
+
+    expect(status).toBe(200);
+    // The surviving question keeps its id (so old answers stay attached) and
+    // lands in the section created for it.
+    expect(mockForms.updatePlatformFormField).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sectionId: 91,
+        field: expect.objectContaining({ id: 88, label: "Email" }),
+      }),
+    );
+    expect(mockForms.createPlatformFormField).not.toHaveBeenCalled();
+    expect(mockForms.deletePlatformFormField).not.toHaveBeenCalled();
+  });
+
+  test("a section that still exists keeps its id instead of being re-created", async () => {
+    mockForms.getPlatformFormById.mockResolvedValue({ rows: [{ id: 1, version: 3 }] });
+    mockForms.getLatestPlatformFormVersion.mockResolvedValue({
+      rows: [
+        {
+          snapshot: {
+            sections: [{ id: 10, title: "Account" }],
+            fields: [{ id: 20, section_id: "10", label: "Email", field_type: "email", sort_order: 0 }],
+          },
+        },
+      ],
+    });
+    mockForms.getPlatformFormSections.mockResolvedValue({ rows: [{ id: 77, title: "Account" }] });
+    mockForms.getPlatformFormFields.mockResolvedValue({
+      rows: [{ id: 88, label: "Email", field_type: "email", sort_order: 0, section_id: 77 }],
+    });
+
+    const { status } = await restoreFormFromLatestVersion({ id: 1 });
+
+    expect(status).toBe(200);
+    expect(mockForms.createPlatformFormSection).not.toHaveBeenCalled();
+    expect(mockForms.updatePlatformFormSection).toHaveBeenCalledWith(
+      expect.objectContaining({ formId: 1, section: expect.objectContaining({ id: 77 }) }),
+    );
+    expect(mockForms.updatePlatformFormField).toHaveBeenCalledWith(
+      expect.objectContaining({ sectionId: 77, field: expect.objectContaining({ id: 88 }) }),
+    );
+    expect(mockForms.deletePlatformFormSection).not.toHaveBeenCalled();
+    expect(mockForms.deletePlatformFormField).not.toHaveBeenCalled();
+  });
+
+  test("a form with no published snapshot is refused instead of emptied", async () => {
+    mockForms.getPlatformFormById.mockResolvedValue({ rows: [{ id: 1, version: 1 }] });
+    mockForms.getLatestPlatformFormVersion.mockResolvedValue({ rows: [] });
+
+    const { status } = await restoreFormFromLatestVersion({ id: 1 });
+
+    expect(status).toBe(409);
+    expect(mockForms.deletePlatformFormField).not.toHaveBeenCalled();
+    expect(mockForms.deletePlatformFormSection).not.toHaveBeenCalled();
   });
 });
 

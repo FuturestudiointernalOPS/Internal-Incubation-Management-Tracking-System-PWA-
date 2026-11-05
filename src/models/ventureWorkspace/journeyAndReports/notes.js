@@ -42,15 +42,24 @@ export async function listVentureNotes({ ventureCode: ventureRef, scopeType, sco
   return db.execute({ sql, args });
 }
 
-/** Insert an internal note (with optional attachments), returning the new id. */
-export async function insertVentureNote({ ventureCode: ventureRef, authorCid, authorName, title, body, scopeRefType, scopeRefId, attachments }) {
+/** Which kinds of note the API may store. Anything else is a milestone note. */
+export const NOTE_KINDS = ["milestone", "activity"];
+
+/**
+ * Insert an internal note (with optional attachments), returning the new id.
+ *
+ * `noteKind` says WHAT the note is, not where it sits: every note is filed on a
+ * milestone (the route refuses any other scope), so only this column can tell an
+ * activity report from a note written on the milestone itself.
+ */
+export async function insertVentureNote({ ventureCode: ventureRef, authorCid, authorName, title, body, scopeRefType, scopeRefId, attachments, noteKind }) {
   const ventureId = await resolveVentureInternalId(ventureRef);
   return db.execute({
-    sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id${attachments ? ", attachments" : ""})
-            VALUES (?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
+    sql: `INSERT INTO venture_notes (venture_id, author_cid, author_name, title, body, scope_ref_type, scope_ref_id, note_kind${attachments ? ", attachments" : ""})
+            VALUES (?,?,?,?,?,?,?,?${attachments ? ", ?::jsonb" : ""}) RETURNING id`,
     args: attachments
-      ? [ventureId, authorCid, authorName, title, body, scopeRefType, scopeRefId, JSON.stringify(attachments)]
-      : [ventureId, authorCid, authorName, title, body, scopeRefType, scopeRefId],
+      ? [ventureId, authorCid, authorName, title, body, scopeRefType, scopeRefId, noteKind || "milestone", JSON.stringify(attachments)]
+      : [ventureId, authorCid, authorName, title, body, scopeRefType, scopeRefId, noteKind || "milestone"],
   });
 }
 

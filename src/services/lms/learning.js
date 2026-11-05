@@ -39,3 +39,8 @@ export { learnerHasEnrollments, getLearnerCourses, getLearnerCourse } from "./le
 export { completeLesson } from "./learning/lessons";
 export { getAssessmentForTake, submitAssessment } from "./learning/assessments";
 export { enrollLearner, listEnrollments, searchEnrollable, getEnrollmentDetail } from "./learning/enrollments";
+export {
+  releaseProgramLearning,
+  listOrphanProgramEnrollments,
+  suspendOrphanProgramEnrollments,
+} from "./learning/programAccess";

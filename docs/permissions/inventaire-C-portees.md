@@ -307,9 +307,9 @@ Trou apparenté également corrigé (hors des 3 demandés) : `GET /api/sessions`
    « partial/exempt » (`programScopeWaves.js:53-62`) : leurs écritures ne
    consultent **pas** la portée programme. Je les ai comptées comme non couvertes,
    conformément à la bannière projet, sans vérifier route par route.
-6. **Portées venture `lead_manager` / `venture_wide`.** `hasVentureWideReach`
+6. **Portées venture `venture_manager` / `venture_wide`.** `hasVentureWideReach`
    (`services/ventures/scope.js:119-126`) accorde la portée totale sur simple
-   `responsibility_code === "lead_manager"` ; je n'ai pas audité la cohérence de
+   `responsibility_code === "venture_manager"` ; je n'ai pas audité la cohérence de
    cette règle avec `isMilestoneLeadAuthority` (mentionnée en commentaire) ni
    avec le moteur `venture_own`.
 7. **Commentaire « Phase 5a INERTE ».** Il contredit l'usage réel observé

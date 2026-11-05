@@ -1,5 +1,720 @@
 {
   "venture": {
+    "wizard": {
+      "dismiss": "Dismiss",
+      "dismissHint": "Hide this checklist for good — your Venture is set up."
+    },
+    "reporting": {
+      "title": "Venture reporting",
+      "subtitle": "The studio's record of who the venture is and where it starts.",
+      "notApplicable": "Not applicable",
+      "hint": {
+        "accountingBasis": "Cash: money counts when it is received or paid. Accrual: money counts when it is earned or owed, whatever the payment date.",
+        "socialProtection": "Yes if the venture contributes to a social protection scheme for its team — pension, health cover, maternity or accident insurance.",
+        "northStarName": "The one number the venture steers by — the measure that best shows it is winning. It is reported every month, beside revenue.",
+        "sectionFinancial": "The venture's starting line in money and customers: cash in the bank, funding already received and paying customers when the studio first recorded it. Every growth figure is measured from here.",
+        "sectionWorkforce": "Who was already working in the venture at the baseline. Jobs created are counted against this snapshot.",
+        "baselineFte": "Full-Time Equivalent (FTE): a capacity measure, not the number of people employed. Full-time employees + (part-time days ÷ 20) + full-time founders. Ten part-timers working two days each are ten people but only one FTE.",
+        "baselinePayingCustomers": "Paying customers at the baseline date — the count all later growth and churn are measured from.",
+        "baselineAmountMode": "Exact: type the amount. Band: pick the studio's range, for a founder who only knows roughly.",
+        "baselineCash": "Cash in the bank at the baseline date, in the venture's reporting currency.",
+        "baselineBand": "Choose the studio's range that contains the amount. It is used at its midpoint and marked approximate.",
+        "baselineFinancing": "Money received from outside investors, lenders or grants before the baseline date — not revenue.",
+        "baselineSupersedeReason": "Why this baseline is being replaced. The old one is kept in history; nothing is deleted.",
+        "fullTimeFounders": "Founders working full time. Counted in FTE, but excluded from the 'non-founder hiring' test.",
+        "partTimeFounders": "Founders working part time. Their days belong in the part-time days field.",
+        "fullTimeEmployees": "Non-founder employees on a full-time contract.",
+        "partTimeEmployees": "Non-founder employees on a part-time contract, counted by the days they work.",
+        "partTimeDays": "Total part-time days worked — divided by 20 to become full-time equivalents.",
+        "womenEmployees": "How many employees are women. Used for the team's gender share.",
+        "menEmployees": "How many employees are men. Used with the women count for the team's gender share.",
+        "under35Women": "Women under 35 — the youth measure the studio reports.",
+        "under35Men": "Men under 35 — the youth measure the studio reports."
+      },
+      "tabLabel": "Reporting",
+      "tab": {
+        "dashboard": "Dashboard",
+        "businessInfo": "Business Info",
+        "founders": "Founders",
+        "headcount": "Headcount",
+        "baseline": "Venture Baseline",
+        "monthly": "Monthly",
+        "quarterly": "Quarterly",
+        "events": "Events",
+        "stage": "Stage",
+        "glossary": "Glossary"
+      },
+      "action": {
+        "save": "Save",
+        "newVersion": "Save as new version",
+        "supersede": "Supersede"
+      },
+      "version": {
+        "current": "Current version",
+        "superseded": "Superseded",
+        "history": "History",
+        "none": "No profile yet"
+      },
+      "message": {
+        "saved": "Saved",
+        "superseded": "Superseded"
+      },
+      "model": {
+        "subscription": "Subscription",
+        "transactional": "Transactional",
+        "marketplace": "Marketplace",
+        "services": "Services",
+        "other": "Other"
+      },
+      "accounting": {
+        "cash": "Cash",
+        "accrual": "Accrual"
+      },
+      "mode": {
+        "exact": "Exact amount",
+        "band": "Range"
+      },
+      "gender": {
+        "female": "Female",
+        "male": "Male",
+        "other": "Other",
+        "undisclosed": "Undisclosed"
+      },
+      "employment": {
+        "fullTime": "Full-time",
+        "partTime": "Part-time"
+      },
+      "field": {
+        "legalName": "Legal name",
+        "legalNameHint": "Filled in from the venture name — change it if the registered legal name differs.",
+        "tradeName": "Trade name",
+        "foundingDate": "Founding date",
+        "registrationStatus": "Registration status",
+        "registrationCountry": "Registration country",
+        "paysTaxes": "Pays taxes",
+        "socialProtection": "Offers social protection",
+        "sector": "Sector",
+        "businessModel": "Business model",
+        "countries": "Countries of operation",
+        "currency": "Reporting currency",
+        "accountingBasis": "Accounting basis",
+        "vatIncluded": "Revenue includes VAT",
+        "northStarName": "North-star metric",
+        "northStarUnit": "Unit",
+        "northStarDefinition": "Definition",
+        "problemStatement": "Problem statement",
+        "icp": "Ideal customer profile (ICP)"
+      },
+      "founder": {
+        "name": "Name",
+        "gender": "Gender",
+        "dateOfBirth": "Date of birth",
+        "role": "Role",
+        "employment": "Employment",
+        "add": "Add founder"
+      },
+      "team": {
+        "period": "Period",
+        "womenEmployees": "Women employees",
+        "menEmployees": "Men employees",
+        "under35Women": "Women under 35",
+        "under35Men": "Men under 35",
+        "fullTimeEmployees": "Full-time employees",
+        "partTimeEmployees": "Part-time employees",
+        "partTimeDays": "Part-time days worked",
+        "fullTimeFounders": "Full-time founders",
+        "partTimeFounders": "Part-time founders",
+        "womenShare": "Women share",
+        "youthShare": "Youth share (under 35)"
+      },
+      "baseline": {
+        "fte": "Full-Time Equivalent (FTE)",
+        "sectionPositionTitle": "1. Initial Financial & Customer Position",
+        "sectionWorkforceTitle": "2. Starting Workforce & Full-Time Equivalent",
+        "lockedNote": "This baseline is locked as the historical reference for growth and job-creation calculations. It is never edited — supersede it instead.",
+        "saveWorkforce": "Save workforce snapshot",
+        "fteComputed": "Calculated from the workforce figures below and saved with the baseline.",
+        "fteCaptured": "Saved when the baseline was captured.",
+        "fteMissing": "Not recorded — this baseline predates the workforce card. Supersede it to fill the FTE from the current team.",
+        "period": "Period",
+        "subtitle": "The venture's starting line: initial finances, customer traction and starting workforce.",
+        "payingCustomers": "Paying customers",
+        "cash": "Cash in bank ({currency})",
+        "cashBand": "Cash range",
+        "cashMode": "Cash entry mode",
+        "financingMode": "Financing entry mode",
+        "outsideFinancing": "Outside financing to date ({currency})",
+        "outsideFinancingBand": "Outside financing range",
+        "capture": "Capture baseline",
+        "locked": "Baseline locked — supersede it with a reason.",
+        "supersedeTitle": "Supersede the baseline",
+        "reason": "Reason"
+      },
+      "monthly": {
+        "title": "Monthly report",
+        "subtitle": "Eleven inputs. Everything else is calculated.",
+        "period": "Reporting month",
+        "status": {
+          "draft": "Draft",
+          "submitted": "Submitted",
+          "validated": "Validated",
+          "rejected": "Rejected"
+        },
+        "field": {
+          "mrr": "MRR (subscription revenue)",
+          "otherRevenue": "Other revenue (optional)",
+          "expenses": "Total expenses",
+          "cash": "Cash in bank (month end)",
+          "financingReceived": "Financing received this month?",
+          "activeUsers": "Active users (month end)",
+          "payingCustomers": "Paying customers (month end)",
+          "newPayingCustomers": "New paying customers",
+          "fullTime": "Full-time employees",
+          "partTime": "Part-time employees",
+          "partTimeDays": "Part-time days worked",
+          "fullTimeFounders": "Full-time founders",
+          "northStarValue": "North-star value",
+          "channels": "Acquisition channels this month",
+          "narrative": "Wins, challenges and help needed"
+        },
+        "action": {
+          "saveDraft": "Save draft",
+          "submit": "Submit for validation",
+          "validate": "Validate",
+          "reject": "Reject"
+        },
+        "preview": "Preview — not yet validated",
+        "notProvided": "Not provided",
+        "mode": "Entry mode",
+        "amount": "Amount ({currency})",
+        "band": "Range",
+        "bandCurrencyNote": "These ranges are written in {currency} — the studio has no ladder in this venture's reporting currency yet.",
+        "legacyBand": "Saved as an estimated range ({band}). Enter the actual amount to save it again.",
+        "calculated": "Calculated from the validated report",
+        "selfSustaining": "Self-sustaining",
+        "lockedNote": "This month is under review. It cannot be edited until the studio validates or rejects it.",
+        "correctionNote": "This month is already validated. Saving will create a new version; the validated numbers stay live until the new version is validated.",
+        "rejectedNote": "Rejected — reason:",
+        "message": {
+          "saved": "Draft saved",
+          "submitted": "Submitted for validation",
+          "validated": "Report validated — the metrics are now live",
+          "rejected": "Report rejected"
+        },
+        "validation": {
+          "period": "Choose a valid reporting month.",
+          "futurePeriod": "A month that has not ended yet cannot be reported.",
+          "mrr": "MRR is required.",
+          "mrrBand": "Choose a valid MRR range.",
+          "otherRevenue": "Enter a valid other revenue amount.",
+          "otherRevenueBand": "Choose a valid other revenue range.",
+          "expenses": "Total expenses are required.",
+          "expensesBand": "Choose a valid expenses range.",
+          "cash": "Cash in bank is required.",
+          "cashBand": "Choose a valid cash range.",
+          "activeUsers": "Active users are required (0 is a valid answer).",
+          "payingCustomers": "Paying customers are required (0 is a valid answer).",
+          "newPayingCustomers": "New paying customers are required (0 is a valid answer).",
+          "fullTime": "Full-time employees are required (0 is a valid answer).",
+          "fullTimeFounders": "Full-time founders are required (0 is a valid answer).",
+          "partTime": "Part-time employees must be a whole number.",
+          "partTimeDays": "Part-time days must be a number.",
+          "northStarValue": "The north-star value must be a number.",
+          "alreadySubmitted": "This month is under review. It cannot be edited until it is validated or rejected.",
+          "notSubmitted": "Only a submitted report can be validated or rejected.",
+          "action": "Choose validate or reject.",
+          "reason": "A reason is required to reject a report."
+        },
+        "amountGeneric": "Amount"
+      },
+      "metric": {
+        "total_revenue": "Total revenue",
+        "lost_customers": "Lost customers",
+        "churn_rate": "Churn rate",
+        "retention": "Retention",
+        "customer_growth_3m": "Customer growth (3-month)",
+        "mrr_growth_mom": "MRR growth (month)",
+        "mrr_growth_3m": "MRR growth (3-month)",
+        "user_to_paid": "User-to-paid ratio",
+        "arpu": "ARPU",
+        "customer_lifetime_months": "Customer lifetime (months)",
+        "ltv": "LTV",
+        "net_burn": "Net burn",
+        "average_burn": "Average burn",
+        "runway_months": "Runway (months)",
+        "fte": "FTE",
+        "paying_customers": "Paying customers",
+        "ltv_cac": "LTV : CAC",
+        "cac_payback_months": "CAC payback (months)",
+        "magic_number": "Magic number",
+        "burn_multiple": "Burn multiple",
+        "gross_margin": "Gross margin"
+      },
+      "events": {
+        "title": "Events",
+        "subtitle": "What happened on a day, with the evidence to back it.",
+        "type": {
+          "pilot_signed": "Pilot or LOI signed",
+          "mvp_launched": "MVP launched",
+          "pilot_converted": "Pilot converted to paid",
+          "financing_received": "Financing received",
+          "new_market": "New market or segment entered",
+          "status_change": "Status change",
+          "stage_change": "Stage change"
+        },
+        "field": {
+          "type": "Event",
+          "eventDate": "Date",
+          "title": "Title",
+          "description": "Description",
+          "customerName": "Customer",
+          "amount": "Amount",
+          "financingType": "Financing type",
+          "source": "Source",
+          "marketDescription": "Market or segment",
+          "statusTo": "New status",
+          "evidence": "Evidence (document or link)"
+        },
+        "evidence": {
+          "upload": "Upload a document",
+          "link": "Paste a link",
+          "attached": "Evidence attached",
+          "none": "No evidence"
+        },
+        "action": {
+          "add": "Add event",
+          "remove": "Remove"
+        },
+        "financing": {
+          "grant": "Grant",
+          "equity": "Equity",
+          "debt": "Debt"
+        },
+        "empty": "No event recorded yet.",
+        "message": {
+          "added": "Event recorded",
+          "removed": "Event removed"
+        },
+        "validation": {
+          "type": "Choose an event type.",
+          "date": "Enter a real date that is not in the future.",
+          "customer": "Name the customer.",
+          "market": "Describe the market or segment.",
+          "status": "Choose the new status.",
+          "amount": "Enter the amount.",
+          "amountBand": "Choose a valid range.",
+          "financingType": "Choose grant, equity or debt.",
+          "evidence": "The evidence must be a link or an uploaded document.",
+          "evidenceRequired": "This event needs evidence: upload a document or paste a link.",
+          "id": "Choose an event to remove."
+        }
+      },
+      "interviews": {
+        "title": "Customer discovery interviews",
+        "subtitle": "Each interview needs a document or a link.",
+        "progress": "{count} with evidence of {minimum} required",
+        "empty": "No interview recorded yet.",
+        "field": {
+          "date": "Interview date",
+          "segment": "Customer segment",
+          "name": "Interviewee",
+          "notes": "Notes",
+          "insights": "Insights",
+          "evidence": "Evidence (document or link)"
+        },
+        "action": {
+          "add": "Add interview"
+        },
+        "message": {
+          "added": "Interview recorded"
+        },
+        "validation": {
+          "date": "Enter a real interview date that is not in the future.",
+          "evidence": "The evidence must be a link or an uploaded document.",
+          "evidenceRequired": "An interview needs evidence: upload a document or paste a link."
+        }
+      },
+      "quarterly": {
+        "title": "Quarterly report",
+        "subtitle": "Only what the monthly figures cannot answer.",
+        "period": "Quarter",
+        "lockedNote": "This quarter is under review. It cannot be edited until the studio validates or rejects it.",
+        "correctionNote": "This quarter is already validated. Saving will create a new version.",
+        "field": {
+          "teamConfirmed": "Team makeup still correct?",
+          "mvpPlanned": "MVP milestones planned",
+          "mvpHit": "MVP milestones hit on time",
+          "pilotsSigned": "Pilots signed",
+          "pilotsConverted": "Pilots converted to paid",
+          "channels": "Acquisition channels that brought customers",
+          "salesMarketing": "Sales and marketing spend",
+          "openDeals": "Open deals in the pipeline",
+          "salesCycleDays": "Average sales cycle (days)",
+          "top3Share": "Share of customers in the top 3",
+          "expansion": "Expansion MRR",
+          "churned": "Churned MRR",
+          "narrative": "Wins, challenges and help needed"
+        },
+        "channel": {
+          "referral": "Referral",
+          "outbound": "Outbound",
+          "partnership": "Partnership",
+          "content": "Content",
+          "paid_ads": "Paid ads",
+          "other": "Other"
+        },
+        "top3": {
+          "under_30": "Under 30%",
+          "30_60": "30 to 60%",
+          "over_60": "Over 60%"
+        },
+        "validation": {
+          "period": "Choose a valid quarter.",
+          "futurePeriod": "A quarter that has not ended cannot be reported.",
+          "salesMarketing": "Enter a valid sales and marketing amount.",
+          "salesMarketingBand": "Choose a valid sales and marketing range.",
+          "expansion": "Enter a valid expansion amount.",
+          "expansionBand": "Choose a valid expansion range.",
+          "churned": "Enter a valid churned amount.",
+          "churnedBand": "Choose a valid churned range.",
+          "mvpMilestonesPlanned": "Milestones planned must be a whole number.",
+          "mvpMilestonesHit": "Milestones hit must be a whole number.",
+          "pilotsSigned": "Pilots signed must be a whole number.",
+          "pilotsConverted": "Pilots converted must be a whole number.",
+          "openDeals": "Open deals must be a whole number.",
+          "salesCycleDays": "The sales cycle must be a number of days.",
+          "milestonesOverPlanned": "More milestones were hit than were planned.",
+          "pilotsOverSigned": "More pilots were converted than were signed.",
+          "top3Share": "Choose a valid share.",
+          "channels": "Channels must be a list.",
+          "alreadySubmitted": "This quarter is under review and cannot be edited.",
+          "notSubmitted": "Only a submitted report can be validated or rejected.",
+          "action": "Choose validate or reject.",
+          "reason": "A reason is required to reject a report."
+        },
+        "metric": {
+          "net_new_customers": "Net new customers",
+          "net_new_mrr": "Net new MRR",
+          "average_retention": "Average retention",
+          "quarter_end_runway": "Quarter-end runway (months)",
+          "burn_multiple": "Burn multiple",
+          "arpu_trend": "ARPU trend",
+          "cac": "CAC",
+          "cac_payback_months": "CAC payback (months)",
+          "ltv_cac": "LTV:CAC",
+          "pilot_to_paid": "Pilot-to-paid conversion",
+          "mvp_on_time": "MVP milestones on time",
+          "nrr": "Net revenue retention"
+        }
+      },
+      "settings": {
+        "title": "Reporting settings",
+        "subtitle": "The thresholds and deadlines the reporting engine reads. Every change is dated and never overwrites history.",
+        "groupGlossary": "Glossary",
+        "glossaryHint": "The definitions every number depends on. Edit them once, and every screen reads the new wording.",
+        "definitionEn": "Definition (English)",
+        "definitionFr": "Definition (French)",
+        "glossaryReadOnly": "Only a Super Admin can change these definitions. You can read them here at any time.",
+        "groupSchedule": "Reporting schedule",
+        "groupTraffic": "Traffic light",
+        "businessModel": "Business model",
+        "modelDefault": "Default (all business models)",
+        "defaultHint": "The baseline every venture uses unless its business model overrides a number below.",
+        "overrideHint": "Only the numbers this business model overrides. Everything left blank inherits the default, so later changes to the default still reach it.",
+        "overridden": "Overridden",
+        "inherited": "Inherited",
+        "inherit": "Use default",
+        "groupStage": "Stage criteria",
+        "groupReading": "Business reading (verdict and risks)",
+        "readingGrowthGreen": "Revenue growth: healthy from (%)",
+        "readingGrowthRed": "Revenue growth: declining at or below (%)",
+        "readingRetentionFloor": "Retention: flag below (%)",
+        "readingMinLtvCac": "LTV:CAC considered healthy from",
+        "consecutiveMonths": "Consecutive months required",
+        "minGrowth": "Minimum customer growth per month (%)",
+        "retentionEarly": "Minimum retention — Early Traction (%)",
+        "retentionGrowth": "Minimum retention — Growth (%)",
+        "minLtvCac": "Minimum LTV:CAC",
+        "minInterviews": "Validation: minimum interviews",
+        "minCustomersEarly": "Early Traction: minimum paying customers",
+        "minCustomersGrowth": "Growth: minimum paying customers",
+        "scalingMonths": "Scaling: sustained growth (months)",
+        "scalingRetention": "Scaling: minimum retention (%)",
+        "scalingFte": "Scaling: minimum non-founder Full-Time Equivalent (FTE)",
+        "reviewMonths": "Review flag: months below criteria",
+        "monthlyDueDay": "Monthly report due on day",
+        "monthlyDueMinute": "Monthly report due at",
+        "quarterlyDueDay": "Quarterly report due on day",
+        "quarterlyDueMinute": "Quarterly report due at",
+        "utcOffset": "UTC offset (minutes)",
+        "runwayGreen": "Runway: green from (months)",
+        "runwayAmber": "Runway: amber from (months)",
+        "growthGreen": "Growth: green from (%)",
+        "growthAmber": "Growth: amber from (%)",
+        "milestonesGreen": "Milestones on time: green from (%)",
+        "milestonesAmber": "Milestones on time: amber from (%)",
+        "nextMonthly": "Next monthly deadline",
+        "nextQuarterly": "Next quarterly deadline",
+        "save": "Save settings",
+        "saved": "Settings saved",
+        "validation": {
+          "unknown": "That setting is not editable.",
+          "number": "Enter a number.",
+          "range": "That value is outside the allowed range.",
+          "businessModel": "That business model is not recognised.",
+          "term": "A glossary term needs a key.",
+          "definition": "Both the English and the French definition are required.",
+          "definitionLength": "A definition cannot exceed 600 characters."
+        }
+      },
+      "evidence": {
+        "open": "Open",
+        "notAFile": "That is a link, not a file.",
+        "unavailable": "The evidence could not be opened."
+      },
+      "dashboard": {
+        "title": "Venture dashboard",
+        "subtitle": "Everything the studio has validated, in one place.",
+        "empty": "No validated monthly report yet. The dashboard appears as soon as a month is validated.",
+        "northStar": "North-star metric",
+        "customers": "Paying customers",
+        "revenue": "Revenue",
+        "team": "Team",
+        "narrative": "Latest narrative",
+        "noNarrative": "No narrative was submitted for the last validated month.",
+        "womenShare": "Women share",
+        "youthShare": "Under-35 share",
+        "kpi": {
+          "payingCustomers": "Paying customers",
+          "retention": "Retention",
+          "runway": "Runway (months)",
+          "fte": "Full-Time Equivalent (FTE)"
+        },
+        "yearly": {
+          "title": "Last 12 months",
+          "yoyMrr": "MRR growth vs previous 12 months",
+          "customerGrowth": "Customer growth vs 12 months ago",
+          "annualBurn": "Net burn (12 months)",
+          "jobsSupported": "Jobs supported: Full-Time Equivalent (FTE)",
+          "jobsCreated": "Jobs created vs baseline",
+          "financing": "Outside financing received",
+          "survival": "Survival",
+          "survivalMonths": "{months}m: {value}",
+          "pending": "pending",
+          "timeInStage": "Time in stage",
+          "days": "d"
+        }
+      },
+      "portfolio": {
+        "title": "Portfolio roll-up",
+        "subtitle": "Every figure here is folded from the months, stages and events the studio already validated. Nothing is stored twice, so nothing can disagree with the ventures it summarises.",
+        "loading": "Loading the portfolio…",
+        "error": "The portfolio could not be loaded.",
+        "empty": "No venture yet.",
+        "generated": "Generated",
+        "stage": {
+          "title": "Stage distribution",
+          "unset": "Not set"
+        },
+        "traffic": {
+          "title": "Health mix",
+          "green": "Green",
+          "amber": "Amber",
+          "red": "Red",
+          "unknown": "No data",
+          "hint": "The worst of runway, growth and milestones. A venture with no validated month is unknown, never red."
+        },
+        "funnel": {
+          "title": "Creation funnel",
+          "ventures": "Ventures",
+          "withPaying": "With a paying customer",
+          "participants": "Participants",
+          "participantsUnknown": "Not measured here"
+        },
+        "time": {
+          "title": "Time to first paying customer",
+          "toFirstPaying": "From the venture's start to the first validated month with a paying customer",
+          "average": "Average",
+          "median": "Median",
+          "days": "{days} d",
+          "ventures": "{count} ventures",
+          "venturesShort": "Ventures",
+          "inStage": "Time in stage",
+          "stage": "Stage",
+          "none": "No approved stage change yet."
+        },
+        "survival": {
+          "title": "Survival",
+          "months": "{months} months",
+          "eligible": "{survived} of {eligible}",
+          "none": "No venture is old enough to judge."
+        },
+        "capital": {
+          "title": "Financing received",
+          "total": "Total recorded",
+          "ventures": "Ventures with a financing event",
+          "approximate": "Some amounts were reported as a band, so this total is approximate.",
+          "none": "No financing event recorded.",
+          "type": {
+            "grant": "Grants",
+            "equity": "Equity",
+            "debt": "Debt",
+            "other": "Other"
+          }
+        },
+        "jobs": {
+          "title": "Jobs and team",
+          "fte": "Jobs supported (FTE)",
+          "created": "Jobs created vs baseline",
+          "women": "Women share",
+          "youth": "Under-35 share",
+          "members": "{count} people in the latest team snapshots"
+        },
+        "discipline": {
+          "title": "Reporting discipline",
+          "subtitle": "A period is only counted once its deadline has passed, and a venture is never expected to report for a month before it existed.",
+          "monthly": "Monthly",
+          "quarterly": "Quarterly",
+          "due": "Due",
+          "received": "Received",
+          "onTime": "On time",
+          "rejected": "Rejected",
+          "venture": "Venture",
+          "none": "No period is due yet."
+        }
+      },
+      "traffic": {
+        "overall": "Health",
+        "dimension": {
+          "runway": "Runway",
+          "growth": "Growth",
+          "milestones": "Milestones on time"
+        },
+        "status": {
+          "green": "Green",
+          "amber": "Amber",
+          "red": "Red",
+          "unknown": "No data"
+        }
+      },
+      "glossary": {
+        "title": "Glossary",
+        "subtitle": "The exact meaning of every number this page shows.",
+        "empty": "No definition has been published yet.",
+        "term": {
+          "mrr": "MRR",
+          "paying_customer": "Paying customer",
+          "active_user": "Active user",
+          "fte": "Full-Time Equivalent (FTE)",
+          "churn_rate": "Churn rate",
+          "retention": "Retention",
+          "arpu": "ARPU",
+          "ltv": "LTV"
+        }
+      },
+      "stage": {
+        "title": "Stage",
+        "subtitle": "What this venture has proven, and what is still missing.",
+        "name": {
+          "idea": "Idea",
+          "validation": "Validation",
+          "early_traction": "Early Traction",
+          "growth": "Growth",
+          "scaling": "Scaling"
+        },
+        "current": "Current stage",
+        "next": "Next stage",
+        "progress": "Progress toward {stage}",
+        "allMet": "Every criterion is met.",
+        "missingCount": "{count} criterion/ies cannot be judged yet.",
+        "maxStage": "This venture is at the final stage.",
+        "status": {
+          "met": "Met",
+          "not_met": "Not met",
+          "missing": "Missing data"
+        },
+        "criterion": {
+          "icp_defined": "Ideal customer profile defined",
+          "interviews": "Customer discovery interviews (with evidence)",
+          "pilot_or_mvp": "Pilot, LOI or working MVP",
+          "paying_customers_3m": "Paying customers in each of the last {months} months",
+          "retention_3m": "Retention in each of the last {months} months",
+          "channel": "At least one acquisition channel",
+          "same_channel_3m": "Same acquisition channel in each of the last {months} months",
+          "pilot_converted": "A pilot converted to paid",
+          "paying_customers": "Paying customers",
+          "growth_3m": "Customer growth (3-month)",
+          "ltv_cac": "LTV:CAC",
+          "new_market": "A new market or segment entered",
+          "sustained_growth": "Sustained customer growth",
+          "non_founder_fte": "Non-founder FTE"
+        },
+        "action": {
+          "propose": "Propose promotion",
+          "approve": "Approve promotion",
+          "reject": "Reject"
+        },
+        "pending": "Proposed promotion to {stage}",
+        "review": {
+          "flagged": "Below the current stage's criteria for {months} consecutive months.",
+          "ok": "Current stage criteria are holding.",
+          "notApplicable": "No monthly bar at this stage."
+        },
+        "history": "Stage history",
+        "validation": {
+          "notEligible": "Not every criterion is met, so no promotion can be proposed.",
+          "none": "There is no pending proposal to decide.",
+          "action": "Choose approve or reject.",
+          "reason": "A reason is required to reject a promotion."
+        }
+      },
+      "due": {
+        "dueOn": "Due",
+        "overdue": "Overdue",
+        "validatedOn": "Validated"
+      },
+      "review": {
+        "title": "Venture reporting review",
+        "subtitle": "Validate the monthly figures a founder submitted.",
+        "queue": "Submissions",
+        "empty": "No monthly report has been submitted yet.",
+        "submittedOn": "Submitted on",
+        "reasonPrompt": "Why is this report being rejected?",
+        "reasonHint": "The founder sees this reason and corrects the month. It is required.",
+        "switchToQuarterly": "Quarterly review",
+        "switchToMonthly": "Monthly review"
+      },
+      "versionLabel": "Version",
+      "validation": {
+        "bandRemoved": "Ranges are no longer accepted — enter the actual amount.",
+        "legalName": "Legal name is required.",
+        "foundingDate": "Founding date is required.",
+        "businessModel": "Business model is required.",
+        "sector": "Sector is required.",
+        "problemStatement": "Problem statement is required.",
+        "idealCustomerProfile": "Ideal customer profile is required.",
+        "northStarName": "North-star metric is required.",
+        "northStarDefinition": "Definition is required.",
+        "northStarUnit": "Unit is required.",
+        "invalidDate": "Invalid date.",
+        "futureDate": "The date cannot be in the future.",
+        "accountingBasis": "Invalid accounting basis.",
+        "founderName": "Founder name is required.",
+        "gender": "Invalid gender.",
+        "employmentType": "Invalid employment type.",
+        "oneFounder": "At least one founder is required.",
+        "period": "Invalid period.",
+        "supersedeReason": "A reason is required to supersede the baseline.",
+        "baselineLocked": "A baseline already exists. Use supersede.",
+        "noBaseline": "There is no baseline to supersede.",
+        "cashValue": "Cash amount is required in exact mode.",
+        "cashBand": "Cash range is required in band mode.",
+        "financingValue": "Financing amount is required in exact mode.",
+        "financingBand": "Financing range is required in band mode.",
+        "settingKey": "Setting key is required.",
+        "settingValue": "Invalid setting value."
+      }
+    },
     "label": "Venture",
     "statusActive": "Active",
     "statusPaused": "Paused",
@@ -55,6 +770,8 @@
     "noVentures": "No ventures yet. Create your first venture to get started.",
     "myVentures": "My Ventures",
     "profile": "Profile",
+    "baseline": "Venture Baseline",
+    "setup": "SetUp",
     "settings": "Settings",
     "cancel": "Cancel",
     "creating": "Creating...",
@@ -107,6 +824,8 @@
     "memberSince": "Member since",
     "addMember": "Add Member",
     "addMemberFounderHint": "Add another founder to this Venture. They receive an email and join as a founder once they accept the link.",
+    "addMemberTeamHint": "Invite a team member. They get workspace access but no role — roles stay a Venture Manager or Super Admin decision.",
+    "memberType": "Add as",
     "memberRole": "Role",
     "confirmRemove": "Remove this member?",
     "confirmRemoveAdvisor": "Remove this advisor?",
@@ -128,7 +847,7 @@
       "selectTemplate": "Select template…",
       "sectionsCount": "{count} sections",
       "apply": "Apply",
-      "intro": "Lead Manager-defined operating structure: sections with objectives, tasks, documents, sessions and notes.",
+      "intro": "Venture Manager-defined operating structure: sections with objectives, tasks, documents, sessions and notes.",
       "planNamePlaceholder": "Plan name — e.g. Go-To-Market Readiness",
       "objectivePlaceholder": "Objective / current assessment",
       "createPlan": "Create Plan",
@@ -205,10 +924,225 @@
       "deleted": "Note deleted.",
       "deleteFailed": "Delete failed.",
       "section": {
-        "milestones": "Milestones",
-        "sessions": "Sessions"
+        "milestones": "Milestone notes",
+        "activity": "Activity reports",
+        "sessions": "Session memos"
       },
-      "sessionsHint": "Notes written in each session. They stay with that session."
+      "sessionsHint": "The memo of each session, and the feedback written on it. Both stay with that session.",
+      "activityHint": "Staff reports written from an activity. They are stored on the activity's milestone, with the activity in the title.",
+      "coachFeedback": "Coach feedback"
+    },
+    "schedule": {
+      "title": "Recurring meeting schedule",
+      "subtitle": "Plan the rhythm. Nothing is booked from here — preview first.",
+      "empty": "No recurring schedule for this venture yet.",
+      "new": "New schedule",
+      "cancel": "Cancel",
+      "previewButton": "Preview occurrences",
+      "save": "Save schedule",
+      "saved": "Schedule saved as a draft. Nothing has been booked.",
+      "previewOnly": "Preview only — nothing was saved.",
+      "window": "{from} to {to}",
+      "occurrenceCount": "{count} occurrences in this window",
+      "noOccurrences": "Nothing in this window. Check the start date and the meeting days.",
+      "field": {
+        "title": "Title",
+        "type": "Meeting type",
+        "timezone": "Timezone",
+        "frequency": "Frequency",
+        "interval": "Every",
+        "intervalUnit": "period(s)",
+        "slots": "Meeting days and times",
+        "weekday": "Day",
+        "start": "Start",
+        "minutes": "Minutes",
+        "addSlot": "Add a day",
+        "removeSlot": "Remove",
+        "validFrom": "Starts on",
+        "validUntil": "Ends on (optional)",
+        "maxOccurrences": "Or stop after (occurrences)",
+        "description": "Purpose"
+      },
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "biweekly": "Every two weeks",
+        "monthly": "Monthly"
+      },
+      "weekday": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "type": {
+        "coaching": "Coaching",
+        "mentorship": "Mentorship",
+        "progress_review": "Progress review",
+        "pitch_review": "Pitch review",
+        "technical": "Technical support"
+      },
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended"
+      },
+      "version": "Version {n}",
+      "action": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "end": "End schedule",
+        "newVersion": "Replace from a date"
+      },
+      "preview": {
+        "title": "Next occurrences",
+        "utc": "UTC {time}",
+        "local": "{start}–{end}"
+      },
+      "error": {
+        "title": "A title is required.",
+        "frequency": "Choose a frequency.",
+        "interval": "The interval must be between 1 and 12.",
+        "slots": "Add at least one meeting day and time.",
+        "slotWeekday": "Choose a day for every meeting slot.",
+        "slotStart": "Each slot needs a start time, HH:MM.",
+        "slotDuration": "Each slot needs a duration between 5 and 480 minutes.",
+        "validFrom": "A valid start date is required.",
+        "validUntil": "The end date is not valid.",
+        "validUntilBefore": "The end date cannot be before the start date.",
+        "maxOccurrences": "The occurrence limit must be a whole number above zero.",
+        "timezone": "Unknown timezone. Use an IANA name such as Africa/Porto-Novo.",
+        "versionFrom": "The replacement must start after the version it replaces.",
+        "ended": "This schedule has ended.",
+        "action": "Unknown action.",
+        "notFound": "Schedule not found."
+      }
+    },
+    "handbook": {
+      "title": "Venture Manager Handbook",
+      "subtitle": "The Journey tab, page by page.",
+      "intro": "Each entry below is one page of the printed manual: what it explains, and the rule worth remembering. Nothing here changes a record — it is the reading companion to the screen, and it is always the current edition.",
+      "button": "Handbook",
+      "searchPlaceholder": "Search the handbook — milestone, approval, session…",
+      "searchCount": "{count} page(s)",
+      "searchEmpty": "No page matches that word. Try 'milestone', 'approval' or 'session'.",
+      "contents": "Contents",
+      "pageLabel": "Page {n}",
+      "close": "Back to contents",
+      "page": {
+        "what": {
+          "title": "What the Journey is",
+          "summary": "The plan of record, and the two numbers that measure it.",
+          "body": "The Journey is the venture's plan: the stages the studio guides it through, from setting up a company to scaling one. It is deliberately not a document — it says what is true this morning, not what was agreed last quarter.\n\nRoadmap progress measures execution. Data Room readiness measures fundraising preparedness. They come from two different engines and are never averaged into one score.",
+          "bullets": "Roadmap progress counts completed milestones, completed tasks and approved deliverables.\nData Room readiness lives in the Data Room tab, beside the documents that produce it.\nA venture can execute well and still not be ready to raise — the two numbers keep that visible."
+        },
+        "where": {
+          "title": "Where the Journey lives",
+          "summary": "The Venture Manager's tab bar, and what each door is for.",
+          "body": "Open Ventures, choose the venture, and you land on its workspace. Your rights inside each tab come from your staff assignment on that venture, and the server enforces them — the tab bar only decides what is worth showing you.",
+          "bullets": "Overview answers what needs you today. Journey answers where the plan is.\nProjects shows the same work as rows and as a timeline, for the lead manager only.\nTasks, Sessions, Notes, Data Room and Profile follow. Data Room holds its own readiness figure."
+        },
+        "glance": {
+          "title": "The Journey tab at a glance",
+          "summary": "The roadmap card first, the stages below it.",
+          "body": "A single percentage and four bars answer one question: how much of the planned work is actually done. Read it as a thermometer, never as a grade.\n\nBelow the card, each stage is a block you can open. Several stages can run at once: a stage starts when its own start date arrives, not when the previous one ends.",
+          "bullets": "If you approved nothing this week, the card does not move — that is the correct answer.\nIt measures finished work, not effort, meetings attended or how busy everyone felt."
+        },
+        "vocabulary": {
+          "title": "The vocabulary",
+          "summary": "Six words that nest, and each one means one thing.",
+          "body": "Journey is a stage of the plan. A milestone is a checkpoint inside it, and the unit of completion. An activity is a specific piece of work inside a milestone. A deliverable is the artefact an activity must produce. A task is a to-do assigned to a person. A submission is what a founder files for a task that requires review.",
+          "bullets": "The tab is called Journey, and each stage inside it is also called a Journey — when someone says 'the Journey is complete', ask which one they mean.\nSessions, notes and journey reports sit beside the ladder, not inside it."
+        },
+        "status": {
+          "title": "The eight status words",
+          "summary": "Upcoming, Blocked, Not started, In progress, Awaiting review, Changes requested, Completed, Approved.",
+          "body": "Statuses are stored as fixed values and shown as eight words. The application never guesses a word for an unknown value: it shows the raw value instead, so you can report it rather than be misled by it.",
+          "bullets": "Upcoming is the calendar holding the work back; Not started is nobody having begun. They look alike and mean opposite things.\nBlocked is released by a completed dependency, never by reordering the list.\nAwaiting review is your queue: decide it."
+        },
+        "stage": {
+          "title": "Working a Journey (a stage)",
+          "summary": "How a stage starts, ends, and is written up.",
+          "body": "A stage is created with a start and an end date. Until its start date arrives it is Upcoming and its milestones are held. On the date it becomes Active on its own, and it becomes Completed when all of its milestones are.",
+          "bullets": "Add, rename, reorder and delete stages and milestones here.\nAttach a progress report while the stage runs, and a closing report when it ends.\nArchive a stage rather than deleting it, unless it was created by mistake.\nMoving a milestone up or down changes the reading order, never the dates and never a dependency."
+        },
+        "milestone": {
+          "title": "Working a milestone",
+          "summary": "Open it, and everything you do is attached here.",
+          "body": "Click a milestone to open it. In one place you get what needs your decision, the deliverables of each activity, the sessions booked on it and its internal notes.",
+          "bullets": "Edit, move up or down, open its notes, or mark it completed from the menu.\nA milestone closes either because you mark it, or because its deliverables are approved and its tasks are done.\nDo not close one to make the card look better: the same number is read by the founder and the studio."
+        },
+        "review": {
+          "title": "Reviewing what the venture submitted",
+          "summary": "Approve, or send it back with a written reason.",
+          "body": "Submissions appear at the top of the open milestone, not in a separate queue you have to remember to check. Each row shows the task, the version, who filed it, when, the founder's note and a link to the file.",
+          "bullets": "Approving accepts the deliverable and the work counts as done.\nRequesting changes requires a comment — write it as an instruction, not as a verdict.\nA new version never erases the previous one: the history stays readable."
+        },
+        "deliverables": {
+          "title": "Deliverables",
+          "summary": "Evidence, dates, and the words you may set.",
+          "body": "A deliverable carries two dates, a status and evidence — a file or a link. Uploaded files are never public: an authorised reader gets a short-lived signed address, generated when they open it.",
+          "bullets": "You may set Not started, In progress or Blocked.\nAwaiting review is set by the founder submitting; Changes requested by your review.\nApproved cannot be typed: it is the outcome of a review, which is why the percentage is traceable to a decision."
+        },
+        "activity": {
+          "title": "The three buttons on an activity",
+          "summary": "Quick note, Activity report, Session — similar, and not the same.",
+          "body": "Each activity offers three actions. A quick note and an activity report are both internal notes filed on the milestone; the report is the fuller one and is titled with the activity code. A session is a real booked meeting that the venture can see.",
+          "bullets": "Recorded a meeting or a decision — quick note.\nAssessed one activity against a checklist — activity report.\nNeed to sit down with the founder or a coach — session.\nNotes are staff-only: the founder never receives them."
+        },
+        "session": {
+          "title": "Booking a session",
+          "summary": "Four rules the server enforces, for you and for the founder.",
+          "body": "A session is a dated meeting attached to a milestone. It carries one memo, materials, its invitees and, after the meeting, the coach's write-up.",
+          "bullets": "A memo is required, and the session must belong to a milestone.\nThe date and time must be in the future; any future time is bookable.\nUp to five materials, and only files uploaded through this venture's own uploader.\nCancelling removes it from everyone's calendar; moving it updates it in place."
+        },
+        "notes": {
+          "title": "The Notes tab",
+          "summary": "Milestone notes, Activity reports, Session memos — staff only.",
+          "body": "Everything staff write about a venture, in three sections. The founder's account is refused by the server, not merely hidden by the interface.\n\nAn internal note must belong to a milestone: there are no venture-wide notes and no free-floating ones.",
+          "bullets": "Milestone notes are written on the milestone; activity reports come from an activity; session memos come from a session.\nThe session memo is the brief the venture was told about; the coach feedback is staff commentary. Both are readable here.\nIf the founder needs to know something, write it where they can read it — this is not a messaging channel."
+        },
+        "reports": {
+          "title": "Journey reports",
+          "summary": "The progress and closing reports for a whole stage.",
+          "body": "A journey report is the written account of a stage: what it set out to do, what happened, and what you recommend. It records a period, a summary, what was completed and outstanding, the support delivered, the challenges and your recommendation.",
+          "bullets": "A progress report is written while the stage runs; a closing report when it ends.\nIt moves from draft to submitted, and the date it was submitted is kept.\nIf a stage closes without its closing report, the tab says so in place — nothing is blocked, but the omission is never silent."
+        },
+        "templates": {
+          "title": "Templates and the archive",
+          "summary": "Reuse a plan, retire a plan.",
+          "body": "A good plan is worth reusing: a Journey can be saved as a template and applied to a new venture, which copies its structure without linking the two afterwards.",
+          "bullets": "Archiving takes a stage out of the working view and deletes nothing.\nThe tab has an Active and an Archived view; archived content returns only when you ask for it.\nBulk delete exists and asks twice — archive is the habitual choice."
+        },
+        "founder": {
+          "title": "What the founder sees",
+          "summary": "The plan and the sessions, never the staff commentary.",
+          "body": "The founder has their own workspace and their own Journey tab: their roadmap, milestones, deliverables, sessions they can book, and their tasks. Internal notes, activity reports, coach feedback and journey reports are staff instruments and never reach them.",
+          "bullets": "The reporting forms belong to the founder; you read their figures, you do not edit them.\nWhen a founder says 'I cannot see it', check three things: the stage is still Upcoming, it was archived, or it is internal by design."
+        },
+        "week": {
+          "title": "Your week in the Journey",
+          "summary": "A routine that keeps the plan true, in about twenty minutes.",
+          "body": "Clear the decision list first: every submission waiting on you is a founder who cannot move. Then read the roadmap card — if it did not move last week, ask which of the four bars should have. Then check the milestones due this week and the sessions booked.",
+          "bullets": "After every session: the memo, the coach's feedback, and an activity report if a decision was taken.\nAt the end of a stage: confirm every milestone is closed, write the closing report, then archive the stage.\nMonthly: read the founder's numbers against the roadmap, and check the Data Room readiness."
+        },
+        "troubleshooting": {
+          "title": "If something looks wrong",
+          "summary": "The five questions we get most.",
+          "body": "Most surprises are a status or a scope, not a defect. Check those before opening a ticket, and report with three facts: what you expected, what you saw, and the venture code plus the milestone or activity name.",
+          "bullets": "A stage is missing: check Upcoming, then the archive.\nThe percentage did not move: only completed milestones, completed tasks and approved deliverables count.\nA note is not where you expect: look under Activity reports or Session memos.\nA session will not save: the message names the rule that failed.\nThe founder cannot see something: it is internal by design."
+        },
+        "glossary": {
+          "title": "Glossary — English and French",
+          "summary": "The same words in both languages of the interface.",
+          "body": "Journey is Parcours. Milestone is Jalon. Activity is Activité. Deliverable is Livrable. Task is Tâche. Session is Session, though the tab keeps its English name in both languages. Roadmap progress is Avancement du parcours, and Data Room readiness is Complétude du Data Room.",
+          "bullets": "Milestone note: Note de jalon. Activity report: Rapport d'activité. Session memo: Compte rendu de séance.\nJourney report: Rapport de parcours. Closing report: Rapport de clôture.\nApproved: Approuvé. Awaiting review: En attente de revue. Changes requested: Modifications demandées."
+        }
+      }
     },
     "insights": "Insights",
     "validation": "Validation",
@@ -313,27 +1247,27 @@
     "profileCompletion": "Profile Completion",
     "noProgressData": "No progress data yet",
     "support": {
-      "title": "Your Venture Lead",
+      "title": "Your Venture Manager",
       "subtitle": "The people supporting this Venture, and how to reach them",
       "primary": "Primary",
       "noLongerAssigned": "No longer assigned",
-      "noLead": "No Venture Lead is currently assigned.",
+      "noLead": "No Venture Manager is currently assigned.",
       "noEmail": "No email address on file",
       "unnamed": "Unnamed contact",
-      "leadFallback": "your Venture Lead",
+      "leadFallback": "your Venture Manager",
       "alsoSupporting": "Also supporting",
       "previous": "Previous support ({count})",
       "contact": "Write to them",
       "someNoAccount": "Not reached — no ImpactOS account to receive messages: {names}",
       "noAccount": "No ImpactOS account yet",
       "recipients": "Write to",
-      "everyone": "All Venture Leads ({count})",
+      "everyone": "All Venture Managers ({count})",
       "chooseRecipient": "Choose at least one person to write to.",
       "contactTitle": "Message {name}",
-      "contactHint": "Your message is written to the Venture Leads you choose, in their ImpactOS messages. They can answer you there.",
+      "contactHint": "Your message is written to the Venture Managers you choose, in their ImpactOS messages. They can answer you there.",
       "messagePlaceholder": "Write your message…",
       "send": "Send message",
-      "sent": "Message sent to {count} Venture Lead(s) in their messages.",
+      "sent": "Message sent to {count} Venture Manager(s) in their messages.",
       "noReplyTo": "Your account has no usable email address, so the message was sent without a reply link. Your address is included in the message text.",
       "inAppOnly": "Email is not available right now, so your message was delivered inside ImpactOS to: {names}. They will see it in their notifications.",
       "alsoInApp": "Also delivered inside ImpactOS (no email could be sent) to: {names}.",
@@ -382,15 +1316,19 @@
       "desc": "How much of the planned Journey work is done — journeys, milestones, tasks and deliverables."
     },
     "dataRoomReadiness": {
-      "title": "Investment readiness",
+      "title": "Data Room readiness",
       "desc": "Share of the required Data Room categories that are filed and verified.",
-      "hint": "Investment readiness is the Data Room's own completeness figure. It answers a different question from roadmap progress, so the two are never merged into one number.",
-      "where": "Where this comes from: the documents you file in the Data Room, measured against the requirements set for your business stage.",
       "indeterminate": "Not measurable yet — no Data Room category is marked required for this Venture.",
       "counts": "{verified} of {total} required categories verified"
     },
     "standardJourney": "Standard Venture Journey",
     "journeyDesc": "Your Venture journey is defined by the Future Studio team supporting you. Stages unlock as the team marks each one complete.",
+    "journeyMap": {
+      "title": "Journey map",
+      "overall": "{percent}% complete",
+      "milestones": "{done}/{total} milestones · {percent}%",
+      "noMilestones": "No milestones yet"
+    },
     "evidenceUnavailable": "Some evidence could not be loaded. Reload the page, and tell your lead manager if it stays missing.",
     "noJourneyYet": "No journey stages have been defined yet.",
     "noJourneyYetDesc": "The team supporting your Venture will publish your journey soon.",
@@ -460,13 +1398,13 @@
       "subtitle": "The documents this Venture's Data bank asks for.",
       "badgeVenture": "Per Venture",
       "ventureHint": "These documents are asked of THIS Venture only — another Venture has its own list.",
-      "readOnly": "You can see this Venture's list, but only a Super Admin or its Lead Manager can change it.",
+      "readOnly": "You can see this Venture's list, but only a Super Admin or its Venture Manager can change it.",
       "pickTitle": "Data Bank documents",
       "pickSubtitle": "Choose the Venture whose document list you want to define.",
       "pickEmpty": "No Ventures yet",
       "pickEmptyDescription": "A Venture appears here once it exists.",
       "pickEmptyLead": "No Venture is yours to configure",
-      "pickEmptyLeadDescription": "You will be able to define a Venture's documents once you are assigned to it as Lead Manager.",
+      "pickEmptyLeadDescription": "You will be able to define a Venture's documents once you are assigned to it as Venture Manager.",
       "addTitle": "Add a document type",
       "nameEnLabel": "Name (English)",
       "nameEnPlaceholder": "e.g. Tax clearance certificate",
@@ -814,15 +1752,15 @@
       },
       "sessionBookedEmailFailed": "Session booked — but we could not e-mail {emails}. Send them the details another way.",
       "report": {
-        "button": "Report",
-        "title": "Reports",
+        "button": "Activity report",
+        "title": "Activity reports",
         "activity": "Activity",
         "milestone": "Milestone",
         "thisActivity": "This activity ({count})",
         "wholeMilestone": "Whole milestone ({count})",
-        "empty": "No report yet. Write the first one below.",
-        "new": "New report",
-        "add": "Add report",
+        "empty": "No activity report yet. Write the first one below.",
+        "new": "New activity report",
+        "add": "Add activity report",
         "createdOn": "Created on",
         "createdAt": "Time",
         "author": "Written by",
@@ -992,19 +1930,24 @@
       "clear": "Clear"
     },
     "projects": {
-    "shouldStart": "Should have started",
-    "followUp": {
-      "title": "Are the assignees on their tasks? (tasks whose start date has come)",
-      "none": "No task has reached its start date yet.",
-      "assignee": "Assignee",
-      "due": "Should have started",
-      "working": "In progress / done",
-      "blocked": "Blocked",
-      "waiting": "Not started",
-      "verdict": "Status",
-      "nobody": "Nobody assigned",
-      "verdicts": { "onIt": "On it", "partial": "Partly started", "notStarted": "Has not started", "unassigned": "No assignee" }
-    },
+      "shouldStart": "Should have started",
+      "followUp": {
+        "title": "Are the assignees on their tasks? (tasks whose start date has come)",
+        "none": "No task has reached its start date yet.",
+        "assignee": "Assignee",
+        "due": "Should have started",
+        "working": "In progress / done",
+        "blocked": "Blocked",
+        "waiting": "Not started",
+        "verdict": "Status",
+        "nobody": "Nobody assigned",
+        "verdicts": {
+          "onIt": "On it",
+          "partial": "Partly started",
+          "notStarted": "Has not started",
+          "unassigned": "No assignee"
+        }
+      },
       "title": "Project Management",
       "subtitle": "Every milestone, activity and deliverable of this Venture, with the owner, the people supporting it and the dates that matter.",
       "open": "Open",
@@ -1021,6 +1964,12 @@
       "work": "Work",
       "type": "Type",
       "status": "Status",
+      "statusCategories": {
+        "toDo": "To do",
+        "inProgress": "In progress",
+        "blocked": "Blocked",
+        "done": "Done"
+      },
       "journey": "Journey",
       "milestone": "Milestone",
       "parent": "Belongs to",
@@ -1041,6 +1990,7 @@
       "workItems": "Work items",
       "filters": "Filters",
       "clearFilters": "Clear filters",
+      "editableHint": "Click a status, priority or owner to change it in place.",
       "people": "People",
       "dates": "Dates",
       "placement": "Journey · Milestone",
@@ -1099,9 +2049,9 @@
       "schedule": "Schedule",
       "scheduledToast": "Reminder scheduled {days} day(s) before.",
       "calendarHint": "The email carries the date as a calendar invite (.ics and Google Calendar link).",
-      "ruleLine": "{days} day(s) before the {trigger}",
+      "ruleLine": "{days} day(s) before {trigger}",
       "sendSuccessHint": "Check the inbox (and spam) of each address above.",
-      "ccHint": "A copy is also sent to the Venture's Lead Manager.",
+      "ccHint": "A copy is also sent to the Venture's Venture Manager.",
       "attachmentDropped": "The message went out, but the mail service could not carry the file.",
       "sentToast": "Reminder sent to {count} recipient(s).",
       "sentWithFailures": "Reminder sent to {sent} recipient(s), but {failed} could not be sent.",
@@ -1138,7 +2088,6 @@
       "addRule": "Add a rule",
       "addStandard": "Add the standard rules",
       "confirmDeleteRule": "Remove this reminder rule? Reminders already sent are kept in the history.",
-      "ruleLine": "{days} day(s) before {trigger}",
       "trigger": {
         "start": "Start",
         "finish": "Finish"
@@ -1269,9 +2218,9 @@
         "sessionRescheduledMsg": "Session \"{title}\" has been rescheduled.",
         "milestoneApproved": "Milestone approved",
         "milestoneApprovedMsg": "The milestone \"{milestoneTitle}\" has been completed and approved.",
-        "leadAssigned": "Venture Lead assigned",
+        "leadAssigned": "Venture Manager assigned",
         "leadAssignedMsg": "{name} now supports your Venture — you can reach them from your Venture dashboard.",
-        "leadRemoved": "Venture Lead updated",
+        "leadRemoved": "Venture Manager updated",
         "leadRemovedMsg": "{name} is no longer assigned to your Venture."
       }
     },
@@ -1281,6 +2230,45 @@
       "prefix": "Note",
       "saved": "Note saved — it is in the Notes tab.",
       "memo": "Session memo"
+    },
+    "charts": {
+      "sectionTitle": "Growth & Performance Telemetry",
+      "sectionSubtitle": "Verified metrics computed from validated monthly reports and verified evidence",
+      "period3": "Past 3 Months",
+      "period6": "Past 6 Months",
+      "periodAll": "All Time",
+      "signalRetentionTitle": "Cohort Retention Warning",
+      "signalRetentionDesc": "Monthly customer retention has dropped below 50% target threshold.",
+      "signalCustDropTitle": "Customer Contraction Alert",
+      "signalCustDropDesc": "drop in paying customers from the previous month.",
+      "signalCustGrowthTitle": "Customer Growth Acceleration",
+      "signalCustGrowthDesc": "increase in paying customers over the previous period.",
+      "signalRunwayTitle": "Critical Runway Alert",
+      "signalRunwayDesc": "months of cash runway remaining. Review net burn and funding requirements.",
+      "emptyTitle": "Venture Growth & Unit Economics",
+      "emptyDesc": "Performance trajectories, recurring revenue, retention curves and operational runway will appear here as monthly reports are validated.",
+      "revenueTitle": "Monthly Recurring Revenue (MRR)",
+      "revenueSubtitle": "Total verified recurring software & service revenue",
+      "revenueDataSource": "Data source: Validated monthly report (mrr + other_revenue)",
+      "customerTitle": "Paying Customers",
+      "customerSubtitle": "Active accounts with a paid contract or subscription",
+      "customerDataSource": "Data source: Validated monthly report (paying_customers)",
+      "retentionTitle": "Cohort Retention Rate",
+      "retentionSubtitle": "Percentage of customers retained month-over-month",
+      "retentionDataSource": "Data source: Computed metric: (paying_customers - new_paying_customers) / previous_paying_customers",
+      "northStarTitle": "North Star Metric",
+      "northStarSubtitle": "Core venture value delivery indicator",
+      "northStarDataSource": "Data source: Validated monthly report (north_star_value)",
+      "runwayTitle": "Runway",
+      "runwaySubtitle": "Months of cash left at the reported burn rate",
+      "runwayDataSource": "Data source: Computed metric: cash_in_bank / monthly_burn",
+      "unit": "Unit",
+      "customersCount": "Customers",
+      "monthsOfRunway": "Runway",
+      "netBurn": "Net Burn",
+      "netBurnTitle": "Net Burn",
+      "netBurnSubtitle": "Cash spent each month — below zero means profitable",
+      "netBurnDataSource": "Data source: Computed metric: expenses − revenue"
     }
   }
 }

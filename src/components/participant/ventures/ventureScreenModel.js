@@ -5,10 +5,78 @@
 // no state and read nothing themselves, so they live here and the screen imports
 // them, keeping the screen's body about state and orchestration only.
 
+// `investment` is retired: the Data Room's completeness is shown INSIDE the Data
+// Room, and roadmap progress inside the Journey. An old `?tab=investment` link is
+// not in this list, so the screen falls back to the first tab.
+//
+// Profile / Venture Baseline / Team live under the SetUp parent door — they are
+// not top-level tabs anymore. Legacy `?tab=profile|baseline|team` deep links are
+// still resolved by `resolveWorkspaceTab` so bookmarks keep working.
+export const SETUP_TAB = "setup";
+export const SETUP_SECTIONS = ["profile", "baseline", "team"];
+
 export const TABS = [
-  "dashboard", "journey", "investment", "dataRoom",
-  "profile", "team",
+  "dashboard", "journey", "dataRoom", SETUP_TAB,
 ];
+
+/**
+ * The Venture Data Foundation door.
+ *
+ * It is NOT part of `TABS` because it is conditional: the reporting forms are
+ * written by the Venture's own members (`ventures.edit`), so showing the door to
+ * a reader would promise a screen whose saves the server would refuse. The
+ * caller asks `tabsFor({ canReport })` once, with the verdict from
+ * `/api/ventures/[id]/my-access`, and uses the answer for BOTH the tab bar and
+ * the `?tab=` validation — so a deep link cannot open a door that is hidden.
+ *
+ * When shown, Reporting sits BEFORE SetUp (SetUp remains the last top-level door).
+ */
+export const REPORTING_TAB = "reporting";
+
+/** The tabs this viewer may open, in order. Pure. */
+export const tabsFor = ({ canReport = false } = {}) => {
+  if (!canReport) return [...TABS];
+  const tabs = [...TABS];
+  const setupIdx = tabs.indexOf(SETUP_TAB);
+  if (setupIdx === -1) return [...tabs, REPORTING_TAB];
+  tabs.splice(setupIdx, 0, REPORTING_TAB);
+  return tabs;
+};
+
+/**
+ * Resolve `?tab=` (+ optional `?section=`) into a top-level tab and, when on
+ * SetUp, which of its three screens is open.
+ *
+ * Accepts both the canonical form (`?tab=setup&section=profile`) and the
+ * legacy form (`?tab=profile|baseline|team`) so Founder Launchpad buttons and
+ * old bookmarks keep landing on the same content.
+ */
+export function resolveWorkspaceTab({
+  requestedTab = null,
+  requestedSection = null,
+  canReport = false,
+} = {}) {
+  const allowed = tabsFor({ canReport });
+
+  if (SETUP_SECTIONS.includes(requestedTab)) {
+    return { activeTab: SETUP_TAB, setupSection: requestedTab };
+  }
+
+  if (requestedTab === SETUP_TAB) {
+    return {
+      activeTab: SETUP_TAB,
+      setupSection: SETUP_SECTIONS.includes(requestedSection)
+        ? requestedSection
+        : "profile",
+    };
+  }
+
+  if (allowed.includes(requestedTab)) {
+    return { activeTab: requestedTab, setupSection: "profile" };
+  }
+
+  return { activeTab: "dashboard", setupSection: "profile" };
+}
 
 
 // The venture record, and the profile form it fills in. The form is the shape
@@ -34,6 +102,7 @@ export const ventureToForm = (venture) => ({
   language: venture.language || "en",
   brandColor: venture.branding?.color || "#f60",
   country_code: venture.country_code || "",
+  logo_url: venture.logo_url || "",
 });
 
 // ── The answer shapers for this screen's reads ─────────────────────────────
@@ -56,6 +125,9 @@ export const pickProgress = pickThing("progress");
 // queue: the shaper returns null, and the screen reports the failure instead of
 // painting zeroes.
 export const pickMyWork = (payload) => (payload?.success ? payload.my_work || null : null);
+// "What may I do HERE?" — the guard's own verdict, so the screen never promises
+// a save the server would refuse. Returns null on a refusal, never `{}`.
+export const pickAccess = (payload) => (payload?.success ? payload : null);
 
 /**
  * The dashboard work queue, grouped for display.

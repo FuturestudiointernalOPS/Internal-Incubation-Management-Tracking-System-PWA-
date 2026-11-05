@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { canDefineDeliverables, canReviewDeliverable } from "@/lib/ventureDeliverables";
 import { dateOrNull, textOrNull } from "@/lib/ventureInput";
+import { DELIVERABLE_REVIEW_WORDS, DELIVERABLE_STATUS_BY_WORD } from "@/lib/ventureStatuses";
 import { listDeliverables, createDeliverable, updateDeliverable, getDeliverable } from "@/services/ventures/deliverables";
 import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 import { getVentureDbIdByCodeOrId, getVentureMilestoneForDeliverables } from "@/models/ventureWorkspace";
@@ -19,10 +20,10 @@ import {
  *   GET    ?milestone_id=…   list (any Venture viewer)
  *   POST                     create  { milestone_id, title, description?,
  *                                      deliverable_type?, due_date? }
- *                            → Lead Manager / Super Admin
- *   PATCH  { id, action }    update  → Lead Manager / Super Admin
+ *                            → Venture Manager / Super Admin
+ *   PATCH  { id, action }    update  → Venture Manager / Super Admin
  *                            submit  → the Venture side (Venture access)
- *                            review  → Lead Manager / Super Admin, or a staff
+ *                            review  → Venture Manager / Super Admin, or a staff
  *                                      member scoped to that milestone
  *
  * Capability layer: the `ventures` module. There is no `milestones` capability
@@ -159,7 +160,7 @@ export const PATCH = createHandler(async (req, { params }) => {
     return NextResponse.json({ success: true, milestone_status: milestoneSync.status || null });
   }
 
-  // ── review: Lead Manager / Super Admin, or a scoped staff member ─────────
+  // ── review: Venture Manager / Super Admin, or a scoped staff member ─────────
   if (action === "review") {
     // `ventures.view` on purpose: a scoped coach may hold view without edit, and
     // canReviewDeliverable below fails closed unless an assignment scope covers
@@ -238,6 +239,25 @@ export const PATCH = createHandler(async (req, { params }) => {
     else if (field === "assigned_cid") updates[field] = textOrNull(body[field]);
     else updates[field] = body[field];
   }
+
+  // Progress, from the word the screen shows to the value the column stores.
+  // The two vocabularies differ (the screen says "not started", the row holds
+  // `pending`), and this is the only place that may translate them.
+  if (body?.status_word !== undefined) {
+    const word = String(body.status_word || "").trim();
+    if (DELIVERABLE_REVIEW_WORDS.includes(word)) {
+      return NextResponse.json(
+        { success: false, error: "Approve or request changes through the review action, not a status." },
+        { status: 400 },
+      );
+    }
+    const storedStatus = DELIVERABLE_STATUS_BY_WORD[word];
+    if (!storedStatus) {
+      return NextResponse.json({ success: false, error: "Unknown status." }, { status: 400 });
+    }
+    updates.status = storedStatus;
+  }
+
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });
   }

@@ -18,7 +18,7 @@ export default function NotificationToast({ notification, onClose }) {
           <p className="text-[10px] font-black uppercase tracking-widest leading-none mb-1">
             {notification.type.toUpperCase()}
           </p>
-          <p className="text-xs font-bold text-white/90">
+          <p className="text-xs font-bold text-[var(--text-primary)]">
             {notification.message}
           </p>
         </div>

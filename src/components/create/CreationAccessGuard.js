@@ -18,6 +18,9 @@ import { CREATION_ACTIONS } from "@/lib/creationActions";
  *   - each page renders it WITH its own requirement → a person holding only
  *     one creation right cannot open another creation page by address.
  *
+ * Neither case sends the caller to a creation hub: there is none any more, the
+ * doors are reached from the dashboard and the list views.
+ *
  * While the matrix is still loading nothing is decided (no flash of a page the
  * caller may not have), and a failed read fails CLOSED.
  */
@@ -27,7 +30,9 @@ export default function CreationAccessGuard({ children, requirements = null }) {
   const hasRequirement = Array.isArray(requirements) && requirements.length > 0;
   const needed = hasRequirement ? requirements : CREATION_ACTIONS;
   const allowed = needed.some(({ module, capability }) => can(module, capability));
-  const destination = hasRequirement ? "/create" : "/workspaces";
+  // No creation hub exists, so an unmet requirement always lands back on the
+  // caller's own workspace instead of a chooser screen.
+  const destination = "/workspaces";
 
   useEffect(() => {
     if (!loading && !allowed) router.replace(destination);

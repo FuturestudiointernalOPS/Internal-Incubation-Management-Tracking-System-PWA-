@@ -53,7 +53,7 @@ const STATUS_LABEL_KEYS = {
 
 export default function ReviewPage() {
   const params = useParams();
-  const goBack = useSafeBack("/admin/platform/runs");
+  const goBack = useSafeBack("/platform/runs");
   const submissionId = params.submissionId;
   const { t, lang } = useI18n();
   // Running the AI evaluation is the `runs.review` capability — it can

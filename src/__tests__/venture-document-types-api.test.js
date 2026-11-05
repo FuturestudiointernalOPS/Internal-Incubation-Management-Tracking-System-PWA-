@@ -3,7 +3,7 @@
  * documents.
  *
  * The list belongs to the VENTURE, so the gate is scoped to the Venture in the
- * URL: a Super Admin, or a delegated staff member carrying the `lead_manager`
+ * URL: a Super Admin, or a delegated staff member carrying the `venture_manager`
  * responsibility ON THAT Venture. The decision itself lives in the model and is
  * covered there; these tests pin that every route asks for it, that the read
  * tells the screen whether editing is allowed, and that a refusal never reaches
@@ -136,7 +136,7 @@ describe("GET — the same door as the Venture itself", () => {
 });
 
 describe("the write gate — scoped to the Venture", () => {
-  test("that Venture's Lead Manager may define a type", async () => {
+  test("that Venture Manager may define a type", async () => {
     model.canManageVentureDocumentTypes.mockResolvedValue(true);
     model.createVentureDocumentType.mockResolvedValue({ id: 12, code: "tax_clearance" });
 

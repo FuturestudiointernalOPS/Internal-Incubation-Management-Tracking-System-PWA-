@@ -2,7 +2,7 @@
  * Contract tests — milestone progression engine (Vinance 3, Phase 3).
  *
  * POST/PATCH /api/ventures/[id]/milestones guards:
- *   - only the assigned Lead Manager or a Super Admin may mark a milestone
+ *   - only the assigned Venture Manager or a Super Admin may mark a milestone
  *     completed (decision locked earlier); coaches/staff/founders get 403
  *   - completing a milestone unlocks NOTHING by position: an active Journey's
  *     milestones are already all available
@@ -39,10 +39,10 @@ function makeFakeDb() {
     }
     // Milestone authority is read from the permission MATRIX: the assignment
     // supplies the responsibility, the matrix decides the cell. The seeded truth
-    // this mirrors — a Lead Manager holds `milestones.edit`, a Coach does not.
+    // this mirrors — a Venture Manager holds `milestones.edit`, a Coach does not.
     if (sql.includes("FROM venture_staff_assignments")) {
       const responsibility =
-        flags.assignment === "lead" ? "lead_manager" : flags.assignment === "coach" ? "coach" : null;
+        flags.assignment === "lead" ? "venture_manager" : flags.assignment === "coach" ? "coach" : null;
       return {
         rows: responsibility
           ? [
@@ -57,7 +57,7 @@ function makeFakeDb() {
       };
     }
     if (sql.includes("venture_permission_matrix")) {
-      return { rows: [{ allowed: args[0] === "lead_manager" ? 1 : 0 }] };
+      return { rows: [{ allowed: args[0] === "venture_manager" ? 1 : 0 }] };
     }
     // computeInitialMilestoneStatus: the Journey the milestone will join
     if (sql.includes("SELECT status FROM venture_journey_stages WHERE id = ? AND venture_id = ?")) {
@@ -140,7 +140,7 @@ describe("a completion that CLOSES a journey says so", () => {
   });
 });
 
-describe("milestone completion authority (Lead Manager / Super Admin only)", () => {
+describe("milestone completion authority (Venture Manager / Super Admin only)", () => {
   test("super_admin may complete a milestone — and nothing is unlocked by position", async () => {
     const res = await PATCH(
       new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "completed" }) }),
@@ -172,7 +172,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
     );
   });
 
-  test("coach/founder without a lead_manager assignment gets 403", async () => {
+  test("coach/founder without a venture_manager assignment gets 403", async () => {
     require("@/lib/ventureScopedAccess").requireVentureScopedAccess.mockResolvedValueOnce({ session: { cid: "coach-1", role: "staff" }, path: "capability+scope" });
     const res = await PATCH(
       new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify({ status: "completed" }) }),
@@ -183,7 +183,7 @@ describe("milestone completion authority (Lead Manager / Super Admin only)", () 
     expect(completedUpdate).toBeUndefined();
   });
 
-  test("assigned Lead Manager may complete (assignment row found)", async () => {
+  test("assigned Venture Manager may complete (assignment row found)", async () => {
     mockDb.flags.assignment = "lead";
     require("@/lib/ventureScopedAccess").requireVentureScopedAccess.mockResolvedValueOnce({ session: { cid: "lm-1", role: "staff" }, path: "capability+scope" });
     const res = await PATCH(

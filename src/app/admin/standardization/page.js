@@ -111,7 +111,7 @@ export default function SuperAdminStandardization() {
                     <div className="space-y-4">
                        <input 
                           type="text" 
-                          className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white outline-none focus:border-[#FF6600] transition-all font-black text-lg uppercase"
+                          className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-[var(--text-primary)] outline-none focus:border-[#FF6600] transition-all font-black text-lg uppercase"
                           value={editingItem.label}
                           onChange={event => setEditingItem({ ...editingItem, label: event.target.value })}
                        />
@@ -193,7 +193,7 @@ export default function SuperAdminStandardization() {
                     </div>
                     <input 
                        placeholder={t("adminMisc.standardization.enterNamePlaceholder", { category: activeTab === 'deliverable' ? t("adminMisc.standardization.deliverableName") : t("adminMisc.standardization.taskName"), example: activeTab === 'deliverable' ? t("adminMisc.standardization.pitchDeck") : t("adminMisc.standardization.workshop") })}
-                       className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-white outline-none font-black text-2xl uppercase placeholder:text-slate-700 tracking-widest focus:border-[#FF6600] transition-all"
+                       className="w-full bg-white/5 border border-white/10 p-6 rounded-2xl text-[var(--text-primary)] outline-none font-black text-2xl uppercase placeholder:text-slate-700 tracking-widest focus:border-[#FF6600] transition-all"
                        value={newType.label}
                        onChange={event => setNewType({ category: activeTab, label: event.target.value })}
                     />

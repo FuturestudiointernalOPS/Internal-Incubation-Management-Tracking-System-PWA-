@@ -329,6 +329,26 @@
 .jy-num { flex: none; width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 14.5px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-primary); }
 .jy-num.is-active { background: color-mix(in srgb, var(--brand-orange) 14%, transparent); color: var(--brand-orange); border-color: color-mix(in srgb, var(--brand-orange) 40%, transparent); }
 .jy-num.is-done { background: color-mix(in srgb, var(--stf-done) 16%, transparent); color: var(--stf-done); border-color: color-mix(in srgb, var(--stf-done) 40%, transparent); }
+
+/* ── Journey map: the roadmap as one picture, above the cards ── */
+.jy-map { background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 16px; padding: 16px 18px; display: grid; gap: 14px; }
+.jy-map-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.jy-map-head h3 { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+.jy-map-head h3 svg { color: var(--brand-orange); flex: none; }
+.jy-map-total { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--text-primary); }
+.jy-map-track { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(148px, 1fr); gap: 0; margin: 0; padding: 2px 0 4px; list-style: none; overflow-x: auto; }
+.jy-map-step { position: relative; display: grid; gap: 7px; justify-items: start; padding: 0 8px 0 0; min-width: 0; }
+.jy-map-line { position: absolute; top: 16px; left: calc(-100% + 34px); width: calc(100% - 34px); height: 2px; border-radius: 2px; background: var(--border-primary); }
+.jy-map-line.is-done { background: var(--stf-done); }
+.jy-map-line.is-active { background: linear-gradient(90deg, var(--stf-done), var(--brand-orange)); }
+.jy-map-node { position: relative; z-index: 1; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 13px; background: var(--surface-2); color: var(--text-secondary); border: 1px solid var(--border-primary); }
+.jy-map-node.is-active { background: color-mix(in srgb, var(--brand-orange) 14%, transparent); color: var(--brand-orange); border-color: color-mix(in srgb, var(--brand-orange) 40%, transparent); }
+.jy-map-node.is-done { background: color-mix(in srgb, var(--stf-done) 16%, transparent); color: var(--stf-done); border-color: color-mix(in srgb, var(--stf-done) 40%, transparent); }
+.jy-map-name { margin: 0; font-size: 13px; font-weight: 800; line-height: 1.25; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.jy-map-bar { display: block; width: 100%; height: 5px; border-radius: 999px; background: var(--surface-3); overflow: hidden; }
+.jy-map-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--stf-done); transition: width 240ms ease; }
+.jy-map-meta { margin: 0; font-size: 11px; font-weight: 600; color: var(--text-secondary); }
+.jy-map-status { margin: 0; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-tertiary); }
 .jy-sh-body { flex: 1; min-width: 0; }
 .jy-sh-title { margin: 0; font-size: 16.5px; font-weight: 800; letter-spacing: -0.01em; color: var(--text-primary); }
 .jy-sh-title.is-done { color: var(--text-secondary); text-decoration: line-through; }

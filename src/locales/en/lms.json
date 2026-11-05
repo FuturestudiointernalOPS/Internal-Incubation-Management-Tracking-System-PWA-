@@ -540,7 +540,18 @@
       "paymentPaid": "Paid",
       "paymentFailed": "Failed",
       "paymentCancelled": "Cancelled",
-      "paymentRefunded": "Refunded"
+      "paymentRefunded": "Refunded",
+      "orphanTitle": "Course access without a program",
+      "orphanSubtitle": "These people still hold a course through a program that no longer includes them. Suspending stops the course from appearing in My Learning; progress and history are kept.",
+      "orphanEmpty": "No course access is left over from a program. Nothing to fix.",
+      "orphanColPerson": "Person",
+      "orphanColCourse": "Course",
+      "orphanColProgram": "Program",
+      "orphanColAction": "Action",
+      "orphanNoProgram": "no program recorded",
+      "orphanSuspend": "Suspend",
+      "orphanSuspendAll": "Suspend all",
+      "orphanConfirm": "Suspend the course access of {{count}} enrollment(s)? They keep their progress and history, but the course leaves their My Learning."
     },
     "errors": {
       "courseTitleRequired": "Course title is required.",

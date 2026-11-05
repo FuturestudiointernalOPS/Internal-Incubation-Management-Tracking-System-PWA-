@@ -58,8 +58,8 @@ function assignment(overrides = {}) {
     staff_contact_id: `C-${id}`,
     staff_name: `Person ${id}`,
     staff_email: `person${id}@future.studio`,
-    responsibility_code: "lead_manager",
-    responsibility_name: "Lead Manager",
+    responsibility_code: "venture_manager",
+    responsibility_name: "Venture Manager",
     scope_type: "venture_wide",
     created_at: `2026-01-${String(Math.min(id, 28)).padStart(2, "0")}T09:00:00Z`,
     removed_at: null,
@@ -123,7 +123,7 @@ describe("shapeVentureSupport", () => {
     ]);
 
     expect(support.primary.id).toBe(2);
-    expect(support.current.map((person) => person.responsibility_code)).toEqual(["coach", "lead_manager"]);
+    expect(support.current.map((person) => person.responsibility_code)).toEqual(["coach", "venture_manager"]);
   });
 
   describe("no active lead (decision 5)", () => {

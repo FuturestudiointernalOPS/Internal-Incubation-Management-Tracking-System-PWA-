@@ -14,10 +14,11 @@ import {
   selectActiveFounderMembership,
   selectVerificationFounderIdByEmail,
 } from "@/models/ventureVerificationStore";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 
 /**
  * The document types the Data bank asks for now live in `venture_document_types`
- * (see the model) and are defined by a Super Admin or a Lead Manager. These two
+ * (see the model) and are defined by a Super Admin or a Venture Manager. These two
  * exports are the built-in seed, kept as the load-bearing fallback for a
  * database whose configuration table cannot be read.
  */
@@ -44,10 +45,13 @@ export async function resolveActiveDocumentTypeCodes(ventureId) {
  */
 export async function canManageVerification(ventureId, session) {
   if (!session) return { allowed: false };
-  if (session.role === "super_admin") return { allowed: true, isReviewer: true };
+  // The unscoped Data bank authority is the explicit `ventures.edit_all`
+  // right, not the Super Admin role: it can be revoked like any other right.
+  const portfolio = await resolveVenturePortfolioAccess({ session, action: "edit" });
+  if (portfolio.allowed) return { allowed: true, isReviewer: true };
   if (session.role === "verification_officer") return { allowed: true, isReviewer: true };
   // The Data bank sign-off belongs to whoever leads the WHOLE Venture — the
-  // Super Admin, or its Lead Manager. This is the same rule that lets them
+  // Super Admin, or its Venture Manager. This is the same rule that lets them
   // define the Venture's Data bank documents, so the two doors agree. A scoped
   // coach reviews the milestones they were given, not the Venture's compliance
   // file, so a milestone/task-scoped assignment is deliberately not enough.
@@ -72,7 +76,8 @@ export async function canManageVerification(ventureId, session) {
  */
 export async function canSubmitVerification(ventureId, session) {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  const portfolio = await resolveVenturePortfolioAccess({ session, action: "edit" });
+  if (portfolio.allowed) return true;
 
   const [memberRes, legacyRes] = await Promise.all([
     selectActiveFounderMembership(ventureId, session.cid),

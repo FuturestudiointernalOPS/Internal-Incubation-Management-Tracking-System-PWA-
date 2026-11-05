@@ -35,7 +35,7 @@ export default [
 // more. It is kept so trial-era rows stay identifiable and a fresh database
 // matches an existing one.
 "ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS source_session_id INTEGER",
-// ─── Phase P4b — Venture Operating Plans (Lead Manager instrument) ───
+// ─── Phase P4b — Venture Operating Plans (Venture Manager instrument) ───
 "CREATE TABLE IF NOT EXISTS venture_operating_plans (id SERIAL PRIMARY KEY, venture_id TEXT NOT NULL REFERENCES ventures(venture_id) ON DELETE CASCADE, name TEXT NOT NULL, objective TEXT, status TEXT NOT NULL DEFAULT 'draft', created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",
 "CREATE INDEX IF NOT EXISTS idx_vop_venture ON venture_operating_plans(venture_id)",
 "CREATE TABLE IF NOT EXISTS venture_plan_sections (id SERIAL PRIMARY KEY, plan_id INTEGER NOT NULL REFERENCES venture_operating_plans(id) ON DELETE CASCADE, title TEXT NOT NULL, objective TEXT, instructions TEXT, sort_order INTEGER DEFAULT 0, status TEXT NOT NULL DEFAULT 'not_started', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())",

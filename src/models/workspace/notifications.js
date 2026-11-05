@@ -80,6 +80,14 @@ export async function getNotificationRecipientById(notificationId) {
   });
 }
 
+/** Mark all notifications for a recipient as read. */
+export async function markAllNotificationsRead(recipientId) {
+  return db.execute({
+    sql: "UPDATE v2_notifications SET is_read = 1, read_at = COALESCE(read_at, NOW()) WHERE recipient_id = ? AND is_read = 0",
+    args: [recipientId],
+  });
+}
+
 /** Mark a notification as read. */
 export async function markNotificationRead(notificationId) {
   return db.execute({

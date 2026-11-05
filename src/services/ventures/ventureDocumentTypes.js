@@ -1,7 +1,7 @@
 /**
  * VENTURE DOCUMENT TYPES — the documents the Data bank asks ONE Venture for.
  *
- * The list belongs to the VENTURE: a Super Admin, or the Lead Manager of that
+ * The list belongs to the VENTURE: a Super Admin, or the Venture Manager of that
  * Venture, defines it, and only that Venture's Data bank changes. The set used
  * to be six hardcoded categories copied in three places (the founder screen, the
  * reviewer screen and the code that generated the per-Venture items).
@@ -41,6 +41,7 @@ import {
   deleteVentureDocumentTypeRow,
   selectLeadManagerAssignment,
 } from "@/models/ventureDocumentTypesStore";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 
 /**
  * Give a Venture the six built-in categories when it has none yet — and leave an
@@ -197,15 +198,16 @@ export async function deleteVentureDocumentType({ ventureId, id }, database) {
 
 /**
  * Who may define ONE Venture's document types: a Super Admin, or a delegated
- * member of staff carrying the `lead_manager` responsibility ON THAT Venture.
- * Mirrors the codebase rule that a Lead Manager is the staff role with that
+ * member of staff carrying the `venture_manager` responsibility ON THAT Venture.
+ * Mirrors the codebase rule that a Venture Manager is the staff role with that
  * responsibility code — never inferred from the role string alone.
  *
  * `ventureId` must be the Venture CODE: assignments are stored by code.
  */
 export async function canManageVentureDocumentTypes(session, ventureId, database) {
   if (!session || !ventureId) return false;
-  if (session.role === "super_admin") return true;
+  // The explicit portfolio WRITE right replaces the old Super Admin bypass.
+  if ((await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed) return true;
   if (!session.cid) return false;
 
   const result = await selectLeadManagerAssignment(ventureId, session.cid, database);

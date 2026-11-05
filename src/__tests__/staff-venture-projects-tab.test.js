@@ -1,17 +1,17 @@
 /**
  * @jest-environment jsdom
  *
- * /staff/ventures/[id] — the Lead Manager's Project tab.
+ * /staff/ventures/[id] — the Venture Manager's Project tab.
  *
  * The Project lens (every milestone, activity and deliverable of ONE Venture)
  * existed only behind /admin, and the /admin layout admits `super_admin` alone —
  * so the person who runs the Venture could not open it. The read API was already
  * open to them (`ventures.view` through the scope-aware helper, which admits the
- * Venture's own Lead Manager), so what was missing was the SURFACE, not the
+ * Venture's own Venture Manager), so what was missing was the SURFACE, not the
  * permission.
  *
  * These tests pin the two halves of that:
- *   1. a Lead Manager gets the tab, and opening it reads the work items;
+ *   1. a Venture Manager gets the tab, and opening it reads the work items;
  *   2. a staff member with only a coach assignment does not get it — and cannot
  *      reach the pane by typing ?tab=projects either.
  */
@@ -81,11 +81,11 @@ beforeEach(() => {
   jest.clearAllMocks();
   clearResponseCache();
   mockSearchParams = new URLSearchParams("");
-  myResponsibility = "lead_manager";
+  myResponsibility = "venture_manager";
   installFetch();
 });
 
-describe("the Lead Manager", () => {
+describe("the Venture Manager", () => {
   test("sees the Project tab on the Venture they run", async () => {
     await renderWorkspace();
     expect(screen.getByRole("button", { name: /Projects/i })).toBeTruthy();

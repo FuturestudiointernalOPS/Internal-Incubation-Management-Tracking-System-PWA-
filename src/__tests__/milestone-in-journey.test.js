@@ -3,7 +3,7 @@
  *
  * Locks in the two pieces of logic the new UI depends on:
  *   1. milestone ordering (display_order normalization + up/down swap)
- *   2. milestone STRUCTURE authority (Lead Manager / Super Admin only)
+ *   2. milestone STRUCTURE authority (Venture Manager / Super Admin only)
  *
  * Ordering now reaches a store that owns its db, so its table double is the
  * module mock; the engine tests below keep injecting their own doubles.
@@ -20,6 +20,11 @@ jest.mock("@/lib/db", () => {
     __state: state,
   };
 });
+
+let mockAuthContext = null;
+jest.mock("@/models/authorization/index", () => ({
+  getAuthorizationContext: jest.fn(async () => mockAuthContext),
+}));
 
 const { __state: mockState } = require("@/lib/db");
 const { moveStageMilestone, listStageMilestones } = require("@/services/ventures/milestoneOrder");
@@ -116,12 +121,12 @@ describe("milestone ordering inside a journey", () => {
   });
 });
 
-describe("milestone structure authority (matrix `milestones.edit` / Super Admin only)", () => {
+describe("milestone structure authority (matrix `milestones.edit` / portfolio write right)", () => {
   // The authority now comes from the permission MATRIX, so the double models the
   // two queries hasVentureCapability makes: the assignment (responsibility +
   // scope) and the matrix cell for that responsibility. It mirrors the seeded
-  // truth — a Lead Manager holds `milestones.edit`, a Coach does not.
-  const MATRIX = { lead_manager: true, coach: false };
+  // truth — a Venture Manager holds `milestones.edit`, a Coach does not.
+  const MATRIX = { venture_manager: true, coach: false };
 
   function authHandler({
     codeRow = { id: "db-1", venture_id: "VNT-1" },
@@ -159,13 +164,45 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
     return canManageMilestones(args);
   };
 
-  test("super_admin always may manage milestones", async () => {
-    expect(await canManage(undefined, { id: "VNT-1", cid: "u1", role: "super_admin" })).toBe(true);
+  test("a holder of the portfolio write right may manage milestones", async () => {
+    mockAuthContext = {
+      role: "super_admin",
+      isSuperAdmin: true,
+      effective: { ventures: { view: 5, edit: 5, edit_all: 5 } },
+      restrictions: {},
+    };
+    expect(
+      await canManage(undefined, {
+        id: "VNT-1",
+        cid: "u1",
+        role: "super_admin",
+        session: { cid: "u1", role: "super_admin" },
+      }),
+    ).toBe(true);
+    mockAuthContext = null;
   });
 
-  test("an assigned Lead Manager may manage milestones", async () => {
+  test("a Super Admin whose portfolio right was revoked follows the assignment matrix", async () => {
+    mockAuthContext = {
+      role: "super_admin",
+      isSuperAdmin: true,
+      effective: { ventures: { view: 5, edit: 5, view_all: 5 } },
+      restrictions: {},
+    };
     expect(
-      await canManage({ responsibility: "lead_manager" }, {
+      await canManage(undefined, {
+        id: "VNT-1",
+        cid: "u1",
+        role: "super_admin",
+        session: { cid: "u1", role: "super_admin" },
+      }),
+    ).toBe(false);
+    mockAuthContext = null;
+  });
+
+  test("an assigned Venture Manager may manage milestones", async () => {
+    expect(
+      await canManage({ responsibility: "venture_manager" }, {
         id: "VNT-1",
         cid: "lm-1",
         role: "staff",
@@ -187,11 +224,11 @@ describe("milestone structure authority (matrix `milestones.edit` / Super Admin 
     ).toBe(false);
   });
 
-  test("a milestone-scoped Lead Manager does not confer roadmap restructuring", async () => {
+  test("a milestone-scoped Venture Manager does not confer roadmap restructuring", async () => {
     // The cell is venture-wide: scope narrows where you work, not whether you
     // may rewrite the plan.
     expect(
-      await canManage({ responsibility: "lead_manager", scope: "milestone" }, {
+      await canManage({ responsibility: "venture_manager", scope: "milestone" }, {
         id: "VNT-1",
         cid: "lm-2",
         role: "staff",

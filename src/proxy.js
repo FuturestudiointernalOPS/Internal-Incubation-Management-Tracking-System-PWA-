@@ -109,6 +109,11 @@ const publicApiPaths = [
   // configured rather than degrading into an open send button.
   "/api/reminders/sweep",
   "/api/platform/scheduled-result-emails",
+  // The daily VENTURE STAGE SWEEP. Same reasoning as the reminder sweep: a clock
+  // holds no session cookie, so without this entry the request is refused at the
+  // edge with 401 and the job silently never runs. The route's own x-cron-secret
+  // gate is the credential and answers 503 when no secret is configured.
+  "/api/reporting/stage-sweep",
   // The daily deadline reminder. A clock holds no session cookie, so without
   // this the request is refused at the edge with 401 and the route never runs —
   // the job would look "configured" and silently never notify anyone. The

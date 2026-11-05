@@ -540,7 +540,18 @@
       "paymentPaid": "Payé",
       "paymentFailed": "Échoué",
       "paymentCancelled": "Annulé",
-      "paymentRefunded": "Remboursé"
+      "paymentRefunded": "Remboursé",
+      "orphanTitle": "Accès aux cours sans programme",
+      "orphanSubtitle": "Ces personnes ont encore accès à un cours via un programme qui ne les inclut plus. Suspendre retire le cours de « My Learning » ; la progression et l'historique sont conservés.",
+      "orphanEmpty": "Aucun accès à un cours ne subsiste d'un programme. Rien à corriger.",
+      "orphanColPerson": "Personne",
+      "orphanColCourse": "Cours",
+      "orphanColProgram": "Programme",
+      "orphanColAction": "Action",
+      "orphanNoProgram": "aucun programme enregistré",
+      "orphanSuspend": "Suspendre",
+      "orphanSuspendAll": "Tout suspendre",
+      "orphanConfirm": "Suspendre l'accès au cours de {{count}} inscription(s) ? La progression et l'historique sont conservés, mais le cours disparaît de leur « My Learning »."
     },
     "errors": {
       "courseTitleRequired": "Le titre du cours est requis.",

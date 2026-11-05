@@ -8,7 +8,7 @@
  *   - notifyVentureCoach: writes an in-app notification with entity context +
  *     dedupe and emails the coach when resolvable; skips silently otherwise
  *   - notifyVentureLeadManagers: delivers the same event to every ACTIVE
- *     lead_manager assignment (in-app + email) with the role-suffixed dedupe
+ *     venture_manager assignment (in-app + email) with the role-suffixed dedupe
  *     key, skips excluded cids (creator / coach) and degrades silently when
  *     there is nobody to notify
  *   - GET /api/calendar?personal=1: scopes Venture events to the caller's
@@ -37,8 +37,8 @@ function makeFakeDb() {
     if (sql.includes("SELECT id FROM venture_staff_assignments") && sql.includes("status = 'active' LIMIT 1")) {
       return { rows: flags.alreadyAssigned ? [{ id: 5 }] : [] };
     }
-    // notifyVentureLeadManagers — active lead_manager assignments (code-keyed)
-    if (sql.includes("FROM venture_staff_assignments") && sql.includes("responsibility_code = 'lead_manager'")) {
+    // notifyVentureLeadManagers — active venture_manager assignments (code-keyed)
+    if (sql.includes("FROM venture_staff_assignments") && sql.includes("responsibility_code = 'venture_manager'")) {
       return { rows: (flags.leadManagers || []).map((manager) => ({ staff_contact_id: manager.cid })) };
     }
     // notifyVentureLeadManagers — Venture code fallback from the internal id
@@ -201,7 +201,7 @@ describe("notifyVentureCoach — automatic coach delivery (in-app + email)", () 
   });
 });
 
-describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)", () => {
+describe("notifyVentureLeadManagers — Venture Manager delivery (in-app + email)", () => {
   const VENTURE_UUID = "11111111-1111-4111-8111-111111111111";
 
   test("writes context notification with dedupe and emails every active lead manager", async () => {
@@ -221,7 +221,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
     expect(out.sent).toBe(1);
 
     // Assignments are resolved by Venture code — never by the internal UUID.
-    const lmQuery = executed.find((query) => query.sql.includes("FROM venture_staff_assignments") && query.sql.includes("responsibility_code = 'lead_manager'"));
+    const lmQuery = executed.find((query) => query.sql.includes("FROM venture_staff_assignments") && query.sql.includes("responsibility_code = 'venture_manager'"));
     expect(lmQuery).toBeDefined();
     expect(lmQuery.args).toEqual(["VNT-X"]);
 
@@ -272,7 +272,7 @@ describe("notifyVentureLeadManagers — Lead Manager delivery (in-app + email)",
       dbId: VENTURE_UUID, title: "t", message: "m", emailSubject: "s",
     });
     expect(out.sent).toBe(0);
-    const lmQuery = executed.find((query) => query.sql.includes("FROM venture_staff_assignments") && query.sql.includes("responsibility_code = 'lead_manager'"));
+    const lmQuery = executed.find((query) => query.sql.includes("FROM venture_staff_assignments") && query.sql.includes("responsibility_code = 'venture_manager'"));
     expect(lmQuery.args).toEqual(["VNT-X"]);
     expect(executed.find((query) => query.sql.includes("INSERT INTO v2_notifications"))).toBeDefined();
   });
@@ -302,14 +302,14 @@ describe("inviteCoachByEmail — Venture coach invite (program blueprint)", () =
     mockDb.flags.inviteContact = "c-staff";
     mockDb.flags.inviteActivated = true;
     const out = await inviteCoachByEmail({
-      code: "VNT-X", ventureName: "AgriNova", email: "david@future.studio", responsibilityCode: "lead_manager", actorCid: "sa-1",
+      code: "VNT-X", ventureName: "AgriNova", email: "david@future.studio", responsibilityCode: "venture_manager", actorCid: "sa-1",
     });
     expect(out.results[0].status).toBe("invited");
-    expect(out.results[0].responsibility_code).toBe("lead_manager");
+    expect(out.results[0].responsibility_code).toBe("venture_manager");
     const contactInsert = executed.find((query) => query.sql.startsWith("INSERT INTO contacts"));
     expect(contactInsert).toBeUndefined();
     const assignmentInsert = executed.find((query) => query.sql.includes("INSERT INTO venture_staff_assignments"));
-    expect(assignmentInsert.args).toEqual(expect.arrayContaining(["c-staff", "lead_manager"]));
+    expect(assignmentInsert.args).toEqual(expect.arrayContaining(["c-staff", "venture_manager"]));
     expect(sendLoginEmail).toHaveBeenCalled();
   });
 

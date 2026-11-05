@@ -19,6 +19,32 @@
       "confirmPasswordPlaceholder": "Saisissez à nouveau le mot de passe",
       "submitButton": "Définir le mot de passe"
     },
+    "dealFlow": {
+      "title": "Flux de deals",
+      "subtitle": "Entreprises en levée de fonds, partagées par Future Studio",
+      "empty": "Aucun deal flow actif pour le moment",
+      "deckAvailable": "Deck disponible",
+      "watchlist": "Liste de suivi",
+      "addPipeline": "Ajouter au pipeline",
+      "openDeck": "Ouvrir le deck"
+    },
+    "meetings": {
+      "title": "Réunions",
+      "subtitle": "Proposez et confirmez des créneaux de réunion avec les investisseurs",
+      "empty": "Aucune réunion à planifier pour le moment",
+      "investor": "Investisseur",
+      "slots": "Créneaux proposés",
+      "accept": "Accepter",
+      "confirmed": "Réunions confirmées",
+      "start": "Début",
+      "duration": "Durée (minutes)",
+      "propose": "Proposer"
+    },
+    "deck": {
+      "viewOnly": "Lecture seule",
+      "downloadDisabled": "Le téléchargement est désactivé pour ce deck.",
+      "unavailable": "Ce deck n'est pas disponible."
+    },
     "portfolio": {
       "title": "Portefeuille",
       "yourInvestedVentures": "Vos entreprises investies",

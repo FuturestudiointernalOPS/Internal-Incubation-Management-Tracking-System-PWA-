@@ -1,6 +1,6 @@
 /** The contact route lets the founder pick among the ACTIVE leads, by id — nothing else. */
 const mockSend = jest.fn(async ({ leads }) => ({ sent: leads.length, failed: [] }));
-const lead = (id, name) => ({ id, name, email: `${name}@x.org`, contact_cid: `USR_${id}`, reachable: true, active: true, responsibility_code: "lead_manager" });
+const lead = (id, name) => ({ id, name, email: `${name}@x.org`, contact_cid: `USR_${id}`, reachable: true, active: true, responsibility_code: "venture_manager" });
 
 jest.mock("@/lib/api/createHandler", () => ({ createHandler: (handler) => handler }));
 jest.mock("@/lib/ventureScopedAccess", () => ({

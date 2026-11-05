@@ -82,16 +82,8 @@ describe("the journey card folds down to its header", () => {
   };
   const card = () => render(<I18nProvider><JourneyStageCard {...props} /></I18nProvider>);
 
-  test("open by default: milestones, report section and description are visible", () => {
+  test("starts folded: title, status and progress stay; description, milestones and report wait for a click", () => {
     card();
-    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
-    expect(screen.getByTestId("report-section")).toBeTruthy();
-    expect(screen.getByText("The foundation")).toBeTruthy();
-  });
-
-  test("collapsing keeps the title, status and progress and hides the rest; expanding brings it back", () => {
-    card();
-    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
     expect(screen.getByText("Foundation to Investment Readiness")).toBeTruthy();
     expect(screen.getByText("In Progress")).toBeTruthy();
     expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
@@ -99,26 +91,40 @@ describe("the journey card folds down to its header", () => {
     expect(screen.queryByText("The foundation")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+    expect(screen.getByTestId("report-section")).toBeTruthy();
+    expect(screen.getByText("The foundation")).toBeTruthy();
+  });
+
+  test("expanding reveals the rest; collapsing keeps the title, status and progress", () => {
+    card();
+    fireEvent.click(screen.getByRole("button", { name: "Expand" }));
+    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
+    expect(screen.getByText("Foundation to Investment Readiness")).toBeTruthy();
+    expect(screen.getByText("In Progress")).toBeTruthy();
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+    expect(screen.queryByTestId("report-section")).toBeNull();
+    expect(screen.queryByText("The foundation")).toBeNull();
   });
 
   test("a click anywhere on the header bar folds and unfolds it — not only on the arrow", () => {
     card();
-    // on the title (not a button)
+    // on the title (not a button) — opens a folded card
     fireEvent.click(screen.getByText("Foundation to Investment Readiness"));
-    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
-    // on the status chip
-    fireEvent.click(screen.getByText("In Progress"));
     expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
-    // on the progress line
-    fireEvent.click(screen.getByText(/0%/));
+    // on the progress line — folds it again (the bar is drawn in both states)
+    fireEvent.click(screen.getAllByText(/0%/)[0]);
     expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
+    // on the status chip — opens it once more
+    fireEvent.click(screen.getAllByText("In Progress")[0]);
+    expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
   });
 
   test("the arrow still works on its own, once (the bar does not double-toggle it)", () => {
     card();
-    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
-    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getByText("Foundation & Compliance Setup")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Collapse" }));
+    expect(screen.queryByText("Foundation & Compliance Setup")).toBeNull();
   });
 });

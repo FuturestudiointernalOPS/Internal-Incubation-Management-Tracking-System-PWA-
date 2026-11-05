@@ -45,7 +45,10 @@ export const PROFILE_CATALOGUE_SEED = [
   { key: "staff_default", label: "Staff Default", context: "global", allowedRoles: ["staff"], capabilities: {
     projects: { view: 1, create: 2, edit: 3 },
     programs: { view: 1, groups: 2 },
-    ventures: { view: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1, my_assignments: 1 },
+    // `view_all` is the portfolio perimeter: the staff directory and the
+    // portfolio roll-up read every Venture. It is a RIGHT, so an administrator
+    // can remove it from this profile — or from a person — like any other.
+    ventures: { view: 1, view_all: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1, my_assignments: 1 },
     reports: { view: 1, create: 2 },
     messaging: { view: 1, send: 2 },
     contacts: { view: 1, invite_families: 2 },
@@ -108,6 +111,27 @@ export const PROFILE_CATALOGUE_SEED = [
   // also covers archive, assessment/thumbnail/resource deletion, assumed).
   { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
     lms: { view: 1, edit: 3 },
+  } },
+  // VENTURE OPS CONTRIBUTOR — a narrow, delegable bundle: create and edit in
+  // exactly three modules (LMS, Programs, Ventures), and nothing else.
+  //
+  // It exists so a staff member can do operational work "as the studio" in
+  // those three areas WITHOUT holding a super-admin identity: no delete, no
+  // security, no settings, no finance, no permission administration. Every
+  // route still re-checks on each request, so this is a real boundary rather
+  // than a disguise.
+  //
+  // Scope note: `ventures.*` is bounded by `venture_own` at the route, so the
+  // holder must ALSO be assigned to the venture (Venture Manager) before they
+  // can edit one. LMS is unscoped; programs are mixed.
+  { key: "venture_ops_contributor", label: "Venture Ops Contributor", context: "global", allowedRoles: ["staff"], capabilities: {
+    lms: { view: 1, create: 2, edit: 3 },
+    programs: { view: 1, create: 2, edit: 3 },
+    ventures: { view: 1, create: 2, edit: 3 },
+    // Day-to-day studio work the role needs to function at all. Read-only on
+    // reports; messaging may send. Neither widens the three authoring areas.
+    reports: { view: 1 },
+    messaging: { view: 1, send: 2 },
   } },
   // PROGRAM facilitator — the delivery rights, seeded so the PROFILE can become
   // the single source of a facilitator's rights (Lot 3, D-5). The levels mirror
@@ -213,6 +237,20 @@ export async function ensureFacilitatorProfileSeed() {
 }
 
 /**
+ * The VENTURE OPS CONTRIBUTOR profile, on databases seeded before it existed.
+ *
+ * Same reason as the facilitator seed above: `ensureProfileCatalogueSeed` is
+ * recorded once per database, so a profile added later never reaches an
+ * existing one. Insert-only — an administrator's edit is never overwritten.
+ */
+export async function ensureVentureOpsProfileSeed() {
+  await ensureProfileCapabilitiesSchema();
+  const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "venture_ops_contributor");
+  const seeded = await seedProfileDefinitions(definitions);
+  return { success: true, ...seeded };
+}
+
+/**
  * Lot 5 / D-7 — `ventures.edit` on the Venture Member profile.
  *
  * The catalogue seed is recorded once per database, so a capability added to an
@@ -264,6 +302,43 @@ export async function ensureDelegatedCapabilityDefaults() {
     // KPI catalogue write.
     ["program_manager", "programs", "groups", 2],
     ["program_manager", "ventures", "kpis", 3],
+  ];
+
+  let inserted = 0;
+  for (const [profileKey, module, capability, level] of rows) {
+    const result = await db.execute({
+      sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+      args: [profileKey, module, capability, level],
+    });
+    inserted += result?.rowsAffected ?? 0;
+  }
+
+  return { success: true, inserted };
+}
+
+/**
+ * The PORTFOLIO perimeter rights (`ventures.view_all` / `ventures.edit_all`),
+ * granted to the Super Admin's default profile.
+ *
+ * They replace the old Super Admin bypass on Venture routes, so an existing
+ * database needs the rows or the platform owner would lose the whole Venture
+ * directory on deploy. Staff receive the READ perimeter (the directory and the
+ * portfolio roll-up); writing every Venture stays an explicit grant. Insert-only,
+ * like every backfill here: an administrator's later revocation is never
+ * overwritten on the next boot.
+ */
+export async function ensureVenturePortfolioCapabilityDefaults() {
+  await ensureProfileCapabilitiesSchema();
+
+  const rows = [
+    // The platform owner keeps the whole portfolio (read + write).
+    ["super_admin_default", "ventures", "view_all", ACCESS_LEVELS.FULL],
+    ["super_admin_default", "ventures", "edit_all", ACCESS_LEVELS.FULL],
+    // Staff keep the portfolio READ the feature gives them; writing any Venture
+    // stays an explicit grant (`edit_all` is deliberately absent here).
+    ["staff_default", "ventures", "view_all", 1],
   ];
 
   let inserted = 0;

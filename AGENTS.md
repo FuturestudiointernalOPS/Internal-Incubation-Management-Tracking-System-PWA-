@@ -333,22 +333,40 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/ventures/VNT-
 `405` instead of `401`/`404` means the path resolved but that HTTP method is not
 exported.
 
-### `.env.local` points at PRODUCTION (corrected 2026-10-11)
+### Environments — staging vs production (corrected 2026-11-02)
 
-The local dev server reads `DATABASE_URL` from `.env.local`, and on this
-workstation that is the **production** Supabase project — **not staging**, as
-this file previously and wrongly claimed. Verified read-only on 2026-10-11:
-`.env.local` holds **588 contacts / 530 form submissions / 5 ventures**, while
-`.env.audit-staging` is the near-empty staging project (**10 contacts /
-1 venture**).
+The staging Supabase project is **`mbpaxrfhqqclzyiefuab`** — its URL is
+`https://mbpaxrfhqqclzyiefuab.supabase.co` and it begins with **M**. The
+production project is **`yakxdxdzuojafzdkqhjd`**.
 
-So: **browsing admin screens writes to PRODUCTION.** Schema is *not* an
-exception — see the runtime migration note in `src/lib/db.js`: unless
-`SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies its own
+| File | Project | Target |
+|---|---|---|
+| `.env.local` | `mbpaxrfhqqclzyiefuab` | **Staging** |
+| `.env.staging` | `mbpaxrfhqqclzyiefuab` | **Staging** |
+| `.env.audit-staging` | `mbpaxrfhqqclzyiefuab` | **Staging** |
+| `.env.prod-verify` | `yakxdxdzuojafzdkqhjd` | **Production** |
+
+An earlier version of this file claimed `.env.local` pointed at production.
+That is no longer true: verified 2026-11-02 by reading the project ref from each
+`DATABASE_URL` (the part after `postgres.`), never the credentials. The local
+dev server therefore writes to **staging**.
+
+**Only `.env.prod-verify` is production.** Point read-only audits at it
+deliberately; never run development, schema, migrations or seed work against it.
+Schema is *not* an exception — see the runtime migration note in `src/lib/db.js`:
+unless `SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies its own
 `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` on first use.
 
-Build and test on **staging**; production is the promotion target only. To tell
-the two apart before pointing any tool at them, count, read-only:
-`node scripts/db-audit/run-readonly.mjs <sql-file> .env.local` — that runner
-executes only `SELECT / WITH / SET / SHOW / EXPLAIN / VALUES` statements and
-skips (never runs) anything else.
+To confirm the target before pointing any tool at it, read the project ref, not
+the URL: `node scripts/db-audit/run-readonly.mjs <sql-file> <env-file>` prints
+the connected database and role (`postgres.<ref>`) and never the credentials.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

@@ -4,6 +4,7 @@ import { requireAuth } from "@/server/auth/guards";
 import { requireProgramScope } from "@/lib/programScopedAccess";
 import { participantBatches } from "@/lib/participantBatches";
 import { ensureProgramEnrollments } from "@/models/lms/programRequirements";
+import { releaseProgramLearning } from "@/services/lms/learning";
 import {
   getBulkProgramById,
   checkBulkFacilitatorConflicts,
@@ -133,6 +134,9 @@ export async function POST(req) {
         } else {
           await deleteBulkParticipantPrograms(chunk, program_id);
           added = chunk;
+          // The learning these seats granted leaves with them (suspended, not
+          // deleted; a course another seat needs is kept).
+          await releaseProgramLearning({ cids: chunk });
         }
 
         // Audit log — one entry per person, written in one statement.

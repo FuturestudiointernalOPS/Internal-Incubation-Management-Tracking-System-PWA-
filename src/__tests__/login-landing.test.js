@@ -205,18 +205,23 @@ describe("every caller uses that one rule", () => {
     expect(hub).not.toContain("home: roleHomeHref(");
   });
 
-  test("the login asks whether the person is actually enrolled in a program", () => {
+  test("the login asks whether the person is actually enrolled in a program, through the ONE rule", () => {
     const login = src("src/app/api/auth/session-login/route.js");
-    expect(login).toContain("hasParticipantProgramMembership");
-    expect(login).toContain("hasV2ParticipantRecord");
+    expect(login).toContain("resolveParticipantParticipation(");
     expect(login).toContain("isProgramParticipant,");
   });
 
   test("the hub asks the same question, so its button cannot drift from the login", () => {
     const hub = src("src/app/api/workspaces/route.js");
-    expect(hub).toContain("hasParticipantProgramMembership");
-    expect(hub).toContain("hasV2ParticipantRecord");
+    expect(hub).toContain("resolveParticipantParticipation(");
     expect(hub).toContain("isProgramParticipant,");
+  });
+
+  test("the personal menu and the dashboard read the same verdict", () => {
+    const shell = src("src/components/layout/shell/useDashboardNavigation.js");
+    const dashboard = src("src/components/dashboard/ParticipantDashboardHome.js");
+    expect(shell).toContain("rel.isProgramParticipant");
+    expect(dashboard).toContain("/api/me/relationships");
   });
 
   test("the login reads the investor context from the PROFILE and sends it with the identity", () => {

@@ -36,7 +36,7 @@ export function readDeliverableDecision(body) {
  * The evidence is in: the milestone's OWN status follows its deliverables (a
  * submission moves it to "awaiting review"). A submission is the founder's
  * act, so it can never COMPLETE the milestone — `canComplete` is false and the
- * sign-off stays with the Lead Manager.
+ * sign-off stays with the Venture Manager.
  */
 export async function afterDeliverableSubmitted({ dbId, milestone, session }) {
   return syncMilestoneStatusFromDeliverables({
@@ -51,7 +51,7 @@ export async function afterDeliverableSubmitted({ dbId, milestone, session }) {
  * What follows a review: the history row, then the milestone's own status
  * moves with the work — approving some evidence puts it In Progress, returning
  * some puts it Changes Requested, and the LAST approval closes it. Closing a
- * milestone stays the Lead Manager / Super Admin's decision (the same authority
+ * milestone stays the Venture Manager / Super Admin's decision (the same authority
  * the manual complete action requires); a scoped coach's approval stops at In
  * Progress. A completed milestone (and a completed journey) notifies the
  * founders and is written to the history. Notices and history are best-effort.
@@ -69,7 +69,7 @@ export async function afterDeliverableReviewed({ ventureParam, dbId, session, mi
     });
   } catch (_) {}
 
-  const canCompleteMilestone = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+  const canCompleteMilestone = await canManageMilestones({ id, cid: session?.cid, role: session?.role, session });
   const milestoneSync = await syncMilestoneStatusFromDeliverables({
     dbId,
     milestoneId: milestone.id,

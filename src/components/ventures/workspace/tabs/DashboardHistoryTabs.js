@@ -1,11 +1,13 @@
 "use client";
 
-import { Users, BarChart3, Clock, CheckCircle2, Target, ListTodo, Flag } from "lucide-react";
+import { Users, BarChart3, Target, ListTodo, Flag } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 import KpiCard from "@/components/ui/KpiCard";
 import DashboardWorkQueue from "./DashboardWorkQueue";
 import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
+import FounderOnboardingWizard from "./FounderOnboardingWizard";
+import VentureReportingCharts from "@/components/ventures/reporting/VentureReportingCharts";
 
 /**
  * Founder dashboard — the Venture's state at a glance, and what needs doing.
@@ -35,6 +37,7 @@ export function DashboardTab({ onSection }) {
     myWorkFailed,
     fetchMyWork,
     params,
+    form,
   } = useVenture();
 
   // Overview helpers: current/next Journey stage.
@@ -70,21 +73,18 @@ export function DashboardTab({ onSection }) {
   const milestonePending = progressLoading && !progressData;
 
   return (
-    <div className="space-y-4">
-      {/* ── Venture overview ─────────────────────────────────────────────── */}
+    <div className="space-y-6">
+      {/* ── Founder Day-1 Launchpad & Guided Setup Wizard ── */}
+      <FounderOnboardingWizard
+        venture={ventureInfo}
+        onSection={onSection}
+        form={form}
+        team={team}
+        journeyStages={journeyList}
+      />
+
+      {/* ── Executive Performance Metrics (4 Consolidated High-Signal KPIs) ── */}
       <div className="stf-grid c4">
-        <KpiCard
-          label={t("venture.founderCount")}
-          value={team ? team.founders ?? 0 : "—"}
-          icon={Users}
-          loading={overviewPending}
-        />
-        <KpiCard
-          label={t("venture.team")}
-          value={team ? team.team ?? 0 : "—"}
-          icon={Users}
-          loading={overviewPending}
-        />
         <KpiCard
           label={t("venture.businessStage")}
           value={
@@ -92,19 +92,33 @@ export function DashboardTab({ onSection }) {
               ? t(`venture.stages.${ventureInfo.business_stage || "idea"}`)
               : "—"
           }
+          hint={ventureInfo?.program_name || ventureInfo?.cohort_name || "Direct Incubation"}
           icon={BarChart3}
           loading={overviewPending}
         />
         <KpiCard
-          label={t("venture.status")}
-          value={ventureInfo ? t(`venture.statuses.${ventureInfo.status || "active"}`) : "—"}
-          icon={Clock}
-          loading={overviewPending}
+          label={t("venture.progressOverview.milestonesCompleted")}
+          value={progressFailed ? "—" : `${progressData?.milestones?.completed ?? 0} / ${progressData?.milestones?.total ?? 0}`}
+          hint={
+            progressData?.milestones?.progress_percent != null
+              ? `${progressData.milestones.progress_percent}% roadmap complete`
+              : "Active Journey Milestones"
+          }
+          icon={Flag}
+          loading={milestonePending}
+          onClick={onSection ? () => onSection("journey") : undefined}
         />
-      </div>
-
-      {/* ── Progress overview ────────────────────────────────────────────── */}
-      <div className="stf-grid c4">
+        <KpiCard
+          label={t("venture.progressOverview.openWork")}
+          value={myWorkFailed ? "—" : openWork ?? 0}
+          hint={
+            myWork?.personal?.counts?.total_open != null
+              ? `${myWork.personal.counts.total_open} assigned directly to you`
+              : "Pending Deliverables"
+          }
+          icon={ListTodo}
+          loading={myWorkLoading && !myWork}
+        />
         <KpiCard
           label={t("venture.progressOverview.ventureSetup")}
           value={progressValue(progressData?.venture_setup)}
@@ -113,134 +127,130 @@ export function DashboardTab({ onSection }) {
           loading={milestonePending}
           onClick={onSection ? () => onSection("profile") : undefined}
         />
-        <KpiCard
-          label={t("venture.taskCompletion")}
-          value={progressValue(progressData?.task_completion)}
-          hint={
-            progressData
-              ? t("venture.progressOverview.doneOf", {
-                  done: progressData.completed_tasks ?? 0,
-                  total: progressData.total_tasks ?? 0,
-                })
-              : null
-          }
-          icon={CheckCircle2}
-          loading={milestonePending}
-        />
-        <KpiCard
-          label={t("venture.progressOverview.milestonesCompleted")}
-          value={progressFailed ? "—" : progressData?.milestones?.completed ?? 0}
-          hint={
-            progressData
-              ? t(
-                  progressData.milestones?.progress_percent != null
-                    ? "venture.progressOverview.milestonesProgress"
-                    : "venture.progressOverview.milestonesOf",
-                  {
-                    done: progressData.milestones?.completed ?? 0,
-                    total: progressData.milestones?.total ?? 0,
-                    percent: progressData.milestones?.progress_percent ?? 0,
-                  },
-                )
-              : null
-          }
-          icon={Flag}
-          loading={milestonePending}
-        />
-        <KpiCard
-          label={t("venture.progressOverview.openWork")}
-          value={myWorkFailed ? "—" : openWork ?? 0}
-          hint={myWorkFailed ? t("venture.myWork.loadFailed") : null}
-          icon={ListTodo}
-          loading={myWorkLoading && !myWork}
-        />
       </div>
 
-      <div className="stf-grid g3" style={{ alignItems: "start" }}>
-      {/* ── Journey position + next milestone ────────────────────────────── */}
-      
-        <div className="stf-card">
-          <h3>
-            <BarChart3 size={16} />
-            {t("venture.journey")}
-          </h3>
-          {activeStage || nextMilestone ? (
-            <div className="space-y-1.5 text-sm">
-              {activeStage && (
-                <p>
-                  <span style={{ color: "var(--text-secondary)" }}>{t("venture.current")}:</span>{" "}
-                  <span className="font-semibold">{activeStage.name}</span>
-                </p>
-              )}
-              {nextStage && (
-                <p style={{ color: "var(--text-secondary)" }}>
-                  {t("venture.next")}: {nextStage.name}
-                </p>
-              )}
-              {nextMilestone && (
-                <p>
-                  <span style={{ color: "var(--text-secondary)" }}>
-                    {t("venture.progressOverview.nextMilestone")}:
-                  </span>{" "}
-                  <span className="font-semibold">{nextMilestone.title}</span>
-                  {nextMilestone.target_date && (
-                    <span style={{ color: "var(--text-secondary)" }}>
-                      {" · "}
-                      {new Date(`${nextMilestone.target_date}T00:00:00`).toLocaleDateString()}
-                    </span>
-                  )}
-                </p>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-              {t("venture.noJourneyYet")}
-            </p>
-          )}
-        </div>
+      {/* ── Venture Analytics & Growth Telemetry Charts ── */}
+      {params?.id && <VentureReportingCharts ventureId={params.id} />}
 
-      {/* ── What needs the founder ───────────────────────────────────────── */}
-      <DashboardWorkQueue
-        myWork={myWork}
-        loading={myWorkLoading}
-        failed={myWorkFailed}
-        onOpen={onSection ? () => onSection("journey") : null}
-        onRetry={fetchMyWork}
-      />
-
-      {/* ── Who supports the Venture ─────────────────────────────────────── */}
-      {params?.id && <VentureSupportCard ventureId={params.id} />}
-
-      </div>
-
-      {/* ── Recent activity ──────────────────────────────────────────────── */}
-      <div className="stf-card">
-        <h3>
-          <Clock size={16} />
-          {t("venture.recentActivity")}
-        </h3>
-        {!dashboardData?.recent_activity?.length ? (
-          <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-            {overviewPending ? t("common.loading") : t("venture.noRecentActivity")}
-          </p>
-        ) : (
-          dashboardData.recent_activity.map((activity, index) => (
-            <div
-              key={activity.id || index}
-              className="flex items-center gap-3 py-2 border-b last:border-0 text-sm"
-              style={{ borderColor: "var(--border-primary)" }}
-            >
-              <div
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ backgroundColor: "var(--brand-orange)" }}
-              />
-              <span className="font-medium">{t(`venture.activity.${activity.action}`)}</span>
-              <span style={{ color: "var(--text-secondary)" }}>
-                • {new Date(activity.created_at).toLocaleDateString()}
+      {/* ── Active Journey Milestone Roadmap Hero ── */}
+      <div
+        className="rounded-2xl p-5 border transition-all"
+        style={{
+          background: "linear-gradient(135deg, var(--surface-1) 0%, var(--surface-2) 100%)",
+          borderColor: "var(--border-primary)",
+        }}
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span
+                className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider"
+                style={{
+                  background: "color-mix(in srgb, var(--brand-orange) 15%, transparent)",
+                  color: "var(--brand-orange)",
+                }}
+              >
+                Current Roadmap Stage
+              </span>
+              <span className="text-xs font-semibold" style={{ color: "var(--text-secondary)" }}>
+                {activeStage ? activeStage.name : "Active Incubation Phase"}
               </span>
             </div>
-          ))
-        )}
+            <h3 className="text-base font-extrabold tracking-tight" style={{ color: "var(--text-primary)" }}>
+              {nextMilestone?.title ? (
+                <>Next Deliverable: <span className="text-[var(--brand-orange)]">{nextMilestone.title}</span></>
+              ) : (
+                activeStage?.name || "Sprint Alignment"
+              )}
+            </h3>
+            {nextMilestone?.target_date && (
+              <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                Target Completion: <strong>{new Date(`${nextMilestone.target_date}T00:00:00`).toLocaleDateString(undefined, { dateStyle: "medium" })}</strong>
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {nextStage && (
+              <div className="hidden lg:block text-right pr-4 border-r border-[var(--border-primary)]">
+                <div className="text-[10px] uppercase font-bold tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                  Upcoming Phase
+                </div>
+                <div className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>
+                  {nextStage.name}
+                </div>
+              </div>
+            )}
+            {onSection && (
+              <button
+                type="button"
+                onClick={() => onSection("journey")}
+                className="px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                style={{
+                  background: "var(--surface-3)",
+                  color: "var(--text-primary)",
+                  border: "1px solid var(--border-primary)",
+                }}
+              >
+                Open Full Roadmap →
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Balanced Two-Column Operational Cockpit (65% / 35%) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Left Column: Action Queue & Deliverables */}
+        <div className="lg:col-span-8 space-y-6">
+          <DashboardWorkQueue
+            myWork={myWork}
+            loading={myWorkLoading}
+            failed={myWorkFailed}
+            onOpen={onSection ? () => onSection("journey") : null}
+            onRetry={fetchMyWork}
+          />
+
+          
+        </div>
+
+        {/* Right Column: Studio Support & Venture Team */}
+        <div className="lg:col-span-4 space-y-6">
+          {params?.id && <VentureSupportCard ventureId={params.id} />}
+
+          {/* Quick Team Glance */}
+          <div className="stf-card">
+            <h3>
+              <Users size={16} />
+              Venture Leadership
+            </h3>
+            <div className="space-y-3 pt-1">
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "var(--text-secondary)" }}>Founding Team</span>
+                <span className="font-bold">{team?.founders ?? 1} Founder</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "var(--text-secondary)" }}>Team Members</span>
+                <span className="font-bold">{team?.team ?? 0} Members</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <span style={{ color: "var(--text-secondary)" }}>Task Completion</span>
+                <span className="font-bold">{progressValue(progressData?.task_completion)}</span>
+              </div>
+              {onSection && (
+                <div className="pt-2 border-t border-[var(--border-primary)]">
+                  <button
+                    type="button"
+                    onClick={() => onSection("team")}
+                    className="text-xs font-bold text-[var(--brand-orange)] hover:underline flex items-center gap-1"
+                  >
+                    Manage Founders & Access →
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

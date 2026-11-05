@@ -7,7 +7,7 @@ export default function BuilderHeader({
   aiEvalFramework, scoringConfig, workflowConfig, templateConfig,
   previewMode, saving,
   onToggleAiEval, onToggleScoring, onToggleWorkflow, onToggleTemplates,
-  onTogglePreview, onBack, onSave, onRepublish, onPublish, onLaunchRun,
+  onTogglePreview, onBack, onSave, onRepublish, onPublish, onLaunchRun, onRestorePublished,
 }) {
   const { t } = useI18n();
   return (
@@ -34,6 +34,16 @@ export default function BuilderHeader({
         <button onClick={onTogglePreview} className={`px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wide transition-all ${previewMode ? "bg-[var(--brand-orange)] text-black" : "bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)]"}`}>
           <Eye className="w-3 h-3 inline mr-1.5" />{previewMode ? t("platformMisc.forms.previewEditing") : t("platformMisc.forms.previewPreview")}
         </button>
+        {editingForm?.status === "published" && (
+          <button
+            onClick={onRestorePublished}
+            disabled={saving}
+            title={t("platformMisc.forms.restorePublishedHint")}
+            className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-50"
+          >
+            {t("platformMisc.forms.restorePublished")}
+          </button>
+        )}
         <button onClick={onSave} disabled={saving} className="px-3 py-2 rounded-xl bg-tertiary border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)] hover:text-[var(--text-primary)]">{saving ? t("platformMisc.forms.saving") : t("platformMisc.forms.save")}</button>
         {editingForm?.status === "published" ? (
           <>

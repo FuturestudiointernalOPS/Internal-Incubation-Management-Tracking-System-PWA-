@@ -82,6 +82,25 @@ export async function getFormIdByRunId(run_id) {
   });
 }
 
+/** The form AND the version a run pins (a run renders its own version). */
+export async function getFormIdAndVersionByRunId(run_id) {
+  return db.execute({
+    sql: "SELECT form_id, form_version FROM platform_form_runs WHERE id = ?",
+    args: [parseInt(run_id)],
+  });
+}
+
+/**
+ * The snapshot a run was published with. It is the ONLY place an old run's
+ * layout survives once the form is edited again.
+ */
+export async function getFormVersionSnapshotByFormAndVersion(form_id, version) {
+  return db.execute({
+    sql: "SELECT snapshot FROM platform_form_versions WHERE form_id = ? AND version = ? LIMIT 1",
+    args: [parseInt(form_id), parseInt(version)],
+  });
+}
+
 /** Form fields (id/label/type) for a form (submitter identity resolution). */
 export async function getFormFieldsByFormId(form_id) {
   return db.execute({
@@ -204,7 +223,7 @@ export async function getLatestDraftData(run_id, submitter_id) {
 /** Active public run joined with its form (slug-only lookup). */
 export async function getPublicRunBySlug(slug) {
   return db.execute({
-    sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
+    sql: "SELECT r.id, r.name, r.description, r.status, r.closes_at, r.public_slug, r.form_id, r.form_version, f.name as form_name, f.description as form_description FROM platform_form_runs r JOIN platform_forms f ON r.form_id = f.id WHERE r.public_slug = ? AND r.status = 'active'",
     args: [slug],
   });
 }

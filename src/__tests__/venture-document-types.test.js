@@ -3,7 +3,7 @@
  *
  * The documents a Venture is asked for used to be six hardcoded categories
  * copied into every screen. They are now a list that belongs to the VENTURE:
- * a Super Admin, or that Venture's Lead Manager, defines it. These tests pin the
+ * a Super Admin, or that Venture Manager, defines it. These tests pin the
  * rules that make that safe:
  *
  *   1. a Venture starts with the six built-in types, and an edited list is NEVER
@@ -12,7 +12,7 @@
  *      cannot be deleted (turning it off is the way out);
  *   3. every read and write is scoped to its Venture, so one Venture's list can
  *      never be read or changed through another's;
- *   4. the write gate is Super Admin, or the `lead_manager` responsibility ON
+ *   4. the write gate is Super Admin, or the `venture_manager` responsibility ON
  *      that Venture — never the role string alone;
  *   5. codes are derived once and kept unique within the Venture.
  */
@@ -23,6 +23,21 @@ jest.mock("@/lib/db", () => ({
   __esModule: true,
   default: { execute: (...args) => mockExecute(...args) },
   initDb: jest.fn().mockResolvedValue(true),
+}));
+
+// The unscoped document-type authority is the explicit portfolio write right.
+jest.mock("@/models/authorization/index", () => ({
+  getAuthorizationContext: jest.fn(async (session) => {
+    const isSuperAdmin = session?.role === "super_admin";
+    return {
+      role: session?.role,
+      isSuperAdmin,
+      effective: isSuperAdmin
+        ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+        : {},
+      restrictions: {},
+    };
+  }),
 }));
 
 const {
@@ -210,13 +225,13 @@ describe("deleteVentureDocumentType", () => {
   });
 });
 
-describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture's Lead Manager", () => {
+describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager", () => {
   test("a Super Admin is allowed without asking the database", async () => {
     const db = dbWithRows();
 
-    await expect(canManageVentureDocumentTypes({ role: "super_admin" }, VENTURE, db)).resolves.toBe(
-      true,
-    );
+    await expect(
+      canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
+    ).resolves.toBe(true);
     expect(db.execute).not.toHaveBeenCalled();
   });
 
@@ -227,9 +242,24 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture's Lead 
       canManageVentureDocumentTypes({ role: "staff", cid: "USR-1" }, VENTURE, db),
     ).resolves.toBe(true);
     const { sql, args } = db.execute.mock.calls[0][0];
-    expect(sql).toContain("responsibility_code = 'lead_manager'");
+    expect(sql).toContain("responsibility_code = 'venture_manager'");
     expect(sql).toContain("status = 'active'");
     expect(args).toEqual([VENTURE, "USR-1"]);
+  });
+
+  test("a Super Admin whose portfolio right was revoked is refused", async () => {
+    const db = dbWithRows();
+    // The same owner, but `edit_all` is no longer in the effective matrix.
+    require("@/models/authorization/index").getAuthorizationContext.mockResolvedValueOnce({
+      role: "super_admin",
+      isSuperAdmin: true,
+      effective: { ventures: { view: 5, edit: 5, view_all: 5 } },
+      restrictions: {},
+    });
+
+    await expect(
+      canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
+    ).resolves.toBe(false);
   });
 
   test("a staff member who does not lead it is refused, and without a Venture too", async () => {

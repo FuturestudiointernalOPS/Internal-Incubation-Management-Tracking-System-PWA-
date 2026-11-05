@@ -1,6 +1,7 @@
 /**
- * Roadmap progress moves when a deliverable is approved: the approval does not
- * rewrite the linked task, so the roadmap reads the deliverable itself, and the
+ * Roadmap progress moves when a deliverable is approved, but EACH PIECE OF
+ * EVIDENCE IS COUNTED ONCE: a task whose deliverable a reviewer approved is
+ * scored by the deliverables component, not also by the tasks component. The
  * milestone read casts the (UUID) column so a mixed code + UUID owner list works.
  */
 const mockStore = {
@@ -20,32 +21,42 @@ const { computeRoadmapReadiness } = require("@/services/ventures/readiness");
 beforeEach(() => {
   mockStore.selectReadinessStageStatuses.mockResolvedValue({ rows: [{ status: "active" }] });
   mockStore.selectReadinessMilestoneStatuses.mockResolvedValue({ rows: [{ status: "not_started" }, { status: "completed" }] });
-  mockStore.selectReadinessTaskStatuses.mockResolvedValue({ rows: [{ status: "backlog" }, { status: "backlog" }, { status: "backlog" }, { status: "done" }] });
+  mockStore.selectReadinessTaskStatuses.mockResolvedValue({
+    rows: [
+      { id: 1, status: "backlog" },
+      { id: 2, status: "backlog" },
+      { id: 3, status: "backlog" },
+      { id: 4, status: "done" },
+    ],
+  });
   mockStore.selectReadinessSubmissionStates.mockResolvedValue({ rows: [] });
   mockStore.selectReadinessMilestoneGraph.mockResolvedValue({ rows: [] });
   mockStore.selectReadinessStageGraph.mockResolvedValue({ rows: [] });
 });
 
-test("approved deliverables count as done tasks and as approved deliverables", async () => {
+test("an approved deliverable is scored once — by deliverables, not also by tasks", async () => {
   mockStore.selectReadinessDeliverableStates.mockResolvedValue({
     rows: [
-      { status: "completed", approval_status: "approved", task_status: "backlog" },
-      { status: "completed", approval_status: "approved", task_status: "backlog" },
-      { status: "pending", approval_status: "pending", task_status: "backlog" },
+      { status: "completed", approval_status: "approved", task_id: 1, task_status: "backlog" },
+      { status: "completed", approval_status: "approved", task_id: 2, task_status: "backlog" },
+      { status: "pending", approval_status: "pending", task_id: 3, task_status: "backlog" },
     ],
   });
   const result = await computeRoadmapReadiness({ dbId: "u", code: "VNT-1" });
-  expect(result.counts.tasks).toEqual({ total: 4, completed: 3 });
+  // Tasks 1 and 2 are measured by the deliverables component (linked: 2);
+  // tasks 3 and 4 are the ones the tasks component actually owns.
+  expect(result.counts.tasks).toEqual({ total: 2, completed: 1, linked: 2 });
   expect(result.counts.deliverables).toEqual({ reviewed: 3, approved: 2, outstanding: 1 });
   expect(result.components.deliverables).toBe(67);
+  expect(result.components.tasks).toBe(50);
 });
 
-test("a task already done is not counted twice, and tasks never exceed the total", async () => {
+test("a task with an approved deliverable leaves the tasks component even when it was done", async () => {
   mockStore.selectReadinessDeliverableStates.mockResolvedValue({
-    rows: [{ status: "completed", approval_status: "approved", task_status: "done" }],
+    rows: [{ status: "completed", approval_status: "approved", task_id: 4, task_status: "done" }],
   });
   const result = await computeRoadmapReadiness({ dbId: "u", code: "VNT-1" });
-  expect(result.counts.tasks.completed).toBe(1);
+  expect(result.counts.tasks).toEqual({ total: 3, completed: 0, linked: 1 });
 });
 
 test("a Venture without deliverables falls back to the reviewed submissions", async () => {

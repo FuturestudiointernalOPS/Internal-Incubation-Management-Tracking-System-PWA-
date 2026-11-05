@@ -12,6 +12,9 @@ import {
   revokeDataRoomAccess,
   setDataRoomRequirement,
   recordDataRoomAccess,
+  createDataRoomShareLink,
+  listDataRoomShareLinks,
+  revokeDataRoomShareLinkService,
 } from "@/services/ventures/dataRoom";
 
 /**
@@ -26,9 +29,6 @@ import {
  * POST — one action per call. Every action re-resolves the viewer server-side
  *        and enforces its own permission; the UI's hidden buttons are not the
  *        gate.
- *
- * `[id]` is the venture code OR its internal id — the service resolves either,
- * so an investor's pipeline (which carries the internal id) works unchanged.
  */
 
 const fail = (result) =>
@@ -117,6 +117,24 @@ export const POST = createHandler(async (req, { params }) => {
       break;
     case "revoke_grant":
       result = await revokeDataRoomAccess({ ventureId: id, grantId: body.grant_id, session });
+      break;
+    case "create_share_link":
+      result = await createDataRoomShareLink({
+        ventureId: id,
+        session,
+        name: body.name,
+        expiresInDays: body.expires_in_days,
+      });
+      break;
+    case "list_share_links":
+      result = await listDataRoomShareLinks({ ventureId: id, session });
+      break;
+    case "revoke_share_link":
+      result = await revokeDataRoomShareLinkService({
+        ventureId: id,
+        linkId: body.link_id,
+        session,
+      });
       break;
     case "record_access":
       result = await recordDataRoomAccess({

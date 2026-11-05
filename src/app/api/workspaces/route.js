@@ -5,10 +5,7 @@ import { getSession } from "@/server/auth/session";
 import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
 import { getContactStoredRole } from "@/models/workspace";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
-import {
-  hasParticipantProgramMembership,
-  hasV2ParticipantRecord,
-} from "@/models/contacts/programMembership";
+import { resolveParticipantParticipation } from "@/services/participant/participation";
 import {
   readWorkspaceContext,
   writeWorkspaceContext,
@@ -93,8 +90,7 @@ export async function GET(request) {
     const [navigation, [
       storedRoleSettled,
       investorSettled,
-      participantProgramSettled,
-      v2ParticipantSettled,
+      participationSettled,
     ]] = await Promise.all([
       cachedNavigation
         ? cachedNavigation
@@ -107,19 +103,20 @@ export async function GET(request) {
         needsRelationshipReads
           ? getApprovedInvestorProfileIdByUserId(session.cid)
           : Promise.resolve({ rows: [] }),
+        // THE participation rule shared with the menu, the participant
+        // dashboard and the login landing; a completed seat counts too
+        // (read-only), and the older group/program links are honoured.
         needsRelationshipReads
-          ? hasParticipantProgramMembership(session.cid)
-          : Promise.resolve({ rows: [] }),
-        needsRelationshipReads
-          ? hasV2ParticipantRecord(session.cid)
-          : Promise.resolve({ rows: [] }),
+          ? resolveParticipantParticipation({ cid: session.cid, email: session.email })
+          : Promise.resolve({ isProgramParticipant: false, memberships: [] }),
       ]),
     ]);
 
     const isInvestor = rowsOf(investorSettled).length > 0;
     const isProgramParticipant =
-      rowsOf(participantProgramSettled).length > 0 ||
-      rowsOf(v2ParticipantSettled).length > 0;
+      participationSettled.status === "fulfilled"
+        ? participationSettled.value?.isProgramParticipant === true
+        : false;
 
     const { baselineRole, derivedRole } = deriveBaselineRole(
       session,

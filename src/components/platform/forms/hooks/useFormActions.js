@@ -76,7 +76,7 @@ export function useFormActions({
         setShowCreate(false);
         setCreateForm({ name: "", description: "", collection_id: "", visibility: "internal", tags: "" });
         refreshForms();
-        const defaultSecId = createDefaultSection();
+        createDefaultSection(genTempId);
         setEditingForm(data.form);
         setShowBuilder(true);
         setPreviewMode(false);
@@ -91,7 +91,7 @@ export function useFormActions({
       notify(t("platformMisc.forms.notifyCreateFailed"));
     }
     setSaving(false);
-  }, [createForm, notify, refreshForms, t, createDefaultSection, setEditingForm, setShowBuilder, setPreviewMode, setSelectedFieldId, setFields, setScoringConfig, setAiEvalFramework]);
+  }, [createForm, notify, refreshForms, t, createDefaultSection, genTempId, setEditingForm, setShowBuilder, setPreviewMode, setSelectedFieldId, setFields, setScoringConfig, setAiEvalFramework]);
 
   const handlePublish = useCallback(async (options) => {
     if (!editingForm) return;
@@ -112,13 +112,32 @@ export function useFormActions({
       });
       const data = await response.json();
       if (data.success) {
-        notify(t("platformMisc.forms.notifyPublishedVersion", { version: data.version }));
+        notify(
+          data.run?.name
+            ? t("platformMisc.forms.notifyPublishedRun", { version: data.version, run: data.run.name })
+            : t("platformMisc.forms.notifyPublishedVersion", { version: data.version }),
+        );
         setEditingForm((prev) => ({ ...prev, status: "published", version: data.version }));
         refreshForms();
+
+        // Publishing SAVES the builder first (the snapshot must be persisted
+        // rows), so sections added in this session now have real ids. Reload
+        // them: keeping the browser's temporary ids would insert the same
+        // section a second time on the next save.
+        if (!skipSave) {
+          try {
+            const refreshResponse = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+            const freshData = await refreshResponse.json();
+            if (freshData.success) {
+              refreshSections(freshData, genTempId);
+              refreshFields(freshData, genTempId);
+            }
+          } catch (_) {}
+        }
       }
     } catch (_) {}
     if (!skipSave) setSaving(false);
-  }, [editingForm, fields, sections, notify, refreshForms, t, setEditingForm]);
+  }, [editingForm, fields, sections, notify, refreshForms, refreshSections, refreshFields, genTempId, t, setEditingForm]);
 
   const handleDuplicate = useCallback(async (form) => {
     if (!(await confirm({ message: t("platformMisc.forms.confirmDuplicate", { name: form.name }) }))) return;
@@ -139,14 +158,27 @@ export function useFormActions({
         const sourceResponse = await fetch(`/api/platform/forms?id=${form.id}`);
         const sourceData = await sourceResponse.json();
         if (sourceData.success) {
+          // A section id belongs to the SOURCE form: it means nothing in the copy.
+          // Each copied section gets a temporary key, and its fields are pointed at
+          // that key, so the server can re-link them to the rows it creates.
+          const sectionKeyById = new Map(
+            sourceData.sections.map((section) => [String(section.id), `dup-${section.id}`]),
+          );
+          const sections = sourceData.sections.map((section) => ({
+            ...section,
+            id: null,
+            _tmpId: sectionKeyById.get(String(section.id)),
+          }));
+          const fields = sourceData.fields.map((field) => ({
+            ...field,
+            id: null,
+            section_id: field.section_id ? sectionKeyById.get(String(field.section_id)) ?? null : null,
+          }));
+
           await fetch("/api/platform/forms", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              id: data.form.id,
-              fields: sourceData.fields.map((field) => ({ ...field, id: null })),
-              sections: sourceData.sections.map((section) => ({ ...section, id: null })),
-            }),
+            body: JSON.stringify({ id: data.form.id, fields, sections }),
           });
         }
         notify(t("platformMisc.forms.notifyFormDuplicated"));
@@ -229,26 +261,75 @@ export function useFormActions({
   const handleLaunchRun = useCallback(async () => {
     setSaving(true);
     try {
-      const response = await fetch("/api/platform/form-runs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ form_id: editingForm.id, name: editingForm.name + " Run", description: "Auto-created from form builder" }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        notify(t("platformMisc.forms.runCreated"));
-        await fetch("/api/platform/form-runs?action=launch", {
+      // One form collects through one active run. This shortcut used to mint a
+      // second run (and a second public link) every time it was pressed, so a
+      // form already collecting gets its existing run opened instead.
+      let activeRun = null;
+      try {
+        const existing = await fetch(
+          `/api/platform/form-runs?form_id=${editingForm.id}&status=active&per_page=1`,
+        );
+        const existingData = await existing.json();
+        activeRun = existingData?.success ? existingData.runs?.[0] || null : null;
+      } catch (_) {}
+
+      if (!activeRun) {
+        const response = await fetch("/api/platform/form-runs", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: data.run.id }),
+          body: JSON.stringify({ form_id: editingForm.id, name: editingForm.name + " Run", description: "Auto-created from form builder" }),
         });
-        router.push("/platform/runs");
+        const data = await response.json();
+        if (data.success) {
+          notify(t("platformMisc.forms.runCreated"));
+          await fetch("/api/platform/form-runs?action=launch", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: data.run.id }),
+          });
+        }
       } else {
-        router.push("/platform/runs");
+        notify(t("platformMisc.forms.runAlreadyActive"));
       }
+      router.push("/platform/runs");
     } catch (_) { router.push("/platform/runs"); }
     setSaving(false);
   }, [editingForm, router, notify, t]);
+
+  const handleRestorePublished = useCallback(async () => {
+    if (!editingForm) return;
+    const confirmed = await confirm({
+      message: t("platformMisc.forms.restorePublishedConfirm"),
+      tone: "danger",
+      confirmLabel: t("platformMisc.forms.restorePublishedAction"),
+    });
+    if (!confirmed) return;
+
+    setSaving(true);
+    try {
+      const response = await fetch("/api/platform/forms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "restore", id: editingForm.id }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notify(t("platformMisc.forms.restorePublishedDone"));
+        const refreshResponse = await fetch(`/api/platform/forms?id=${editingForm.id}`);
+        const freshData = await refreshResponse.json();
+        if (freshData.success) {
+          refreshSections(freshData, genTempId);
+          refreshFields(freshData, genTempId);
+          setEditingForm(freshData.form || editingForm);
+        }
+      } else {
+        notify(t("platformMisc.forms.restorePublishedFailed"));
+      }
+    } catch (_) {
+      notify(t("platformMisc.forms.restorePublishedFailed"));
+    }
+    setSaving(false);
+  }, [editingForm, confirm, t, notify, genTempId, refreshSections, refreshFields, setEditingForm, setSaving]);
 
   const handleSaveWorkflow = useCallback(async () => {
     if (!editingForm) return;
@@ -281,6 +362,10 @@ export function useFormActions({
   }, [editingForm, templateConfig, notify, t]);
 
   const handleSaveAiEvalFramework = useCallback(async () => {
+    // Nothing to store is not a server error: say it here rather than let the
+    // API answer 400 ("form_id and framework required") about an empty form.
+    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
+    if (!aiEvalFramework) { notify(t("platformMisc.forms.aiEvalNothingToSave")); return; }
     setSaving(true);
     try {
       const response = await fetch("/api/platform/ai/evaluation-config", {
@@ -288,9 +373,14 @@ export function useFormActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ form_id: editingForm.id, framework: aiEvalFramework })
       });
-      if (response.ok) notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
-      else notify(t("platformMisc.forms.aiEvalSaveFailed"));
-    } catch {}
+      if (response.ok) {
+        notify(t("platformMisc.forms.aiEvalFrameworkSaved"));
+      } else {
+        // The body names the reason; a generic "failed" hides it.
+        const detail = await response.json().catch(() => ({}));
+        notify(t(detail?.error || "platformMisc.forms.aiEvalSaveFailed"));
+      }
+    } catch { notify(t("platformMisc.forms.aiEvalSaveFailed")); }
     setSaving(false);
   }, [editingForm, aiEvalFramework, notify, t]);
 
@@ -324,9 +414,12 @@ export function useFormActions({
   }, [aiEvalText, editingForm, notify, t, setAiEvalFramework]);
 
   const handleSaveAiEvalDetailed = useCallback(async () => {
+    // Guard BEFORE reading `dimensions`: with no framework this used to throw
+    // inside the render path instead of telling the person what to do.
+    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
+    if (!aiEvalFramework) { notify(t("platformMisc.forms.aiEvalNothingToSave")); return; }
     const total = (aiEvalFramework.dimensions || []).reduce((sum, dimension) => sum + (parseInt(dimension.weight) || 0), 0);
     if (total !== 100) { notify(t("platformMisc.forms.aiEvalWeightsMustTotal")); return; }
-    if (!editingForm?.id) { notify(t("platformMisc.forms.aiEvalNoForm")); return; }
     setAiEvalLoading(true);
     try {
       const payload = { form_id: Number(editingForm.id), framework: aiEvalFramework, source_document: aiEvalText?.substring(0, 500) || null };
@@ -355,38 +448,54 @@ export function useFormActions({
     setSaving(true);
     const isRepublishing = editingForm.status === "published" && skipRepublishPrompt === true;
     try {
-      const currentSections = sections.filter((section) => section.id && !String(section.id).startsWith("tmp-"));
+      // ONE request carries the whole state. Removals travel as explicit delete
+      // markers inside that request, never as separate requests fired first:
+      // deleting a section on its own left its questions pointing at a dead
+      // section id, and the save then failed on the foreign key (with the
+      // sections already gone).
+      let existingSections = [];
+      let existingFields = [];
       try {
         const existing = await fetch(`/api/platform/forms?id=${editingForm.id}`);
         const existingData = await existing.json();
         if (existingData.success) {
-          if (existingData.sections) {
-            const existingIds = existingData.sections.map((section) => section.id);
-            const keptIds = currentSections.map((section) => section.id);
-            for (const existingId of existingIds) {
-              if (!keptIds.includes(existingId)) {
-                await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, sections: [{ id: existingId, _delete: true }] }) });
-              }
-            }
-          }
-          if (existingData.fields) {
-            const currentFieldIds = fields.filter((field) => field.id && !String(field.id).startsWith("fld-")).map((field) => field.id);
-            const existingFieldIds = existingData.fields.map((field) => field.id);
-            for (const existingId of existingFieldIds) {
-              if (!currentFieldIds.includes(existingId)) {
-                await fetch(`/api/platform/forms`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingForm.id, fields: [{ id: existingId, _delete: true }] }) });
-              }
-            }
-          }
+          existingSections = existingData.sections || [];
+          existingFields = existingData.fields || [];
         }
       } catch (_) {}
 
-      const cleanSections = sections.map((section) => (String(section.id).startsWith("tmp-") ? { ...section, id: null } : section));
-      const payload = { id: editingForm.id, fields, sections: cleanSections };
+      // Ids come back as numbers from the server and live as strings in the
+      // builder, so both sides are compared as text.
+      const keptSectionIds = new Set(sections.map((section) => String(section.id)));
+      const keptFieldIds = new Set(
+        fields.filter((field) => field.id != null).map((field) => String(field.id)),
+      );
+      const removedSections = existingSections.filter(
+        (section) => !keptSectionIds.has(String(section.id)),
+      );
+      const removedFields = existingFields.filter(
+        (field) => !keptFieldIds.has(String(field.id)),
+      );
+
+      // A section that exists only in the builder is sent with no id and its
+      // temporary id alongside, so the server can hand its questions the id the
+      // section is actually created under.
+      const payloadSections = [
+        ...sections.map((section) => {
+          const isNew = String(section.id).startsWith("tmp-");
+          return isNew ? { ...section, id: null, _tmpId: String(section.id) } : section;
+        }),
+        ...removedSections.map((section) => ({ id: section.id, _delete: true })),
+      ];
+      const payloadFields = [
+        ...fields,
+        ...removedFields.map((field) => ({ id: field.id, _delete: true })),
+      ];
+
       const response = await fetch("/api/platform/forms", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ id: editingForm.id, fields: payloadFields, sections: payloadSections }),
       });
       const data = await response.json();
       if (data.success) {
@@ -457,6 +566,7 @@ export function useFormActions({
     confirmArchiveAction,
     handleGenerateForm,
     handleLaunchRun,
+    handleRestorePublished,
     handleSaveWorkflow,
     handleSaveTemplates,
     handleSaveAiEvalFramework,

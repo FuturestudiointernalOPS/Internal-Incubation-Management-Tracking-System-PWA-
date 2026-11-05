@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
 import { signEvidencePath } from "@/lib/ventureEvidence";
 import { isActiveVentureMember } from "@/models/ventureWorkspace";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 import { listVerificationDocumentVersions, addVerificationDocumentVersion, canSubmitVerification } from "@/services/ventures/verification";
 
 /**
@@ -26,9 +27,11 @@ import { listVerificationDocumentVersions, addVerificationDocumentVersion, canSu
  * of the Venture, or delegated staff with an assignment on it. Mirrors the gate
  * the verification read itself uses.
  */
-async function canAccessVerification(id, session) {
+async function canAccessVerification(id, session, action = "view") {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  // Explicit portfolio right, never the Super Admin role.
+  const portfolio = await resolveVenturePortfolioAccess({ session, action });
+  if (portfolio.allowed) return true;
   const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
   const member = await isActiveVentureMember(id, session.cid).catch(() => ({ rows: [] }));
   if (member.rows?.length) return true;

@@ -7,7 +7,7 @@ import VentureDocumentTypePicker from "@/components/ventures/VentureDocumentType
 /**
  * LEAD MANAGER → VENTURES → DATA BANK DOCUMENTS
  *
- * Picks among the Ventures this person leads (the `lead_manager` responsibility
+ * Picks among the Ventures this person leads (the `venture_manager` responsibility
  * — the same rule the server applies to the write). The server still decides:
  * a Venture they do not lead is read-only for them.
  */

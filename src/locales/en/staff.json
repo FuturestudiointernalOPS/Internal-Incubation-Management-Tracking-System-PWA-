@@ -193,12 +193,12 @@
       "noSessions": "No sessions scheduled.",
       "listSubtitle": "Ventures assigned to you — access is per assignment, never by staff role alone.",
       "listEmpty": "No Venture assignments yet",
-      "listEmptyHint": "When the Super Admin assigns you as a Lead Manager, Coach or Facilitator for a Venture, it will appear here."
+      "listEmptyHint": "When the Super Admin assigns you as a Venture Manager, Coach or Facilitator for a Venture, it will appear here."
     },
     "leadHome": {
-      "title": "Lead Manager — My day",
+      "title": "Venture Manager — My day",
       "subtitle": "Only the Ventures you lead. What needs action today, and where to go next.",
-      "workspaceHint": "Lead Manager workspace — operate the roadmap, reviews and sessions. The global framework (templates, roles) stays with Super Admin. Venture profile fields are view-only here.",
+      "workspaceHint": "Venture Manager workspace — operate the roadmap, reviews and sessions. The global framework (templates, roles) stays with Super Admin. Venture profile fields are view-only here.",
       "kpiVentures": "Ventures I lead",
       "kpiActiveJourneys": "Active journeys",
       "kpiBlocked": "Blocked milestones",
