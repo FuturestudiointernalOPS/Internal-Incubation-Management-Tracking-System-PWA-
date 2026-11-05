@@ -1022,6 +1022,125 @@
         "notFound": "Rythme introuvable."
       }
     },
+    "handbook": {
+      "title": "Guide du Venture Manager",
+      "subtitle": "L'onglet Parcours, page par page.",
+      "intro": "Chaque entrée ci-dessous correspond à une page du manuel imprimé : ce qu'elle explique et la règle à retenir. Rien ici ne modifie un enregistrement — c'est le compagnon de lecture de l'écran, toujours à jour.",
+      "contents": "Sommaire",
+      "pageLabel": "Page {n}",
+      "open": "Lire",
+      "close": "Retour au sommaire",
+      "page": {
+        "what": {
+          "title": "Ce qu'est le Parcours",
+          "summary": "Le plan de référence, et les deux chiffres qui le mesurent.",
+          "body": "Le Parcours est le plan de la venture : les étapes que le studio l'accompagne à travers, de la création de la société à la mise à l'échelle. Ce n'est volontairement pas un document — il dit ce qui est vrai ce matin, pas ce qui a été convenu le trimestre dernier.\n\nL'avancement du parcours mesure l'exécution. La complétude du Data Room mesure la préparation à la levée. Ils viennent de deux moteurs différents et ne sont jamais moyennés.",
+          "bullets": "L'avancement compte les jalons terminés, les tâches terminées et les livrables approuvés.\nLa complétude du Data Room se lit dans l'onglet Data Room, à côté des documents qui la produisent.\nUne venture peut bien exécuter et ne pas être prête à lever — les deux chiffres gardent cela visible."
+        },
+        "where": {
+          "title": "Où se trouve le Parcours",
+          "summary": "La barre d'onglets du Venture Manager, et l'usage de chaque porte.",
+          "body": "Ouvrez Ventures, choisissez la venture, et vous arrivez sur son espace. Vos droits dans chaque onglet viennent de votre affectation sur cette venture, et le serveur les applique — la barre d'onglets ne décide que de ce qu'il vaut la peine de vous montrer.",
+          "bullets": "Aperçu répond à ce qui vous attend aujourd'hui. Parcours répond à où en est le plan.\nProjets montre le même travail en lignes et en chronologie, pour le lead manager seulement.\nTâches, Séances, Notes, Data Room et Profil suivent. Le Data Room porte son propre chiffre de complétude."
+        },
+        "glance": {
+          "title": "L'onglet Parcours en un coup d'œil",
+          "summary": "La carte d'avancement d'abord, les étapes en dessous.",
+          "body": "Un pourcentage et quatre barres répondent à une question : quelle part du travail prévu est réellement faite. Lisez-le comme un thermomètre, jamais comme une note.\n\nSous la carte, chaque étape est un bloc à ouvrir. Plusieurs étapes peuvent être actives en même temps : une étape démarre à sa propre date de début, pas à la fin de la précédente.",
+          "bullets": "Si vous n'avez rien approuvé cette semaine, la carte ne bouge pas — c'est la bonne réponse.\nElle mesure le travail terminé, pas l'effort, les réunions suivies ou l'activité apparente."
+        },
+        "vocabulary": {
+          "title": "Le vocabulaire",
+          "summary": "Six mots qui s'emboîtent, et chacun a un seul sens.",
+          "body": "Un Parcours est une étape du plan. Un jalon est un point de contrôle à l'intérieur, et l'unité d'achèvement. Une activité est un travail précis dans un jalon. Un livrable est l'artefact qu'une activité doit produire. Une tâche est un travail assigné à une personne. Une soumission est ce que le fondateur dépose pour une tâche soumise à revue.",
+          "bullets": "L'onglet s'appelle Parcours, et chaque étape à l'intérieur s'appelle aussi un Parcours — demandez toujours de quel Parcours on parle.\nLes séances, les notes et les rapports de parcours sont à côté de l'échelle, pas dedans."
+        },
+        "status": {
+          "title": "Les huit mots de statut",
+          "summary": "À venir, Bloqué, Non commencé, En cours, En attente de revue, Modifications demandées, Terminé, Approuvé.",
+          "body": "Les statuts sont stockés comme valeurs fixes et affichés en huit mots. L'application ne devine jamais un mot pour une valeur inconnue : elle affiche la valeur brute, pour que vous puissiez la signaler au lieu d'être induit en erreur.",
+          "bullets": "À venir, c'est le calendrier qui retient le travail ; Non commencé, c'est personne n'ayant commencé. Ils se ressemblent et disent le contraire.\nBloqué se libère par une dépendance terminée, jamais en réordonnant la liste.\nEn attente de revue, c'est votre file : décidez."
+        },
+        "stage": {
+          "title": "Travailler un Parcours (une étape)",
+          "summary": "Comment une étape démarre, se termine et se documente.",
+          "body": "Une étape est créée avec une date de début et une date de fin. Jusqu'à sa date de début elle est À venir et ses jalons sont retenus. À la date, elle devient Active d'elle-même, et Terminée quand tous ses jalons le sont.",
+          "bullets": "Ajoutez, renommez, réordonnez et supprimez étapes et jalons ici.\nJoignez un rapport d'avancement pendant l'étape, un rapport de clôture à la fin.\nArchivez une étape plutôt que de la supprimer, sauf si elle a été créée par erreur.\nDéplacer un jalon change l'ordre de lecture, jamais les dates ni une dépendance."
+        },
+        "milestone": {
+          "title": "Travailler un jalon",
+          "summary": "Ouvrez-le : tout ce que vous faites s'y attache.",
+          "body": "Cliquez sur un jalon pour l'ouvrir. Au même endroit : ce qui attend votre décision, les livrables de chaque activité, les séances réservées et ses notes internes.",
+          "bullets": "Menu : modifier, monter ou descendre, ouvrir les notes, marquer terminé.\nUn jalon se ferme soit parce que vous le marquez, soit parce que ses livrables sont approuvés et ses tâches terminées.\nNe le fermez pas pour embellir la carte : le même chiffre est lu par le fondateur et le studio."
+        },
+        "review": {
+          "title": "Revoir ce que la venture a soumis",
+          "summary": "Approuver, ou renvoyer avec une raison écrite.",
+          "body": "Les soumissions apparaissent en haut du jalon ouvert, pas dans une file séparée qu'il faut penser à ouvrir. Chaque ligne montre la tâche, la version, qui l'a déposée, quand, la note du fondateur et un lien vers le fichier.",
+          "bullets": "Approuver accepte le livrable et le travail compte comme fait.\nDemander des modifications exige un commentaire — écrivez-le comme une consigne, pas comme un verdict.\nUne nouvelle version n'efface jamais la précédente : l'historique reste lisible."
+        },
+        "deliverables": {
+          "title": "Les livrables",
+          "summary": "Preuves, dates et les mots que vous pouvez poser.",
+          "body": "Un livrable porte deux dates, un statut et une preuve — un fichier ou un lien. Les fichiers déposés ne sont jamais publics : un lecteur autorisé reçoit une adresse signée à durée courte, générée à l'ouverture.",
+          "bullets": "Vous pouvez poser Non commencé, En cours ou Bloqué.\nEn attente de revue vient du dépôt du fondateur ; Modifications demandées de votre revue.\nApprouvé ne se saisit pas : c'est le résultat d'une revue, et c'est pourquoi le pourcentage est traçable à une décision."
+        },
+        "activity": {
+          "title": "Les trois boutons d'une activité",
+          "summary": "Note rapide, Rapport d'activité, Séance — proches, et différents.",
+          "body": "Chaque activité propose trois actions. Une note rapide et un rapport d'activité sont tous deux des notes internes classées sur le jalon ; le rapport est le plus complet et porte le code de l'activité dans son titre. Une séance est une vraie réunion réservée, que la venture peut voir.",
+          "bullets": "Une réunion ou une décision à consigner — note rapide.\nUne activité évaluée sur une liste de contrôle — rapport d'activité.\nBesoin de s'asseoir avec le fondateur ou un coach — séance.\nLes notes sont réservées au personnel : le fondateur ne les reçoit jamais."
+        },
+        "session": {
+          "title": "Réserver une séance",
+          "summary": "Quatre règles que le serveur applique, à vous comme au fondateur.",
+          "body": "Une séance est une réunion datée attachée à un jalon. Elle porte un compte rendu, des supports, ses invités et, après la réunion, la note du coach.",
+          "bullets": "Un compte rendu est obligatoire, et la séance doit appartenir à un jalon.\nLa date et l'heure doivent être futures ; toute heure future est réservable.\nCinq supports au maximum, et seulement des fichiers déposés via l'uploader de cette venture.\nAnnuler la retire du calendrier de tous ; la déplacer la met à jour sur place."
+        },
+        "notes": {
+          "title": "L'onglet Notes",
+          "summary": "Notes de jalon, rapports d'activité, comptes rendus de séance — personnel uniquement.",
+          "body": "Tout ce que le personnel écrit sur une venture, en trois sections. Le compte du fondateur est refusé par le serveur, pas seulement masqué par l'interface.\n\nUne note interne doit appartenir à un jalon : il n'existe pas de note à l'échelle de la venture ni de note flottante.",
+          "bullets": "Les notes de jalon s'écrivent sur le jalon ; les rapports d'activité viennent d'une activité ; les comptes rendus viennent d'une séance.\nLe compte rendu est le brief donné à la venture ; le retour du coach est un commentaire du personnel. Les deux se lisent ici.\nSi le fondateur doit savoir quelque chose, écrivez-le là où il peut le lire — ce n'est pas un canal de message."
+        },
+        "reports": {
+          "title": "Rapports de parcours",
+          "summary": "Les rapports d'avancement et de clôture d'une étape entière.",
+          "body": "Un rapport de parcours est le récit écrit d'une étape : ce qu'elle visait, ce qui s'est passé et ce que vous recommandez. Il enregistre une période, un résumé, ce qui est terminé et en suspens, l'appui fourni, les difficultés et votre recommandation.",
+          "bullets": "Un rapport d'avancement s'écrit pendant l'étape ; un rapport de clôture à la fin.\nIl passe de brouillon à soumis, et la date de soumission est conservée.\nSi une étape se clôt sans rapport de clôture, l'onglet le dit sur place — rien n'est bloqué, mais l'omission n'est jamais silencieuse."
+        },
+        "templates": {
+          "title": "Modèles et archives",
+          "summary": "Réutiliser un plan, retirer un plan.",
+          "body": "Un bon plan mérite d'être réutilisé : un Parcours peut être enregistré comme modèle et appliqué à une nouvelle venture, ce qui copie sa structure sans lier les deux ensuite.",
+          "bullets": "Archiver retire une étape de la vue de travail et ne supprime rien.\nL'onglet a une vue Active et une vue Archivée ; le contenu archivé revient seulement si vous le demandez.\nLa suppression en masse existe et demande deux fois — archiver est le réflexe habituel."
+        },
+        "founder": {
+          "title": "Ce que voit le fondateur",
+          "summary": "Le plan et les séances, jamais les commentaires du personnel.",
+          "body": "Le fondateur a son propre espace et son propre onglet Parcours : son parcours, ses jalons, ses livrables, les séances qu'il peut réserver et ses tâches. Les notes internes, les rapports d'activité, le retour du coach et les rapports de parcours sont des instruments du personnel et ne lui parviennent jamais.",
+          "bullets": "Les formulaires de reporting appartiennent au fondateur ; vous lisez ses chiffres, vous ne les modifiez pas.\nQuand un fondateur dit « je ne le vois pas », vérifiez trois choses : l'étape est encore À venir, elle a été archivée, ou c'est interne par conception."
+        },
+        "week": {
+          "title": "Votre semaine dans le Parcours",
+          "summary": "Une routine qui garde le plan vrai, en une vingtaine de minutes.",
+          "body": "Videz d'abord la liste de décisions : chaque soumission qui vous attend est un fondateur bloqué. Lisez ensuite la carte d'avancement — si elle n'a pas bougé la semaine dernière, demandez laquelle des quatre barres aurait dû. Puis vérifiez les jalons dus cette semaine et les séances réservées.",
+          "bullets": "Après chaque séance : le compte rendu, le retour du coach, et un rapport d'activité si une décision a été prise.\nÀ la fin d'une étape : confirmer que chaque jalon est clos, écrire le rapport de clôture, puis archiver l'étape.\nChaque mois : lire les chiffres du fondateur face au parcours, et vérifier la complétude du Data Room."
+        },
+        "troubleshooting": {
+          "title": "Si quelque chose semble faux",
+          "summary": "Les cinq questions les plus fréquentes.",
+          "body": "La plupart des surprises sont un statut ou une portée, pas un défaut. Vérifiez cela avant d'ouvrir un ticket, et signalez avec trois faits : ce que vous attendiez, ce que vous avez vu, et le code de la venture plus le nom du jalon ou de l'activité.",
+          "bullets": "Une étape manque : vérifiez À venir, puis les archives.\nLe pourcentage n'a pas bougé : seuls les jalons terminés, les tâches terminées et les livrables approuvés comptent.\nUne note n'est pas où vous pensez : regardez sous Rapports d'activité ou Comptes rendus de séance.\nUne séance ne s'enregistre pas : le message nomme la règle qui a échoué.\nLe fondateur ne voit pas quelque chose : c'est interne par conception."
+        },
+        "glossary": {
+          "title": "Glossaire — anglais et français",
+          "summary": "Les mêmes mots dans les deux langues de l'interface.",
+          "body": "Journey se dit Parcours. Milestone se dit Jalon. Activity se dit Activité. Deliverable se dit Livrable. Task se dit Tâche. Session reste Session, même si l'onglet garde son nom anglais dans les deux langues. Roadmap progress se dit Avancement du parcours, et Data Room readiness se dit Complétude du Data Room.",
+          "bullets": "Milestone note : Note de jalon. Activity report : Rapport d'activité. Session memo : Compte rendu de séance.\nJourney report : Rapport de parcours. Closing report : Rapport de clôture.\nApproved : Approuvé. Awaiting review : En attente de revue. Changes requested : Modifications demandées."
+        }
+      }
+    },
     "insights": "Apprentissages",
     "validation": "Validation",
     "problem": "Problème",

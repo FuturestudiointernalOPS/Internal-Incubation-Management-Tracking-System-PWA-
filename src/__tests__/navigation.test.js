@@ -151,6 +151,8 @@ const FIXTURE = {
         { id: "forms", href: "/platform", subItems: null },
       ],
     },
+    // The Venture Manager's reading companion (added with approval).
+    { id: "handbook", href: "/staff/handbook", subItems: null },
   ],
 
   staff: [
@@ -166,6 +168,8 @@ const FIXTURE = {
         { id: "forms", href: "/platform", subItems: null },
       ],
     },
+    // The Venture Manager's reading companion (added with approval).
+    { id: "handbook", href: "/staff/handbook", subItems: null },
   ],
 
   facilitator: [{ id: "dashboard", href: "/participant", subItems: null }],

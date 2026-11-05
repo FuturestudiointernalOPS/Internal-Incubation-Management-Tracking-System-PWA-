@@ -1021,6 +1021,125 @@
         "notFound": "Schedule not found."
       }
     },
+    "handbook": {
+      "title": "Venture Manager Handbook",
+      "subtitle": "The Journey tab, page by page.",
+      "intro": "Each entry below is one page of the printed manual: what it explains, and the rule worth remembering. Nothing here changes a record — it is the reading companion to the screen, and it is always the current edition.",
+      "contents": "Contents",
+      "pageLabel": "Page {n}",
+      "open": "Read",
+      "close": "Back to contents",
+      "page": {
+        "what": {
+          "title": "What the Journey is",
+          "summary": "The plan of record, and the two numbers that measure it.",
+          "body": "The Journey is the venture's plan: the stages the studio guides it through, from setting up a company to scaling one. It is deliberately not a document — it says what is true this morning, not what was agreed last quarter.\n\nRoadmap progress measures execution. Data Room readiness measures fundraising preparedness. They come from two different engines and are never averaged into one score.",
+          "bullets": "Roadmap progress counts completed milestones, completed tasks and approved deliverables.\nData Room readiness lives in the Data Room tab, beside the documents that produce it.\nA venture can execute well and still not be ready to raise — the two numbers keep that visible."
+        },
+        "where": {
+          "title": "Where the Journey lives",
+          "summary": "The Venture Manager's tab bar, and what each door is for.",
+          "body": "Open Ventures, choose the venture, and you land on its workspace. Your rights inside each tab come from your staff assignment on that venture, and the server enforces them — the tab bar only decides what is worth showing you.",
+          "bullets": "Overview answers what needs you today. Journey answers where the plan is.\nProjects shows the same work as rows and as a timeline, for the lead manager only.\nTasks, Sessions, Notes, Data Room and Profile follow. Data Room holds its own readiness figure."
+        },
+        "glance": {
+          "title": "The Journey tab at a glance",
+          "summary": "The roadmap card first, the stages below it.",
+          "body": "A single percentage and four bars answer one question: how much of the planned work is actually done. Read it as a thermometer, never as a grade.\n\nBelow the card, each stage is a block you can open. Several stages can run at once: a stage starts when its own start date arrives, not when the previous one ends.",
+          "bullets": "If you approved nothing this week, the card does not move — that is the correct answer.\nIt measures finished work, not effort, meetings attended or how busy everyone felt."
+        },
+        "vocabulary": {
+          "title": "The vocabulary",
+          "summary": "Six words that nest, and each one means one thing.",
+          "body": "Journey is a stage of the plan. A milestone is a checkpoint inside it, and the unit of completion. An activity is a specific piece of work inside a milestone. A deliverable is the artefact an activity must produce. A task is a to-do assigned to a person. A submission is what a founder files for a task that requires review.",
+          "bullets": "The tab is called Journey, and each stage inside it is also called a Journey — when someone says 'the Journey is complete', ask which one they mean.\nSessions, notes and journey reports sit beside the ladder, not inside it."
+        },
+        "status": {
+          "title": "The eight status words",
+          "summary": "Upcoming, Blocked, Not started, In progress, Awaiting review, Changes requested, Completed, Approved.",
+          "body": "Statuses are stored as fixed values and shown as eight words. The application never guesses a word for an unknown value: it shows the raw value instead, so you can report it rather than be misled by it.",
+          "bullets": "Upcoming is the calendar holding the work back; Not started is nobody having begun. They look alike and mean opposite things.\nBlocked is released by a completed dependency, never by reordering the list.\nAwaiting review is your queue: decide it."
+        },
+        "stage": {
+          "title": "Working a Journey (a stage)",
+          "summary": "How a stage starts, ends, and is written up.",
+          "body": "A stage is created with a start and an end date. Until its start date arrives it is Upcoming and its milestones are held. On the date it becomes Active on its own, and it becomes Completed when all of its milestones are.",
+          "bullets": "Add, rename, reorder and delete stages and milestones here.\nAttach a progress report while the stage runs, and a closing report when it ends.\nArchive a stage rather than deleting it, unless it was created by mistake.\nMoving a milestone up or down changes the reading order, never the dates and never a dependency."
+        },
+        "milestone": {
+          "title": "Working a milestone",
+          "summary": "Open it, and everything you do is attached here.",
+          "body": "Click a milestone to open it. In one place you get what needs your decision, the deliverables of each activity, the sessions booked on it and its internal notes.",
+          "bullets": "Edit, move up or down, open its notes, or mark it completed from the menu.\nA milestone closes either because you mark it, or because its deliverables are approved and its tasks are done.\nDo not close one to make the card look better: the same number is read by the founder and the studio."
+        },
+        "review": {
+          "title": "Reviewing what the venture submitted",
+          "summary": "Approve, or send it back with a written reason.",
+          "body": "Submissions appear at the top of the open milestone, not in a separate queue you have to remember to check. Each row shows the task, the version, who filed it, when, the founder's note and a link to the file.",
+          "bullets": "Approving accepts the deliverable and the work counts as done.\nRequesting changes requires a comment — write it as an instruction, not as a verdict.\nA new version never erases the previous one: the history stays readable."
+        },
+        "deliverables": {
+          "title": "Deliverables",
+          "summary": "Evidence, dates, and the words you may set.",
+          "body": "A deliverable carries two dates, a status and evidence — a file or a link. Uploaded files are never public: an authorised reader gets a short-lived signed address, generated when they open it.",
+          "bullets": "You may set Not started, In progress or Blocked.\nAwaiting review is set by the founder submitting; Changes requested by your review.\nApproved cannot be typed: it is the outcome of a review, which is why the percentage is traceable to a decision."
+        },
+        "activity": {
+          "title": "The three buttons on an activity",
+          "summary": "Quick note, Activity report, Session — similar, and not the same.",
+          "body": "Each activity offers three actions. A quick note and an activity report are both internal notes filed on the milestone; the report is the fuller one and is titled with the activity code. A session is a real booked meeting that the venture can see.",
+          "bullets": "Recorded a meeting or a decision — quick note.\nAssessed one activity against a checklist — activity report.\nNeed to sit down with the founder or a coach — session.\nNotes are staff-only: the founder never receives them."
+        },
+        "session": {
+          "title": "Booking a session",
+          "summary": "Four rules the server enforces, for you and for the founder.",
+          "body": "A session is a dated meeting attached to a milestone. It carries one memo, materials, its invitees and, after the meeting, the coach's write-up.",
+          "bullets": "A memo is required, and the session must belong to a milestone.\nThe date and time must be in the future; any future time is bookable.\nUp to five materials, and only files uploaded through this venture's own uploader.\nCancelling removes it from everyone's calendar; moving it updates it in place."
+        },
+        "notes": {
+          "title": "The Notes tab",
+          "summary": "Milestone notes, Activity reports, Session memos — staff only.",
+          "body": "Everything staff write about a venture, in three sections. The founder's account is refused by the server, not merely hidden by the interface.\n\nAn internal note must belong to a milestone: there are no venture-wide notes and no free-floating ones.",
+          "bullets": "Milestone notes are written on the milestone; activity reports come from an activity; session memos come from a session.\nThe session memo is the brief the venture was told about; the coach feedback is staff commentary. Both are readable here.\nIf the founder needs to know something, write it where they can read it — this is not a messaging channel."
+        },
+        "reports": {
+          "title": "Journey reports",
+          "summary": "The progress and closing reports for a whole stage.",
+          "body": "A journey report is the written account of a stage: what it set out to do, what happened, and what you recommend. It records a period, a summary, what was completed and outstanding, the support delivered, the challenges and your recommendation.",
+          "bullets": "A progress report is written while the stage runs; a closing report when it ends.\nIt moves from draft to submitted, and the date it was submitted is kept.\nIf a stage closes without its closing report, the tab says so in place — nothing is blocked, but the omission is never silent."
+        },
+        "templates": {
+          "title": "Templates and the archive",
+          "summary": "Reuse a plan, retire a plan.",
+          "body": "A good plan is worth reusing: a Journey can be saved as a template and applied to a new venture, which copies its structure without linking the two afterwards.",
+          "bullets": "Archiving takes a stage out of the working view and deletes nothing.\nThe tab has an Active and an Archived view; archived content returns only when you ask for it.\nBulk delete exists and asks twice — archive is the habitual choice."
+        },
+        "founder": {
+          "title": "What the founder sees",
+          "summary": "The plan and the sessions, never the staff commentary.",
+          "body": "The founder has their own workspace and their own Journey tab: their roadmap, milestones, deliverables, sessions they can book, and their tasks. Internal notes, activity reports, coach feedback and journey reports are staff instruments and never reach them.",
+          "bullets": "The reporting forms belong to the founder; you read their figures, you do not edit them.\nWhen a founder says 'I cannot see it', check three things: the stage is still Upcoming, it was archived, or it is internal by design."
+        },
+        "week": {
+          "title": "Your week in the Journey",
+          "summary": "A routine that keeps the plan true, in about twenty minutes.",
+          "body": "Clear the decision list first: every submission waiting on you is a founder who cannot move. Then read the roadmap card — if it did not move last week, ask which of the four bars should have. Then check the milestones due this week and the sessions booked.",
+          "bullets": "After every session: the memo, the coach's feedback, and an activity report if a decision was taken.\nAt the end of a stage: confirm every milestone is closed, write the closing report, then archive the stage.\nMonthly: read the founder's numbers against the roadmap, and check the Data Room readiness."
+        },
+        "troubleshooting": {
+          "title": "If something looks wrong",
+          "summary": "The five questions we get most.",
+          "body": "Most surprises are a status or a scope, not a defect. Check those before opening a ticket, and report with three facts: what you expected, what you saw, and the venture code plus the milestone or activity name.",
+          "bullets": "A stage is missing: check Upcoming, then the archive.\nThe percentage did not move: only completed milestones, completed tasks and approved deliverables count.\nA note is not where you expect: look under Activity reports or Session memos.\nA session will not save: the message names the rule that failed.\nThe founder cannot see something: it is internal by design."
+        },
+        "glossary": {
+          "title": "Glossary — English and French",
+          "summary": "The same words in both languages of the interface.",
+          "body": "Journey is Parcours. Milestone is Jalon. Activity is Activité. Deliverable is Livrable. Task is Tâche. Session is Session, though the tab keeps its English name in both languages. Roadmap progress is Avancement du parcours, and Data Room readiness is Complétude du Data Room.",
+          "bullets": "Milestone note: Note de jalon. Activity report: Rapport d'activité. Session memo: Compte rendu de séance.\nJourney report: Rapport de parcours. Closing report: Rapport de clôture.\nApproved: Approuvé. Awaiting review: En attente de revue. Changes requested: Modifications demandées."
+        }
+      }
+    },
     "insights": "Insights",
     "validation": "Validation",
     "problem": "Problem",
