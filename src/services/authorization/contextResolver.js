@@ -114,18 +114,32 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   // second returns immediately.
   await Promise.all([ensureEligibilitySeeded(), ensureCapabilityBackfills()]);
 
-  // Super Admin: allowed unless explicitly restricted (V2 L1370-1385).
-  // Eligibility is bypassed entirely — SA is eligible for every feature.
-  // The role is known before any query, so this branch deliberately pays only
-  // the grants/restrictions read and never the profile/group lookups.
+  // Super Admin: eligible everywhere (the bypass for eligibility is preserved),
+  // but the RIGHT MATRIX is data too. The default profile's capabilities are the
+  // rights, so an administrator can grant or revoke one — including on a Super
+  // Admin — from the Permissions screen. A database with no default profile for
+  // the role (fresh or legacy) keeps the historical full matrix as a fallback.
+  //
+  // The role is known before any query, so this branch pays only the
+  // grants/restrictions read plus the default profile's capability rows — never
+  // the group or eligibility lookups.
   if (role === "super_admin") {
-    const [grantRows, restrictRows] = await Promise.all([
+    const [grantRows, restrictRows, baseProfileRes] = await Promise.all([
       getUserCapabilityGrants(cid),
       getUserCapabilityRestrictions(cid),
+      resolveRoleDefaultBaseProfile(role),
     ]);
     const grants = rowsToCaps(grantRows.rows);
     const restrictions = rowsToRestrictions(restrictRows.rows);
-    const saMatrix = buildSuperAdminMatrix();
+    const basePick = pickBaseProfile(baseProfileRes.rows);
+    let saMatrix = buildSuperAdminMatrix();
+    if (basePick?.profileKey) {
+      // The profile EXISTS: its rows are authoritative, even when empty. Falling
+      // back to the full matrix here would make a deliberate revocation
+      // impossible to express.
+      const capsRes = await getBaseCapabilityRows({ profileKey: basePick.profileKey });
+      saMatrix = rowsToCaps(capsRes.rows);
+    }
     return {
       cid,
       role,
