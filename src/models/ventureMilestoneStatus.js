@@ -35,8 +35,9 @@
 /** The one CASE that maps a deliverable row to the state it represents. */
 const DELIVERABLE_STATE_SQL = `
   CASE
+    WHEN approval_status = 'rejected' THEN 'changes_requested'
     WHEN approval_status = 'approved' OR status IN ('approved', 'completed', 'accepted') THEN 'approved'
-    WHEN approval_status = 'rejected' OR status IN ('changes_requested', 'revision_requested') THEN 'changes_requested'
+    WHEN status IN ('changes_requested', 'revision_requested') THEN 'changes_requested'
     WHEN status IN ('submitted', 'under_review', 'review') THEN 'awaiting_review'
     WHEN status = 'in_progress' THEN 'in_progress'
     ELSE 'not_started'

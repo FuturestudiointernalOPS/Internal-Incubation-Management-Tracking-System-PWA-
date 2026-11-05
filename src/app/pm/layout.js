@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import SectionRoleGuard from "@/components/layout/SectionRoleGuard";
 
 /**
  * PM LAYOUT — persistent dashboard shell.
@@ -9,6 +10,6 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  */
 export default function PmLayout({ children }) {
   return (
-    <DashboardLayout role="program_manager">{children}</DashboardLayout>
+    <DashboardLayout role="program_manager"><SectionRoleGuard>{children}</SectionRoleGuard></DashboardLayout>
   );
 }

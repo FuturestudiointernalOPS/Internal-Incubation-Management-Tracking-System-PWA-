@@ -69,7 +69,7 @@ export default function VentureTasksKanban({
                     {(task.checklist || []).length > 0 && (
                       <div className="mt-2">
                         <div className="w-full bg-tertiary rounded-full h-1 overflow-hidden">
-                          <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${Math.round((task.checklist.filter((checklistItem) => checklistItem.done).length / task.checklist.length) * 100)}%` }} />
+                          <div className="h-full bg-[var(--progress-fill)] rounded-full" style={{ width: `${Math.round((task.checklist.filter((checklistItem) => checklistItem.done).length / task.checklist.length) * 100)}%` }} />
                         </div>
                       </div>
                     )}

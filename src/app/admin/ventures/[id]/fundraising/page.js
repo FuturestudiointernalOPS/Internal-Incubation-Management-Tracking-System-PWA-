@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, CheckCircle2, X, Plus, Target, Calendar,
+  Loader2, CheckCircle2, X, Plus, Target, Calendar,
   TrendingUp, MessageCircle, Phone, Mail, Users,
 } from "lucide-react";
 import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
@@ -34,7 +34,6 @@ const ACTIVITY_ICONS = { email: Mail, call: Phone, meeting: Users, demo: Target,
 
 export default function VentureFundraisingPage() {
   const { id } = useParams();
-  const router = useRouter();
   const [activeView, setActiveView] = useState("kanban");
   const [selectedOpp, setSelectedOpp] = useState(null);
   const [showDetail, setShowDetail] = useState(false);
@@ -157,7 +156,7 @@ export default function VentureFundraisingPage() {
 
   const progressBar = (pct) => (
     <div className="w-full bg-tertiary rounded-full h-1.5 overflow-hidden">
-      <div className={`h-full rounded-full ${pct >= 70 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`} style={{ width: `${pct}%` }} />
+      <div className={`h-full rounded-full bg-[var(--progress-fill)]`} style={{ width: `${pct}%` }} />
     </div>
   );
 
@@ -176,10 +175,6 @@ export default function VentureFundraisingPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <TrendingUp className="w-6 h-6 text-[var(--brand-orange)]" /> Fundraising Pipeline
             </h1>

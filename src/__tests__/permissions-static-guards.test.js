@@ -125,8 +125,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
 
   "src/app/api/pm/programs/[id]/manager/route.js#M3",
   "src/app/api/pm/programs/[id]/route.js#M2",
-  "src/app/api/pm/programs/route.js#M1",
-  "src/app/api/pm/programs/templates/route.js#M1",
   "src/app/api/program-staff/route.js#M3",
   "src/app/api/programs/route.js#M1",
 
@@ -300,6 +298,10 @@ const API_ROOT = path.join(SRC, "app", "api");
  */
 const ROUTE_MECHANISMS = [
   "requireAuthorization(",
+  // The "any of these rights" variant of the same gate (used where a route
+  // legitimately serves two rights, e.g. reading program vocabulary with
+  // programs.view OR programs.create). Same decision seam, same refusal shape.
+  "requireAnyAuthorization(",
   "requireScopedAccess(",
   "requireAuth(",
   "requireVenture",

@@ -41,6 +41,7 @@ export async function createAdminVenture({
   createdByCid = null,
   industry = null,
   businessStage = "idea",
+  programId = null,
 }) {
   await initDb();
   await ensureVentureSchema();
@@ -58,10 +59,10 @@ export async function createAdminVenture({
 
   await db.execute({
     sql: `INSERT INTO ventures
-            (venture_id, name, company_name, industry, business_stage, status, created_by, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)
+            (venture_id, name, company_name, industry, business_stage, status, created_by, program_id, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?)
           ON CONFLICT (venture_id) DO NOTHING`,
-    args: [ventureId, name, name, industry, businessStage, createdByCid, now, now],
+    args: [ventureId, name, name, industry, businessStage, createdByCid, programId, now, now],
   });
 
   // Provenance keys on the INTERNAL id (Phase 0 — docs/VENTURE_IDENTITY_PHASE0.md):

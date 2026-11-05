@@ -2,6 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
+import QuickNote from "@/components/ventures/journey/QuickNote";
 import SessionInvitees from "@/components/ventures/journey/SessionInvitees";
 
 /**
@@ -120,6 +121,7 @@ export default function MilestoneSessionsList({
                 >
                   {t("venture.manager.editMemo")}
                 </button>
+                <QuickNote ventureId={ventureId} milestoneId={session.milestone_ref} subject={session.title} />
               </div>
             )}
             {ventureId && (

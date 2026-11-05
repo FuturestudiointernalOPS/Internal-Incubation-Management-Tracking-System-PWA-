@@ -170,6 +170,7 @@ import AppTabs from "@/components/ui/AppTabs";
 import AppInput from "@/components/ui/AppInput";
 import AppTextarea from "@/components/ui/AppTextarea";
 import AppSelect from "@/components/ui/AppSelect";
+import InfoHint from "@/components/ui/InfoHint";   // the (i) beside a label; AppInput and AppSelect take a `hint` prop
 
 // Data Display
 import AppTable from "@/components/ui/AppTable";

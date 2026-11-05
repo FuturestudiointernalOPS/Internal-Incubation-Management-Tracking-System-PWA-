@@ -24,9 +24,11 @@ jest.mock("@/server/auth/session", () => ({
 }));
 
 jest.mock("@/lib/email", () => ({
-  // Member invitations ride the shared transport (Google Workspace first,
-  // Resend fallback), not a separate sender.
+  // Venture invitations ride the shared transport (Google Workspace first,
+  // Resend fallback). A FOUNDER invitation is worded for the company, a team
+  // member one for a seat; both carry the same accept link.
   sendVentureMemberInvitationEmail: jest.fn().mockResolvedValue({ success: true }),
+  sendVentureFounderInvitationEmail: jest.fn().mockResolvedValue({ success: true }),
 }));
 
 jest.mock("@/lib/appUrl", () => ({
@@ -36,6 +38,7 @@ jest.mock("@/lib/appUrl", () => ({
 jest.mock("@/lib/ventureAuth", () => ({
   requireOperationalVentureAccess: jest.fn().mockResolvedValue({ ok: true }),
   roleIsPrivileged: jest.fn(() => false),
+  isStaffActorForVenture: jest.fn(async () => false),
 }));
 
 // The roster read/write now starts at the canonical venture gate (Lot 5).
@@ -61,7 +64,7 @@ jest.mock("@/models/workspace", () => ({
 
 const db = require("@/lib/db").default;
 const { getSession } = require("@/server/auth/session");
-const { sendVentureMemberInvitationEmail } = require("@/lib/email");
+const { sendVentureMemberInvitationEmail, sendVentureFounderInvitationEmail } = require("@/lib/email");
 const {
   createVentureMemberInvitation,
   recordVentureMemberInvitationDelivery,
@@ -105,6 +108,7 @@ beforeEach(() => {
     resent: false,
   });
   sendVentureMemberInvitationEmail.mockResolvedValue({ success: true });
+  sendVentureFounderInvitationEmail.mockResolvedValue({ success: true });
   recordVentureMemberInvitationDelivery.mockResolvedValue({ ok: true });
   createLinkedNotification.mockResolvedValue({});
   primeDatabase();
@@ -112,7 +116,7 @@ beforeEach(() => {
 
 describe("POST /api/ventures/[id]/members", () => {
   it("creates a pending invitation and emails the accept link", async () => {
-    const res = await POST(jsonReq({ email: "guest@outside.io", member_type: "team_member" }), ctx);
+    const res = await POST(jsonReq({ email: "guest@outside.io", member_type: "founder" }), ctx);
 
     expect(res.status).toBe(200);
     const body = await readJson(res);
@@ -123,13 +127,13 @@ describe("POST /api/ventures/[id]/members", () => {
       expect.objectContaining({
         ventureId: "VNT-1",
         email: "guest@outside.io",
-        memberType: "team_member",
+        memberType: "founder",
         invitedByCid: "USR_FOUNDER",
       }),
     );
 
-    expect(sendVentureMemberInvitationEmail).toHaveBeenCalledTimes(1);
-    const mail = sendVentureMemberInvitationEmail.mock.calls[0][0];
+    expect(sendVentureFounderInvitationEmail).toHaveBeenCalledTimes(1);
+    const mail = sendVentureFounderInvitationEmail.mock.calls[0][0];
     expect(mail.to).toBe("guest@outside.io");
     expect(mail.inviteUrl).toBe("https://app.example/venture-invite/linktoken");
     expect(mail.ventureName).toBe("ABC Ventures");
@@ -148,7 +152,7 @@ describe("POST /api/ventures/[id]/members", () => {
 
     expect(res.status).toBe(409);
     expect(createVentureMemberInvitation).not.toHaveBeenCalled();
-    expect(sendVentureMemberInvitationEmail).not.toHaveBeenCalled();
+    expect(sendVentureFounderInvitationEmail).not.toHaveBeenCalled();
   });
 
   it("requires a valid email address", async () => {
@@ -183,7 +187,7 @@ describe("POST /api/ventures/[id]/members", () => {
   });
 
   it("still succeeds when the transport rejects, recording the invitation as not delivered", async () => {
-    sendVentureMemberInvitationEmail.mockRejectedValueOnce(new Error("transport down"));
+    sendVentureFounderInvitationEmail.mockRejectedValueOnce(new Error("transport down"));
 
     const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
 
@@ -198,7 +202,7 @@ describe("POST /api/ventures/[id]/members", () => {
   });
 
   it("reports a transport refusal as not delivered", async () => {
-    sendVentureMemberInvitationEmail.mockResolvedValueOnce({ success: false, error: "no provider configured" });
+    sendVentureFounderInvitationEmail.mockResolvedValueOnce({ success: false, error: "no provider configured" });
 
     const res = await POST(jsonReq({ email: "guest@outside.io" }), ctx);
 
@@ -232,7 +236,7 @@ describe("POST /api/ventures/[id]/members", () => {
       contact_has_account: true,
     });
 
-    await POST(jsonReq({ email: "member@venture.io", member_type: "team_member" }), ctx);
+    await POST(jsonReq({ email: "member@venture.io", member_type: "founder" }), ctx);
 
     expect(createLinkedNotification).toHaveBeenCalledWith(
       "USR_MEMBER",

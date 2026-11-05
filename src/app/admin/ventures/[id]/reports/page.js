@@ -1,14 +1,24 @@
 "use client";
 
 import React, { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import {
-  ArrowLeft, Loader2, Download,
+  Loader2, Download,
   BarChart3, RefreshCw, TrendingUp, Users, Target, Activity, Route,
+  Wallet, HeartHandshake, ShieldAlert, ClipboardCheck,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { stageStatusWord, statusLabel, statusChipClass } from "@/lib/ventureStatuses";
+import { useReportsBusiness } from "@/components/admin/ventures/reports/useReportsBusiness";
+import { complianceFrom } from "@/components/admin/ventures/reports/analysisModel";
+import BusinessSnapshot from "@/components/admin/ventures/reports/BusinessSnapshot";
+import VerdictPanel from "@/components/admin/ventures/reports/VerdictPanel";
+import RiskPanel from "@/components/admin/ventures/reports/RiskPanel";
+import FundingPanel from "@/components/admin/ventures/reports/FundingPanel";
+import ImpactPanel from "@/components/admin/ventures/reports/ImpactPanel";
+import ReportingPanel from "@/components/admin/ventures/reports/ReportingPanel";
+import ExecutionOutcomeChart from "@/components/admin/ventures/reports/ExecutionOutcomeChart";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -33,7 +43,6 @@ const pickJourneyReport = (payload) => ({
 
 export default function VentureReportsPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -84,6 +93,21 @@ export default function VentureReportsPage() {
   const journeyReport = journeyPayload.report;
   const jrError = journeyPayload.failed;
 
+  // The business reads: the calculated dashboard, funding readiness, the locked
+  // baseline, the filing record and the execution timeline. Every one of these
+  // endpoints already existed — the page simply never asked.
+  const {
+    dashboard: business,
+    readiness,
+    baseline,
+    reports: monthlyReports,
+    timeline,
+    refreshBusiness,
+  } = useReportsBusiness(id);
+
+  const compliance = complianceFrom(monthlyReports);
+  const dataRoom = readiness?.data_room_readiness || null;
+
   const loading =
     ventureLoading || dataLoading || milestonesLoading || tasksLoading || teamLoading;
 
@@ -96,6 +120,7 @@ export default function VentureReportsPage() {
     refreshTasks();
     refreshTeam();
     refreshJourneyReport();
+    refreshBusiness();
   };
 
   const handleExport = async (format) => {
@@ -123,7 +148,7 @@ export default function VentureReportsPage() {
 
   const progressBar = (pct) => (
     <div className="w-full bg-tertiary rounded-full h-2 overflow-hidden">
-      <div className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 40 ? "bg-amber-500" : "bg-[var(--brand-orange)]"}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+      <div className={`h-full rounded-full bg-[var(--progress-fill)]`} style={{ width: `${Math.min(pct, 100)}%` }} />
     </div>
   );
 
@@ -148,10 +173,6 @@ export default function VentureReportsPage() {
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <button onClick={() => router.push(`/admin/ventures/${id}`)}
-              className="flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--text-primary)] transition-all mb-2">
-              <ArrowLeft className="w-3 h-3" /> Back to Dashboard
-            </button>
             <h1 className="text-2xl font-black text-[var(--text-primary)] flex items-center gap-3">
               <BarChart3 className="w-6 h-6 text-[var(--brand-orange)]" /> Reports & Analytics
             </h1>
@@ -171,11 +192,16 @@ export default function VentureReportsPage() {
         <div className="flex gap-1 border-b border-[var(--border-primary)]">
           {[
             { id: "overview", label: "Overview", icon: BarChart3 },
+            { id: "business", label: t("vadmin.reports.tabBusiness"), icon: TrendingUp },
             { id: "kpis", label: "KPIs", icon: TrendingUp },
             { id: "milestones", label: "Milestones", icon: Target },
             { id: "tasks", label: "Tasks", icon: Activity },
             { id: "team", label: "Productivity", icon: Users },
             { id: "journey", label: t("vadmin.reports.tabJourney"), icon: Route },
+            { id: "funding", label: t("vadmin.reports.tabFunding"), icon: Wallet },
+            { id: "impact", label: t("vadmin.reports.tabImpact"), icon: HeartHandshake },
+            { id: "risk", label: t("vadmin.reports.tabRisk"), icon: ShieldAlert },
+            { id: "reporting", label: t("vadmin.reports.tabReporting"), icon: ClipboardCheck },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -242,6 +268,9 @@ export default function VentureReportsPage() {
                 </div>
               </div>
             )}
+
+            {/* 7. Work vs outcome — the two halves of this page, read together. */}
+            <ExecutionOutcomeChart dashboard={business} timeline={timeline} />
           </div>
         )}
 
@@ -370,7 +399,7 @@ export default function VentureReportsPage() {
                       <div key={index} className="flex items-center gap-2 mb-1">
                         <span className="text-[10px] font-bold text-[var(--text-secondary)] w-24 truncate">{teamMember.name}</span>
                         <div className="flex-1 bg-tertiary rounded-full h-3 overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="h-full bg-[var(--progress-fill)] rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                         <span className="text-[10px] text-[var(--text-secondary)] w-8 text-right">{teamMember.total_tasks}</span>
                       </div>
@@ -380,6 +409,34 @@ export default function VentureReportsPage() {
               </div>
             )}
           </div>
+        )}
+
+        {/* Business Tab — the twelve figures, the trajectory and the verdict. */}
+        {activeTab === "business" && (
+          <BusinessSnapshot dashboard={business} baseline={baseline} />
+        )}
+
+        {/* Funding Tab — can this Venture take money, and how much does it need. */}
+        {activeTab === "funding" && (
+          <FundingPanel dashboard={business} readiness={readiness} baseline={baseline} />
+        )}
+
+        {/* Impact Tab — what changed against the locked baseline. */}
+        {activeTab === "impact" && (
+          <ImpactPanel dashboard={business} baseline={baseline} />
+        )}
+
+        {/* Risk & verdict — the thresholds, then what they mean in a sentence. */}
+        {activeTab === "risk" && (
+          <div className="space-y-5">
+            <VerdictPanel dashboard={business} />
+            <RiskPanel dashboard={business} compliance={compliance} dataRoom={dataRoom} />
+          </div>
+        )}
+
+        {/* Reporting Tab — the months filed, and the ones missing. */}
+        {activeTab === "reporting" && (
+          <ReportingPanel reports={monthlyReports} />
         )}
 
         {/* Journey Progression Tab */}

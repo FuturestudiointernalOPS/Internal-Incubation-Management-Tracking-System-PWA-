@@ -15,17 +15,24 @@ const myProjectsNode = { id: "my_projects", name: "MY PROJECTS", icon: "briefcas
 export const MASTER_NAVIGATION = [
   { id: "dashboard", name: "DASHBOARD", icon: "layoutDashboard", href: "/admin" },
 
-  // CRM — people data only (communication is its own section)
+  // CRM — people data and the records layer (communication is its own section)
   {
     id: "crm",
     name: "CRM",
     icon: "users",
     children: [
-      { id: "crm_dashboard", name: "DASHBOARD", icon: "users", href: "/admin/crm" },
-      { id: "all_contacts", name: "PEOPLE", href: "/admin/communications/contacts" },
-      { id: "crm_membership", name: "MEMBERSHIP", href: "/admin/crm/membership" },
-      { id: "crm_timeline", name: "TIMELINE", href: "/admin/crm/timeline" },
-      { id: "crm_duplicates", name: "DUPLICATES", href: "/admin/crm/duplicates" },
+      { id: "crm_dashboard", name: "DASHBOARD", icon: "users", href: "/crm" },
+      { id: "all_contacts", name: "PEOPLE", href: "/crm/contacts" },
+      { id: "crm_organizations", name: "ORGANIZATIONS", icon: "building", href: "/crm/organizations" },
+      { id: "crm_leads", name: "LEADS", icon: "target", href: "/crm/leads" },
+      { id: "crm_opportunities", name: "OPPORTUNITIES", icon: "trendingUp", href: "/crm/opportunities" },
+      { id: "crm_pipelines", name: "PIPELINES", icon: "gitBranch", href: "/crm/pipelines" },
+      { id: "crm_activities", name: "ACTIVITIES", icon: "activity", href: "/crm/activities" },
+      { id: "crm_segments", name: "SEGMENTS", icon: "filter", href: "/crm/segments" },
+      { id: "crm_automations", name: "AUTOMATIONS", icon: "zap", href: "/crm/automations" },
+      { id: "crm_timeline", name: "TIMELINE", href: "/crm/timeline" },
+      { id: "crm_membership", name: "MEMBERSHIP", href: "/crm/membership" },
+      { id: "crm_duplicates", name: "DUPLICATES", href: "/crm/duplicates" },
       { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
       { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
     ],
@@ -128,26 +135,19 @@ export const MASTER_NAVIGATION = [
     ],
   },
 
-  // Security & compliance
-  {
-    id: "security",
-    name: "SECURITY",
-    icon: "shieldCheck",
-    children: [
-      { id: "security", name: "SECURITY", href: "/admin/security" },
-      { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
-      { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
-      { id: "permissions", name: "PERMISSIONS", href: "/admin/security/permissions" },
-    ],
-  },
-
-  // System configuration
+  // System configuration — settings, plus security & compliance: the security
+  // pages (security overview, audit logs, user access, permissions) live UNDER
+  // Settings rather than as a section of their own.
   {
     id: "settings",
     name: "SETTINGS",
     icon: "wrench",
     children: [
       { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
+      { id: "security", name: "SECURITY", href: "/admin/security" },
+      { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
+      { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+      { id: "permissions", name: "PERMISSIONS", href: "/admin/security/permissions" },
     ],
   },
 

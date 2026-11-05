@@ -23,6 +23,46 @@ import AppModal from "@/components/ui/AppModal";
 const EMPTY_LIST = [];
 const EMPTY_NOTES_PANEL = { notes: [], canPost: false };
 
+/**
+ * Session memos AND coach feedback. Both are written on a session and both are
+ * read here — the memo is the brief on the session row, the feedback is what the
+ * coach appends from the Sessions tab. Before this, the feedback was written in
+ * one place and readable in none.
+ */
+const pickSessionMemos = (payload) =>
+  (payload?.sessions || payload?.coaching_sessions || [])
+    .filter((session) => session.status !== "cancelled")
+    .flatMap((session) => {
+      const rows = [];
+      if (session.description && String(session.description).trim()) {
+        rows.push({
+          id: `session-${session.id}`,
+          title: session.title || "Session",
+          body: session.description,
+          created_at: session.start_time || session.created_at || null,
+          author_name: session.coach_name || null,
+          scope_ref_type: "milestone",
+          scope_ref_id: session.milestone_ref || null,
+          isSessionMemo: true,
+        });
+      }
+      for (const note of session.notes || []) {
+        if (!note?.content || !String(note.content).trim()) continue;
+        rows.push({
+          id: `session-feedback-${note.id}`,
+          title: session.title || "Session",
+          body: note.content,
+          created_at: note.created_at || session.start_time || null,
+          author_name: note.author_name || null,
+          scope_ref_type: "milestone",
+          scope_ref_id: session.milestone_ref || null,
+          isSessionMemo: true,
+          isCoachFeedback: true,
+        });
+      }
+      return rows;
+    });
+
 const pickNotes = (payload) =>
   payload?.success ? { notes: payload.notes || [], canPost: Boolean(payload.can_post) } : EMPTY_NOTES_PANEL;
 
@@ -47,6 +87,9 @@ export default function VentureNotesPanel({ ventureId }) {
   const [openNote, setOpenNote] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [toast, setToast] = useState(null);
+  // Each kind of work keeps its own notes: the Sessions list never carries a
+  // milestone's notes, and the Milestones list never carries a session's memo.
+  const [section, setSection] = useState("milestones");
 
   // The notes and the milestone choices are two separate addresses, and both are
   // read through the shared hook so the panel keeps no copy of its own.
@@ -59,8 +102,31 @@ export default function VentureNotesPanel({ ventureId }) {
     { defaultValue: EMPTY_LIST, transform: pickMilestones, deps: [ventureId] },
   );
 
-  const notes = notesRead.notes;
+  const { data: sessionMemos } = useApi(
+    ventureId ? `/api/ventures/${ventureId}/sessions` : null,
+    { defaultValue: EMPTY_LIST, transform: pickSessionMemos, deps: [ventureId] },
+  );
+
+  const byNewest = (left, right) => new Date(right.created_at || 0).getTime() - new Date(left.created_at || 0).getTime();
+  // Three written records, three names. An activity report and a milestone note
+  // are both internal notes (the server allows no other scope), so `note_kind`
+  // is what separates them; rows written before that column existed are
+  // milestone notes, which is what they were.
+  const sections = {
+    milestones: [...notesRead.notes].filter((note) => note.note_kind !== "activity").sort(byNewest),
+    activity: [...notesRead.notes].filter((note) => note.note_kind === "activity").sort(byNewest),
+    sessions: [...sessionMemos].sort(byNewest),
+  };
+  const notes = sections[section];
   const canPost = notesRead.canPost;
+  // One line under the tabs, saying what THIS tab holds — the labels alone do not
+  // explain that an activity report is still filed on the milestone.
+  const hintKey =
+    section === "sessions"
+      ? "venture.notesPanel.sessionsHint"
+      : section === "activity"
+        ? "venture.notesPanel.activityHint"
+        : "venture.notesPanel.hint";
   // The notes are what the panel waits for; the milestone choices arrive with
   // them, and waiting for both keeps the composer from reporting "no milestones"
   // in the moment before they land.
@@ -141,7 +207,7 @@ export default function VentureNotesPanel({ ventureId }) {
         <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
           <StickyNote className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("venture.notesPanel.title", { n: notes.length })}
         </h3>
-        {canPost && (
+        {canPost && section === "milestones" && (
           <button
             onClick={() => setShowComposer(!showComposer)}
             className="text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg bg-[var(--brand-orange)] text-black flex items-center gap-1.5"
@@ -152,9 +218,22 @@ export default function VentureNotesPanel({ ventureId }) {
         )}
       </div>
 
-      <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t("venture.notesPanel.hint")}</p>
+      <div className="flex items-center gap-2 mb-3">
+        {["milestones", "activity", "sessions"].map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => { setSection(key); setShowComposer(false); }}
+            className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${section === key ? "bg-[var(--brand-orange)] text-black border-transparent" : "border-[var(--border-primary)] text-slate-500"}`}
+          >
+            {t(`venture.notesPanel.section.${key}`)} ({sections[key].length})
+          </button>
+        ))}
+      </div>
 
-      {showComposer && (
+      <p className="text-[10px] text-slate-400 mb-3 -mt-1">{t(hintKey)}</p>
+
+      {showComposer && section === "milestones" && (
         <form onSubmit={submit} className="mb-4 p-4 rounded-xl border border-[var(--border-primary)] bg-tertiary space-y-3">
           <input
             value={form.title}
@@ -212,6 +291,12 @@ export default function VentureNotesPanel({ ventureId }) {
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-bold text-[var(--text-primary)] truncate">{note.title}</p>
                 <div className="flex items-center gap-2 shrink-0">
+                  {note.isSessionMemo && (
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">{t("venture.quickNote.memo")}</span>
+                  )}
+                  {note.isCoachFeedback && (
+                    <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">{t("venture.notesPanel.coachFeedback")}</span>
+                  )}
                   {scopeLabel(note) && (
                     <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 truncate max-w-[160px]">{scopeLabel(note)}</span>
                   )}
@@ -236,13 +321,13 @@ export default function VentureNotesPanel({ ventureId }) {
                 <h2 className="text-sm font-black text-[var(--text-primary)]">{openNote.title}</h2>
               </div>
               <div className="flex items-center gap-2">
-                <button
+                {!openNote.isSessionMemo && <button
                   onClick={() => setConfirmDelete(openNote)}
                   className="text-xs px-2 py-1 rounded flex items-center gap-1 text-rose-400 border border-rose-500/30 hover:bg-rose-500/10"
                   title={t("venture.notesPanel.delete")}
                 >
                   <Trash2 className="w-3 h-3" /> {t("venture.notesPanel.delete")}
-                </button>
+                </button>}
                 <button onClick={() => setOpenNote(null)} style={{ color: "var(--text-secondary)" }}><X size={18} /></button>
               </div>
             </div>

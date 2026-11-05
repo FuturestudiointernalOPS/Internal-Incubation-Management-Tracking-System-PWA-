@@ -144,6 +144,9 @@
       "fullNamePlaceholder": "Full Name",
       "emailPlaceholder": "Email Address",
       "phonePlaceholder": "Phone (optional)",
+      "whatsappConsent": "I agree to receive promotional offers and exclusives from ImpactOS on my WhatsApp number.",
+      "whatsappConsentHint": "Optional. You can change this at any time in your profile.",
+      "whatsappConsentNeedsPhone": "Add a valid phone number to enable this option.",
       "createPasswordPlaceholder": "Create Password",
       "completeRegistration": "Complete Registration"
     },
@@ -267,6 +270,8 @@
       "emailPlaceholder": "name@domain.com",
       "phone": "Phone Number",
       "phonePlaceholder": "+234...",
+      "whatsappConsent": "I agree to receive promotional offers and exclusives from ImpactOS on my WhatsApp number.",
+      "whatsappConsentHint": "Optional. You can change this at any time in your profile.",
       "gender": "Gender",
       "genderMale": "MALE",
       "genderFemale": "FEMALE",

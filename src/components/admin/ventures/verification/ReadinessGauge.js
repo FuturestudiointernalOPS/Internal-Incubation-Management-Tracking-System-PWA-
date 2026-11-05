@@ -36,7 +36,7 @@ export default function ReadinessGauge({ readiness, t }) {
         <div className="flex-1 min-w-[200px]">
           <div className="h-2.5 rounded-full bg-surface-3 overflow-hidden">
             <div
-              className="h-full rounded-full bg-[var(--brand-orange)] transition-all"
+              className="h-full rounded-full bg-[var(--progress-fill)] transition-all"
               style={{ width: `${Math.min(100, readiness.readiness_percent ?? 0)}%` }}
             />
           </div>

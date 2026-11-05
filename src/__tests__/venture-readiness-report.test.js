@@ -33,16 +33,16 @@ const mockDb = {
       return { rows: [
         { venture_id: VENTURE_DB_ID, category: "company_overview", level: "required" },
         { venture_id: VENTURE_DB_ID, category: "legal_corporate", level: "required" },
-        { venture_id: VENTURE_DB_ID, category: "financial", level: "required" },
-        { venture_id: VENTURE_DB_ID, category: "pitch_materials", level: "required" },
-        { venture_id: VENTURE_DB_ID, category: "team", level: "recommended" },
+        { venture_id: VENTURE_DB_ID, category: "financials_projections", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "pitch_deck_business_plan", level: "required" },
+        { venture_id: VENTURE_DB_ID, category: "impact_sustainability", level: "recommended" },
       ] };
     }
     if (sql.includes("FROM venture_documents d")) {
       return { rows: [
         { venture_id: VENTURE_DB_ID, category: "company_overview", status: "verified" },
         { venture_id: VENTURE_DB_ID, category: "legal_corporate", status: "verified" },
-        { venture_id: VENTURE_DB_ID, category: "financial", status: "uploaded" },
+        { venture_id: VENTURE_DB_ID, category: "financials_projections", status: "uploaded" },
         // A legacy Data Bank row: not a Data Room category, so it must not
         // count towards a requirement — but it is still a stored document.
         { venture_id: VENTURE_DB_ID, category: "business_plan", status: "verified" },
@@ -55,8 +55,13 @@ const mockDb = {
     if (sql.startsWith("SELECT status FROM venture_milestones")) {
       return { rows: [{ status: "completed" }, { status: "completed" }, { status: "not_started" }] };
     }
-    if (sql.startsWith("SELECT status FROM venture_tasks")) {
-      return { rows: [{ status: "done" }, { status: "accepted" }, { status: "backlog" }, { status: "in_progress" }] };
+    if (sql.startsWith("SELECT id, status FROM venture_tasks")) {
+      return { rows: [
+        { id: 1, status: "done" },
+        { id: 2, status: "accepted" },
+        { id: 3, status: "backlog" },
+        { id: 4, status: "in_progress" },
+      ] };
     }
     if (sql.includes("SELECT s.status, s.review_decision")) {
       return { rows: [
@@ -102,7 +107,7 @@ const mockDb = {
     }
     if (sql.includes("FROM venture_staff_assignments")) {
       return { rows: [
-        { responsibility_code: "lead_manager", staff_contact_id: "u1", scope_type: "venture_wide" },
+        { responsibility_code: "venture_manager", staff_contact_id: "u1", scope_type: "venture_wide" },
         { responsibility_code: "facilitator", staff_contact_id: "u2", scope_type: "venture_wide" },
       ] };
     }
@@ -167,7 +172,7 @@ describe("GET /api/ventures/[id]/investment-readiness — two indicators", () =>
     const roadmapReadiness = data.roadmap_readiness;
     expect(roadmapReadiness.counts.journeys).toEqual({ total: 3, completed: 1 });
     expect(roadmapReadiness.counts.milestones).toEqual({ total: 3, completed: 2 });
-    expect(roadmapReadiness.counts.tasks).toEqual({ total: 4, completed: 2 });
+    expect(roadmapReadiness.counts.tasks).toEqual({ total: 4, completed: 2, linked: 0 });
     expect(roadmapReadiness.counts.deliverables).toEqual({ reviewed: 3, approved: 2, outstanding: 1 });
     expect(roadmapReadiness.components.journeys).toBe(33);
     expect(roadmapReadiness.components.milestones).toBe(67);
@@ -196,7 +201,9 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
     const data = await readJson(res);
     const journeyReport = data.journey_report;
 
-    expect(journeyReport.journey_progression).toEqual({ total: 2, completed: 1, progress_pct: 50 });
+    // Percentages come from the roadmap engine (the same figure the dashboard and
+    // Investment Readiness show); the counts stay the report's own strict ones.
+    expect(journeyReport.journey_progression).toEqual({ total: 2, completed: 1, progress_pct: 33 }); // 1 of the roadmap's 3 stages
 
     // Stage grouping: s1 has 2/2 milestones complete, s2 has 0/1.
     const firstStage = journeyReport.stages.find((stage) => stage.id === "s1");
@@ -206,7 +213,7 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
 
     expect(journeyReport.milestones_by_status).toEqual({ completed: 2, in_progress: 1 });
     expect(journeyReport.tasks_by_status).toEqual({ in_progress: 1, cancelled: 1, done: 1, review: 1, backlog: 1 });
-    expect(journeyReport.task_completion).toEqual({ total: 5, completed: 1, progress_pct: 20 });
+    expect(journeyReport.task_completion).toEqual({ total: 4, completed: 2, progress_pct: 50 }); // the roadmap's 2 of 4 tasks
 
     // Overdue = open statuses only (cancelled/done excluded, null due excluded).
     expect(journeyReport.overdue.length).toBe(2);
@@ -218,7 +225,7 @@ describe("GET /api/ventures/[id]/journey-report — operating report", () => {
     expect(journeyReport.sessions.venture_facing_scheduled).toBe(1);
     expect(journeyReport.support).toEqual({
       assignments: 2,
-      responsibilities: ["lead_manager", "facilitator"],
+      responsibilities: ["venture_manager", "facilitator"],
     });
   });
 

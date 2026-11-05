@@ -42,6 +42,12 @@ function foldLine(line) {
 
 const icsLine = (name, value) => foldLine(`${name}:${value ?? ""}`);
 
+/** `YYYYMMDD` → the next day, `YYYYMMDD` (an all-day DTEND is exclusive). */
+function toIcsDateNextDay(ymd) {
+  const date = new Date(Date.UTC(+ymd.slice(0, 4), +ymd.slice(4, 6) - 1, +ymd.slice(6, 8) + 1));
+  return date.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
 /**
  * Build a complete single-event VCALENDAR.
  *
@@ -58,21 +64,25 @@ const icsLine = (name, value) => foldLine(`${name}:${value ?? ""}`);
  * @returns {string|null} the .ics content, or null when a date is unusable
  */
 export function buildIcsEvent(event) {
-  const start = toIcsInstant(event?.startIso);
-  const end = toIcsInstant(event?.endIso || event?.startIso);
+  const allDay = /^\d{4}-\d{2}-\d{2}$/.test(String(event?.allDayDate || ""));
+  const start = allDay ? String(event.allDayDate).replace(/-/g, "") : toIcsInstant(event?.startIso);
+  const end = allDay ? start : toIcsInstant(event?.endIso || event?.startIso);
   if (!start || !end) return null;
+  // A REQUEST naming the recipient is what lets Gmail drop the event into the
+  // calendar by itself; PUBLISH only offers it.
+  const method = event.attendeeEmail ? "REQUEST" : "PUBLISH";
 
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
     "PRODID:-//ImpactOS//Venture Session//EN",
     "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+    `METHOD:${method}`,
     "BEGIN:VEVENT",
     icsLine("UID", event.uid || `event-${start}@impactos`),
     icsLine("DTSTAMP", toIcsInstant(new Date())),
-    icsLine("DTSTART", start),
-    icsLine("DTEND", end),
+    allDay ? icsLine("DTSTART;VALUE=DATE", start) : icsLine("DTSTART", start),
+    allDay ? icsLine("DTEND;VALUE=DATE", toIcsDateNextDay(start)) : icsLine("DTEND", end),
     icsLine("SUMMARY", escapeIcsText(event.title || "Session")),
   ];
   if (event.description) lines.push(icsLine("DESCRIPTION", escapeIcsText(event.description)));
@@ -81,6 +91,18 @@ export function buildIcsEvent(event) {
   if (event.organizerEmail) {
     const cn = event.organizerName ? `;CN=${escapeIcsText(event.organizerName)}` : "";
     lines.push(foldLine(`ORGANIZER${cn}:mailto:${event.organizerEmail}`));
+  }
+  if (event.attendeeEmail) {
+    lines.push(foldLine(`ATTENDEE;CUTYPE=INDIVIDUAL;PARTSTAT=NEEDS-ACTION;RSVP=FALSE:mailto:${event.attendeeEmail}`));
+  }
+  if (event.alarmDaysBefore > 0) {
+    lines.push(
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      icsLine("DESCRIPTION", escapeIcsText(event.title || "Reminder")),
+      `TRIGGER:-P${Math.floor(event.alarmDaysBefore)}D`,
+      "END:VALARM",
+    );
   }
   lines.push("END:VEVENT", "END:VCALENDAR");
   return `${lines.join("\r\n")}\r\n`;
@@ -92,8 +114,10 @@ export function buildIcsEvent(event) {
  * session in one tap — and it works even when the transport drops attachments.
  */
 export function buildGoogleCalendarUrl(event) {
-  const start = toIcsInstant(event?.startIso);
-  const end = toIcsInstant(event?.endIso || event?.startIso);
+  const allDay = /^\d{4}-\d{2}-\d{2}$/.test(String(event?.allDayDate || ""));
+  const day = allDay ? String(event.allDayDate).replace(/-/g, "") : null;
+  const start = allDay ? day : toIcsInstant(event?.startIso);
+  const end = allDay ? toIcsDateNextDay(day) : toIcsInstant(event?.endIso || event?.startIso);
   if (!start || !end) return null;
   const params = new URLSearchParams({
     action: "TEMPLATE",

@@ -43,7 +43,7 @@ export async function POST(req, { params }) {
 
     // The invitee's responsibility is a PRIVILEGE boundary: this endpoint invites
     // a Coach / Facilitator, not a co-Lead-Manager. The code used to come from the
-    // body, so a plan-manage holder could mint a `lead_manager`.
+    // body, so a plan-manage holder could mint a `venture_manager`.
     const COACH_INVITE_RESPONSIBILITIES = new Set(["coach", "facilitator"]);
     const requestedResponsibility = String(body.responsibility_code || "").trim();
     const responsibilityCode = COACH_INVITE_RESPONSIBILITIES.has(requestedResponsibility)

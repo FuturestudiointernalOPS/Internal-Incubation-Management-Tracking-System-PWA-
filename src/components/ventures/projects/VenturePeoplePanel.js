@@ -10,6 +10,7 @@ import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import SectionHead from "@/components/ui/SectionHead";
 import IdentifyPersonModal from "./IdentifyPersonModal";
+import { useAssigneeEmail } from "./useAssigneeEmail";
 
 /**
  * THE PEOPLE this Venture's work stands on.
@@ -37,6 +38,7 @@ export default function VenturePeoplePanel({ ventureId }) {
     { deps: [ventureId], defaultValue: null },
   );
 
+  const { addEmail, savingName } = useAssigneeEmail(ventureId);
   const [picking, setPicking] = useState(null);
   const [forgetting, setForgetting] = useState(null);
 
@@ -127,9 +129,20 @@ export default function VenturePeoplePanel({ ventureId }) {
             )}
           </div>
         ) : (
-          <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
-            <AlertTriangle className="w-3 h-3" />
-            {t(`venture.reminders.reason.${person.reason}`)}
+          <span className="flex flex-col items-start gap-1">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400">
+              <AlertTriangle className="w-3 h-3" />
+              {t(`venture.reminders.reason.${person.reason}`)}
+            </span>
+            {/* An address typed against the NAME: no account, no access. */}
+            <button
+              type="button"
+              disabled={savingName === person.name}
+              onClick={() => addEmail(person.name, { onDone: refresh })}
+              className="text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)] hover:underline disabled:opacity-50"
+            >
+              {t("vadmin.dashboard.collaborators.addEmail")}
+            </button>
           </span>
         ),
     },

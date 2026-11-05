@@ -4,7 +4,7 @@
  *
  * THE SINGLE READINESS ENGINE IS THE DATA ROOM'S. `computeDataRoomCompleteness`
  * already decides what "filed and verified" means: only `required` categories
- * count, `verified` earns 1, `rejected` earns 0.5, and a Venture with nothing
+ * count, only `verified` earns a point, and a Venture with nothing
  * required is INDETERMINATE (`null`) rather than 0% or 100%.
  *
  * This module adds no rule of its own. It exists for one reason: the admin
@@ -19,7 +19,7 @@
  * detail page agree the first time either is opened.
  */
 
-import { defaultRequirements } from "@/lib/dataRoom";
+import { defaultRequirements, isDataRoomCategory } from "@/lib/dataRoom";
 import {
   selectDataRoomDocumentStatusesForVentures,
   selectDataRoomRequirementsForVentures,
@@ -98,8 +98,12 @@ export async function listDataRoomReadiness(ventureRefs = []) {
     if (stage === undefined) return unknownRow(ventureId); // venture not readable
 
     // Stored levels win; otherwise the per-stage defaults, exactly as the
-    // per-Venture seeding would have produced them.
-    const stored = requirementsByVenture.get(key) || [];
+    // per-Venture seeding would have produced them. A RETIRED category (see
+    // `isDataRoomCategory`) is dropped: its stored row may still exist, but it
+    // must not count towards a denominator the Data Room no longer shows.
+    const stored = (requirementsByVenture.get(key) || []).filter((row) =>
+      isDataRoomCategory(row.category),
+    );
     const requirements = stored.length > 0
       ? stored.map((row) => ({ category: row.category, level: row.level }))
       : defaultRequirements(stage);
@@ -135,4 +139,71 @@ export async function getDataRoomReadiness(ventureRef) {
   if (!ventureRef) return null;
   const rows = await listDataRoomReadiness([ventureRef]);
   return rows[0] || null;
+}
+
+/**
+ * The evidence behind the Venture's score, in one answer: for every REQUIRED
+ * Data Room category, where it stands and which documents sit in it.
+ *
+ * Same rule as everywhere else (`computeDataRoomCompleteness`): only required
+ * categories count, and only `verified` earns a point (1), anything else 0.
+ * What this adds is the LIST — so the score can show its working:
+ *   - `verified`           counted in the percentage now
+ *   - `awaiting`           filed but not validated yet; will count once approved
+ *   - `rejected`           filed and refused (earns nothing until re-filed and approved)
+ *   - `missing`/`expired`  nothing usable on file
+ *
+ * A Venture with nothing required answers `percent: null` (not measurable —
+ * never 0% and never 100%). A failed read answers `null`.
+ */
+export async function getRequiredEvidence(ventureRef) {
+  if (!ventureRef) return null;
+  const ids = await resolveVentureInternalIds([ventureRef]);
+  const ventureId = ids?.[0];
+  if (!ventureId) return null;
+
+  const [stagesResult, requirementsResult, documentsResult] = await Promise.all([
+    selectVentureStagesForVentures([ventureId]).catch(readFailure("stages")),
+    selectDataRoomRequirementsForVentures([ventureId]).catch(readFailure("requirements")),
+    selectDataRoomDocumentStatusesForVentures([ventureId]).catch(readFailure("documents")),
+  ]);
+  const stage = stagesResult.rows?.[0]?.business_stage;
+  if (stage === undefined) return null;
+
+  const stored = (requirementsResult.rows || []).filter((row) => isDataRoomCategory(row.category));
+  const requirements = stored.length > 0
+    ? stored.map((row) => ({ category: row.category, level: row.level }))
+    : defaultRequirements(stage);
+  const documents = documentsResult.rows || [];
+  const completeness = computeDataRoomCompleteness(requirements, documents);
+
+  const awaitingStatuses = ["pending", "under_review", "uploaded"];
+  const items = (completeness.requirements || [])
+    .filter((row) => row.level === "required")
+    .map((row) => {
+      const status = awaitingStatuses.includes(row.status) ? "awaiting" : row.status;
+      return {
+        category: row.category,
+        status,
+        points: status === "verified" ? 1 : 0,
+        documents: documents
+          .filter((documentEntry) => documentEntry.category === row.category)
+          .map((documentEntry) => ({
+            id: documentEntry.id,
+            title: documentEntry.title || null,
+            status: awaitingStatuses.includes(documentEntry.status) ? "awaiting" : documentEntry.status,
+          })),
+      };
+    });
+
+  const count = (status) => items.filter((item) => item.status === status).length;
+  return {
+    percent: completeness.readiness_percent,
+    required_total: completeness.required_total,
+    verified_count: count("verified"),
+    awaiting_count: count("awaiting"),
+    rejected_count: count("rejected"),
+    missing_count: count("missing") + count("expired"),
+    items,
+  };
 }

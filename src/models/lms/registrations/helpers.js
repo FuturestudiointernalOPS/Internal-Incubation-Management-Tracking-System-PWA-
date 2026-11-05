@@ -11,7 +11,7 @@ import crypto from "crypto";
 export const REGISTRATION_SELECT = `SELECT id, reference, run_id, submission_id, course_id, full_name, email, phone,
                                     language, amount, provider_amount, currency, status, provider, provider_transaction_id,
                                     partner_id, access_status, access_error, email_status, user_cid,
-                                    consent_at, paid_at, failed_at, refunded_at,
+                                    consent_at, whatsapp_opt_in, paid_at, failed_at, refunded_at,
                                     resume_token_hash, resume_token_expires_at, browser_token_hash,
                                     created_at, updated_at
                              FROM lms_registrations`;

@@ -2,11 +2,11 @@
  * Integration tests for GET /api/me/relationships
  * (src/app/api/me/relationships/route.js).
  *
- * Pins the current behavior of the endpoint that drives the personal
- * sidebar: isProgramParticipant detection (participant_programs OR
- * v2_participants), venture membership listing, and the neutral-role
- * backfill trigger. db is mocked with SQL-substring matching, so the
- * Wave-3 model extraction is verified as long as SQL stays identical.
+ * Pins the ONE participation rule that drives the personal sidebar, the
+ * participant dashboard and the workspace hub: a modern membership row counts
+ * whatever its lifecycle status (a completed seat stays open, read-only), the
+ * older group/program links count when no modern row exists, and a program that
+ * no longer exists grants nothing. db is mocked with SQL-substring matching.
  */
 
 const executedQueries = [];
@@ -15,12 +15,19 @@ const executedQueries = [];
 // restore it afterwards.
 const defaultImpl = async ({ sql, args }) => {
   executedQueries.push({ sql, args });
-  if (sql.includes("FROM participant_programs WHERE participant_id = ?")) {
-    // No participant_programs row → falls through to v2_participants
-    return { rows: [] };
-  }
-  if (sql.includes("FROM v2_participants WHERE user_id = ?")) {
-    return { rows: [{ id: "p-1" }] };
+  if (sql.includes("WITH contact AS")) {
+    return {
+      rows: [
+        {
+          program_id: "P-1",
+          source: "membership",
+          status: "active",
+          program_name: "Alpha",
+          program_exists: true,
+          contact_email: "user1@example.com",
+        },
+      ],
+    };
   }
   if (sql.includes("FROM venture_members vm")) {
     return {
@@ -51,6 +58,7 @@ jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue({
     cid: "user-1",
     name: "User One",
+    email: "user1@example.com",
     role: "participant",
   }),
 }));
@@ -70,24 +78,19 @@ beforeEach(() => {
 });
 
 describe("GET /api/me/relationships", () => {
-  test("detects program participation and lists ventures", async () => {
+  test("a modern membership makes the person a participant and lists ventures", async () => {
     const res = await GET(new Request("http://localhost/api/me/relationships"));
     expect(res.status).toBe(200);
     const data = await readJson(res);
     expect(data.success).toBe(true);
     expect(data.isProgramParticipant).toBe(true);
+    expect(data.programs).toEqual([
+      expect.objectContaining({ program_id: "P-1", status: "active", completed: false, readOnly: false }),
+    ]);
     expect(data.isVentureMember).toBe(true);
     expect(data.ventures).toEqual([
       { venture_id: "VNT-1", name: "Acme", status: "active" },
     ]);
-
-    // participant_programs checked first, then v2_participants fallback
-    expect(executedQueries[0].sql).toContain(
-      "SELECT 1 FROM participant_programs WHERE participant_id = ? LIMIT 1",
-    );
-    expect(executedQueries[0].args).toEqual(["user-1"]);
-    expect(executedQueries[1].sql).toContain("FROM v2_participants");
-    expect(executedQueries[1].args).toEqual(["user-1", "user-1"]);
 
     // Ventures query scoped to the session cid (user_cid OR contact_id),
     // excludes removed memberships
@@ -105,10 +108,88 @@ describe("GET /api/me/relationships", () => {
     expect(mockBackfill).toHaveBeenCalled();
   });
 
-  test("isProgramParticipant stays false when neither table matches", async () => {
+  test("a COMPLETED seat keeps the door open, read-only", async () => {
+    const completedImpl = async ({ sql }) => {
+      if (sql.includes("WITH contact AS")) {
+        return {
+          rows: [
+            {
+              program_id: "P-1",
+              source: "membership",
+              status: "completed",
+              program_name: "Alpha",
+              program_exists: true,
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    };
+    mockExecute.mockImplementation(completedImpl);
+    try {
+      const data = await readJson(await GET(new Request("http://localhost/api/me/relationships")));
+      expect(data.isProgramParticipant).toBe(true);
+      expect(data.programs).toEqual([
+        expect.objectContaining({ program_id: "P-1", status: "completed", completed: true, readOnly: true }),
+      ]);
+    } finally {
+      mockExecute.mockImplementation(defaultImpl);
+    }
+  });
+
+  test("an older group link opens the door when no modern row exists", async () => {
+    const legacyImpl = async ({ sql, args }) => {
+      executedQueries.push({ sql, args });
+      if (sql.includes("WITH contact AS")) {
+        return {
+          rows: [
+            {
+              program_id: "P-2",
+              source: "legacy",
+              status: null,
+              program_name: "Beta",
+              program_exists: true,
+              contact_group: "Cohort A",
+            },
+          ],
+        };
+      }
+      return { rows: [] };
+    };
+    mockExecute.mockImplementation(legacyImpl);
+    try {
+      const data = await readJson(await GET(new Request("http://localhost/api/me/relationships")));
+      expect(data.isProgramParticipant).toBe(true);
+      expect(data.programs).toEqual([
+        expect.objectContaining({ program_id: "P-2", legacy: true, readOnly: false }),
+      ]);
+    } finally {
+      mockExecute.mockImplementation(defaultImpl);
+    }
+  });
+
+  test("a seat pointing at a program that no longer exists grants nothing", async () => {
+    const missingImpl = async ({ sql }) => {
+      if (sql.includes("WITH contact AS")) {
+        return {
+          rows: [{ program_id: "P-9", source: "membership", status: "active", program_exists: false }],
+        };
+      }
+      return { rows: [] };
+    };
+    mockExecute.mockImplementation(missingImpl);
+    try {
+      const data = await readJson(await GET(new Request("http://localhost/api/me/relationships")));
+      expect(data.isProgramParticipant).toBe(false);
+      expect(data.programs).toEqual([]);
+    } finally {
+      mockExecute.mockImplementation(defaultImpl);
+    }
+  });
+
+  test("isProgramParticipant stays false when nothing matches", async () => {
     const emptyImpl = async ({ sql }) => {
-      if (sql.includes("FROM participant_programs")) return { rows: [] };
-      if (sql.includes("FROM v2_participants")) return { rows: [] };
+      if (sql.includes("WITH contact AS")) return { rows: [] };
       if (sql.includes("FROM venture_members vm")) return { rows: [] };
       return { rows: [] };
     };
@@ -117,6 +198,7 @@ describe("GET /api/me/relationships", () => {
       const res = await GET(new Request("http://localhost/api/me/relationships"));
       const data = await readJson(res);
       expect(data.isProgramParticipant).toBe(false);
+      expect(data.programs).toEqual([]);
       expect(data.isVentureMember).toBe(false);
       expect(data.ventures).toEqual([]);
     } finally {
@@ -125,9 +207,8 @@ describe("GET /api/me/relationships", () => {
   });
 
   test("isFounder follows the owning/founder-typed membership", async () => {
-    const founderImpl = async ({ sql, args: _args }) => {
-      if (sql.includes("FROM participant_programs")) return { rows: [] };
-      if (sql.includes("FROM v2_participants")) return { rows: [] };
+    const founderImpl = async ({ sql }) => {
+      if (sql.includes("WITH contact AS")) return { rows: [] };
       if (sql.includes("FROM venture_members vm")) {
         return {
           rows: [
@@ -151,8 +232,7 @@ describe("GET /api/me/relationships", () => {
 
   test("a team member is a venture member but not a founder", async () => {
     const teamImpl = async ({ sql }) => {
-      if (sql.includes("FROM participant_programs")) return { rows: [] };
-      if (sql.includes("FROM v2_participants")) return { rows: [] };
+      if (sql.includes("WITH contact AS")) return { rows: [] };
       if (sql.includes("FROM venture_members vm")) {
         return {
           rows: [

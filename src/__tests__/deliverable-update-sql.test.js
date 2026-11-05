@@ -102,9 +102,9 @@ describe("a deliverable review", () => {
   test("approving completes it, naming each reviewer column once", async () => {
     await updateDeliverable(
       "dv-1",
-      { approval_status: "approved", rejection_reason: null, reviewer_cid: "USR-lead", reviewer_name: "Lead Manager" },
+      { approval_status: "approved", rejection_reason: null, reviewer_cid: "USR-lead", reviewer_name: "Venture Manager" },
       "USR-lead",
-      "Lead Manager",
+      "Venture Manager",
     );
 
     const { sql, args } = updates[0];
@@ -113,23 +113,23 @@ describe("a deliverable review", () => {
       approval_status: "approved",
       status: "completed",
       reviewer_cid: "USR-lead",
-      reviewer_name: "Lead Manager",
+      reviewer_name: "Venture Manager",
       reviewed_at: "NOW()",
     });
-    expect(reviewRows[0].args).toEqual(["dv-1", "USR-lead", "Lead Manager", "approved", null]);
+    expect(reviewRows[0].args).toEqual(["dv-1", "USR-lead", "Venture Manager", "approved", null]);
   });
 
-  test("asking for changes leaves the status alone and keeps the reason", async () => {
+  test("asking for changes takes the deliverable out of `completed` and keeps the reason", async () => {
     await updateDeliverable(
       "dv-1",
       {
         approval_status: "rejected",
         rejection_reason: "Please attach the signed version.",
         reviewer_cid: "USR-lead",
-        reviewer_name: "Lead Manager",
+        reviewer_name: "Venture Manager",
       },
       "USR-lead",
-      "Lead Manager",
+      "Venture Manager",
     );
 
     const { sql, args } = updates[0];
@@ -139,16 +139,17 @@ describe("a deliverable review", () => {
       approval_status: "rejected",
       rejection_reason: "Please attach the signed version.",
       reviewed_at: "NOW()",
+      // an earlier approval must not keep reading as approved
+      status: "changes_requested",
     });
-    expect("status" in values).toBe(false);
   });
 
   test("the reviewer falls back to whoever acted when none is named", async () => {
-    await updateDeliverable("dv-1", { approval_status: "approved" }, "USR-lead", "Lead Manager");
+    await updateDeliverable("dv-1", { approval_status: "approved" }, "USR-lead", "Venture Manager");
 
     expect(setValues(updates[0].sql, updates[0].args)).toMatchObject({
       reviewer_cid: "USR-lead",
-      reviewer_name: "Lead Manager",
+      reviewer_name: "Venture Manager",
       status: "completed",
     });
   });

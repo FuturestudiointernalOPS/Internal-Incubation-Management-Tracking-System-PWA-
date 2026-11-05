@@ -80,6 +80,14 @@ export async function getNotificationRecipientById(notificationId) {
   });
 }
 
+/** Mark all notifications for a recipient as read. */
+export async function markAllNotificationsRead(recipientId) {
+  return db.execute({
+    sql: "UPDATE v2_notifications SET is_read = 1, read_at = COALESCE(read_at, NOW()) WHERE recipient_id = ? AND is_read = 0",
+    args: [recipientId],
+  });
+}
+
 /** Mark a notification as read. */
 export async function markNotificationRead(notificationId) {
   return db.execute({
@@ -173,6 +181,14 @@ export async function createDueReminderNotification(recipientId, title, message)
 export async function getParticipantAnnouncementHistory(recipientId) {
   return db.execute({
     sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND type = 'announcement' ORDER BY created_at DESC, id DESC",
+    args: [recipientId],
+  });
+}
+
+/** Everything addressed to the recipient that is NOT an announcement (venture events, reviews, reminders…). */
+export async function getParticipantNotificationHistory(recipientId) {
+  return db.execute({
+    sql: "SELECT * FROM v2_notifications WHERE recipient_id = ? AND type <> 'announcement' ORDER BY created_at DESC, id DESC LIMIT 50",
     args: [recipientId],
   });
 }

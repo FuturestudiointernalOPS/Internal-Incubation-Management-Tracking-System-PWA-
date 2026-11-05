@@ -1,6 +1,9 @@
 {
   "navigation": {
     "dashboard": "Tableau de bord",
+    "create": "Créer",
+    "createVenture": "Créer une venture",
+    "createInvestor": "Inviter un investisseur",
     "programs": "Programmes",
     "allPrograms": "Tous les programmes",
     "createProgram": "Créer un programme",
@@ -89,6 +92,11 @@
     "crmDuplicates": "Doublons CRM",
     "crmOrganizations": "Organisations CRM",
     "crmLeads": "Pistes CRM",
+    "crmOpportunities": "Opportunités CRM",
+    "crmPipelines": "Pipelines CRM",
+    "crmActivities": "Activités CRM",
+    "crmSegments": "Segments CRM",
+    "crmAutomations": "Automatisations CRM",
     "pendingUsers": "Approbations en attente",
     "bulkUpload": "Import en masse",
     "intelligence": "Renseignement",

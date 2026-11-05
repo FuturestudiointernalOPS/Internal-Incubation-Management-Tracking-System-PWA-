@@ -43,7 +43,7 @@ const pickGlobalContacts = (payload) => (payload?.success ? payload.contacts || 
 export default function ResponsesPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const goBack = useSafeBack("/admin/crm");
+  const goBack = useSafeBack("/crm");
 
   // Both reads' loaders — cache-first paint, discarding a stale response, the
   // background refresh — belong to the hook, so the screen keeps no data state
@@ -187,7 +187,7 @@ export default function ResponsesPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToPrevious")}
           </button>
-          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToCrm")}
           </Link>
@@ -389,7 +389,7 @@ export default function ResponsesPage() {
                           placeholder={t("crm.responses.searchList")}
                           value={search}
                           onChange={(event) => setSearch(event.target.value)}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-white outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-sm text-[var(--text-primary)] outline-none focus:border-[#FF6600]/80/50 transition-colors font-bold"
                         />
                       </div>
                       <button

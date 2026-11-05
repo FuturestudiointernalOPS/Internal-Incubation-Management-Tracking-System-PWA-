@@ -38,6 +38,7 @@ import {
   hasAnyVentureAssignment,
   hasVentureCapability,
 } from "@/services/ventures/permissions";
+import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 import { resolveInvestorScope } from "@/models/authorization/investorScope";
 import { getAuthorizationContext } from "@/models/authorization/index";
 import { selectLeadManagerAssignment } from "@/models/ventureDocumentTypesStore";
@@ -51,14 +52,23 @@ import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./share
  *   super admin                     → view + manage + review
  *   venture founder / owner         → view + manage
  *   other venture member            → view (and download)
- *   assigned Lead Manager           → view + configure requirements, never manage/review
+ *   assigned Venture Manager           → view + configure requirements, never manage/review
  *   assigned staff with documents.* → view + manage (edit/upload/manage)
  *   assigned staff with review      → review
  *   investor with a live grant      → view + download, their granted subset only
  *   anyone else                     → refused (404 at the HTTP boundary)
  */
+const INTERNAL_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function resolveDataRoomViewer({ ventureId, session, database } = {}) {
   if (!session) return { allowed: false, reason: "unauthenticated" };
+
+  // A reference that names no Venture comes back from the resolver unchanged. It
+  // must never reach the queries below: against the uuid columns it raises
+  // "invalid input syntax" and the caller answers 500. Unknown is the same
+  // refusal as not-yours (404), so the route cannot be used to probe for ventures.
+  const internalId = await resolveVentureInternalId(ventureId, database).catch(() => null);
+  if (!INTERNAL_ID.test(String(internalId || ""))) return { allowed: false, reason: "not-found" };
 
   const authContext = await getAuthorizationContext(session);
   const superAdmin = Boolean(authContext?.isSuperAdmin);
@@ -81,7 +91,7 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
     assigned = await hasAnyVentureAssignment({ ventureId, contactId: cid });
   }
 
-  // A Lead Manager RUNS the Venture but does not file its documents: they
+  // A Venture Manager RUNS the Venture but does not file its documents: they
   // request the categories and review what the founder uploads. Detecting the
   // responsibility explicitly keeps that rule out of the generic document
   // capability matrix, which other staff roles still use.
@@ -104,7 +114,10 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   let canReview = false;
   if (superAdmin) {
     canReview = true;
-  } else if (assigned && !isLeadManager) {
+  } else if (assigned && isLeadManager) {
+    // The Venture Manager decides on what the founder files: approve or not.
+    canReview = true;
+  } else if (assigned) {
     canReview =
       (await canManageVerification(ventureId, session).catch(() => ({ allowed: false }))).allowed === true ||
       (cid
@@ -112,8 +125,8 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
         : false);
   }
 
-  // A Lead Manager configures WHAT must be provided, but only sees the
-  // documents themselves: no upload, no edit, no review decision.
+  // A Venture Manager configures WHAT must be provided and reviews what is filed;
+  // they still do not upload or edit the documents themselves.
   const canConfigureRequirements = canReview || (assigned && isLeadManager);
 
   if (canView) {
@@ -203,7 +216,8 @@ export async function loadDataRoomRequirements(ventureId, database) {
  * documents that do not apply to it.
  *
  * Points per required category (the highest result among its documents):
- *   verified → 1 · rejected → 0.5 · anything else / no document → 0
+ *   verified → 1 · anything else (rejected, awaiting, expired, nothing filed) → 0
+ * Only an APPROVED document counts: a refused or unreviewed one is not evidence.
  * The percentage is null when nothing is required (indeterminate, not 100%).
  */
 export function computeDataRoomCompleteness(requirements, documents) {
@@ -220,7 +234,7 @@ export function computeDataRoomCompleteness(requirements, documents) {
     return "missing";
   };
 
-  const pointsFor = (status) => (status === "verified" ? 1 : status === "rejected" ? 0.5 : 0);
+  const pointsFor = (status) => (status === "verified" ? 1 : 0);
 
   const requirementRows = (requirements || []).map((row) => {
     const status = statusFor(row.category);

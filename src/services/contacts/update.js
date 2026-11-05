@@ -27,6 +27,7 @@ import {
   markAdminNotificationsRead,
 } from "@/models/contacts/contactStore";
 import { logPermissionAudit } from "@/models/authorization/accessQueries";
+import { releaseProgramLearning } from "@/services/lms/learning";
 
 /** Roles that are not participants: promoting to one drops the enrollment. */
 const NON_PARTICIPANT_ROLES = [
@@ -167,6 +168,11 @@ export async function applyContactProgramMembership({ cid, programIds, assignedB
       console.error(`PUT program sync error for ${cid}, program ${programId}:`, error.message);
     }
   }
+
+  // The seats that just disappeared take their learning with them. The
+  // reconciliation reads the memberships that remain, so it is correct whether
+  // the list shrank or was cleared entirely.
+  await releaseProgramLearning({ cid });
 }
 
 /**

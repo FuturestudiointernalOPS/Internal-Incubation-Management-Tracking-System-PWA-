@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React from "react";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   Rocket,
   Send,
@@ -48,14 +48,6 @@ const summarizeMembers = (venture) => {
     owner: members.find((member) => member.is_owner) || null,
     members,
   };
-};
-
-const STAGE_CONFIG = {
-  idea: { label: "vadmin.detail.stageIdea", color: "text-blue-400 bg-blue-500/10", order: 1 },
-  validation: { label: "vadmin.detail.stageValidation", color: "text-purple-400 bg-purple-500/10", order: 2 },
-  early_traction: { label: "vadmin.detail.stageEarlyTraction", color: "text-amber-400 bg-amber-500/10", order: 3 },
-  growth: { label: "vadmin.detail.stageGrowth", color: "text-emerald-400 bg-emerald-500/10", order: 4 },
-  scaling: { label: "vadmin.detail.stageScaling", color: "text-[var(--brand-orange)] bg-brand-orange/10", order: 5 },
 };
 
 const ACTIVITY_ICONS = {
@@ -118,7 +110,12 @@ export default function VentureDetailPage({ params }) {
   const router = useRouter();
   const { id } = React.use(params);
   const { t, lang } = useI18n();
-  const [activeTab, setActiveTab] = useState("dashboard");
+  // The open tab lives in the address (`?tab=`): the Venture's navigation bar links
+  // to it, and a reload or a shared link lands on the same tab.
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams?.get("tab") || "dashboard";
+  const setActiveTab = (next) => router.replace(next === "dashboard" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
 
   // The Venture, through the shared hook: it owns the cache, the cache-first
   // paint and the discarding of a stale answer, so the page keeps no copy of its
@@ -127,21 +124,32 @@ export default function VentureDetailPage({ params }) {
     data: venture,
     loading,
     error: readFailure,
+    status: readStatus,
   } = useApi(id ? `/api/ventures/${id}` : null, {
     defaultValue: null,
     transform: pickVenture,
     deps: [id],
   });
 
-  // Which failure the panel below reports: a request that never got an answer is
-  // the network's, and a read that came back without a Venture is the server's.
-  const error = readFailure
-    ? t("vadmin.detail.ventureLoadError")
-    : !venture
-      ? t("vadmin.detail.ventureNotFound")
+  // Distinguish a missing Venture (404) from a load fault (network / 5xx /
+  // authz). The panel used to title every empty read "Not Found", which hid
+  // real failures behind the wrong diagnosis.
+  const notFound = !loading && !venture && (readStatus === 404 || (!readFailure && readStatus === null));
+  const error = loading
+    ? null
+    : readFailure
+      ? t("vadmin.detail.ventureLoadError")
+      : notFound
+        ? t("vadmin.detail.ventureNotFound")
+        : !venture && readStatus >= 400
+          ? t("vadmin.detail.ventureLoadError")
+          : null;
+  const errorTitle = notFound
+    ? t("vadmin.detail.ventureNotFound")
+    : error
+      ? t("vadmin.detail.ventureLoadError")
       : null;
 
-  const getStageConfig = (stage) => STAGE_CONFIG[stage] || STAGE_CONFIG.idea;
   const getActivityIcon = (action) => ACTIVITY_ICONS[action] || Activity;
   const getActivityColor = (action) => ACTIVITY_COLORS[action] || "text-slate-500 bg-slate-500/10";
 
@@ -159,9 +167,9 @@ export default function VentureDetailPage({ params }) {
     activeTab,
     actorText,
     error,
+    errorTitle,
     getActivityColor,
     getActivityIcon,
-    getStageConfig,
     id,
     lang,
     memberSummary,

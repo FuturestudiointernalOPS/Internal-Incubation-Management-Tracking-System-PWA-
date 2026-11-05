@@ -109,7 +109,7 @@ export default function MyProgramsCard({
                   </div>
                   <div className="h-1.5 w-full bg-[var(--bg-tertiary)] rounded-full overflow-hidden border border-[var(--border-primary)]">
                     <div
-                      className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full transition-all duration-500"
+                      className="h-full bg-[var(--progress-fill)] rounded-full transition-all duration-500"
                       style={{ width: `${kpiProgress}%` }}
                     />
                   </div>

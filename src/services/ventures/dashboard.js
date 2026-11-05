@@ -13,6 +13,7 @@
  * No SQL, no HTTP.
  */
 import { normalizeBusinessStage } from "@/lib/ventureStage";
+import { getRequiredEvidence } from "@/services/ventures/dataRoom/readiness";
 import { getOrCreateVerification } from "@/services/ventures/verification";
 import { listVentureMembers, summarizeVentureMembers } from "@/models/ventureMembers";
 import {
@@ -32,13 +33,6 @@ import {
   countVentureCoachingSessions,
   countVentureActiveCoachAssignments,
 } from "@/models/ventureWorkspace";
-
-/**
- * How many documents count as a full set of filing evidence for the Stage &
- * Evidence widget. Beyond this the document signal stops growing — evidence
- * should reward having filed, not having flooded.
- */
-const READINESS_DOCUMENTS_TARGET = 3;
 
 /**
  * @param {object} args
@@ -248,66 +242,63 @@ export async function buildVentureDashboard({ ventureParam, isInternalViewer }) 
     } catch { return { coaches: [], advisors: [], coaching_sessions: 0, total: 0 }; }
   })();
 
-  // ── Stage & Evidence Score (from the Venture's real verification evidence) ──
+  // ── Stage & Evidence Score ──
   //
-  // This is NOT Investment Readiness. Investment Readiness is the Data Room's
-  // completeness figure, and it is shown on the investment screen from its own
-  // engine (`services/ventures/dataRoom/readiness`). This composite is a
-  // different question — business stage plus how much evidence has been filed —
-  // so it is labelled separately wherever it appears (WS4).
+  // This is NOT Investment Readiness (the Data Room's own completeness figure,
+  // shown on the investment screen). It answers a different question — business
+  // stage plus how much of the REQUIRED evidence is in — so it is labelled
+  // separately wherever it appears.
   //
-  // This used to be weighted on `startup_profiles` completion, but no screen ever
-  // writes that table — the wizard behind it has no caller, and
-  // `startup_profile_documents` stays empty. `profileScore` was therefore always
-  // 0, the score collapsed to `round(stageScore * 0.4)`, and the widget looked
-  // frozen (an `idea` Venture read 4% forever, with two milestones that could
-  // never clear). Both inputs now come from what the Venture actually has: how
-  // much of its verification is approved, and whether it filed any document.
+  //   score = stage 40% + evidence 60%
   //
-  // `milestones` are i18n KEYS with their interpolation params — the component
-  // runs them through `t()`, so French no longer shows hardcoded English.
+  // The evidence half is the Data Room's: the categories marked REQUIRED for this
+  // Venture, each earning 1 when a document is approved (0.5 when the only
+  // document was rejected). Nothing else feeds it — not the old Data bank
+  // checklist, not a count of uploads. When nothing is marked required the
+  // evidence cannot be measured, so the score rests on the stage alone instead of
+  // pretending the Venture filed nothing.
+  //
+  // The answer carries the LIST (`evidence.items`): every required category with
+  // its documents and verdict, so the percentage can show its working, including
+  // the documents still awaiting approval that will count once they are.
+  //
+  // `next_milestones` are i18n KEYS with their params — the component runs them
+  // through `t()`.
   const investmentReadiness = (async () => {
     try {
-      const [venture, verificationData] = await Promise.all([ventureInfo, verification]);
+      const venture = await ventureInfo;
       const stage = venture?.business_stage || "idea";
       const stageScores = { idea: 10, validation: 25, early_traction: 45, growth: 65, scaling: 85 };
       // mvp scores as early_traction, scale as scaling (lib/ventureStage).
       const stageScore = stageScores[normalizeBusinessStage(stage)] || 10;
 
-      const totalCategories = verificationData?.total_count || 0;
-      const verifiedCategories = verificationData?.verified_count || 0;
-      const pendingCategories = Math.max(totalCategories - verifiedCategories, 0);
-      const verificationProgress = totalCategories > 0 ? verifiedCategories / totalCategories : 0;
-
-      const documentCount = verificationData?.document_count || 0;
-      // Filing three documents counts as a full set; beyond that the evidence
-      // stops growing, so a prolific Venture cannot farm the score.
-      const documentEvidence = Math.min(documentCount, READINESS_DOCUMENTS_TARGET) / READINESS_DOCUMENTS_TARGET;
-      const evidenceScore = Math.round((verificationProgress * 60) + (documentEvidence * 40));
-
-      const score = Math.min(Math.round((stageScore * 0.4) + (evidenceScore * 0.6)), 100);
+      const evidence = await getRequiredEvidence(dbId).catch(() => null);
+      const evidencePercent = evidence?.percent ?? null;
+      const score = evidencePercent === null
+        ? stageScore
+        : Math.min(Math.round((stageScore * 0.4) + (evidencePercent * 0.6)), 100);
 
       const nextMilestones = [];
-      if (documentCount === 0) {
-        nextMilestones.push({ key: "venture.dashboardReadiness.uploadDocuments" });
+      if (evidence?.missing_count > 0) {
+        nextMilestones.push({ key: "venture.dashboardReadiness.fileRequired", params: { count: evidence.missing_count } });
       }
-      if (pendingCategories > 0) {
-        nextMilestones.push({
-          key: "venture.dashboardReadiness.completeVerification",
-          params: { count: pendingCategories },
-        });
+      if (evidence?.awaiting_count > 0) {
+        nextMilestones.push({ key: "venture.dashboardReadiness.awaitingApproval", params: { count: evidence.awaiting_count } });
+      }
+      if (evidence?.rejected_count > 0) {
+        nextMilestones.push({ key: "venture.dashboardReadiness.refile", params: { count: evidence.rejected_count } });
       }
 
       return {
         score,
         stage,
         stage_weight: stageScore,
-        evidence_weight: evidenceScore,
-        verification_progress: Math.round(verificationProgress * 100),
-        document_count: documentCount,
+        evidence_percent: evidencePercent,
+        evidence_measurable: evidencePercent !== null,
+        evidence,
         next_milestones: nextMilestones,
       };
-    } catch { return { score: 0, stage: "unknown", next_milestones: [] }; }
+    } catch { return { score: 0, stage: "unknown", next_milestones: [], evidence: null, evidence_measurable: false }; }
   })();
 
   // ── Wait for all (with individual error handling) ──

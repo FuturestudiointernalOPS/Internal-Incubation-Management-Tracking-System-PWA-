@@ -20,7 +20,7 @@ export default function LearnerProgressBar({ percent = 0, label }) {
       >
         <div
           className="h-full rounded-full transition-all duration-300"
-          style={{ width: `${value}%`, background: "var(--brand-orange)" }}
+          style={{ width: `${value}%`, background: "var(--progress-fill)" }}
         />
       </div>
     </div>

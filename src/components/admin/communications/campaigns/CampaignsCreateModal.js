@@ -60,11 +60,11 @@ export default function CampaignsCreateModal({
             <div className="space-y-6">
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t('crm.campaigns.campaignName')}</label>
-                <input required type="text" value={form.name} onChange={event => setForm({...form, name: event.target.value})} placeholder={t('crm.campaigns.namePlaceholder')} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#FF6600]/80/50 font-bold" />
+                <input required type="text" value={form.name} onChange={event => setForm({...form, name: event.target.value})} placeholder={t('crm.campaigns.namePlaceholder')} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] outline-none focus:border-[#FF6600]/80/50 font-bold" />
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2">{t('crm.campaigns.formLogic')}</label>
-                <select value={form.form_id} onChange={event => setForm({...form, form_id: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none appearance-none font-bold">
+                <select value={form.form_id} onChange={event => setForm({...form, form_id: event.target.value})} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-[var(--text-primary)] outline-none appearance-none font-bold">
                    <option value="" className="bg-[#080810]">{t('crm.campaigns.noFormRequired')}</option>
                    {forms.map(form => <option key={form.form_id} value={form.form_id} className="bg-[#080810]">{form.name}</option>)}
                 </select>
@@ -83,9 +83,9 @@ export default function CampaignsCreateModal({
                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{t('crm.campaigns.emailStep', { idx: index + 1 })}</span>
                         {index > 0 && <button type="button" onClick={() => removeStep(index, false)} className="text-rose-500 hover:text-rose-400"><Trash2 className="w-4 h-4" /></button>}
                       </div>
-                      <input placeholder={t('crm.campaigns.subjectPlaceholder')} value={step.subject} onChange={event => updateStep(index, 'subject', event.target.value, false)} className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold text-white outline-none" />
+                      <input placeholder={t('crm.campaigns.subjectPlaceholder')} value={step.subject} onChange={event => updateStep(index, 'subject', event.target.value, false)} className="w-full bg-transparent border-b border-white/10 py-1 text-sm font-bold text-[var(--text-primary)] outline-none" />
                       <div className="grid grid-cols-2 gap-4">
-                         <select value={step.wait_type} onChange={event => updateStep(index, 'wait_type', event.target.value, false)} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[10px] text-white outline-none font-black uppercase tracking-widest">
+                         <select value={step.wait_type} onChange={event => updateStep(index, 'wait_type', event.target.value, false)} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[10px] text-[var(--text-primary)] outline-none font-black uppercase tracking-widest">
                             {index === 0 ? <><option value="instant">{t('crm.campaigns.instant')}</option><option value="date">{t('crm.campaigns.date')}</option></> : <><option value="days">{t('crm.campaigns.days')}</option><option value="hours">{t('crm.campaigns.hours')}</option><option value="minutes">{t('crm.campaigns.minutes')}</option></>}
                          </select>
                          {['days', 'hours', 'minutes'].includes(step.wait_type) && (
@@ -99,12 +99,12 @@ export default function CampaignsCreateModal({
                                   else if (step.wait_type === 'hours') updateStep(index, 'delay_hours', value, false);
                                   else updateStep(index, 'delay_minutes', value, false);
                                }} 
-                               className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-white" 
+                               className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-xs text-[var(--text-primary)]" 
                             />
                          )}
-                         {step.wait_type === 'date' && <input type="datetime-local" value={step.scheduled_date} onChange={event => updateStep(index, 'scheduled_date', event.target.value, false)} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[10px] text-white" />}
+                         {step.wait_type === 'date' && <input type="datetime-local" value={step.scheduled_date} onChange={event => updateStep(index, 'scheduled_date', event.target.value, false)} className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-[10px] text-[var(--text-primary)]" />}
                       </div>
-                      <textarea value={step.body} onChange={event => updateStep(index, 'body', event.target.value, false)} rows="3" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-400 outline-none focus:text-white transition-colors resize-none" />
+                      <textarea value={step.body} onChange={event => updateStep(index, 'body', event.target.value, false)} rows="3" className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-xs text-slate-400 outline-none focus:text-[var(--text-primary)] transition-colors resize-none" />
                     </div>
                  ))}
               </div>
@@ -128,7 +128,7 @@ export default function CampaignsCreateModal({
 
             <div className="relative mb-4">
                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 w-4 h-4" />
-               <input type="text" placeholder={t('crm.campaigns.searchIndividuals')} value={searchContacts} onChange={event => setSearchContacts(event.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-xs text-white outline-none" />
+               <input type="text" placeholder={t('crm.campaigns.searchIndividuals')} value={searchContacts} onChange={event => setSearchContacts(event.target.value)} className="w-full bg-white/5 border border-white/10 rounded-xl py-2.5 pl-12 pr-4 text-xs text-[var(--text-primary)] outline-none" />
             </div>
             <div className="flex-1 space-y-2">
                {contacts.filter(contact => contact.name.toLowerCase().includes(searchContacts.toLowerCase())).map(contact => (

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useI18n } from "@/lib/i18n";
-import { CheckCircle2, RotateCcw, Save, Square, CheckSquare } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronRight, RotateCcw, Save, Square, CheckSquare } from "lucide-react";
 import AppMenu from "@/components/ui/AppMenu";
 import JourneyReportSection from "@/components/ventures/journey/JourneyReportSection";
 import JourneyMilestoneRow from "@/components/ventures/journey/JourneyMilestoneRow";
@@ -28,6 +28,7 @@ export default function JourneyStageCard({
   saveEdit,
   stageNodeClass,
   statusPill,
+  selectMode = false,
   toggleSelectStage,
   selectedStageIds,
   journeyMenuItems,
@@ -75,6 +76,7 @@ export default function JourneyStageCard({
   deliverableFile,
   deliverableForm,
   deliverableMenuItems,
+  canApproveDeliverable,
   deliverableNewUrl,
   deliverableSaving,
   deliverableStatus,
@@ -123,6 +125,10 @@ export default function JourneyStageCard({
 }) {
   const { t, lang } = useI18n();
   const isEditing = editId === stage.id;
+  // A journey folds down to its header (title, status, progress, date). Closed
+  // by default: a journey of five stages is read as a list first and opened
+  // only where the reader is working. Purely a view choice.
+  const [collapsed, setCollapsed] = React.useState(true);
   const milestones = stage.milestones || [];
   const done = stage.milestone_counts?.completed || 0;
   const total = stage.milestone_counts?.total || 0;
@@ -163,6 +169,12 @@ export default function JourneyStageCard({
               <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
               <input
                 type="date"
+                // Today or later; a start date already on file may be earlier and stays valid.
+                min={(() => {
+                  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                  const current = String(stage.start_date || "").slice(0, 10);
+                  return current && current < today ? current : today;
+                })()}
                 value={editForm.start_date || ""}
                 onChange={(event) => setEditForm({ ...editForm, start_date: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
@@ -180,14 +192,34 @@ export default function JourneyStageCard({
           </form>
         ) : (
           <>
-            <div className="jy-sh">
+            {/* The whole header folds and unfolds the journey, not only the arrow:
+                a click on any part of the bar does it, except on the controls inside
+                it (select box, menu, restore, the arrow itself), which keep their own. */}
+            <div
+              className="jy-sh"
+              style={{ cursor: "pointer" }}
+              onClick={(event) => {
+                if (event.target.closest("button, a, input, select, textarea, label, [role='menu']")) return;
+                setCollapsed((value) => !value);
+              }}
+            >
               <div className="jy-sh-row">
                 <span className={`jy-num ${stageNodeClass(stage.status)}`}>
                   {isDone ? <CheckCircle2 size={17} /> : (stage.stage_order || index + 1)}
                 </span>
                 <div className="jy-sh-body">
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    {access.manage && !stage.is_archived && (
+                    <button
+                      type="button"
+                      onClick={() => setCollapsed((value) => !value)}
+                      aria-expanded={!collapsed}
+                      aria-label={t(collapsed ? "common.expand" : "common.collapse")}
+                      title={t(collapsed ? "common.expand" : "common.collapse")}
+                      className="shrink-0 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
+                    </button>
+                    {selectMode && access.manage && !stage.is_archived && (
                       <button
                         type="button"
                         onClick={() => toggleSelectStage(stage.id)}
@@ -199,13 +231,16 @@ export default function JourneyStageCard({
                     )}
                     <h4 className={`jy-sh-title ${isDone ? "is-done" : ""}`}>{stage.name}</h4>
                   </div>
-                  {stage.description && <p className="jy-sh-meta">{stage.description}</p>}
-                  {stage.objective && (
+                  {collapsed && stage.start_date && (
+                    <p className="jy-sh-meta">{fmtDate(stage.start_date)}</p>
+                  )}
+                  {!collapsed && stage.description && <p className="jy-sh-meta">{stage.description}</p>}
+                  {!collapsed && stage.objective && (
                     <p className="jy-obj">
                       <b>{t("venture.manager.objective")}: </b>{stage.objective}
                     </p>
                   )}
-                  {(stage.completed_at || !isDone) && (
+                  {!collapsed && (stage.completed_at || !isDone) && (
                     <div className="jy-hint">
                       {stage.completed_at && <span>{t("venture.manager.completedOn", { date: new Date(stage.completed_at).toLocaleDateString(lang) })}</span>}
                       {!isDone && <span>{t(isLocked ? "venture.manager.memberVisibilityLocked" : "venture.manager.memberVisibilityActive")}</span>}
@@ -241,7 +276,7 @@ export default function JourneyStageCard({
             {/* The report this journey is owed. A report BELONGS to a
                 journey, so it is written here — where the journey lives —
                 and never in a separate module. */}
-            {!stage.is_archived && (
+            {!collapsed && !stage.is_archived && (
               <JourneyReportSection
                 autoGrow={autoGrow}
                 closingMissing={closingMissing}
@@ -260,7 +295,7 @@ export default function JourneyStageCard({
               />
             )}
 
-            {(milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
+            {!collapsed && (milestones.length > 0 || (milestoneAuthority && !stage.is_archived)) && (
               <div>
                 {milestones.length > 0 && (
                   <div className="jy-ms">
@@ -302,6 +337,7 @@ export default function JourneyStageCard({
                         deliverableFile={deliverableFile}
                         deliverableForm={deliverableForm}
                         deliverableMenuItems={deliverableMenuItems}
+                        canApproveDeliverable={canApproveDeliverable}
                         deliverableNewUrl={deliverableNewUrl}
                         deliverableSaving={deliverableSaving}
                         deliverableStatus={deliverableStatus}

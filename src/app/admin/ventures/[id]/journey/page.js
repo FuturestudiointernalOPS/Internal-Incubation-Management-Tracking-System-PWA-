@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 
@@ -13,7 +13,6 @@ import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
  */
 export default function VentureJourneyPage() {
   const { id } = useParams();
-  const router = useRouter();
   const { t } = useI18n();
   const [venture, setVenture] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -42,13 +41,6 @@ export default function VentureJourneyPage() {
 
   return (
     <div className="stf mx-auto max-w-5xl" style={{ paddingBottom: 60 }}>
-      <button
-        type="button"
-        onClick={() => router.push(`/admin/ventures/${id}`)}
-        className="stf-lk-back"
-      >
-        <ArrowLeft size={14} /> {t("vadmin.journey.backToVenture", { name: venture?.company_name || t("vadmin.dashboard.venture") })}
-      </button>
 
       <div className="stf-head" style={{ marginTop: 14 }}>
         <div>

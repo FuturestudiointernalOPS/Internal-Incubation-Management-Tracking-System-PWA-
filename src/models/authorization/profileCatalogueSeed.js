@@ -109,6 +109,27 @@ export const PROFILE_CATALOGUE_SEED = [
   { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
     lms: { view: 1, edit: 3 },
   } },
+  // VENTURE OPS CONTRIBUTOR — a narrow, delegable bundle: create and edit in
+  // exactly three modules (LMS, Programs, Ventures), and nothing else.
+  //
+  // It exists so a staff member can do operational work "as the studio" in
+  // those three areas WITHOUT holding a super-admin identity: no delete, no
+  // security, no settings, no finance, no permission administration. Every
+  // route still re-checks on each request, so this is a real boundary rather
+  // than a disguise.
+  //
+  // Scope note: `ventures.*` is bounded by `venture_own` at the route, so the
+  // holder must ALSO be assigned to the venture (Venture Manager) before they
+  // can edit one. LMS is unscoped; programs are mixed.
+  { key: "venture_ops_contributor", label: "Venture Ops Contributor", context: "global", allowedRoles: ["staff"], capabilities: {
+    lms: { view: 1, create: 2, edit: 3 },
+    programs: { view: 1, create: 2, edit: 3 },
+    ventures: { view: 1, create: 2, edit: 3 },
+    // Day-to-day studio work the role needs to function at all. Read-only on
+    // reports; messaging may send. Neither widens the three authoring areas.
+    reports: { view: 1 },
+    messaging: { view: 1, send: 2 },
+  } },
   // PROGRAM facilitator — the delivery rights, seeded so the PROFILE can become
   // the single source of a facilitator's rights (Lot 3, D-5). The levels mirror
   // the per-assignment checkboxes they will replace. Until an assignment carries
@@ -208,6 +229,20 @@ export async function ensureProfileCatalogueSeed() {
 export async function ensureFacilitatorProfileSeed() {
   await ensureProfileCapabilitiesSchema();
   const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "facilitator");
+  const seeded = await seedProfileDefinitions(definitions);
+  return { success: true, ...seeded };
+}
+
+/**
+ * The VENTURE OPS CONTRIBUTOR profile, on databases seeded before it existed.
+ *
+ * Same reason as the facilitator seed above: `ensureProfileCatalogueSeed` is
+ * recorded once per database, so a profile added later never reaches an
+ * existing one. Insert-only — an administrator's edit is never overwritten.
+ */
+export async function ensureVentureOpsProfileSeed() {
+  await ensureProfileCapabilitiesSchema();
+  const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "venture_ops_contributor");
   const seeded = await seedProfileDefinitions(definitions);
   return { success: true, ...seeded };
 }

@@ -56,7 +56,7 @@ export function milestoneWrites({
   setConfirmState,
 }) {
   // ── Milestones inside a journey ─────────────────────────────────────────
-  const emptyMilestoneForm = { title: "", description: "", objective: "", target_date: "", owner_cid: "", owner_name: "" };
+  const emptyMilestoneForm = { title: "", description: "", objective: "", start_date: "", target_date: "", owner_cid: "", owner_name: "" };
 
   const toggleMilestoneOpen = (id) => {
     const next = String(milestoneOpenId) === String(id) ? null : String(id);
@@ -70,6 +70,14 @@ export function milestoneWrites({
     if (!milestoneForm.title.trim()) return;
     // The roadmap reads forwards: a new milestone may not be dated in the past,
     // nor overtake a milestone that already follows it in the journey.
+    if (!milestoneForm.start_date || !milestoneForm.target_date) {
+      notify(t("venture.manager.milestoneDatesRequired"), "error");
+      return;
+    }
+    if (milestoneForm.start_date > milestoneForm.target_date) {
+      notify(t("venture.manager.milestoneStartAfterEnd"), "error");
+      return;
+    }
     const nextDate = nextMilestoneDate(stages, { stageId: stage.id });
     const milestoneIssue = milestoneDateIssue({ targetDate: milestoneForm.target_date, nextDate });
     if (milestoneIssue) {
@@ -79,6 +87,10 @@ export function milestoneWrites({
     // Only the deliverables that will actually be saved are judged, and each is
     // owed ON or after its milestone — never before it.
     const rows = milestoneDeliverables.filter((draft) => draft.title.trim());
+    if (rows.some((row) => !row.start_date || !row.due_date || row.start_date > row.due_date)) {
+      notify(t("venture.manager.deliverableDatesRequired"), "error");
+      return;
+    }
     const deliverableIssue = rows
       .map((deliverable) => ({ dv: deliverable, code: deliverableDateIssue({ dueDate: deliverable.due_date, milestoneDate: milestoneForm.target_date }) }))
       .find((candidate) => candidate.code);

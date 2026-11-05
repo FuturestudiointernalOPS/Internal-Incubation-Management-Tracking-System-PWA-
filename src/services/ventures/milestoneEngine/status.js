@@ -16,6 +16,7 @@ import {
   selectActiveTaskStatusesForMilestone,
   selectDeliverableStatesForMilestone,
   selectMilestoneForSync,
+  selectOpenMilestoneIds,
   selectTaskStatusesForMilestonePlain,
   updateMilestoneStatusRow,
 } from "@/models/ventureMilestoneEngineStore";
@@ -54,8 +55,10 @@ export function deriveMilestoneStatusFromDeliverables(deliverables = []) {
   const stateOf = (deliverable) => {
     const approval = String(deliverable.approval_status || "").trim().toLowerCase();
     const status = String(deliverable.status || "").trim().toLowerCase();
+    // The latest review decision first: a refusal outranks a stale `completed`.
+    if (approval === "rejected") return "changes_requested";
     if (approval === "approved" || status === "approved" || status === "completed" || status === "accepted") return "approved";
-    if (approval === "rejected" || status === "changes_requested" || status === "revision_requested") return "changes_requested";
+    if (status === "changes_requested" || status === "revision_requested") return "changes_requested";
     if (status === "submitted" || status === "under_review" || status === "review") return "awaiting_review";
     if (status === "in_progress") return "in_progress";
     return "not_started";
@@ -145,7 +148,7 @@ export function combineMilestoneStatus({ fromDeliverables = null, fromTasks = nu
  *
  * Completion keeps its AUTHORITY and its CONDITIONS: it takes every task
  * finished AND every deliverable approved, and then only an actor who may
- * complete milestones (the Lead Manager / a Super Admin) closes it — with the
+ * complete milestones (the Venture Manager / a Super Admin) closes it — with the
  * usual consequence that closing the last one closes the Journey. A scoped
  * coach, who may REVIEW a deliverable but holds no `milestones.edit`, can move
  * the milestone as far as `in_progress` and no further.
@@ -243,4 +246,38 @@ export async function syncMilestoneStatusFromDeliverables(options = {}) {
 export async function completeMilestone({ dbId, milestoneId }) {
   await completeMilestoneRow(milestoneId, dbId);
   return { ok: true };
+}
+
+/**
+ * Bring EVERY open milestone of a Venture in step with its work.
+ *
+ * The status sync normally runs when a deliverable or task changes. A milestone
+ * whose work was finished before that rule existed (or by someone the rule did
+ * not let close it) would otherwise stay `in progress` next to fully approved
+ * evidence, and every count built on its status — "2/6 milestones", the
+ * journey's progress — would stay behind. This runs the SAME sync on each open
+ * milestone, so the statuses follow the work whenever the Journey is read:
+ * everything approved and every task finished closes the milestone, and the last
+ * one closes its Journey.
+ *
+ * Held milestones (`upcoming`, `blocked`, `locked`) and completed ones are never
+ * touched, exactly like the sync itself. Idempotent: a milestone already in the
+ * right status is left alone. Never throws — a failed pass leaves things as they
+ * were.
+ *
+ * @returns {Promise<{ examined: number, changed: number }>}
+ */
+export async function reconcileMilestonesFromWork({ dbId, cid = null } = {}) {
+  if (!dbId) return { examined: 0, changed: 0 };
+  try {
+    const ids = rowsOf(await selectOpenMilestoneIds(dbId)).map((row) => row.id);
+    let changed = 0;
+    for (const milestoneId of ids) {
+      const outcome = await syncMilestoneFromWork({ dbId, milestoneId, cid, canComplete: true });
+      if (outcome?.changed) changed += 1;
+    }
+    return { examined: ids.length, changed };
+  } catch (_) {
+    return { examined: 0, changed: 0 };
+  }
 }

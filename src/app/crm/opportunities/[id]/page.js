@@ -8,6 +8,7 @@ import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import CrmActivityPanel from "@/components/ui/CrmActivityPanel";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,7 @@ export default function CrmOpportunityDetailPage({ params }) {
   const { t } = useI18n();
   const router = useRouter();
   const { alert } = useDialogs();
+  const { cid, isSuperAdmin } = useCrmCapabilities();
 
   const [opp, setOpp]         = useState(null);
   const [history, setHistory] = useState([]);
@@ -224,7 +226,12 @@ export default function CrmOpportunityDetailPage({ params }) {
               {opp.contact_name && (
                 <div className="flex items-center gap-3">
                   <User className="w-4 h-4 text-[var(--text-secondary)]" />
-                  <span className="text-sm text-[var(--text-primary)]">{opp.contact_name}</span>
+                  <a
+                    href={`/crm/people/${opp.contact_cid}`}
+                    className="text-sm text-[var(--text-primary)] hover:text-[var(--brand-orange)] hover:underline"
+                  >
+                    {opp.contact_name}
+                  </a>
                 </div>
               )}
               {opp.organization_name && (
@@ -253,7 +260,15 @@ export default function CrmOpportunityDetailPage({ params }) {
       </div>
 
       {/* Activities + Next Action */}
-      <CrmActivityPanel opportunityId={opp.id} contactCid={opp.contact_cid ?? undefined} />
+      <CrmActivityPanel
+        opportunityId={opp.id}
+        contactCid={opp.contact_cid ?? undefined}
+        record={opp}
+        canSetNextAction={Boolean(isSuperAdmin || (cid && opp.owner_cid && opp.owner_cid === cid))}
+        onNextActionSaved={(updated) =>
+          updated && setOpp((current) => ({ ...current, ...updated }))
+        }
+      />
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import DashboardLayout from "@/components/layout/DashboardLayout";
+import SectionRoleGuard from "@/components/layout/SectionRoleGuard";
 
 /**
  * FINANCE LAYOUT — persistent dashboard shell.
@@ -8,5 +9,5 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
  * navigation between finance pages.
  */
 export default function FinanceLayout({ children }) {
-  return <DashboardLayout role="finance">{children}</DashboardLayout>;
+  return <DashboardLayout role="finance"><SectionRoleGuard>{children}</SectionRoleGuard></DashboardLayout>;
 }

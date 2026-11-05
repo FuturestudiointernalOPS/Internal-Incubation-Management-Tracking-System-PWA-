@@ -10,6 +10,7 @@ import {
   isPlatformOwnerRole,
 } from "@/lib/identity";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
+import { notificationText } from "@/lib/notificationText";
 import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
 
@@ -124,20 +125,12 @@ export default function ShellHeader({
 
               <div className="relative">
                 <button
-                  onClick={() => {
-                    // The panel always opens as a SHORT glance, and always on
-                    // current rows: opening it re-asks, so the list and the
-                    // badge can never disagree with the server.
-                    setShowAllNotifications(false);
-                    if (!showNotifications) fetchNotifications();
-                    setShowNotifications((previousValue) => !previousValue);
-                  }}
+                  onClick={() => setShowNotifications((prev) => !prev)}
                   aria-label={
                     unreadCount > 0
                       ? `${t("navigation.notifications")} (${unreadCount})`
                       : t("navigation.notifications")
                   }
-                  aria-expanded={showNotifications}
                   className={pathname?.startsWith("/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
                 >
                   <Bell className="w-4 h-4" aria-hidden="true" />
@@ -148,10 +141,33 @@ export default function ShellHeader({
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 top-10 w-72 bg-secondary border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
-                    <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">
-                      {t(tnav("intel_feed"))}
-                    </h4>
+                  <>
+                    <div className="fixed inset-0 z-[190]" onClick={() => setShowNotifications(false)} />
+                    <div className="absolute right-0 top-10 w-80 bg-secondary border border-[var(--border-primary)] rounded-xl shadow-2xl p-4 z-[200]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">
+                        {t(tnav("intel_feed"))}
+                      </h4>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await fetch("/api/notifications", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "read_all" }),
+                              });
+                              fetchNotifications({ force: true });
+                            } catch (_) {}
+                          }}
+                          className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline cursor-pointer"
+                        >
+                          {t("common.markAllAsRead") || "Mark all as read"}
+                        </button>
+                      )}
+                    </div>
                     <div className="max-h-48 overflow-y-auto space-y-2">
                       {notifications.length > 0 ? (
                         (showAllNotifications
@@ -180,7 +196,7 @@ export default function ShellHeader({
                                 notification.type === "verification" ||
                                 notification.title.includes("ACCESS")
                               ) {
-                                router.push("/admin/communications/contacts");
+                                router.push("/crm/contacts");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {
@@ -224,19 +240,27 @@ export default function ShellHeader({
                                 router.push(notification.link);
                                 setShowNotifications(false);
                               }
+                              if (
+                                typeof notification.type === "string" &&
+                                notification.type.startsWith("crm_") &&
+                                notification.link
+                              ) {
+                                router.push(notification.link);
+                                setShowNotifications(false);
+                              }
                             }}
                             className={`p-3 rounded-xl hover:bg-primary transition-all cursor-pointer border border-transparent hover:border-[var(--border-primary)] group ${!notification.is_read ? "bg-brand-orange/5" : ""}`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <p className="font-black text-[10px] uppercase tracking-tight text-[var(--text-primary)]">
-                                {notification.title}
+                                {notificationText(notification, t).title}
                               </p>
                               {!notification.is_read && (
                                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)]" />
                               )}
                             </div>
                             <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed group-hover:text-[var(--text-primary)] transition-colors">
-                              {notification.message}
+                              {notificationText(notification, t).message}
                             </p>
                             {/* Accept/Decline buttons for project invitations */}
                             {notification.type === "project_invite" && (
@@ -453,6 +477,7 @@ export default function ShellHeader({
                       </button>
                     )}
                   </div>
+                  </>
                 )}
               </div>
 

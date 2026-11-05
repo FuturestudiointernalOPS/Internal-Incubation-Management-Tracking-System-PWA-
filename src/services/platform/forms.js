@@ -39,6 +39,20 @@ import {
   updatePlatformFormSection,
 } from "@/models/forms";
 import { assertSingleInvestorForm, ensureSingleInvestorFormIndex } from "@/models/investorIntake";
+import { createFormRun, getActiveRunForFormId, updateRunFormVersionById } from "@/models/formRuns";
+import { onRunCreated } from "@/models/platform/automation";
+
+/** The unguessable public slug every run gets (same format as run creation). */
+function newPublicSlug() {
+  return "r" + Array.from({ length: 10 }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+}
+
+/** A strict positive integer from an id of any shape, or null. */
+function toNumericId(value) {
+  if (value == null || value === "") return null;
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric > 0 ? numeric : null;
+}
 
 // ── Reads ───────────────────────────────────────────────────────────────────
 
@@ -118,37 +132,94 @@ export async function guardInvestorIntake({ form_id = null, settings } = {}) {
 }
 
 /**
- * Publish a new version: snapshot the given fields/sections and bump the form.
+ * Publish = save the builder, snapshot what was saved, then point the form's
+ * live run at that snapshot.
+ *
+ * Saving first is what makes the snapshot the truth: the builder's payload can
+ * still hold temporary section ids that exist only in the browser, and a
+ * snapshot of those would pin a layout the database never had (the "scattered"
+ * public form). Reading the rows back after the save pins real ids.
+ *
+ * A form has one live run: publishing again moves that run to the new version
+ * rather than minting a second run and a second public link.
  *
  * @returns {Promise<{status: number, body: Object}>}
  */
 export async function publishFormVersion({ id, fields, sections, evaluation_framework, session }) {
-  if (!id || !fields || !sections) {
-    return { status: 400, body: { success: false, error: "id, fields, and sections are required" } };
+  if (!id) {
+    return { status: 400, body: { success: false, error: "id is required" } };
   }
 
-  const form = await getPlatformFormById(parseInt(id));
+  const formId = parseInt(id);
+  const form = await getPlatformFormById(formId);
   if (form.rows.length === 0) {
     return { status: 404, body: { success: false, error: "Form not found" } };
   }
 
   const currentForm = form.rows[0];
+
+  // ── 1. Persist the builder (unchanged payload shape: both keys optional).
+  if (Array.isArray(fields) || Array.isArray(sections)) {
+    const saved = await saveFormBuilder({ id: formId, fields, sections });
+    if (saved.status !== 200) return saved;
+  }
+
+  // ── 2. Snapshot the SAVED rows — real field ids, real section links.
+  const liveSections = await getPlatformFormSections(formId);
+  const liveFields = await getPlatformFormFields(formId);
+
   const newVersion = (currentForm.version || 1) + 1;
   const snapshot = {
-    fields,
-    sections,
+    fields: liveFields.rows,
+    sections: liveSections.rows,
     settings: currentForm.settings,
     publishedAt: new Date().toISOString(),
     evaluation_framework: evaluation_framework || null,
   };
 
-  // Save version snapshot
-  await createPlatformFormVersion(parseInt(id), newVersion, JSON.stringify(snapshot), session.cid || null);
+  await createPlatformFormVersion(formId, newVersion, JSON.stringify(snapshot), session?.cid || null);
+  await publishPlatformForm(formId, newVersion);
 
-  // Increment version on form
-  await publishPlatformForm(parseInt(id), newVersion);
+  // ── 3. The run that carries this version.
+  //
+  //    A form has ONE live run: republishing (the button an already-published
+  //    form shows) moves that run to the new version instead of minting another
+  //    one. Only a form with no live run gets a run created — the first publish,
+  //    or a form whose run was archived.
+  const liveRun = await getActiveRunForFormId(formId);
+  const existingRun = liveRun.rows?.[0] || null;
 
-  return { status: 200, body: { success: true, version: newVersion } };
+  let run = null;
+  if (existingRun) {
+    // Keep an auto-generated "<form> v<N>" name in step with the version it now
+    // pins. A run renamed by hand is left exactly as the team named it.
+    const autoName = `${currentForm.name} v${existingRun.form_version}`;
+    const updated = await updateRunFormVersionById({
+      id: existingRun.id,
+      formVersion: newVersion,
+      name: existingRun.name === autoName ? `${currentForm.name} v${newVersion}` : undefined,
+    });
+    run = updated?.rows?.[0] || { ...existingRun, form_version: newVersion };
+  } else {
+    const createdRun = await createFormRun({
+      form_id: formId,
+      form_version: newVersion,
+      name: `${currentForm.name} v${newVersion}`,
+      description: currentForm.description || null,
+      opens_at: null,
+      closes_at: null,
+      settings: {},
+      owner_id: session?.cid || null,
+      created_by: session?.cid || null,
+      public_slug: newPublicSlug(),
+      status: "active",
+    });
+    run = createdRun?.rows?.[0] || null;
+    // Creation automation only runs for a run that was actually created.
+    if (run) onRunCreated(run, session);
+  }
+
+  return { status: 200, body: { success: true, version: newVersion, run } };
 }
 
 /** @returns {Promise<{status: number, body: Object}>} */
@@ -175,9 +246,15 @@ export async function createForm({ body, session }) {
 }
 
 /**
- * The builder save. Section deletions run AFTER field upserts so a field that
- * still references a deleted section never trips the FK
- * (`platform_form_fields_section_id_fkey`).
+ * The builder save. The whole state arrives in ONE request: sections upserted,
+ * fields re-pointed, then deletions — section deletions last, after the fields
+ * that referenced them have moved away (the FK is `section_id`).
+ *
+ * Two rules keep a stale editor from failing the save on the foreign key:
+ *   - a section the client believes exists but this form no longer has is
+ *     re-created (its id mapped) instead of silently skipped;
+ *   - a field's section id that does not match a section this form owns — or
+ *     that is being deleted in this same request — becomes NULL.
  *
  * @returns {Promise<{status: number, body: Object}>}
  */
@@ -186,34 +263,50 @@ export async function saveFormBuilder({ id, fields, sections }) {
     return { status: 400, body: { success: false, error: "id is required" } };
   }
 
-  // ── Step 1: Collect section IDs that will be deleted in this request.
-  //    We must NOT delete them yet — fields still reference them and must be
-  //    updated first. Deleting a section before its fields are re-assigned
-  //    triggers the FK violation ("platform_form_fields_section_id_fkey").
+  // ── Step 1: sections this request removes, and the ones the form really has.
   const deletedSectionIds = new Set();
   if (Array.isArray(sections)) {
     for (const sec of sections) {
-      if (sec._delete && sec.id) {
-        deletedSectionIds.add(parseInt(sec.id));
+      if (sec._delete) {
+        const numericId = toNumericId(sec.id);
+        if (numericId != null) deletedSectionIds.add(numericId);
       }
     }
   }
+  const existingSections = await getPlatformFormSections(id);
+  const knownSectionIds = new Set(
+    (existingSections.rows || []).map((row) => Number(row.id)),
+  );
 
-  // ── Step 2: Upsert sections (inserts/updates only — deletions come later).
+  // ── Step 2: upsert sections (inserts/updates only — deletions come later).
+  //    New sections carry their builder-side temporary id, so the fields that
+  //    already point at it can be handed the real id below.
+  const sectionIdMap = new Map();
   if (Array.isArray(sections)) {
     for (const sec of sections) {
       if (sec._delete) continue; // handled in Step 4
-      if (sec.id) {
+      const numericId = toNumericId(sec.id);
+      if (numericId != null && knownSectionIds.has(numericId)) {
         await updatePlatformFormSection({ formId: id, section: sec });
-      } else {
-        await createPlatformFormSection({ formId: id, section: sec });
+        continue;
       }
+
+      const created = await createPlatformFormSection({ formId: id, section: sec });
+      const createdId = toNumericId(created?.rows?.[0]?.id);
+      if (createdId == null) continue;
+      knownSectionIds.add(createdId);
+      if (sec.id != null) sectionIdMap.set(String(sec.id), createdId);
+      if (sec._tmpId != null) sectionIdMap.set(String(sec._tmpId), createdId);
     }
   }
 
-  // ── Step 3: Upsert fields.
-  //    If a field's section_id points to a section that is being deleted in
-  //    this same request, use null instead — avoids the FK violation.
+  // ── Step 3: upsert fields.
+  //    A field's section_id is only accepted when that section actually exists
+  //    for THIS form, after the upsert above. The client can still be holding a
+  //    section id that was deleted in an earlier request (or in another tab);
+  //    writing it violated `platform_form_fields_section_id_fkey` and rejected
+  //    the WHOLE save. A field with no section is recoverable — a rejected save
+  //    is not.
   if (Array.isArray(fields)) {
     for (const fld of fields) {
       if (fld._delete && fld.id) {
@@ -221,11 +314,20 @@ export async function saveFormBuilder({ id, fields, sections }) {
         continue;
       }
 
-      // Resolve section_id: null-out if the section is being deleted or
-      // if the value is a non-numeric temp string (e.g. "_tmp_xyz").
-      const rawSectionId = fld.section_id ? parseInt(fld.section_id) : null;
-      const resolvedSectionId =
-        rawSectionId && !isNaN(rawSectionId) && !deletedSectionIds.has(rawSectionId) ? rawSectionId : null;
+      // Resolve section_id through the sections this form now owns (including
+      // the ones just created). Anything else becomes NULL: a stale or
+      // foreign id can never reach the foreign key.
+      let resolvedSectionId = null;
+      if (fld.section_id != null && fld.section_id !== "") {
+        const key = String(fld.section_id);
+        resolvedSectionId = sectionIdMap.get(key) ?? toNumericId(key);
+      }
+      if (
+        resolvedSectionId != null &&
+        (deletedSectionIds.has(resolvedSectionId) || !knownSectionIds.has(resolvedSectionId))
+      ) {
+        resolvedSectionId = null;
+      }
 
       if (fld.id) {
         await updatePlatformFormField({ formId: id, field: fld, sectionId: resolvedSectionId });
@@ -246,6 +348,129 @@ export async function saveFormBuilder({ id, fields, sections }) {
   await touchPlatformForm(id);
 
   return { status: 200, body: { success: true } };
+}
+
+/** Drop a builder-only marker before a row is re-inserted. */
+function withoutDeleteMarker(row) {
+  if (!row || typeof row !== "object") return {};
+  const { _delete: _ignoredDelete, ...rest } = row;
+  return rest;
+}
+
+const normalizeTitle = (value) => String(value || "").trim().toLowerCase();
+
+/** The live section a published one should reuse, so its id (and its questions) survive. */
+function matchLiveSection(snapshotSection, liveSections) {
+  return liveSections.findIndex(
+    (live) => normalizeTitle(live.title) === normalizeTitle(snapshotSection.title),
+  );
+}
+
+/**
+ * The live question a published one should reuse: same wording and type first,
+ * then the same type at the same position (a question that was renamed since
+ * the publication). Matching on identity (not on the wording alone) is what
+ * keeps already-collected answers attached, since answers are filed by the
+ * question's own id.
+ */
+function matchLiveField(snapshotField, liveFields) {
+  let index = liveFields.findIndex(
+    (live) =>
+      String(live.label) === String(snapshotField.label) &&
+      String(live.field_type) === String(snapshotField.field_type),
+  );
+  if (index === -1) {
+    index = liveFields.findIndex(
+      (live) =>
+        Number(live.sort_order) === Number(snapshotField.sort_order) &&
+        String(live.field_type) === String(snapshotField.field_type),
+    );
+  }
+  return index;
+}
+
+/**
+ * Restore a form's sections and questions from its last published version.
+ *
+ * Used to repair a form whose live content was lost (the sections are gone but
+ * the questions survived, detached) and as a rollback to the published
+ * structure. It is a MERGE, not a wholesale replacement:
+ *   - a live section whose title matches a published one keeps its id;
+ *   - a live question that matches a published one keeps its id (so answers
+ *     already collected stay under the right question);
+ *   - missing published sections/questions are re-created;
+ *   - content added since the publication is kept rather than destroyed.
+ * Settings and metadata are left alone. The work is done by the same save the
+ * builder uses, so relationships follow the same rules.
+ *
+ * @returns {Promise<{status: number, body: Object}>}
+ */
+export async function restoreFormFromLatestVersion({ id }) {
+  const formId = toNumericId(id);
+  if (formId == null) {
+    return { status: 400, body: { success: false, error: "id is required" } };
+  }
+
+  const form = await getPlatformFormById(formId);
+  if (form.rows.length === 0) {
+    return { status: 404, body: { success: false, error: "Form not found" } };
+  }
+
+  const version = await getLatestPlatformFormVersion(formId);
+  const snapshot = version.rows[0]?.snapshot || null;
+  const snapshotSections = Array.isArray(snapshot?.sections) ? snapshot.sections : [];
+  const snapshotFields = Array.isArray(snapshot?.fields) ? snapshot.fields : [];
+
+  if (snapshotSections.length === 0 && snapshotFields.length === 0) {
+    return {
+      status: 409,
+      body: { success: false, error: "This form has no published version to restore." },
+    };
+  }
+
+  const currentSections = await getPlatformFormSections(formId);
+  const currentFields = await getPlatformFormFields(formId);
+  const liveSections = [...(currentSections.rows || [])];
+  const liveFields = [...(currentFields.rows || [])];
+
+  // Where each published section reference lands: a kept section keeps its id;
+  // a re-created one is mapped by its temporary id, and the save hands it the
+  // id it creates for it.
+  const sectionReferences = new Map();
+  const sections = [];
+  for (const snapshotSection of snapshotSections) {
+    const cleanSection = withoutDeleteMarker(snapshotSection);
+    const reference = String(cleanSection._tmpId ?? cleanSection.id ?? "");
+    const index = matchLiveSection(cleanSection, liveSections);
+    if (index !== -1) {
+      const [liveSection] = liveSections.splice(index, 1);
+      sections.push({ ...cleanSection, id: liveSection.id });
+      sectionReferences.set(reference, String(liveSection.id));
+    } else {
+      sections.push({ ...cleanSection, id: null, _tmpId: reference });
+    }
+  }
+  // Sections that the published version never had are removed (their questions,
+  // if any survived, are kept and simply detached by the save).
+  sections.push(...liveSections.map((liveSection) => ({ id: liveSection.id, _delete: true })));
+
+  const fields = [];
+  for (const snapshotField of snapshotFields) {
+    const cleanField = withoutDeleteMarker(snapshotField);
+    const reference = String(cleanField.section_id ?? "");
+    const sectionId = sectionReferences.get(reference) ?? cleanField.section_id;
+    const index = matchLiveField(cleanField, liveFields);
+    if (index !== -1) {
+      const [liveField] = liveFields.splice(index, 1);
+      fields.push({ ...cleanField, id: liveField.id, section_id: sectionId });
+    } else {
+      fields.push({ ...cleanField, id: null, section_id: sectionId });
+    }
+  }
+  // Questions added since the publication are kept as they are.
+  fields.push(...liveFields);
+
+  return saveFormBuilder({ id: formId, fields, sections });
 }
 
 /** @returns {Promise<{status: number, body: Object}>} */

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { Users, BookOpen, Crown, Ban } from "lucide-react";
 import WidgetCard from "./WidgetCard";
+import CollaboratorsModal from "./CollaboratorsModal";
 
 /**
  * Column 2 of the metrics row: the Venture's team and its coaching/advisors.
@@ -11,6 +13,7 @@ import WidgetCard from "./WidgetCard";
  */
 export default function TeamCoachingColumn({ id, data, widgetState, refreshWidget }) {
   const router = useRouter();
+  const [showCollaborators, setShowCollaborators] = useState(false);
   const { t } = useI18n();
   return (
     <div className="space-y-6">
@@ -65,10 +68,11 @@ export default function TeamCoachingColumn({ id, data, widgetState, refreshWidge
         </div>
       </WidgetCard>
 
-      {/* 6. Coaching / Advisors */}
+      {/* 6. Collaborators — the title opens the Project page's list of people. */}
       <WidgetCard title={t("vadmin.dashboard.coachingAndAdvisors")} icon={BookOpen} iconColor="bg-indigo-500/10"
+        onOpen={() => setShowCollaborators(true)}
         loading={widgetState("coaching").loading} error={widgetState("coaching").error}
-        empty={widgetState("coaching").empty} emptyMessage={t("vadmin.dashboard.noCoachesOrAdvisors")}
+        empty={widgetState("coaching").empty} emptyMessage={t("vadmin.dashboard.collaborators.openHint")}
         onRefresh={() => refreshWidget("coaching")}
       >
         <div className="space-y-3">
@@ -96,6 +100,7 @@ export default function TeamCoachingColumn({ id, data, widgetState, refreshWidge
           )}
         </div>
       </WidgetCard>
+      <CollaboratorsModal ventureId={id} isOpen={showCollaborators} onClose={() => setShowCollaborators(false)} />
     </div>
   );
 }

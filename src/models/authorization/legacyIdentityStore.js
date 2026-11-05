@@ -68,6 +68,18 @@ const END_DATE_AS_TIMESTAMPTZ =
   "NULLIF(TRIM(p.end_date::text), '')::timestamptz";
 
 /**
+ * `ends_at` with NO value still needs a TYPE.
+ *
+ * A bare `NULL` in the select list of an `INSERT … SELECT` is typed `text` by
+ * PostgreSQL (it has nothing else to go on), and there is no implicit
+ * text → timestamptz cast, so the whole migration failed at boot with
+ * "column ends_at is of type timestamp with time zone but expression is of type
+ * text" — and, the marker never being written, it retried forever. A `VALUES`
+ * list does not have this problem; a `SELECT` list does.
+ */
+const NO_END_TIMESTAMPTZ = "NULL::timestamptz";
+
+/**
  * Apply the normalization. Returns what happened; throws (rolling back) when a
  * post-condition fails.
  *
@@ -182,7 +194,7 @@ export async function migrateLegacyIdentities() {
               status, source, source_ref, notes, created_by)
            SELECT DISTINCT
              c.cid, 'participant', 'program', CAST(pp.program_id AS TEXT),
-             NOW(), NULL, 'active', 'automatic', CAST(pp.program_id AS TEXT),
+             NOW(), ${NO_END_TIMESTAMPTZ}, 'active', 'automatic', CAST(pp.program_id AS TEXT),
              'legacy-identity-migration', NULL
            FROM contacts c
            JOIN participant_programs pp ON pp.participant_id = c.cid
@@ -241,7 +253,7 @@ export async function migrateLegacyIdentities() {
               status, source, source_ref, notes, created_by)
            SELECT DISTINCT
              c.cid, 'founder', 'venture', CAST(vm.venture_id AS TEXT),
-             NOW(), NULL, 'active', 'automatic', CAST(vm.venture_id AS TEXT),
+             NOW(), ${NO_END_TIMESTAMPTZ}, 'active', 'automatic', CAST(vm.venture_id AS TEXT),
              'legacy-identity-migration', NULL
            FROM contacts c
            JOIN venture_members vm
@@ -268,7 +280,7 @@ export async function migrateLegacyIdentities() {
               status, source, source_ref, notes, created_by)
            SELECT DISTINCT
              c.cid, 'investor', 'investor', CAST(ip.id AS TEXT),
-             NOW(), NULL, 'active', 'automatic', CAST(ip.id AS TEXT),
+             NOW(), ${NO_END_TIMESTAMPTZ}, 'active', 'automatic', CAST(ip.id AS TEXT),
              'legacy-identity-migration', NULL
            FROM contacts c
            JOIN investor_profiles ip

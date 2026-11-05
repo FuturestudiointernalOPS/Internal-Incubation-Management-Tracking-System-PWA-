@@ -2,7 +2,8 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { TASK_COMPLETED_STATUSES } from "@/lib/ventureStatuses";
+import { computeRoadmapReadiness } from "@/services/ventures/readiness";
+import { reconcileMilestonesFromWork } from "@/services/ventures/milestoneEngine";
 import {
   countVentureCustomerInterviews,
   countVentureDocumentsByVentureId,
@@ -10,7 +11,6 @@ import {
   countVenturePmfAssessments,
   countVentureRetrosByVentureId,
   countVentureStandupsByVentureId,
-  countVentureTasksWithCompletedStatuses,
   countVentureValidations,
   countVentureMilestonesByStatus,
   getFirstVentureBusinessModelId,
@@ -34,11 +34,14 @@ export async function GET(req, { params }) {
     const dbId = await resolveVentureDbId(id);
     if (!dbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
 
-    // Completion is defined once in lib/ventureStatuses (canonical terminal
-    // statuses: done | accepted | completed) — never hardcode here.
-    const tasksResult = await countVentureTasksWithCompletedStatuses(dbId, TASK_COMPLETED_STATUSES);
-    const total = parseInt(tasksResult.rows?.[0]?.total||0);
-    const done = parseInt(tasksResult.rows?.[0]?.done||0);
+    // The roadmap engine owns the counting (an approved deliverable finishes the
+    // task it belongs to), so this widget and the Investment Readiness screen
+    // cannot disagree. Completion statuses stay defined once in lib/ventureStatuses.
+    // Statuses follow the work first, so the milestone counts below are current.
+    await reconcileMilestonesFromWork({ dbId });
+    const roadmap = await computeRoadmapReadiness({ dbId, code: id });
+    const total = roadmap.counts.tasks.total;
+    const done = roadmap.counts.tasks.completed;
 
     // Milestones COMPLETED: the honest figure (a stored `progress` column is
     // only refreshed when a deliverable is reviewed, so it goes stale, and the
@@ -70,14 +73,15 @@ export async function GET(req, { params }) {
 
     const ventureRow = venture.rows?.[0] || {};
     let profileScore = 0;
-    if (ventureRow.name) profileScore += 10;
-    if (ventureRow.description) profileScore += 10;
+    if (ventureRow.name) profileScore += 8;
+    if (ventureRow.description) profileScore += 8;
+    if (ventureRow.logo_url) profileScore += 10;
     if (ventureRow.mission) profileScore += 5;
     if (ventureRow.vision) profileScore += 5;
-    if (ventureRow.industry) profileScore += 10;
-    if (ventureRow.sector) profileScore += 5;
-    if (ventureRow.business_stage) profileScore += 5;
-    if (ventureRow.website) profileScore += 5;
+    if (ventureRow.industry) profileScore += 7;
+    if (ventureRow.sector) profileScore += 4;
+    if (ventureRow.business_stage) profileScore += 4;
+    if (ventureRow.website) profileScore += 4;
     // Founders: 15%
     const founderCount = parseInt(founders.rows?.[0]?.count||0);
     if (founderCount >= 2) profileScore += 15;
@@ -108,6 +112,9 @@ export async function GET(req, { params }) {
         milestones: {
           total: parseInt(milestoneCounts.total || 0),
           completed: parseInt(milestoneCounts.done || 0),
+          // How much of the milestones' own work (approved deliverables) is done,
+          // even before a milestone is signed off.
+          progress_percent: roadmap.components.milestones,
         },
         standups_count: parseInt(standupsResult.rows?.[0]?.count||0),
         retros_count: parseInt(retrosResult.rows?.[0]?.count||0),

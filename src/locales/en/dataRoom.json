@@ -5,15 +5,17 @@
     "investorSubtitle": "Documents the venture has shared with you.",
     "upload": "Upload document",
     "uploadDocument": "Upload a document",
-    "uploadHint": "PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG or JPG. Maximum {{size}} MB.",
+    "uploadHint": "PDF, DOC, DOCX, XLS, XLSX, PPT, PPTX, PNG or JPG. Maximum {size} MB.",
     "replaceVersion": "Upload new version",
     "editDetails": "Edit details",
-    "deleteConfirm": "Remove \"{{title}}\" from the Data Room? Its version history is kept.",
+    "deleteConfirm": "Remove \"{title}\" from the Data Room? Its version history is kept.",
     "retry": "Try again",
     "download": "Download",
     "view": "Open",
     "versions": "Version history",
     "review": "Review",
+    "grantUser": "Grant access to a user",
+    "scheduleSession": "Schedule session",
     "delete": "Delete",
     "shareAccess": "Investor access",
     "cancel": "Cancel",
@@ -21,13 +23,48 @@
     "close": "Close",
     "searchPlaceholder": "Search by title, description or file name…",
     "allCategories": "All categories",
+    "allDocuments": "All documents",
+    "fileCount": "{count} file(s)",
+    "coverage": {
+      "missing": "Not provided"
+    },
+    "standard": {
+      "document": "Document",
+      "level": "Level",
+      "status": "Status",
+      "files": "Files",
+      "required": "{count} required",
+      "missing": "{count} missing",
+      "stillToProvide": "Still to provide",
+      "documents": "Documents",
+      "actions": "Actions"
+    },
+    "folders": {
+      "pitch": {
+        "title": "Pitch & Strategy",
+        "description": "Pitch decks, 1-pagers, market research"
+      },
+      "financials": {
+        "title": "Financials & Model",
+        "description": "Projections, cap table, runway"
+      },
+      "legal": {
+        "title": "Legal & Corporate",
+        "description": "Incorporation, agreements, compliance"
+      },
+      "product": {
+        "title": "Product & Impact",
+        "description": "Architecture, team bios, progress reports"
+      }
+    },
     "allStatuses": "All statuses",
     "noDocuments": "No documents in this category yet.",
+    "noMatch": "No document matches your search or filters.",
     "emptyRoom": "No document has been uploaded yet. Upload the first one to start the Data Room.",
     "emptyRoomAwaitingUpload": "No document has been uploaded yet. The Venture's founders upload the files here — you will be able to review them as they arrive.",
     "emptyRoomInvestor": "No document has been shared with you yet.",
     "emptyCategory": "Empty — available for any document that belongs here.",
-    "documentsCount": "{{count}} document(s)",
+    "documentsCount": "{count} document(s)",
     "loading": "Loading the Data Room…",
     "readOnlyInvestor": "You have view-only access to the documents shared with you.",
     "fields": {
@@ -46,9 +83,9 @@
       "expiresInDays": "Expires after (days, optional)"
     },
     "status": {
-      "uploaded": "Uploaded",
+      "uploaded": "Awaiting review",
       "under_review": "Under review",
-      "verified": "Verified",
+      "verified": "Approved",
       "rejected": "Rejected",
       "expired": "Expired"
     },
@@ -80,7 +117,7 @@
     },
     "completeness": {
       "title": "Data Room readiness",
-      "percent": "{{percent}}% ready",
+      "percent": "{percent}% ready",
       "notRequired": "No document is required at this stage",
       "note": "Calculated from the categories this venture is REQUIRED to provide at its stage. Recommended and conditional documents are never counted as missing.",
       "verified": "Verified",
@@ -91,7 +128,7 @@
       "requiredTotal": "Required categories",
       "ready": "Ready",
       "notReady": "Not yet ready",
-      "missingList": "Still to provide: {{categories}}"
+      "missingList": "Still to provide: {categories}"
     },
     "requirements": {
       "title": "Document requirements",
@@ -119,10 +156,10 @@
       "noGrants": "No investor has access yet.",
       "grantedTo": "Granted to",
       "scopeLabel": "Scope",
-      "expiresAt": "Until {{date}}",
+      "expiresAt": "Until {date}",
       "noExpiry": "No expiry",
       "expired": "Expired",
-      "expiredHint": "Expired on {{date}}",
+      "expiredHint": "Expired on {date}",
       "notInvestor": "This person does not hold an investor profile."
     },
     "versionsModal": {
@@ -135,7 +172,7 @@
     "history": {
       "title": "Data Room activity",
       "noEvents": "No activity recorded yet.",
-      "showAll": "Show all {{count}}",
+      "showAll": "Show all {count}",
       "showLess": "Show fewer",
       "actions": {
         "DATA_ROOM_DOCUMENT_UPLOADED": "Document uploaded",
@@ -154,7 +191,7 @@
       "title": "Consultations and downloads",
       "document": "Document",
       "someone": "Someone",
-      "showAll": "Show all {{count}}",
+      "showAll": "Show all {count}",
       "showLess": "Show fewer",
       "actions": {
         "view": "Opened",
@@ -172,12 +209,13 @@
       "impactSustainability": "Impact & Sustainability",
       "fundraisingCapTable": "Fundraising & Cap Table",
       "dueDiligence": "Due Diligence",
-      "reportsMilestones": "Reports & Milestones"
+      "reportsMilestones": "Reports & Roadmaps"
     },
     "errors": {
       "titleRequired": "A document title is required.",
       "categoryInvalid": "Choose a valid Data Room category.",
       "fileRequired": "Attach a file or paste an external link.",
+      "pastExpiry": "The expiry date cannot be in the past.",
       "invalidExpiry": "Enter a valid expiry date.",
       "saveFailed": "The document could not be saved. Nothing was recorded — please try again.",
       "decisionInvalid": "Choose a valid review decision.",
@@ -190,7 +228,32 @@
       "invalidAction": "Unsupported action.",
       "levelInvalid": "Choose a valid requirement level.",
       "loadFailed": "The Data Room could not be loaded.",
-      "uploadFailed": "The file could not be uploaded."
+      "uploadFailed": "The file could not be uploaded.",
+      "decisionFinal": "This version has already been decided on. A decision cannot be reversed; upload a new version to review it again."
+    },
+    "preview": {
+      "title": "Document preview",
+      "openTab": "Open in new tab",
+      "unavailable": "This file type cannot be previewed in the browser. Use Download to read it.",
+      "approve": "Approve",
+      "reject": "Do not approve",
+      "confirmReject": "Confirm rejection",
+      "button": "Preview",
+      "approveConfirm": "Approve “{title}”?"
+    },
+    "session": {
+      "title": "Schedule a session",
+      "milestone": "Milestone",
+      "milestonePlaceholder": "Choose a milestone",
+      "noMilestone": "This venture has no milestone yet: a session must belong to one.",
+      "date": "Date",
+      "time": "Time",
+      "duration": "Minutes",
+      "note": "Why we are meeting",
+      "book": "Schedule",
+      "button": "Schedule a session",
+      "planPrompt": "Schedule a session to discuss this document?",
+      "decided": "Decision taken on this version"
     }
   }
 }

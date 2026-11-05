@@ -120,7 +120,7 @@ export default function WeekActivitiesGrid({
                                                            value={newFollowup.comment}
                                                            onChange={event => setNewFollowup({...newFollowup, comment: event.target.value})}
                                                            placeholder={t("adminMisc.programDetail.feedbackPlaceholder")}
-                                                           className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all resize-none"
+                                                           className="w-full bg-black/60 border border-white/10 rounded-xl p-4 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 transition-all resize-none"
                                                            rows={2}
                                                         />
                                                         <div className="flex justify-end gap-2">

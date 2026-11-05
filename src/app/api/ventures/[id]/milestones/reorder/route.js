@@ -11,7 +11,7 @@ import { getVentureDbIdByCodeOrId } from "@/models/ventureWorkspace";
  *
  * Moves a milestone one position inside its Journey stage. Ordering is
  * sequential (display_order 1..n) and drives the release chain, so this is a
- * STRUCTURE action: Lead Manager or Super Admin only.
+ * STRUCTURE action: Venture Manager or Super Admin only.
  */
 export const POST = createHandler(async (req, { params }) => {
   const { id } = await params;

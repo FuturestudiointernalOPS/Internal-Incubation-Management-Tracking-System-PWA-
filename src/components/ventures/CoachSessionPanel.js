@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useI18n } from "@/lib/i18n";
+import QuickNote from "@/components/ventures/journey/QuickNote";
 
 /**
  * Staff Venture workspace — coach-tinted session row (Vinance 3, item 1).
@@ -158,6 +159,11 @@ export default function CoachSessionPanel({
             {session.start_time ? ` at ${session.start_time}` : ""}
           </p>
         )}
+        {session.milestone_ref != null && session.milestone_ref !== "" ? (
+          <div className="mt-1.5">
+            <QuickNote ventureId={ventureId} milestoneId={session.milestone_ref} subject={session.advisor_name || session.title || ""} />
+          </div>
+        ) : null}
         {contextLine && (
           <p className="text-[9px] text-slate-500 mt-1 truncate" title={contextLine}>
             {contextLine}

@@ -129,7 +129,8 @@ describe("Leads", () => {
   test("the list shows the leads with their qualification", async () => {
     render(<LeadsPage />);
     expect(await screen.findByText("MTN Strategic Partnership")).toBeTruthy();
-    expect(screen.getByText("crm.leads.qualifications.in_review")).toBeTruthy();
+    // Scope to the table: the qualification filter also offers this label as an option.
+    expect(within(screen.getByRole("table")).getByText("crm.leads.qualifications.in_review")).toBeTruthy();
   });
 
   test("a lead is refused without a target, then sent with the chosen organization", async () => {

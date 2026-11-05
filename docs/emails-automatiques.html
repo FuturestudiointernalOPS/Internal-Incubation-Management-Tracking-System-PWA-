@@ -1,0 +1,1110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>E-mails automatiques — ImpactOS</title>
+<style>
+ &nbsp;:root {
+    --ink: #1f2937;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --soft: #f8fafc;
+    --soft-orange: #fff7ed;
+    --orange: #f97316;
+    --orange-dark: #c2410c;
+    --green: #047857;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, "DejaVu Sans", sans-serif;
+    color: var(--ink);
+    font-size: 10.2pt;
+    line-height: 1.55;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  @page { size: A4; margin: 16mm 15mm 16mm 15mm; }
+
+  h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -0.01em; }
+  p { margin: 0 0 7px; }
+  p:last-child { margin-bottom: 0; }
+
+  .page { break-after: page; }
+  .part { break-before: page; }
+
+  /* ---------- Couverture ---------- */
+
+  .cover {
+    height: 258mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-top: 6mm;
+  }
+
+  .cover .logo { width: 92px; height: auto; margin-bottom: 18mm; }
+
+  .eyebrow {
+    font-size: 9pt;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--orange-dark);
+    font-weight: 700;
+    margin-bottom: 5mm;
+  }
+
+  .cover h1 {
+    font-size: 40pt;
+    line-height: 1.05;
+    color: #111827;
+    margin-bottom: 5mm;
+  }
+
+  .cover .lede {
+    font-size: 14pt;
+    color: var(--muted);
+    max-width: 120mm;
+    line-height: 1.45;
+  }
+
+  .rule {
+    width: 34mm;
+    height: 4px;
+    background: var(--orange);
+    margin: 9mm 0 6mm;
+  }
+
+  .cover .meta {
+    font-size: 9.5pt;
+    color: var(--muted);
+  }
+
+  .cover-bottom {
+    border-top: 1px solid var(--line);
+    padding-top: 6mm;
+    font-size: 10pt;
+    color: var(--muted);
+    max-width: 135mm;
+  }
+
+  /* ---------- Titres de section ---------- */
+
+  .section-label {
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--orange-dark);
+    font-weight: 700;
+    margin-bottom: 3mm;
+  }
+
+  .page h2, .part h2 {
+    font-size: 21pt;
+    color: #111827;
+    margin-bottom: 3mm;
+  }
+
+  .lede {
+    font-size: 10.8pt;
+    color: var(--muted);
+    max-width: 150mm;
+    margin-bottom: 7mm;
+  }
+
+  .part-kicker {
+    font-size: 8.5pt;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--orange-dark);
+    font-weight: 700;
+    margin-bottom: 2mm;
+  }
+
+  .part h2 { font-size: 22pt; margin-bottom: 2mm; }
+  .part-lede { color: var(--muted); max-width: 150mm; font-size: 10pt; margin-bottom: 4mm; }
+
+  /* ---------- Blocs de contenu ---------- */
+
+  .how {
+    margin-top: 8mm;
+    padding: 5mm 6mm;
+    background: var(--soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+  }
+
+  .how h3 { font-size: 12pt; margin-bottom: 3mm; }
+  .how ol { margin: 0; padding-left: 5mm; }
+  .how li { margin-bottom: 2.5mm; }
+
+  .toc { margin: 6mm 0 0; padding: 0; list-style: none; }
+  .toc li {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    padding: 2.6mm 0;
+    font-size: 10.5pt;
+  }
+  .toc li:last-child { border-bottom: none; }
+  .toc .num { color: var(--orange-dark); font-weight: 700; margin-right: 4mm; min-width: 8mm; }
+  .toc .count { color: var(--muted); font-size: 9pt; }
+
+  /* ---------- Tableau de synthèse ---------- */
+
+  table.summary {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.35pt;
+    line-height: 1.32;
+  }
+
+  table.summary thead th {
+    text-align: left;
+    padding: 1.7mm 2.2mm;
+    background: #111827;
+    color: #ffffff;
+    font-size: 7.9pt;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  table.summary tbody td {
+    padding: 1.45mm 2.2mm;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  table.summary tbody tr:nth-child(even) td { background: #fbfbfc; }
+  table.summary .n { color: var(--orange-dark); font-weight: 700; white-space: nowrap; }
+  table.summary .name { font-weight: 600; }
+
+  /* ---------- Fiches e-mail ---------- */
+
+  .mail {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 3.2mm 4mm 3.6mm;
+    margin-bottom: 4mm;
+    background: #ffffff;
+    break-inside: avoid;
+  }
+
+  .mail.long { break-inside: auto; }
+
+  .mail-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4mm;
+    margin-bottom: 2.6mm;
+    break-after: avoid;
+  }
+
+  .mail-head h3 { font-size: 13.5pt; color: #111827; }
+  .mail-head h3 .n { color: var(--orange); margin-right: 2mm; }
+
+  .tag {
+    display: inline-block;
+    padding: 1.1mm 2.6mm;
+    border-radius: 20px;
+    font-size: 7.4pt;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .tag.fixed { background: #eef2f7; color: #475569; }
+  .tag.adapt { background: var(--soft-orange); color: var(--orange-dark); border: 1px solid #fed7aa; }
+
+  table.facts {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 2.8mm;
+    font-size: 9pt;
+    line-height: 1.35;
+    break-after: avoid;
+  }
+
+  table.facts th {
+    width: 27mm;
+    text-align: left;
+    vertical-align: top;
+    padding: 1mm 0;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  table.facts td { padding: 1mm 0; vertical-align: top; }
+
+  .body-label {
+    font-size: 7.8pt;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 1.8mm;
+  }
+
+  .copy {
+    white-space: pre-wrap;
+    background: var(--soft);
+    border-left: 3px solid var(--orange);
+    border-radius: 0 7px 7px 0;
+    padding: 2.6mm 3.4mm;
+    font-size: 9pt;
+    line-height: 1.42;
+    color: #334155;
+    break-inside: avoid;
+  }
+
+  .copy strong { color: #111827; }
+
+  .copy table.detail {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 2.5mm 0;
+    font-size: 9pt;
+    break-inside: avoid;
+  }
+  .copy table.detail td { padding: 0.55mm 0; vertical-align: top; }
+  .copy table.detail td.k { width: 34mm; color: #64748b; }
+  .copy table.detail td.v { color: #334155; }
+
+  .note {
+    margin-top: 2mm;
+    font-size: 8.3pt;
+    color: var(--muted);
+  }
+
+  .note b { color: var(--ink); }
+
+  /* ---------- Mini-fiches pour les notifications ---------- */
+
+  .mini {
+    border-bottom: 1px solid var(--line);
+    padding: 3.2mm 0;
+  }
+  .mini:last-child { border-bottom: none; }
+  .mini h4 { font-size: 10.4pt; margin-bottom: 1.2mm; color: #111827; }
+  .mini .who { font-size: 8.6pt; color: var(--muted); margin-bottom: 1.6mm; }
+  .mini .subject { font-size: 9.2pt; margin-bottom: 1.6mm; }
+  .mini .subject b { color: var(--orange-dark); }
+  .mini .lines {
+    font-size: 9.1pt;
+    color: #334155;
+    background: var(--soft);
+    border-radius: 6px;
+    padding: 2.6mm 3.4mm;
+    white-space: pre-wrap;
+  }
+
+  /* ---------- Tableaux simples ---------- */
+
+  table.plain {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9.1pt;
+    margin: 2mm 0 4mm;
+  }
+  table.plain thead th {
+    text-align: left;
+    padding: 1.8mm 2.4mm;
+    background: #f1f5f9;
+    color: #334155;
+    font-size: 8.3pt;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  table.plain tbody td {
+    padding: 1.8mm 2.4mm;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+
+  /* ---------- Encadrés ---------- */
+
+  .callout {
+    background: var(--soft-orange);
+    border: 1px solid #fed7aa;
+    border-radius: 8px;
+    padding: 3mm 3.8mm;
+    margin: 3mm 0;
+  }
+  .callout h3 { font-size: 11pt; margin-bottom: 1.5mm; color: var(--orange-dark); }
+  .callout p, .callout li { font-size: 9.1pt; }
+
+  .bullets { margin: 0; padding-left: 5mm; }
+  .bullets li { margin-bottom: 1.2mm; }
+
+  .footer-note {
+    margin-top: 7mm;
+    padding-top: 4mm;
+    border-top: 1px solid var(--line);
+    font-size: 8.4pt;
+    color: var(--muted);
+  }
+
+  .avoid-split { break-inside: avoid; }
+
+  /* ---------- Sommaire détaillé ---------- */
+
+  .toc-detail { margin: 2mm 0 0; padding: 0; list-style: none; font-size: 9.6pt; }
+  .toc-detail li { padding: 1.6mm 0; border-bottom: 1px dotted #e2e8f0; display: flex; gap: 3mm; }
+  .toc-detail li .num { color: var(--orange-dark); font-weight: 700; min-width: 7mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ COUVERTURE ============ -->
+<section class="page cover">
+  <div>
+    <img class="logo" src="../public/brand/logo_full.png" alt="Future Studio">
+    <p class="eyebrow">ImpactOS · Future Studio</p>
+    <h1>E-mails<br>automatiques</h1>
+    <p class="lede">Guide de référence des messages envoyés par la plateforme, leur déclencheur et leur contenu.</p>
+    <div class="rule"></div>
+    <p class="meta">Novembre 2026 · Version 1.0 · Document de référence</p>
+  </div>
+  <div class="cover-bottom">
+    <p>Ce document présente chaque message automatique&nbsp;: le moment où il part, la personne qui le reçoit et le texte exact qu'elle lit. Les messages rédigés à la main par un utilisateur sont regroupés en annexe.</p>
+  </div>
+</section>
+
+<!-- ============ SOMMAIRE ============ -->
+<section class="page">
+  <div class="section-label">Sommaire</div>
+  <h2>Ce que contient ce document</h2>
+  <p class="lede">Dix-huit messages automatiques, répartis en six familles. Chaque fiche indique le déclencheur, le destinataire, l'objet et le contenu.</p>
+
+  <ul class="toc">
+    <li><span><span class="num">1</span>Comptes et accès</span><span class="count">5 messages</span></li>
+    <li><span><span class="num">2</span>Ventures</span><span class="count">5 messages</span></li>
+    <li><span><span class="num">3</span>Candidatures</span><span class="count">3 messages</span></li>
+    <li><span><span class="num">4</span>Formations en ligne</span><span class="count">1 message</span></li>
+    <li><span><span class="num">5</span>Équipes</span><span class="count">3 messages</span></li>
+    <li><span><span class="num">6</span>Investisseurs</span><span class="count">1 message</span></li>
+    <li><span><span class="num">A</span>Annexes</span><span class="count">Messages manuels, personnalisation, bon à savoir</span></li>
+  </ul>
+
+  <div class="how">
+    <h3>Comment fonctionnent ces messages</h3>
+    <ol>
+      <li><b>Un événement déclenche l'envoi.</b> Une candidature est reçue, un compte est approuvé, une Venture est créée, une échéance approche&nbsp;: le message part sans intervention.</li>
+      <li><b>Le contenu est déjà écrit.</b> La plateforme remplit seulement les éléments variables&nbsp;: le prénom, le nom de la formation, la date, le nom de la Venture.</li>
+      <li><b>Le message part de la boîte professionnelle Future Studio.</b> Si celle-ci est momentanément indisponible, un second canal prend automatiquement le relais pour qu'aucun message ne soit perdu.</li>
+      <li><b>Chaque envoi est conservé dans l'historique de la personne.</b> On peut vérifier qu'un message est bien parti, à quelle date et avec quel résultat, sans y relire son contenu.</li>
+    </ol>
+  </div>
+
+  <p class="footer-note">Les éléments entre accolades — par exemple <b>{prénom}</b> ou <b>{nom de la Venture}</b> — sont remplacés automatiquement au moment de l'envoi. Les boutons sont représentés entre crochets.</p>
+</section>
+
+<!-- ============ VUE D'ENSEMBLE ============ -->
+<section class="page">
+  <div class="section-label">Vue d'ensemble</div>
+  <h2>Les 18 messages automatiques</h2>
+  <p class="lede">Un coup d'œil suffit pour savoir quel message part, quand, et pour qui.</p>
+
+  <table class="summary">
+    <thead>
+      <tr>
+        <th style="width:7mm">N°</th>
+        <th style="width:52mm">Message</th>
+        <th>Quand il part</th>
+        <th style="width:35mm">Destinataire</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="n">1</td><td class="name">Invitation et activation de compte</td><td>Une personne est invitée, ou une candidature est approuvée</td><td>La personne invitée</td></tr>
+      <tr><td class="n">2</td><td class="name">Accès pour un compte existant</td><td>Même situations, mais la personne a déjà un mot de passe</td><td>La personne invitée</td></tr>
+      <tr><td class="n">3</td><td class="name">Bienvenue</td><td>La personne vient de créer son mot de passe</td><td>Le nouvel utilisateur</td></tr>
+      <tr><td class="n">4</td><td class="name">Réinitialisation du mot de passe</td><td>La personne a cliqué sur «&nbsp;mot de passe oublié&nbsp;»</td><td>Le titulaire du compte</td></tr>
+      <tr><td class="n">5</td><td class="name">Compte approuvé</td><td>Un administrateur approuve un compte en attente</td><td>La personne approuvée</td></tr>
+      <tr><td class="n">6</td><td class="name">Invitation d'un fondateur de Venture</td><td>Une Venture est créée, ou l'invitation est renvoyée</td><td>Le fondateur</td></tr>
+      <tr><td class="n">7</td><td class="name">Invitation d'un membre de Venture</td><td>Un fondateur ajoute un cofondateur ou un membre</td><td>La personne invitée</td></tr>
+      <tr><td class="n">8</td><td class="name">Rappel de travail</td><td>Une échéance approche, selon les règles définies</td><td>Responsable, soutiens, responsables en copie</td></tr>
+      <tr><td class="n">9</td><td class="name">Notifications de Venture</td><td>Revue, changement de responsable, session</td><td>Fondateurs, coach, responsables</td></tr>
+      <tr><td class="n">10</td><td class="name">Invitation à une session</td><td>Un invité externe est ajouté à une session</td><td>L'invité</td></tr>
+      <tr><td class="n">11</td><td class="name">Accusé de réception</td><td>Une candidature est reçue sur une exécution gratuite</td><td>Le candidat</td></tr>
+      <tr><td class="n">12</td><td class="name">Décision d'une candidature</td><td>Une candidature est approuvée ou rejetée</td><td>Le candidat</td></tr>
+      <tr><td class="n">13</td><td class="name">Résultat d'une candidature</td><td>Le rapport est prêt, immédiatement ou après un délai</td><td>Le candidat</td></tr>
+      <tr><td class="n">14</td><td class="name">Achat d'une formation</td><td>Paiement confirmé, ou inscription à finaliser</td><td>L'acheteur</td></tr>
+      <tr><td class="n">15</td><td class="name">Identifiants d'une équipe</td><td>Une équipe est créée</td><td>Les membres de l'équipe</td></tr>
+      <tr><td class="n">16</td><td class="name">Identifiants d'une unité</td><td>Une unité de programme est créée</td><td>Les membres de l'unité</td></tr>
+      <tr><td class="n">17</td><td class="name">Confirmation d'affectation</td><td>Des membres sont ajoutés à une unité</td><td>Les membres ajoutés</td></tr>
+      <tr><td class="n">18</td><td class="name">Décision d'un compte investisseur</td><td>Le compte est approuvé, rejeté ou suspendu</td><td>L'investisseur</td></tr>
+    </tbody>
+  </table>
+
+  <p class="footer-note">Six de ces messages peuvent être adaptés depuis les réglages de l'exécution ou du formulaire. Les douze autres sont fixes, pour garantir une communication cohérente.</p>
+</section>
+
+<!-- ============ PARTIE 1 ============ -->
+<section class="part">
+  <div class="part-kicker">Partie 1</div>
+  <h2>Comptes et accès</h2>
+  <p class="part-lede">Cinq messages accompagnent une personne depuis l'invitation jusqu'à la connexion&nbsp;: invitation, accès, bienvenue, mot de passe oublié et approbation d'un compte.</p>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">1</span>Invitation et activation de compte</h3>
+      <span class="tag adapt">Personnalisable</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Une personne est invitée sur la plateforme, ou une candidature est approuvée et la personne doit créer son mot de passe.</td></tr>
+      <tr><th>À qui</th><td>La personne invitée.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;You've been invited to facilitate {programme}&nbsp;» · «&nbsp;You're invited to {organisation}&nbsp;» · ou «&nbsp;Welcome to {organisation} — Set Your Password&nbsp;» après une approbation.</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Hello {prénom},
+
+You have been selected to serve as a {rôle} [for {programme}] on {organisation}.
+
+Please use the button below to activate your account and set your password.
+
+[ Activate My Account ]
+
+This link expires in 48 hours.
+
+If you did not expect this invitation, please ignore this email.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> le lien d'activation est valable 48 heures. Le texte peut être adapté depuis les réglages de l'exécution ou du formulaire&nbsp;; les variables disponibles sont le prénom, le rôle, le programme et le nom de l'organisation.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">2</span>Accès pour un compte existant</h3>
+      <span class="tag adapt">Personnalisable</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>La personne est invitée, mais possède déjà un mot de passe.</td></tr>
+      <tr><th>À qui</th><td>La personne invitée.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;You've been invited to facilitate {programme}&nbsp;» · «&nbsp;Welcome back to {organisation}&nbsp;» · ou «&nbsp;Welcome back to {organisation} — Log In&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Hello {prénom},
+
+You have been selected to serve as a {rôle} [for {programme}] on {organisation}.
+
+Please use the button below to access your account.
+
+[ Access Impact OS ]
+
+If you did not expect this email, please ignore it.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> aucun lien temporaire n'est nécessaire&nbsp;: la personne se connecte avec ses identifiants habituels. Ce message peut être adapté de la même manière que le précédent.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">3</span>Bienvenue après activation</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>La personne vient de créer son mot de passe et son compte devient actif.</td></tr>
+      <tr><th>À qui</th><td>Le nouvel utilisateur.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Welcome to ImpactOS — Your account is active&nbsp;» (anglais) · «&nbsp;Bienvenue sur ImpactOS — Votre compte est actif&nbsp;» (français).</td></tr>
+    </table>
+    <p class="body-label">Message reçu — version française</p>
+    <div class="copy">Bienvenue, {prénom}&nbsp;! 👋
+
+Votre compte est maintenant actif. Vous pouvez vous connecter et commencer à utiliser ImpactOS.
+
+[ SE CONNECTER ]
+
+Si vous n'avez pas créé ce compte, veuillez contacter votre administrateur.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> la version anglaise est envoyée automatiquement aux personnes dont la langue est l'anglais. Un nom absent ou générique est remplacé par une salutation neutre.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">4</span>Réinitialisation du mot de passe</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>La personne clique sur «&nbsp;mot de passe oublié&nbsp;» et demande un nouveau mot de passe.</td></tr>
+      <tr><th>À qui</th><td>Le titulaire du compte.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Reset your ImpactOS password&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Reset your password
+
+Hi {prénom}, we received a request to reset your password.
+Click the button below to set a new one.
+
+[ RESET PASSWORD ]
+
+This link expires in 1 hour.
+
+If you didn't request this, you can safely ignore this email.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> le lien est valable une heure. Le message n'est envoyé que si l'adresse correspond à un compte existant.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">5</span>Compte approuvé — définir son mot de passe</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Un administrateur approuve un compte utilisateur en attente.</td></tr>
+      <tr><th>À qui</th><td>La personne approuvée.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Set Your Password — Future Studio Account Approved&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Your Account Has Been Approved
+
+Hello {prénom},
+
+Your account has been approved by the administration. To activate your account and set up your password, please click the button below:
+
+[ Set Your Password ]
+
+This link will expire in 24 hours and can only be used once.
+If you did not request this, please ignore this email.
+
+Future Studio · ImpactOS</div>
+    <p class="note"><b>À savoir&nbsp;:</b> le lien est valable 24 heures et ne peut servir qu'une seule fois. Le message est signé «&nbsp;Future Studio Admin&nbsp;».</p>
+  </article>
+</section>
+
+<!-- ============ PARTIE 2 ============ -->
+<section class="part">
+  <div class="part-kicker">Partie 2</div>
+  <h2>Ventures</h2>
+  <p class="part-lede">Cinq messages accompagnent les entreprises suivies par Future Studio&nbsp;: invitation du fondateur, ajout d'un membre, rappels d'échéance, notifications d'activité et invitation à une session.</p>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">6</span>Invitation d'un fondateur de Venture</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Une Venture est créée, ou son invitation est renvoyée.</td></tr>
+      <tr><th>À qui</th><td>Le fondateur.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Your venture {nom de la Venture} has been added to ImpactOS&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Your venture has been added to ImpactOS 🚀
+
+Your company {nom de la Venture} has been added to ImpactOS, and you are invited to join the platform.
+Create your account below to open your venture's workspace — or log in if you already have one.
+
+[ CREATE YOUR ACCOUNT & JOIN ]
+
+This invitation link expires on {date}.
+
+If you have any questions, please contact your administrator.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> un seul lien couvre les deux cas&nbsp;: une personne sans compte le crée, une personne qui en possède déjà un se connecte.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">7</span>Invitation d'un membre de Venture</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Un fondateur ajoute un cofondateur ou un membre à une Venture existante.</td></tr>
+      <tr><th>À qui</th><td>La personne invitée.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;You're invited to join {nom de la Venture}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">You're invited to join {nom de la Venture} 🤝
+
+{nom de l'invitant} invited you to join {nom de la Venture} as {a founder / a team member}.
+Accept the invitation below to join the team.
+
+[ ACCEPT INVITATION ]
+
+This invitation link expires on {date}.
+
+If you have any questions, please contact your administrator.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> le message précise le rôle proposé&nbsp;: cofondateur ou membre de l'équipe.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">8</span>Rappel de travail automatique</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Chaque jour, la plateforme vérifie les échéances des travaux. Un rappel part lorsque la date surveillée approche, selon le délai défini (par exemple trois jours avant le début ou la fin). Un même rappel n'est envoyé qu'une fois.</td></tr>
+      <tr><th>À qui</th><td>La personne responsable du travail, et les personnes qui la soutiennent lorsque la règle le prévoit. Les responsables de la Venture reçoivent une copie pour les activités.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Starting soon: {référence} {titre} — starts {date} — in {n} day(s)&nbsp;» · «&nbsp;Due soon: … — finishes {date} …&nbsp;» · ou «&nbsp;Reminder: {référence} {titre} — {échéance}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">[Impact OS]
+{nom de la Venture}
+
+{titre du travail}
+{échéance} · {étape › jalon}
+<table class="detail"><tr><td class="k">Code</td><td class="v">{référence}</td></tr><tr><td class="k">Activity</td><td class="v">{activité}</td></tr><tr><td class="k">Deliverable</td><td class="v">{livrable}</td></tr><tr><td class="k">Definition of Done</td><td class="v">{critère de réussite}</td></tr><tr><td class="k">Status</td><td class="v">{état}</td></tr><tr><td class="k">Owner</td><td class="v">{responsable}</td></tr><tr><td class="k">Supporting</td><td class="v">{soutiens}</td></tr><tr><td class="k">Start</td><td class="v">{date de début}</td></tr><tr><td class="k">Finish</td><td class="v">{date de fin}</td></tr></table>
+[ Open in ImpactOS ]
+
+Add to Google Calendar
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> le rappel automatique ne contient pas de message libre. Seules la règle — moment, délai, travaux concernés — se configure. Une pièce jointe calendrier accompagne le message pour ajouter l'échéance à l'agenda.</p>
+  </article>
+
+  <article class="mail long">
+    <div class="mail-head">
+      <h3><span class="n">9</span>Notifications de Venture</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Un événement touche directement la Venture&nbsp;: une soumission est revue, un responsable change, une session est planifiée, modifiée ou annulée.</td></tr>
+      <tr><th>À qui</th><td>Les fondateurs, le coach de la session et les responsables de la Venture, selon l'événement.</td></tr>
+      <tr><th>Principe</th><td>Chaque événement produit aussi une notification dans la plateforme. L'e-mail est le second canal&nbsp;; un échec d'envoi ne remet jamais en cause l'action elle-même.</td></tr>
+    </table>
+
+    <div class="mini">
+      <h4>Soumission approuvée</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs</p>
+      <p class="subject">Objet&nbsp;: <b>Your submission was approved</b></p>
+      <div class="lines">Your submission for the task "{titre de la tâche}" was approved.
+Feedback: {commentaire}
+Log in to ImpactOS to see the details.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Soumission à modifier</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs</p>
+      <p class="subject">Objet&nbsp;: <b>Changes requested on your submission</b></p>
+      <div class="lines">Your submission for the task "{titre de la tâche}" was reviewed with changes requested.
+Feedback: {commentaire}
+Log in to ImpactOS to see the details.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Responsable de Venture assigné</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs</p>
+      <p class="subject">Objet&nbsp;: <b>A Venture Lead has been assigned to your Venture</b></p>
+      <div class="lines">{nom} now supports your Venture.
+You can reach them from your Venture dashboard in ImpactOS.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Responsable de Venture retiré</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs</p>
+      <p class="subject">Objet&nbsp;: <b>Your Venture Lead has been updated</b></p>
+      <div class="lines">{nom} is no longer assigned to your Venture.
+Any new support will appear on your Venture dashboard in ImpactOS.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Session planifiée — côté Venture</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs, et le coach</p>
+      <p class="subject">Objet&nbsp;: <b>A session has been scheduled for your Venture</b> · coach&nbsp;: <b>You have been added to a Venture session</b></p>
+      <div class="lines">Session "{titre}" has been scheduled{ pour {date et heure}}.
+Memo: {note}
+With: {coach}
+Preparation: {préparation}
+Log in to ImpactOS to see the details in your calendar.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Session planifiée — côté responsables de la Venture</h4>
+      <p class="who">Destinataires&nbsp;: les responsables actifs, sauf le créateur et le coach</p>
+      <p class="subject">Objet&nbsp;: <b>You have been added to a Venture session</b></p>
+      <div class="lines">Session "{titre}" has been scheduled{ pour {date et heure}}.
+Memo: {note}
+Preparation: {préparation}
+Meeting link: {lien}
+Log in to ImpactOS to see the details in your calendar.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Session mise à jour</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs et le coach</p>
+      <p class="subject">Objet&nbsp;: <b>Your Venture session was updated</b></p>
+      <div class="lines">Session "{titre}" has been updated.
+New time: {date et heure}
+Meeting link: {lien}
+Log in to ImpactOS to see the details.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Session annulée</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs, le coach et les responsables de la Venture</p>
+      <p class="subject">Objet&nbsp;: <b>Your Venture session was cancelled</b></p>
+      <div class="lines">Session "{titre}" has been cancelled.
+Was scheduled for: {date et heure}
+Log in to ImpactOS to see your updated calendar.</div>
+    </div>
+
+    <div class="mini">
+      <h4>Session replanifiée</h4>
+      <p class="who">Destinataires&nbsp;: les fondateurs, le coach et les responsables de la Venture</p>
+      <p class="subject">Objet&nbsp;: <b>Your Venture session was rescheduled</b></p>
+      <div class="lines">Session "{titre}" has been rescheduled.
+New time: {date et heure}
+Meeting link: {lien}
+Log in to ImpactOS to see the details.</div>
+    </div>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">10</span>Invitation d'un invité à une session</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Un membre de l'équipe ajoute une personne extérieure à une session de Venture.</td></tr>
+      <tr><th>À qui</th><td>L'invité.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Invitation for a session&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">IMPACTOS · VENTURE SESSION
+
+Invitation for a session
+
+{nom de l'invitant} invited you to a session.
+
+{titre de la session}
+<table class="detail"><tr><td class="k">When</td><td class="v">{date et heure}</td></tr><tr><td class="k">Venture</td><td class="v">{nom de la Venture}</td></tr><tr><td class="k">Where</td><td class="v">{lieu}</td></tr><tr><td class="k">Join</td><td class="v">{lien de réunion}</td></tr></table>
+MEMO
+{description de la session}
+
+[ Add to my calendar ]
+
+An .ics file is attached — open it in Google Calendar, Outlook or Apple Calendar
+to add this session to your own calendar.</div>
+    <p class="note"><b>À savoir&nbsp;:</b> une pièce jointe calendrier est ajoutée. Le nom affiché de l'expéditeur est celui de la personne qui invite.</p>
+  </article>
+</section>
+
+<!-- ============ PARTIE 3 ============ -->
+<section class="part">
+  <div class="part-kicker">Partie 3</div>
+  <h2>Candidatures</h2>
+  <p class="part-lede">Trois messages suivent une candidature&nbsp;: l'accusé de réception, la décision, puis l'envoi du résultat.</p>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">11</span>Accusé de réception</h3>
+      <span class="tag adapt">Personnalisable</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Une candidature est reçue sur une exécution gratuite. Une exécution payante liée à une formation n'envoie pas cet accusé.</td></tr>
+      <tr><th>À qui</th><td>Le candidat, à l'adresse réelle trouvée dans sa réponse ou dans sa fiche.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Thank you for your submission — {nom du formulaire}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Thank you for your submission — {nom du formulaire}
+
+Hello {prénom},
+
+We have received your submission for {nom du formulaire}.
+Our team will review it and get back to you soon.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> le texte peut être adapté depuis les réglages de l'exécution ou du formulaire.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">12</span>Décision d'une candidature</h3>
+      <span class="tag adapt">Personnalisable</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Une candidature est approuvée ou rejetée, après une revue manuelle, une revue en lot ou une décision automatique.</td></tr>
+      <tr><th>À qui</th><td>Le candidat.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Your {nom du formulaire} application has been approved&nbsp;» · ou «&nbsp;Update on your {nom du formulaire} application&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu — approbation</p>
+    <div class="copy">Your {nom du formulaire} application has been approved
+
+Congratulations {prénom}!
+
+Your application for {nom du formulaire} has been approved.
+We are excited to welcome you.
+
+Future Studio — futurestudio.bj</div>
+    <p class="body-label" style="margin-top:4mm">Message reçu — rejet</p>
+    <div class="copy">Update on your {nom du formulaire} application
+
+Dear {prénom},
+
+Thank you for your interest in {nom du formulaire}.
+Unfortunately, you were not selected this time. We encourage you to apply again in the future.
+
+Future Studio — futurestudio.bj</div>
+    <p class="note"><b>À savoir&nbsp;:</b> un commentaire de décision peut être ajouté en citation sous le message. Le texte peut être adapté depuis les réglages de l'exécution ou du formulaire.</p>
+  </article>
+
+  <article class="mail long">
+    <div class="mail-head">
+      <h3><span class="n">13</span>Résultat d'une candidature</h3>
+      <span class="tag adapt">Partiellement personnalisable</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Le rapport de résultat est prêt. L'envoi peut être immédiat, différé du délai choisi, ou déclenché manuellement.</td></tr>
+      <tr><th>À qui</th><td>Le candidat.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Your submission result&nbsp;» · «&nbsp;Résultat de votre soumission&nbsp;» · «&nbsp;Your Founder Fit Score is available&nbsp;» · «&nbsp;Votre Founder Fit Score est disponible&nbsp;».</td></tr>
+      <tr><th>Pièce jointe</th><td>Le rapport au format PDF. Si la pièce jointe ne peut pas être envoyée, un bouton de téléchargement la remplace.</td></tr>
+    </table>
+
+    <p class="body-label">Message reçu — résultat générique (français)</p>
+    <div class="copy">Résultat de votre soumission
+
+Bonjour {prénom},
+
+Veuillez trouver ci-joint le résultat de votre soumission. Le document contient vos réponses,
+l'évaluation de votre soumission et votre score final. Merci pour votre participation.
+
+Future Studio — futurestudio.bj</div>
+
+    <p class="body-label" style="margin-top:4mm">Message reçu — résultat Founder Fit Score (français)</p>
+    <div class="copy">Votre Founder Fit Score est disponible
+
+Bonjour {prénom},
+
+Merci d'avoir pris le temps de compléter le Founder Fit Score de Future Studio.
+
+À partir de vos réponses, nous avons préparé un rapport personnalisé qui présente&nbsp;:
+  • votre score global&nbsp;;
+  • votre résultat sur chacun des sept critères&nbsp;;
+  • vos principaux points forts&nbsp;;
+  • vos axes prioritaires de progression&nbsp;;
+  • des recommandations concrètes pour faire évoluer votre projet.
+
+Votre Founder Fit Score est de {score} / 100.
+
+Ce résultat ne constitue ni un jugement définitif ni une étiquette. Il représente une
+photographie de votre profil actuel et vise à vous aider à mieux comprendre vos forces,
+les points à consolider et les prochaines décisions à prendre.
+
+Vous pouvez consulter votre rapport complet dans le fichier joint.
+
+Nous vous recommandons de prendre le temps de lire les actions proposées, notamment celles
+liées à la validation du marché, à la traction commerciale et à la différenciation de
+{nom du projet}.
+
+Nous restons disponibles pour échanger avec vous sur les résultats et identifier
+l'accompagnement Future Studio le plus adapté à votre niveau d'avancement.
+
+Bien cordialement,
+L'équipe Future Studio</div>
+
+    <p class="note"><b>À savoir&nbsp;:</b> l'en-tête et le texte peuvent être adaptés, mais la façon d'accéder au rapport reste contrôlée par la plateforme&nbsp;: le candidat reçoit toujours un chemin vers son document. Une même personne ne reçoit qu'un seul résultat par exécution.</p>
+  </article>
+</section>
+
+<!-- ============ PARTIE 4 ============ -->
+<section class="part">
+  <div class="part-kicker">Partie 4</div>
+  <h2>Formations en ligne</h2>
+  <p class="part-lede">Un seul message, mais quatre versions selon l'état de l'inscription. Le principe est constant&nbsp;: aucun mot de passe ne circule par e-mail, seulement un lien sécurisé.</p>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">14</span>Achat et accès à une formation</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Un paiement est confirmé, un accès est préparé, ou une inscription reste à finaliser.</td></tr>
+      <tr><th>À qui</th><td>L'acheteur.</td></tr>
+      <tr><th>Principe</th><td>Le lien contenu dans le message est à usage unique. La personne choisit elle-même son mot de passe.</td></tr>
+    </table>
+
+    <table class="plain">
+      <thead>
+        <tr><th style="width:34mm">Situation</th><th style="width:46mm">Objet</th><th>Message</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Payé, accès prêt</td>
+          <td>«&nbsp;Payment confirmed — {cours}&nbsp;»<br>«&nbsp;Paiement confirmé — {cours}&nbsp;»</td>
+          <td>Votre inscription à «&nbsp;{cours}&nbsp;» est confirmée et votre accès est prêt.<br><b>[ Choisir mon mot de passe ]</b><br><i>Vous choisissez vous-même votre mot de passe. Aucun mot de passe ne circule par e-mail.</i></td>
+        </tr>
+        <tr>
+          <td>Payé, mot de passe déjà existant</td>
+          <td>«&nbsp;Your access is ready — {cours}&nbsp;»<br>«&nbsp;Votre accès est prêt — {cours}&nbsp;»</td>
+          <td>Votre inscription à «&nbsp;{cours}&nbsp;» est confirmée. Connectez-vous pour retrouver votre cours dans «&nbsp;My Learning&nbsp;».<br><b>[ Accéder à mon espace ]</b></td>
+        </tr>
+        <tr>
+          <td>Payé, accès en préparation</td>
+          <td>«&nbsp;Payment confirmed — {cours}&nbsp;»<br>«&nbsp;Paiement confirmé — {cours}&nbsp;»</td>
+          <td>Nous avons bien reçu votre paiement pour «&nbsp;{cours}&nbsp;». Nous préparons votre accès et vous recevrez un second e-mail dès qu'il est prêt.<br><i>Vous n'avez rien d'autre à faire, et surtout pas de payer à nouveau&nbsp;: votre paiement est enregistré.</i></td>
+        </tr>
+        <tr>
+          <td>Non payé</td>
+          <td>«&nbsp;Finish your registration — {cours}&nbsp;»<br>«&nbsp;Finalisez votre inscription — {cours}&nbsp;»</td>
+          <td>Votre inscription à «&nbsp;{cours}&nbsp;» est enregistrée mais le paiement n'a pas encore été confirmé.<br><b>[ Reprendre mon paiement ]</b><br><i>Ce lien vous permet de reprendre exactement là où vous vous êtes arrêté.</i></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="note"><b>À savoir&nbsp;:</b> chaque version affiche le montant et la référence du paiement. Le message «&nbsp;accès en préparation&nbsp;» part même si l'étape technique suivante échoue, pour qu'un acheteur ne paie jamais deux fois.</p>
+  </article>
+</section>
+
+<!-- ============ PARTIE 5 ============ -->
+<section class="part">
+  <div class="part-kicker">Partie 5</div>
+  <h2>Équipes</h2>
+  <p class="part-lede">Trois messages transmettent les identifiants partagés d'une équipe ou d'une unité de programme, et confirment une affectation.</p>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">15</span>Identifiants d'une équipe</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Une équipe est créée avec des identifiants partagés.</td></tr>
+      <tr><th>À qui</th><td>Chaque membre de l'équipe.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Team Credentials: {nom de l'équipe}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">You've been added to {nom de l'équipe}. Use username {identifiant} and password
+{mot de passe} to log in.</div>
+    <p class="note"><b>À savoir&nbsp;:</b> ce message contient des identifiants partagés. Il est réservé aux membres de l'équipe.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">16</span>Identifiants d'une unité de programme</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Une unité de programme est créée.</td></tr>
+      <tr><th>À qui</th><td>Chaque membre de l'unité.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Unit Credentials Secured: {nom de l'unité}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Unit Deployment: {nom de l'unité}
+
+Hello {prénom},
+
+You have been assigned to {nom de l'unité}. Here are the shared access credentials
+for your unit:
+<table class="detail"><tr><td class="k">Unit Username</td><td class="v">{identifiant}</td></tr><tr><td class="k">Unit Password</td><td class="v">{mot de passe}</td></tr></table>
+Use these credentials to access the program dashboard.
+All members of your unit will share these credentials.
+
+[ Login to Command Center ]</div>
+    <p class="note"><b>À savoir&nbsp;:</b> les identifiants sont partagés par toute l'unité.</p>
+  </article>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">17</span>Confirmation d'affectation à une unité</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Des membres sont ajoutés à une unité de programme existante.</td></tr>
+      <tr><th>À qui</th><td>Les membres ajoutés.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Unit Assignment Confirmed: {nom de l'unité}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Unit Assignment: {nom de l'unité}
+
+Hello {prénom},
+
+You have been assigned to {nom de l'unité}. Here are your shared access credentials:
+<table class="detail"><tr><td class="k">Unit Username</td><td class="v">{identifiant}</td></tr><tr><td class="k">Unit Password</td><td class="v">{mot de passe}</td></tr></table>
+Use these credentials to access the program dashboard.
+
+[ Login to Command Center ]</div>
+    <p class="note"><b>À savoir&nbsp;:</b> ce message confirme une affectation et rappelle les identifiants déjà partagés par l'unité.</p>
+  </article>
+</section>
+
+<!-- ============ PARTIE 6 ============ -->
+<section class="part">
+  <div class="part-kicker">Partie 6</div>
+  <h2>Investisseurs</h2>
+  <p class="part-lede">Un message informe un investisseur de la décision prise sur son compte.</p>
+
+  <article class="mail">
+    <div class="mail-head">
+      <h3><span class="n">18</span>Décision d'un compte investisseur</h3>
+      <span class="tag fixed">Texte fixe</span>
+    </div>
+    <table class="facts">
+      <tr><th>Quand</th><td>Le compte est approuvé, rejeté ou suspendu.</td></tr>
+      <tr><th>À qui</th><td>L'investisseur.</td></tr>
+      <tr><th>Objet</th><td>«&nbsp;Investor Account {approved / rejected / suspended}&nbsp;».</td></tr>
+    </table>
+    <p class="body-label">Message reçu</p>
+    <div class="copy">Hello {prénom},
+
+Your investor account has been {décision}.
+Reason: {raison}
+
+You can now access Investor OS at the platform login page.   ← si approuvé
+Please contact Future Studio for more information.            ← sinon
+
+— Future Studio Team</div>
+    <p class="note"><b>À savoir&nbsp;:</b> la phrase d'accès n'apparaît que si le compte est approuvé. La raison est facultative.</p>
+  </article>
+</section>
+
+<!-- ============ ANNEXES ============ -->
+<section class="part">
+  <div class="part-kicker">Annexes</div>
+  <h2>Pour aller plus loin</h2>
+
+  <h3 style="font-size:12.5pt;margin:2mm 0 2.5mm">Les messages que vous rédigez vous-même</h3>
+  <p style="color:var(--muted);margin-bottom:3mm">Ces messages existent, mais leur contenu n'est pas défini à l'avance&nbsp;: il est écrit ou choisi par un utilisateur. Ils ne font donc pas partie du présent guide.</p>
+
+  <table class="plain">
+    <thead>
+      <tr><th style="width:52mm">Message</th><th>Pourquoi il est exclu</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Message manuel à un candidat</td><td>L'objet et le texte sont saisis dans l'écran d'exécution.</td></tr>
+      <tr><td>Rappel manuel d'un travail</td><td>La personne qui relance peut écrire son propre objet et son propre message.</td></tr>
+      <tr><td>Communication de suivi client</td><td>L'objet est le titre de l'activité, le texte est la description saisie.</td></tr>
+      <tr><td>Étape de campagne</td><td>L'objet et le texte sont définis étape par étape par l'administrateur.</td></tr>
+      <tr><td>Message de test</td><td>Envoi de diagnostic réservé à l'administration, non conservé dans l'historique.</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="font-size:12.5pt;margin:5mm 0 2.5mm">Ce qui peut être adapté</h3>
+  <table class="plain">
+    <thead>
+      <tr><th style="width:62mm">Message</th><th>Ce qui est modifiable</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Invitation et activation de compte</td><td>Objet et texte, depuis les réglages de l'exécution ou du formulaire.</td></tr>
+      <tr><td>Accès pour un compte existant</td><td>Objet et texte, de la même manière.</td></tr>
+      <tr><td>Accusé de réception</td><td>Objet et texte.</td></tr>
+      <tr><td>Décision d'une candidature</td><td>Objet et texte, pour l'approbation comme pour le rejet.</td></tr>
+      <tr><td>Résultat d'une candidature</td><td>Objet et texte, sauf la partie qui permet d'accéder au rapport.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <h3>Bon à savoir</h3>
+    <ul class="bullets">
+      <li><b>Une seule adresse d'envoi.</b> Tous les messages partent de la boîte professionnelle Future Studio, pour une image cohérente et une meilleure délivrabilité.</li>
+      <li><b>Un secours automatique.</b> Si le canal principal est indisponible, un second canal prend le relais&nbsp;: le message n'est pas perdu.</li>
+      <li><b>Des liens qui expirent.</b> Activation&nbsp;: 48 heures. Réinitialisation du mot de passe&nbsp;: 1 heure. Approbation d'un compte&nbsp;: 24 heures, usage unique.</li>
+      <li><b>Jamais de mot de passe par e-mail.</b> Les messages contiennent un lien sécurisé&nbsp;; la personne choisit elle-même son mot de passe.</li>
+      <li><b>Un historique par personne.</b> Chaque envoi est conservé avec sa date et son résultat. Le contenu du message n'est pas réarchivé.</li>
+      <li><b>Une adresse factice est refusée.</b> Un message ne part jamais vers une adresse interne de test ou de remplacement.</li>
+    </ul>
+  </div>
+
+  <p class="footer-note" style="margin-top:5mm;padding-top:3mm">Document de référence interne — ImpactOS · Future Studio · Novembre 2026. Pour toute évolution, se rapprocher de l'équipe produit.</p>
+</section>
+
+</body>
+</html>

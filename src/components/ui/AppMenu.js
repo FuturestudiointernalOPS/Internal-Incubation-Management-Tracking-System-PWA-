@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MoreVertical } from "lucide-react";
 
 /**
@@ -9,6 +10,9 @@ import { MoreVertical } from "lucide-react";
  * Replaces long rows of inline icon buttons on operational surfaces: one
  * trigger, one anchored list, grouped items, destructive items in red and
  * separated. Closes on outside click and Escape.
+ *
+ * The list is drawn on <body>, positioned from the trigger and kept inside the
+ * viewport, so a small or `overflow: hidden` card can never clip it.
  *
  * items: [{
  *   key, label, icon, onSelect, disabled?, danger?, separator?
@@ -22,11 +26,39 @@ export default function AppMenu({
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
+  const listRef = useRef(null);
+  const [position, setPosition] = useState(null);
+
+  // Place the list under the trigger, then pull it back inside the viewport.
+  useEffect(() => {
+    if (!open) return undefined;
+    const place = () => {
+      const trigger = wrapRef.current?.getBoundingClientRect();
+      const list = listRef.current;
+      if (!trigger || !list) return;
+      const margin = 8;
+      const width = list.offsetWidth;
+      const height = list.offsetHeight;
+      let left = align === "left" ? trigger.left : trigger.right - width;
+      left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+      let top = trigger.bottom + 4;
+      if (top + height > window.innerHeight - margin) top = Math.max(margin, trigger.top - height - 4);
+      setPosition({ left, top });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, align]);
 
   useEffect(() => {
     if (!open) return undefined;
     const onPointerDown = (event) => {
-      if (wrapRef.current && !wrapRef.current.contains(event.target)) setOpen(false);
+      if (wrapRef.current?.contains(event.target) || listRef.current?.contains(event.target)) return;
+      setOpen(false);
     };
     const onKeyDown = (event) => {
       if (event.key === "Escape") setOpen(false);
@@ -55,12 +87,12 @@ export default function AppMenu({
         <MoreVertical className="w-4 h-4" />
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
+          ref={listRef}
           role="menu"
-          className={`absolute z-[60] mt-1 min-w-[220px] max-w-[280px] rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)] shadow-2xl py-1 ${
-            align === "left" ? "left-0" : "right-0"
-          }`}
+          style={{ position: "fixed", left: position?.left ?? 0, top: position?.top ?? 0, visibility: position ? "visible" : "hidden" }}
+          className="z-[1000] min-w-[220px] max-w-[min(280px,calc(100vw-16px))] rounded-xl border border-[var(--border-primary)] bg-[var(--surface-1)] shadow-2xl py-1"
         >
           {items.map((item, index) =>
             item.separator ? (
@@ -90,7 +122,8 @@ export default function AppMenu({
               </button>
             ),
           )}
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

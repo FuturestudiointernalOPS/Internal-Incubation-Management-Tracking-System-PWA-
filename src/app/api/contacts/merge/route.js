@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAnyAuthorization } from "@/models/authorization/index";
 import { mergeContacts } from "@/services/contacts/merge";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +21,12 @@ export async function POST(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const capError = await requireAuthorization("contacts", "delete");
+    // The duplicates module owns the merge; the legacy contacts.delete right is
+    // still accepted during the transition.
+    const capError = await requireAnyAuthorization([
+      { module: "duplicates", capability: "resolve" },
+      { module: "contacts", capability: "delete" },
+    ]);
     if (capError) return capError;
 
     const session = await getSession();

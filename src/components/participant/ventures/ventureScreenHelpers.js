@@ -11,7 +11,7 @@
 export function ventureToPayload(id, form) {
   return {
     id,
-    name: form.name, description: form.description || null,
+    name: form.name, logo_url: form.logo_url || null, description: form.description || null,
     mission: form.mission || null, vision: form.vision || null,
     industry: form.industry || null, sector: form.sector || null,
     business_stage: form.business_stage, website: form.website || null,

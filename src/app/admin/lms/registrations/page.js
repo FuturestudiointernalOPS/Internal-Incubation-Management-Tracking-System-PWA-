@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import LmsRegistrationsView from "@/components/admin/lms/registrations/LmsRegistrationsView";
+import OrphanLearningPanel from "@/components/admin/lms/registrations/OrphanLearningPanel";
 
 /**
  * ADMIN — LMS REGISTRATIONS (the team view)
@@ -172,8 +173,9 @@ export default function LmsRegistrationsPage() {
   const perPage = data?.per_page || 50;
 
   return (
-    <LmsRegistrationsView
-      t={t}
+    <>
+      <LmsRegistrationsView
+        t={t}
       data={data}
       stats={stats}
       registrations={registrations}
@@ -207,7 +209,13 @@ export default function LmsRegistrationsPage() {
       setLinkCourseId={setLinkCourseId}
       linking={linking}
       linkNotice={linkNotice}
-      onLinkRun={handleLinkRun}
-    />
+        onLinkRun={handleLinkRun}
+      />
+
+      {/* Course access left behind by a program the person no longer holds. */}
+      <div className="px-6 pb-6">
+        <OrphanLearningPanel />
+      </div>
+    </>
   );
 }

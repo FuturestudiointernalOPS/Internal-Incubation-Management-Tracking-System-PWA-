@@ -149,7 +149,7 @@ export function journeySelection({
     { key: "duplicate", label: t("venture.manager.duplicateStageTitle"), icon: CopyPlus, disabled: !access.manage || duplicatingStageId === stage.id, onSelect: () => duplicateStage(stage) },
     { separator: true },
     { key: "archive", label: t("venture.manager.archiveJourney"), icon: Archive, disabled: !access.manage, onSelect: () => archiveOneJourney(stage) },
-    // Permanent deletion is Super Admin only (access.delete): a Lead Manager
+    // Permanent deletion is Super Admin only (access.delete): a Venture Manager
     // archives; they never destroy.
     { key: "delete", label: t("venture.manager.deleteJourney"), icon: Trash2, danger: true, disabled: !access.delete, onSelect: () => deleteOneJourney(stage) },
   ].filter(Boolean);

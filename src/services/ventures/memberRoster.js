@@ -13,7 +13,10 @@
  * No SQL, no HTTP.
  */
 import { invalidateVentureAccess } from "@/services/ventures/accessFacts";
-import { sendVentureMemberInvitationEmail } from "@/lib/email";
+import {
+  sendVentureMemberInvitationEmail,
+  sendVentureFounderInvitationEmail,
+} from "@/lib/email";
 import { resolveAppUrl } from "@/lib/appUrl";
 import { recordVentureMemberInvitationDelivery } from "@/models/ventureMemberInvitations";
 import { createLinkedNotification } from "@/models/workspace";
@@ -34,6 +37,9 @@ export async function applyContextGrants(cid) {
  * Tells the invited person: in the app when they already have an account
  * (first send only), and by email always. The delivery outcome is recorded on
  * the invitation and returned, so the founder is told when no email left.
+ *
+ * The template follows the SEAT: a founder invitation is worded as one, a team
+ * member invitation as one. Both carry the same acceptance link.
  *
  * @returns {Promise<{ emailSent: boolean, emailError: string|null }>}
  */
@@ -65,15 +71,24 @@ export async function deliverVentureMemberInvitation({ invitation, ventureName, 
   try {
     const link = `${resolveAppUrl()}/venture-invite/${invitation.token}`;
     // Same transport as every other Venture email (Google Workspace first,
-    // Resend fallback) — not a separate weaker sender.
-    const mailResult = await sendVentureMemberInvitationEmail({
-      to: invitation.email,
-      ventureName,
-      inviterName: inviterName || null,
-      memberType,
-      inviteUrl: link,
-      expiresAt: invitation.expires_at,
-    });
+    // Resend fallback) — not a separate weaker sender. A FOUNDER invitation
+    // is worded for the owning company rather than for a team seat; the link
+    // itself is the same `/venture-invite/<token>` acceptance screen.
+    const mailResult = memberType === "founder"
+      ? await sendVentureFounderInvitationEmail({
+          to: invitation.email,
+          ventureName,
+          inviteUrl: link,
+          expiresAt: invitation.expires_at,
+        })
+      : await sendVentureMemberInvitationEmail({
+          to: invitation.email,
+          ventureName,
+          inviterName: inviterName || null,
+          memberType,
+          inviteUrl: link,
+          expiresAt: invitation.expires_at,
+        });
     if (mailResult?.success) {
       emailSent = true;
     } else {

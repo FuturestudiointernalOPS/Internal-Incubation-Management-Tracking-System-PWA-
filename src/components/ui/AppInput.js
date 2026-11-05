@@ -1,10 +1,12 @@
 "use client";
 
 import { forwardRef, useId } from "react";
+import InfoHint from "./InfoHint";
 
 const AppInput = forwardRef(function AppInput(
   {
     label,
+    hint,
     error,
     icon: Icon,
     className = "",
@@ -26,10 +28,12 @@ const AppInput = forwardRef(function AppInput(
       {label && (
         <label
           htmlFor={inputId}
-          className="text-[10px] font-bold uppercase tracking-wider ml-1"
+          className="text-[10px] font-bold uppercase tracking-wider ml-1 inline-flex items-center gap-1"
           style={{ color: "var(--text-secondary)" }}
         >
           {label}
+          {/* `hint` is the one-line explanation behind an (i) beside the label. */}
+          {hint ? <InfoHint text={hint} label={label} /> : null}
         </label>
       )}
       <div className="relative">

@@ -247,7 +247,7 @@ export async function deleteVentureDocumentTypeRow(ventureRef, id, database = db
 }
 
 /**
- * The active `lead_manager` assignment of a person ON a Venture.
+ * The active `venture_manager` assignment of a person ON a Venture.
  *
  * `ventureRef` is the access key OR the internal id — the assignment table keys
  * on the internal id (Phase 0), resolved on the SAME connection that runs the
@@ -257,7 +257,7 @@ export async function selectLeadManagerAssignment(ventureRef, cid, database = db
   const ventureId = await resolveVentureInternalId(ventureRef, database);
   return database.execute({
     sql: `SELECT 1 FROM venture_staff_assignments
-          WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'
+          WHERE venture_id = ? AND staff_contact_id = ? AND responsibility_code = 'venture_manager' AND status = 'active'
           LIMIT 1`,
     args: [ventureId, cid],
   });

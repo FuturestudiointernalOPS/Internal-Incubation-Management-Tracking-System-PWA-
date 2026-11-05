@@ -12,6 +12,7 @@
     :root {
         /* GLOBAL COLOR CONTROL */
         --brand-orange: #ff6600;
+        --progress-fill: var(--brand-orange); /* every progress bar: the Future Studio colour, for every role */
         --brand-blue: #0066ff;
 
         /* THEME TOKENS (LIGHT MODE DEFAULT) */
@@ -103,7 +104,7 @@
         background-color: var(--bg-primary);
         color: var(--text-primary);
         font-family: "Inter", sans-serif;
-        font-size: 14px;
+        font-size: 15px;
         -webkit-font-smoothing: antialiased;
         transition:
             background-color var(--transition-fast),
@@ -513,3 +514,36 @@
 :root:not([data-theme="dark"]) :is(.text-indigo-400, .text-indigo-500) { color: #4338ca; }
 :root:not([data-theme="dark"]) :is(.text-purple-400, .text-purple-500, .text-violet-400, .text-violet-500) { color: #7e22ce; }
 :root:not([data-theme="dark"]) .text-slate-400 { color: var(--text-secondary); }
+
+/* ─────────────────────────────────────────────
+   LIGHT MODE — READABLE FORM FIELD VALUES
+   Some fields still carry Tailwind's `text-white`, written for the dark theme,
+   on a theme surface that turns white in light mode: the value the user types
+   is white-on-white. Their foreground is also fixed where it is written; this
+   is the safety net for the ones nobody has touched yet.
+   Only theme surfaces are targeted, so the always-dark public pages (form,
+   invite, registration) keep their white text. Dark mode is untouched.
+   ───────────────────────────────────────────── */
+:root:not([data-theme="dark"])
+    :is(input, textarea, select)[class*="text-white"]:is(
+        [class*="bg-secondary"],
+        [class*="bg-primary"],
+        [class*="bg-surface-"]
+    ) {
+    color: var(--text-primary);
+}
+
+/* ── Global type scale: the arbitrary px sizes (text-[10px] …) were too small to read.
+   Each one is lifted ~1.5px; the rem sizes follow the 15px root above. ── */
+html .text-\[6px\] { font-size: 8px; }
+html .text-\[7px\] { font-size: 9px; }
+html .text-\[8px\] { font-size: 9.5px; }
+html .text-\[9px\] { font-size: 10.5px; }
+html .text-\[10px\] { font-size: 11.5px; }
+html .text-\[10\.5px\] { font-size: 12px; }
+html .text-\[11px\] { font-size: 12.5px; }
+html .text-\[11\.5px\] { font-size: 13px; }
+html .text-\[12px\] { font-size: 13.5px; }
+html .text-\[12\.5px\] { font-size: 14px; }
+html .text-\[13px\] { font-size: 14.5px; }
+html .text-\[13\.5px\] { font-size: 15px; }

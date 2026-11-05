@@ -11,7 +11,7 @@ export default function OverviewTab({ project, }) {
         <div className="flex items-center gap-4">
           <div className="flex-1 h-3 bg-[var(--bg-primary)] rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+              className="h-full bg-[var(--progress-fill)] rounded-full transition-all duration-500"
               style={{ width: `${project.completionRate || 0}%` }}
             />
           </div>
@@ -80,7 +80,7 @@ export default function OverviewTab({ project, }) {
           <div className="flex items-center gap-3">
             <div className="flex-1 h-2 bg-[var(--bg-primary)] rounded-full overflow-hidden">
               <div
-                className="h-full bg-blue-500 rounded-full"
+                className="h-full bg-[var(--progress-fill)] rounded-full"
                 style={{ width: `${project.timelineHealth}%` }}
               />
             </div>

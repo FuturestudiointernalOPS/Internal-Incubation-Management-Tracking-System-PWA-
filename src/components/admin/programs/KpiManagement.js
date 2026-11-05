@@ -53,14 +53,14 @@ export default function KpiManagement({ kpis, isEditingKpi, setIsEditingKpi, kpi
                   placeholder={t("adminMisc.programDetail.kpiTitlePlaceholder")}
                   value={kpiForm.title}
                   onChange={event => setKpiForm({...kpiForm, title: event.target.value})}
-                  className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all"
+                  className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 transition-all"
                />
                <input 
                   type="text"
                   placeholder={t("adminMisc.programDetail.targetPlaceholder")}
                   value={kpiForm.target_value}
                   onChange={event => setKpiForm({...kpiForm, target_value: event.target.value})}
-                  className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#FF6600]/50 transition-all"
+                  className="bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/50 transition-all"
                />
             </div>
             <div className="flex justify-end gap-3">

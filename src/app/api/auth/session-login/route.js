@@ -12,11 +12,8 @@ import {
 import { getEffectiveGroupsForUser } from "@/services/authorization/membership";
 import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import {
-  getVentureMembershipsForContact,
-  hasParticipantProgramMembership,
-  hasV2ParticipantRecord,
-} from "@/models/contacts/programMembership";
+import { getVentureMembershipsForContact } from "@/models/contacts/programMembership";
+import { resolveParticipantParticipation } from "@/services/participant/participation";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import {
   getContactByEmailOrCid,
@@ -258,19 +255,21 @@ export async function POST(req) {
         const [
           ventureMembershipsResult,
           investorProfileResult,
-          participantProgramResult,
-          v2ParticipantResult,
+          participation,
         ] = await Promise.all([
           getVentureMembershipsForContact(landingCid),
           getApprovedInvestorProfileIdByUserId(landingCid),
-          hasParticipantProgramMembership(landingCid),
-          hasV2ParticipantRecord(landingCid),
+          // THE participation rule shared with the menu, the dashboard and the
+          // workspace hub: a completed seat still counts (read-only), and the
+          // older group/program links are honoured.
+          resolveParticipantParticipation({
+            cid: landingCid,
+            email: user.shared_email || user.email || "",
+          }),
         ]);
         ventureMemberships = ventureMembershipsResult.rows || [];
         isInvestor = (investorProfileResult.rows || []).length > 0;
-        isProgramParticipant =
-          (participantProgramResult.rows || []).length > 0 ||
-          (v2ParticipantResult.rows || []).length > 0;
+        isProgramParticipant = participation.isProgramParticipant === true;
       } catch (_) {}
     }
 

@@ -62,6 +62,7 @@ jest.mock("@/models/authorization/migrations", () => ({
     mockMigrations.push(marker);
     if (typeof seed === "function") await seed();
   }),
+  oneTimeMigrationsEnabled: () => process.env.AUTHZ_RUN_MIGRATIONS === "true",
 }));
 
 // Spread the real module: services/authorization/eligibilityAdmin.js — which the
@@ -224,7 +225,24 @@ describe("cache — the context is resolved once per identity per TTL", () => {
   });
 });
 
-describe("bootstrap — eligibility is seeded once per process", () => {
+describe("bootstrap — one-time eligibility seeds run ONLY when enabled", () => {
+  // Migrations no longer run at startup (they are applied on every deployed
+  // database). The switch is how a fresh database gets seeded deliberately.
+  beforeEach(() => {
+    process.env.AUTHZ_RUN_MIGRATIONS = "true";
+  });
+
+  afterEach(() => {
+    delete process.env.AUTHZ_RUN_MIGRATIONS;
+  });
+
+  it("runs NO marker at startup", async () => {
+    delete process.env.AUTHZ_RUN_MIGRATIONS;
+    const ctx = loadFresh();
+    await ctx.getAuthorizationContext({ cid: "C1", role: "staff" });
+    expect(mockMigrations).toEqual([]);
+  });
+
   it("runs every marker once, then never again in that process", async () => {
     const ctx = loadFresh();
     await ctx.getAuthorizationContext({ cid: "C1", role: "staff" });
@@ -283,7 +301,7 @@ describe("bootstrap — eligibility is seeded once per process", () => {
 
     // Deliberate: "attempted once per process whatever the outcome". Retrying a
     // failing seed on every request would turn one broken column into a
-    // permanent per-request tax. It retries on the next BOOT instead.
+    // permanent per-request tax. It retries when migrations are next run.
     expect(afterFirst).toBeGreaterThan(0);
     expect(mockEnsureSchema.mock.calls.length).toBe(afterFirst);
     errSpy.mockRestore();

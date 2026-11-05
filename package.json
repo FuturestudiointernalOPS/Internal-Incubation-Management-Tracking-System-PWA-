@@ -98,6 +98,7 @@
     "jspdf": "^4.2.1",
     "libphonenumber-js": "^1.13.11",
     "lucide-react": "^0.473.0",
+    "mammoth": "^1.13.0",
     "next": "^16.2.9",
     "papaparse": "^5.5.3",
     "pg": "^8.20.0",

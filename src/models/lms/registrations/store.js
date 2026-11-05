@@ -69,6 +69,7 @@ export async function createRegistration({
   amount,
   currency = paymentCurrency(),
   consent = false,
+  whatsappOptIn = false,
   providerAmount = null,
 }) {
   await ensureCheckoutSchema();
@@ -80,8 +81,8 @@ export async function createRegistration({
   const res = await db.execute({
     sql: `INSERT INTO lms_registrations
             (reference, run_id, submission_id, course_id, full_name, email, phone, language,
-             amount, provider_amount, currency, status, consent_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, NOW(), NOW())
+             amount, provider_amount, currency, status, consent_at, whatsapp_opt_in, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, NOW(), NOW())
           RETURNING *`,
     args: [
       reference || generateReference(),
@@ -96,6 +97,7 @@ export async function createRegistration({
       providerAmount == null ? toProviderAmount(amount) : providerAmount,
       currency,
       consent ? new Date().toISOString() : null,
+      whatsappOptIn === true,
     ],
   });
   return parseRegistration(res.rows[0]);
@@ -108,13 +110,14 @@ export async function createRegistration({
  */
 export async function updateRegistrationAttempt(
   id,
-  { fullName, phone = null, language = null, runId = null, submissionId = null } = {},
+  { fullName, phone = null, language = null, runId = null, submissionId = null, whatsappOptIn = false } = {},
 ) {
   return db.execute({
     sql: `UPDATE lms_registrations
-          SET full_name = ?, phone = ?, language = ?, run_id = ?, submission_id = ?, updated_at = NOW()
+          SET full_name = ?, phone = ?, language = ?, run_id = ?, submission_id = ?,
+              whatsapp_opt_in = ?, updated_at = NOW()
           WHERE id = ?`,
-    args: [String(fullName || "").trim(), phone, language, runId, submissionId, id],
+    args: [String(fullName || "").trim(), phone, language, runId, submissionId, whatsappOptIn === true, id],
   });
 }
 

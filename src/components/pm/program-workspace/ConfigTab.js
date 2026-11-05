@@ -432,7 +432,7 @@ export default function ConfigTab({
                     </p>
                     <div className="w-full h-2 bg-divider/20 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-orange-400 rounded-full transition-all duration-700"
+                        className="h-full bg-[var(--progress-fill)] rounded-full transition-all duration-700"
                         style={{ width: `${isMeasurable ? kpiProgress : 0}%` }}
                       />
                     </div>

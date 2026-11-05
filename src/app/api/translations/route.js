@@ -27,7 +27,7 @@ export const dynamic = "force-dynamic";
  *
  * The gate is the Venture the text belongs to, checked through the SCOPE-aware
  * helper: translating a Venture's work is reading that Venture's work, so a
- * Lead Manager may translate their own and nobody else's. That is also what
+ * Venture Manager may translate their own and nobody else's. That is also what
  * keeps this from becoming a general-purpose translation proxy.
  */
 export const POST = createHandler(async (req) => {

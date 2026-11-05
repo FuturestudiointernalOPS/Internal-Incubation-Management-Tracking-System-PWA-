@@ -13,7 +13,7 @@ import { useI18n } from "@/lib/i18n";
  *
  * The document list belongs to ONE Venture, so this door opens on the Ventures
  * this person may configure: every Venture for a Super Admin, and the Ventures
- * they lead for a Lead Manager (the `lead_manager` responsibility — the same
+ * they lead for a Venture Manager (the `venture_manager` responsibility — the same
  * rule the server applies to the write).
  */
 
@@ -22,7 +22,7 @@ const pickAllVentures = (payload) => (payload?.success ? payload.ventures || [] 
 const pickLedVentures = (payload) =>
   payload?.success
     ? (payload.assignments || []).filter(
-        (assignment) => assignment.responsibility_code === "lead_manager",
+        (assignment) => assignment.responsibility_code === "venture_manager",
       )
     : [];
 

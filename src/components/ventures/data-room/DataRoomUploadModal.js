@@ -19,6 +19,8 @@ export default function DataRoomUploadModal({
   documentEntry,
   ventureId,
   maxFileMb = 10,
+  defaultCategory,
+  inline = false,
   t,
   onClose,
   onDone,
@@ -28,7 +30,7 @@ export default function DataRoomUploadModal({
 
   const [title, setTitle] = useState(documentEntry ? documentTitle(documentEntry) : "");
   const [description, setDescription] = useState(documentEntry?.description || "");
-  const [category, setCategory] = useState(documentEntry?.category || DATA_ROOM_CATEGORIES[0].code);
+  const [category, setCategory] = useState(documentEntry?.category || defaultCategory || DATA_ROOM_CATEGORIES[0].code);
   const [expiry, setExpiry] = useState(
     documentEntry?.expires_at ? String(documentEntry.expires_at).slice(0, 10) : "",
   );
@@ -38,6 +40,10 @@ export default function DataRoomUploadModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
 
+  // Local day, not UTC: a date is "past" by the clock of the person typing it.
+  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  const originalExpiry = documentEntry?.expires_at ? String(documentEntry.expires_at).slice(0, 10) : "";
+
   const message = (value) => (String(value || "").startsWith("dataRoom.") ? t(value) : value);
 
   const submit = async (event) => {
@@ -46,6 +52,11 @@ export default function DataRoomUploadModal({
 
     if (!title.trim()) {
       setError(t("dataRoom.errors.titleRequired"));
+      return;
+    }
+    // An expiry already on file may be past (the document did expire); a NEW one may not be.
+    if (expiry && expiry < today && expiry !== originalExpiry) {
+      setError(t("dataRoom.errors.pastExpiry"));
       return;
     }
     if (!editing && !file && !externalUrl.trim()) {
@@ -128,16 +139,17 @@ export default function DataRoomUploadModal({
       ? t("dataRoom.replaceVersion")
       : t("dataRoom.uploadDocument");
 
-  return (
-    <Overlay onClose={onClose} label={heading}>
+  const form = (
       <form onSubmit={submit} className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-black text-[var(--text-primary)] flex items-center gap-2">
             <FileText size={15} className="text-[var(--brand-orange)]" /> {heading}
           </h2>
-          <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-2)]">
-            <X size={16} />
-          </button>
+          {inline ? null : (
+            <button type="button" onClick={onClose} className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:bg-[var(--surface-2)]">
+              <X size={16} />
+            </button>
+          )}
         </div>
 
         {replacing ? (
@@ -171,6 +183,7 @@ export default function DataRoomUploadModal({
             <Field label={t("dataRoom.fields.expiry")}>
               <input
                 type="date"
+                min={today}
                 value={expiry}
                 onChange={(event) => setExpiry(event.target.value)}
                 className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[11px] text-[var(--text-primary)] outline-none"
@@ -181,6 +194,7 @@ export default function DataRoomUploadModal({
           <Field label={t("dataRoom.fields.expiry")}>
             <input
               type="date"
+              min={today}
               value={expiry}
               onChange={(event) => setExpiry(event.target.value)}
               className="w-full bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-xl px-3 py-2 text-[11px] text-[var(--text-primary)] outline-none"
@@ -237,9 +251,11 @@ export default function DataRoomUploadModal({
         {error ? <p className="text-[10px] text-rose-400 break-words">{error}</p> : null}
 
         <div className="flex gap-2 pt-1">
-          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
-            {t("dataRoom.cancel")}
-          </button>
+          {inline ? null : (
+            <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-[var(--border-primary)] text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+              {t("dataRoom.cancel")}
+            </button>
+          )}
           <button
             type="submit"
             disabled={busy}
@@ -250,7 +266,21 @@ export default function DataRoomUploadModal({
           </button>
         </div>
       </form>
-    </Overlay>
+  );
+
+  return inline ? (
+    <InlineShell>{form}</InlineShell>
+  ) : (
+    <Overlay onClose={onClose} label={heading}>{form}</Overlay>
+  );
+}
+
+/** The same form, laid in the page instead of over it. */
+function InlineShell({ children }) {
+  return (
+    <div className="rounded-2xl border border-[var(--border-primary)] bg-surface-2 p-4">
+      {children}
+    </div>
   );
 }
 

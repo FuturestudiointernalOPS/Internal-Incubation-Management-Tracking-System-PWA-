@@ -1,81 +1,94 @@
 "use client";
 
-// Add-team ("Invite Member") capability is removed from the founder and
-// team-member Venture views for now. The icon import and the AddMemberModal
-// component below are commented out together with the button that opened it;
-// restore all three at once.
-// import { UserPlus, X } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import AppModal from "@/components/ui/AppModal";
 import { useVenture } from "../VentureContext";
-import { FOUNDER_ROLES, TEAM_ROLES, getFounderMembers, getTeamMembers } from "../ventureMeta";
+import { getFounderMembers, getTeamMembers } from "../ventureMeta";
 import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
 
-/* Add Member Modal — a founder invites by EMAIL; the person joins the Venture
-   only after accepting the emailed link. The chosen type decides founder vs
-   team_member. */
+/* Add Member — the TYPE is chosen before the email.
 
-/* COMMENTED OUT: the founder and team-member Venture views no longer offer
-   "Invite Member". Uncomment this component, the button in TeamTab below, and
-   the lucide import above to restore the flow.
+   A founder may only invite other founders; a staff actor (Super Admin, Venture
+   Manager) may invite a team member as well. The server enforces that split
+   (`errors.founderInviteOnly`), so the chooser is shown to a staff actor only —
+   offering a founder an option that would be refused is not a choice, it is a
+   trap. Roles stay staff-only either way: the type decides membership, never
+   permissions. */
+const STAFF_ROLES = new Set([
+  "super_admin", "staff", "program_manager",
+  "facilitator", "finance", "crm", "team",
+]);
 
 function AddMemberModal() {
   const { t } = useI18n();
-  const { showAddMember, setShowAddMember, addMemberType, setAddMemberType, inviteEmail, setInviteEmail, inviting, handleInviteMember, inputStyle } = useVenture();
+  const {
+    showAddMember, setShowAddMember, inviteEmail, setInviteEmail, inviting,
+    handleInviteMember, inputStyle, addMemberType, setAddMemberType, user,
+  } = useVenture();
   if (!showAddMember) return null;
+
+  const isStaff = STAFF_ROLES.has(String(user?.role || "").toLowerCase());
+  const type = isStaff ? addMemberType : "founder";
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgb(0 0 0 / 0.6)" }} onClick={() => setShowAddMember(false)}>
-      <div className="rounded-2xl p-6 w-full max-w-md mx-4 border shadow-xl max-h-[85vh] overflow-y-auto" style={{ backgroundColor: "var(--surface-1)", borderColor: "var(--border-primary)", color: "var(--text-primary)" }} onClick={event => event.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold">{t("venture.inviteMember")}</h2>
-          <button onClick={() => setShowAddMember(false)} style={{ color: "var(--text-secondary)" }}><X size={20} /></button>
+    <AppModal isOpen onClose={() => setShowAddMember(false)} title={t("venture.addMember")} size="sm">
+      <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); handleInviteMember(); }}>
+        {isStaff && (
+          <div>
+            <span className="block text-sm font-medium mb-1">{t("venture.memberType")}</span>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "founder", label: t("venture.addAsFounder") },
+                { value: "team_member", label: t("venture.teamMembers") },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={type === option.value}
+                  onClick={() => setAddMemberType(option.value)}
+                  className="px-3 py-2 rounded-lg text-sm font-bold border transition-colors"
+                  style={{
+                    ...inputStyle,
+                    borderColor:
+                      type === option.value ? "var(--brand-orange)" : "var(--border-primary)",
+                    color:
+                      type === option.value ? "var(--brand-orange)" : "var(--text-secondary)",
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+          {type === "team_member" ? t("venture.addMemberTeamHint") : t("venture.addMemberFounderHint")}
+        </p>
+        <div>
+          <label className="block text-sm font-medium mb-1" htmlFor="invite-founder-email">{t("venture.inviteEmail")}</label>
+          <input
+            id="invite-founder-email"
+            type="email"
+            required
+            value={inviteEmail}
+            onChange={(event) => setInviteEmail(event.target.value)}
+            className="w-full px-3 py-2 rounded-lg outline-none border"
+            style={inputStyle}
+            placeholder={t("venture.inviteEmailPlaceholder")}
+          />
+          <p className="text-[10px] mt-1" style={{ color: "var(--text-secondary)" }}>{t("venture.inviteEmailHint")}</p>
         </div>
-        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); handleInviteMember(); }}>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t("venture.memberRoleInVenture") || "Role in Venture"}</label>
-            <select
-              value={addMemberType}
-              onChange={event => setAddMemberType(event.target.value)}
-              className="w-full px-3 py-2 rounded-lg outline-none border mb-1"
-              style={inputStyle}
-            >
-              <option value="founder">{t("venture.addAsFounder") || "Founder"}</option>
-              <option value="team_member">{t("venture.teamMembers") || "Team Member"}</option>
-            </select>
-            <p className="text-[10px]" style={{ color: "var(--text-secondary)" }}>
-              {addMemberType === "founder"
-                ? (t("venture.founderRoleHint") || "Founders are clearly identified in the Team and carry founder permissions.")
-                : (t("venture.memberRoleHint") || "Team members support the Venture with their assigned role.")}
-            </p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">{t("venture.inviteEmail")}</label>
-            <input
-              type="email"
-              required
-              value={inviteEmail}
-              onChange={event => setInviteEmail(event.target.value)}
-              className="w-full px-3 py-2 rounded-lg outline-none border"
-              style={inputStyle}
-              placeholder={t("venture.inviteEmailPlaceholder")}
-            />
-            <p className="text-[10px] mt-1" style={{ color: "var(--text-secondary)" }}>
-              {t("venture.inviteEmailHint")}
-            </p>
-          </div>
-          <div className="flex justify-end gap-3">
-            <button type="button" onClick={() => setShowAddMember(false)} className="px-4 py-2 rounded-lg text-sm" style={{ color: "var(--text-secondary)" }}>
-              {t("venture.cancel")}
-            </button>
-            <button type="submit" disabled={inviting} className="px-4 py-2 rounded-lg text-sm text-white disabled:opacity-40" style={{ backgroundColor: "var(--brand-orange)" }}>
-              {inviting ? t("venture.sendingInvitation") : t("venture.sendInvitation")}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={() => setShowAddMember(false)} className="stf-btn">{t("venture.cancel")}</button>
+          <button type="submit" disabled={inviting} className="stf-btn pr">
+            {inviting ? t("venture.sendingInvitation") : t("venture.sendInvitation")}
+          </button>
+        </div>
+      </form>
+    </AppModal>
   );
 }
-*/
 
 /* Remove Confirm Modal */
 function RemoveConfirmModal() {
@@ -103,18 +116,15 @@ function RemoveConfirmModal() {
   );
 }
 
-/* Shared member row */
-function MemberRow({ member, roleOptions, handleRoleChange, onRemove }) {
+/* Shared member row — the role is DISPLAYED, never chosen by the member. */
+function MemberRow({ member, onRemove }) {
   const { t } = useI18n();
   return (
     <div className="flex items-center justify-between p-4 border-b last:border-0" style={{ borderColor: "var(--border-primary)" }}>
       <div>
         <p className="font-medium">{member.contact_name || member.contact_id}</p>
         <p className="text-xs flex items-center gap-2" style={{ color: "var(--text-secondary)" }}>
-          <select value={member.role || roleOptions[0]} onChange={event => handleRoleChange(member.id, event.target.value)}
-            className="text-xs px-1 py-0.5 rounded" style={{ backgroundColor: "transparent", border: "1px solid var(--border-primary)", color: "var(--text-secondary)" }}>
-            {roleOptions.map(roleOption => <option key={roleOption} value={roleOption}>{roleOption}</option>)}
-          </select>
+          <span className="stf-tag" style={{ textTransform: "capitalize" }}>{member.role || "—"}</span>
           • {t("venture.memberSince")} {new Date(member.joined_at).toLocaleDateString()}
         </p>
       </div>
@@ -132,7 +142,7 @@ function MemberRow({ member, roleOptions, handleRoleChange, onRemove }) {
    founder status in the membership model (member_type). */
 export function TeamTab() {
   const { t } = useI18n();
-  const { members, handleUpdateMemberRole, setRemoveConfirm, cardStyle, invitations, handleRevokeInvitation, params } = useVenture();
+  const { members, membersLoading, setRemoveConfirm, setShowAddMember, setAddMemberType, cardStyle, invitations, handleRevokeInvitation, params } = useVenture();
   const founders = getFounderMembers(members);
   const team = getTeamMembers(members);
   const pending = Array.isArray(invitations) ? invitations : [];
@@ -141,18 +151,14 @@ export function TeamTab() {
     <>
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({members.length})</h2>
-          {/* "Invite Member" removed on the founder and team-member views for
-              now. Uncomment this button (and restore the AddMemberModal render
-              and the lucide import) to bring back adding team members.
+          <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({membersLoading ? "…" : members.length})</h2>
+          {/* Founders invite founders; staff may also invite team members. */}
           <button
-            onClick={() => { setAddMemberType("team_member"); setShowAddMember(true); }}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-white transition-colors"
-            style={{ backgroundColor: "var(--brand-orange)" }}
+            onClick={() => { setAddMemberType("founder"); setShowAddMember(true); }}
+            className="stf-btn pr"
           >
-            <UserPlus size={16} /> {t("venture.inviteMember")}
+            <UserPlus size={14} /> {t("venture.addMember")}
           </button>
-          */}
         </div>
 
         {pending.length > 0 && (
@@ -197,8 +203,6 @@ export function TeamTab() {
               <MemberRow
                 key={member.id}
                 member={member}
-                roleOptions={FOUNDER_ROLES}
-                handleRoleChange={handleUpdateMemberRole}
                 onRemove={(memberToRemove) => setRemoveConfirm(memberToRemove)}
               />
             ))}
@@ -216,15 +220,14 @@ export function TeamTab() {
               <MemberRow
                 key={member.id}
                 member={member}
-                roleOptions={TEAM_ROLES}
-                handleRoleChange={handleUpdateMemberRole}
                 onRemove={(memberToRemove) => setRemoveConfirm(memberToRemove)}
               />
             ))}
           </div>
         )}
 
-        {members.length === 0 && (
+        {/* Not "empty" until the roster has actually answered. */}
+        {!membersLoading && members.length === 0 && (
           <div className="rounded-xl p-6 text-center border" style={cardStyle}>
             <p style={{ color: "var(--text-secondary)" }}>{t("venture.noTeamMembersYet")}</p>
           </div>
@@ -237,7 +240,7 @@ export function TeamTab() {
           <VentureSupportCard ventureId={params.id} />
         </div>
       )}
-      {/* <AddMemberModal /> — commented out with the invite button above. */}
+      <AddMemberModal />
       <RemoveConfirmModal />
     </>
   );

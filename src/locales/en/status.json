@@ -1,6 +1,9 @@
 {
   "status": {
     "active": "Active",
+    "dormant": "Dormant",
+    "terminated": "Terminated",
+    "sold": "Sold",
     "pending": "Pending",
     "prospect": "Prospect",
     "paused": "Paused",

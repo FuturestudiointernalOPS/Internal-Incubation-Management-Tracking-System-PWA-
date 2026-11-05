@@ -14,11 +14,13 @@ import {
 } from "@/components/ventures/journey/journeyShapers";
 import JourneyConfirmModal from "@/components/ventures/journey/JourneyConfirmModal";
 import JourneyNotices from "@/components/ventures/journey/JourneyNotices";
+import JourneyMap from "@/components/ventures/journey/JourneyMap";
 import JourneyPanelHeader from "@/components/ventures/journey/JourneyPanelHeader";
 import JourneyTemplateSource from "@/components/ventures/journey/JourneyTemplateSource";
 import JourneyArchiveToolbar from "@/components/ventures/journey/JourneyArchiveToolbar";
 import JourneyManagerModals from "@/components/ventures/journey/JourneyManagerModals";
 import JourneyStageList from "@/components/ventures/journey/JourneyStageList";
+import JourneyReportsSummary from "@/components/ventures/journey/JourneyReportsSummary";
 import { stageWrites } from "@/components/ventures/journey/actions/stageWrites";
 import { journeyLabels } from "@/components/ventures/journey/actions/labels";
 import { reportWrites } from "@/components/ventures/journey/actions/reports";
@@ -99,6 +101,9 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Journey archive/delete: selection + archived view + busy flag.
   const [viewArchived, setViewArchived] = useState(false);
   const [selectedStageIds, setSelectedStageIds] = useState(() => new Set());
+  // Selection is a MODE, not furniture: the checkboxes and the bulk bar only
+  // exist while it is on, and leaving it always clears what was ticked.
+  const [selectMode, setSelectMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
   // In-app confirmation flow (no browser dialogs): step 1 asks, step 2 is the
   // final confirmation for archive/delete; restore asks once.
@@ -106,7 +111,7 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   // Milestones inside a journey (Phase 1): add/edit/reorder/archive. The
   // structure controls are shown only when the server says the viewer is the
-  // Lead Manager or a Super Admin (milestone_authority on the journey read).
+  // Venture Manager or a Super Admin (milestone_authority on the journey read).
   const [milestoneAddFor, setMilestoneAddFor] = useState(null);
   const [milestoneForm, setMilestoneForm] = useState({ title: "", description: "", objective: "", target_date: "", owner_cid: "", owner_name: "" });
   // Deliverables drafted while creating the milestone (created right after it).
@@ -118,7 +123,7 @@ export default function JourneyManagerPanel({ ventureId }) {
   // Milestones are collapsed by default; clicking one opens it (accordion).
   const [milestoneOpenId, setMilestoneOpenId] = useState(null);
 
-  // Deliverables (evidence) attached to a milestone: add/edit (Lead Manager /
+  // Deliverables (evidence) attached to a milestone: add/edit (Venture Manager /
   // Super Admin), submit evidence, approve / request changes.
   const [deliverableAddFor, setDeliverableAddFor] = useState(null);
   const [deliverableAction, setDeliverableAction] = useState(null); // { id, mode: edit|submit|review }
@@ -157,6 +162,11 @@ export default function JourneyManagerPanel({ ventureId }) {
 
   const [editId, setEditId] = useState(null);
   const [editForm, setEditForm] = useState({});
+
+  const toggleSelectMode = () => {
+    setSelectMode((on) => !on);
+    setSelectedStageIds(new Set());
+  };
 
   // Every state value and every read stays here; the writes live in
   // ./journey/actions (one factory per concern) and the two large markup
@@ -211,6 +221,9 @@ export default function JourneyManagerPanel({ ventureId }) {
     setJourneyTemplates,
     viewArchived,
     setViewArchived,
+    selectMode,
+    setSelectMode,
+    toggleSelectMode,
     selectedStageIds,
     setSelectedStageIds,
     bulkBusy,
@@ -340,17 +353,20 @@ export default function JourneyManagerPanel({ ventureId }) {
         access={access}
         activeStages={activeStages}
         addOpen={addOpen}
-        applyOpen={applyOpen}
-        historyOpen={historyOpen}
-        importOpen={importOpen}
         saveOpen={saveOpen}
+        selectMode={selectMode}
         stages={stages}
         setAddOpen={setAddOpen}
         setSaveOpen={setSaveOpen}
         toggleApply={toggleApply}
         toggleHistory={() => setHistoryOpen((open) => !open)}
         toggleImport={() => setImportOpen((open) => !open)}
+        toggleSelectMode={toggleSelectMode}
       />
+
+      {/* The roadmap as ONE picture, before the cards that describe it: the shape
+          of the journey is what a reader wants first, the detail stays below. */}
+      <JourneyMap stages={stages} />
 
       {/* Phase 1 of the programme import: read a tracker, show what the analysts
           proposes. Guarded by the same authority that may define the journey —
@@ -373,6 +389,8 @@ export default function JourneyManagerPanel({ ventureId }) {
 
       <JourneyTemplateSource templateSource={templateSource} />
 
+      <JourneyReportsSummary stages={stages} reportsByStage={reportsByStage} />
+
       {/* Journey archive toolbar: Active/Archived views, select all, bulk
           archive/delete (each with a double confirmation). */}
       {access.manage && stages.length > 0 && (
@@ -385,6 +403,7 @@ export default function JourneyManagerPanel({ ventureId }) {
           bulkBusy={bulkBusy}
           canDelete={Boolean(access?.delete)}
           selectedStageIds={selectedStageIds}
+          selectMode={selectMode}
           setSelectedStageIds={setSelectedStageIds}
           setViewArchived={setViewArchived}
           toggleSelectAllStages={toggleSelectAllStages}

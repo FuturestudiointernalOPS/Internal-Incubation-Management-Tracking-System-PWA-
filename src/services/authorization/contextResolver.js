@@ -107,9 +107,11 @@ export function pickBaseProfile(rows) {
 export async function resolveAuthorizationContext({ cid, role, profiles }) {
   if (!cid) throw new Error("resolveAuthorizationContext: cid is required");
   await initDb();
-  // Boot-time self-healing (once per process; idempotent). Run in parallel so
-  // a cold instance does not pay ~15 sequential round-trips before the first
-  // authorization decision (serverless timeout risk on slow databases).
+  // One-time migrations do NOT run here (they are applied on every deployed
+  // database — see `oneTimeMigrationsEnabled`). Both calls still exist so the
+  // deliberate run (`AUTHZ_RUN_MIGRATIONS=true`) happens before the first
+  // decision; otherwise the first one ensures the eligibility TABLE and the
+  // second returns immediately.
   await Promise.all([ensureEligibilitySeeded(), ensureCapabilityBackfills()]);
 
   // Super Admin: allowed unless explicitly restricted (V2 L1370-1385).

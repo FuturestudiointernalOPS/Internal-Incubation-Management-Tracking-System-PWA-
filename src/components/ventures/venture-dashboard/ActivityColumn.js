@@ -1,13 +1,13 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { Calendar, Activity, FileText, Bell } from "lucide-react";
+import { Calendar, Activity, Bell } from "lucide-react";
 import { activityLabel, activityDetails, isSystemActor } from "@/lib/ventureActivity";
 import WidgetCard from "./WidgetCard";
 
 /**
- * Column 3 of the metrics row: upcoming meetings, recent activity, recent
- * documents and notifications. Extracted verbatim from VentureDashboard.
+ * Column 3 of the metrics row: upcoming meetings, recent activity and
+ * notifications (the Recent documents widget was removed; documents live in the Data Room). Extracted verbatim from VentureDashboard.
  */
 export default function ActivityColumn({ data, widgetState, refreshWidget }) {
   const { t, lang } = useI18n();
@@ -76,32 +76,6 @@ export default function ActivityColumn({ data, widgetState, refreshWidget }) {
               </div>
             );
           })}
-        </div>
-      </WidgetCard>
-
-      {/* 9. Documents */}
-      <WidgetCard title={t("vadmin.dashboard.recentDocuments")} icon={FileText} iconColor="bg-brand-orange/10"
-        loading={widgetState("documents").loading} error={widgetState("documents").error}
-        empty={widgetState("documents").empty} emptyMessage={t("vadmin.dashboard.noDocumentsUploaded")}
-        onRefresh={() => refreshWidget("documents")}
-      >
-        <div className="space-y-2">
-          {(data.documents?.recent || []).length === 0 ? (
-            <div className="flex flex-col items-center py-4">
-              <FileText className="w-8 h-8 text-slate-600 mb-2" />
-              <p className="text-[10px] text-[var(--text-secondary)]">{t("vadmin.dashboard.uploadFirstDocument")}</p>
-            </div>
-          ) : (
-            (data.documents?.recent || []).slice(0, 4).map((doc, index) => (
-              <div key={doc.id || index} className="flex items-center gap-3 p-2 bg-tertiary rounded-lg">
-                <FileText className="w-4 h-4 text-[var(--brand-orange)] shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{doc.file_name}</p>
-                  <p className="text-[10px] text-[var(--text-secondary)]">{doc.category?.replace(/_/g, " ")} · {doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString(lang) : ""}</p>
-                </div>
-              </div>
-            ))
-          )}
         </div>
       </WidgetCard>
 

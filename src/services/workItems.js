@@ -39,6 +39,7 @@ import {
   storedStatusWord,
   deliverableStatusWord,
 } from "@/lib/ventureStatuses";
+import { STATUS_CATEGORIES, categoryKey, statusCategory } from "@/lib/workItemStatus";
 
 /** Work item kinds. A Journey is context, never an item. */
 export const WORK_ITEM_KINDS = ["milestone", "activity", "deliverable"];
@@ -130,6 +131,9 @@ function shapeWorkItem({
   dependsOn = [],
   blocks = [],
 }) {
+  // A status is what a person DECLARED. The start date is shown in its own
+  // column and never rewrites the status: doing so made the row disagree with
+  // every count and report, which read the stored value.
   return {
     id: `${kind}:${row.id}`,
     kind,
@@ -146,7 +150,15 @@ function shapeWorkItem({
     start,
     finish,
     status: { id: status.id, key: status.key, tone: status.tone, raw: status.raw },
+    // The word's canonical stage of work (`to_do`, `in_progress`, `blocked`,
+    // `done`). Colour, filtering and counts read THIS, so "Backlog" and
+    // "Not started" are understood as the same stage on different kinds.
+    status_category: statusCategory(status.id),
     is_complete: isComplete,
+    // What a manager edits in place: the stored (not the summarised) status, and
+    // the priority where the kind carries one.
+    stored_status: row.status ? String(row.status) : null,
+    priority: row.priority ? String(row.priority) : null,
     journey: journey ? { id: journey.id, name: journey.name } : null,
     milestone: milestone ? { id: milestone.id, title: milestone.title } : null,
     parent,
@@ -383,12 +395,12 @@ export function summarize(items = []) {
 function buildOptions(items, stages, milestones) {
   const owners = new Set();
   const supporting = new Set();
-  const statuses = new Map();
+  const categories = new Set();
 
   for (const item of items) {
     if (item.owner?.name) owners.add(item.owner.name);
     for (const name of item.supporting_names || []) supporting.add(name);
-    if (item.status.key) statuses.set(item.status.id, item.status.key);
+    if (item.status_category) categories.add(item.status_category);
   }
 
   const sorted = (set) => [...set].sort((a, b) => a.localeCompare(b));
@@ -402,7 +414,10 @@ function buildOptions(items, stages, milestones) {
     })),
     owners: sorted(owners),
     supporting: sorted(supporting),
-    statuses: [...statuses.entries()].map(([id, key]) => ({ id, key })),
+    // One filter for every kind: the categories present, in workflow order.
+    status_categories: STATUS_CATEGORIES.filter((category) => categories.has(category)).map(
+      (category) => ({ id: category, key: `venture.projects.statusCategories.${categoryKey(category)}` }),
+    ),
     kinds: WORK_ITEM_KINDS,
   };
 }

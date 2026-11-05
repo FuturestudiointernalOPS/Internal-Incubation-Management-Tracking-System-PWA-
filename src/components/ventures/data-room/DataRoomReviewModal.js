@@ -63,7 +63,7 @@ export default function DataRoomReviewModal({ documentEntry, ventureId, t, onClo
         <div className="rounded-xl border border-[var(--border-primary)] bg-surface-2 p-3 space-y-1">
           <p className="text-[11px] font-bold text-[var(--text-primary)] break-words">{documentTitle(documentEntry)}</p>
           <div className="flex items-center gap-2 flex-wrap text-[10px] text-[var(--text-secondary)]">
-            <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded border ${STATUS_CLASS[status] || STATUS_CLASS.uploaded}`}>
+            <span className={`uppercase tracking-wide !text-[10.5px] ${STATUS_CLASS[status] || STATUS_CLASS.uploaded}`}>
               {t(`dataRoom.status.${status}`)}
             </span>
             <span>v{documentEntry?.current_version || 1}</span>

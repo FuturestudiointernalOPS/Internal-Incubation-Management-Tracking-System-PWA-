@@ -31,6 +31,7 @@ export default function PublicApplicationRegistration() {
     jobDescription: "",
     image: "",
     role: "unassigned",
+    whatsappOptIn: false,
   });
 
   const [status, setStatus] = useState({ state: "idle", message: "" });
@@ -54,6 +55,7 @@ export default function PublicApplicationRegistration() {
           name: formData.fullName,
           group_name: groupParam,
           status: "pending",
+          whatsapp_opt_in: formData.whatsappOptIn === true,
         }),
       });
 
@@ -183,6 +185,21 @@ export default function PublicApplicationRegistration() {
                 onChange={(value) => setFormData({ ...formData, phone: value })}
                 required
               />
+
+              <label className="md:col-span-2 flex items-start gap-3 rounded-2xl border p-4 cursor-pointer" style={{ borderColor: "var(--border-primary)", background: "var(--bg-primary)" }}>
+                <input
+                  type="checkbox"
+                  checked={formData.whatsappOptIn}
+                  onChange={(event) => setFormData({ ...formData, whatsappOptIn: event.target.checked })}
+                  className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--brand-orange)]"
+                />
+                <span className="text-[11px] font-medium leading-snug" style={{ color: "var(--text-secondary)" }}>
+                  {t("rootMisc.registerStaff.whatsappConsent")}
+                  <span className="mt-1 block text-[10px] opacity-70">
+                    {t("rootMisc.registerStaff.whatsappConsentHint")}
+                  </span>
+                </span>
+              </label>
 
               <div className="space-y-3">
                 <label

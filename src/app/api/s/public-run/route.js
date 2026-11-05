@@ -6,8 +6,45 @@ import {
   getPublicRunBySlug,
   getSectionsByFormId,
   getFieldsByFormId,
+  getFormVersionSnapshotByFormAndVersion,
   getGroupNameForRun,
 } from "@/models/publicFormRuns";
+
+/**
+ * The layout a run was PUBLISHED with.
+ *
+ * A run pins a `form_version`; the form itself keeps changing afterwards. The
+ * live tables are only the fallback (a run created before snapshots existed, or
+ * a snapshot that never captured any field). Falling back keeps old runs
+ * working, and a snapshot is never allowed to make a run disappear.
+ *
+ * A snapshot from before publishing saved the builder can hold fields with no
+ * id — those cannot be keyed as answers, so such a snapshot is not usable and
+ * the live layout wins instead.
+ */
+function hasUsableIds(sections, fields) {
+  const hasId = (row) => row && row.id !== null && row.id !== undefined && row.id !== "";
+  return sections.every(hasId) && fields.every(hasId);
+}
+
+async function resolveRunLayout(runRow) {
+  const live = {
+    sections: (await getSectionsByFormId(runRow.form_id)).rows,
+    fields: (await getFieldsByFormId(runRow.form_id)).rows,
+  };
+
+  if (!runRow.form_version) return live;
+
+  const pinned = await getFormVersionSnapshotByFormAndVersion(runRow.form_id, runRow.form_version);
+  const snapshot = pinned.rows?.[0]?.snapshot;
+  const sections = Array.isArray(snapshot?.sections) ? snapshot.sections : null;
+  const fields = Array.isArray(snapshot?.fields) ? snapshot.fields : null;
+  if (!sections || !fields) return live;
+  if (sections.length === 0 && fields.length === 0) return live;
+  if (!hasUsableIds(sections, fields)) return live;
+
+  return { sections, fields };
+}
 
 /**
  * GET /api/s/public-run?slug=X
@@ -34,9 +71,7 @@ export async function GET(req) {
     }
     if (run.rows.length === 0) return NextResponse.json({ success: false, error: "Run not found or not active" }, { status: 404 });
 
-    const sections = await getSectionsByFormId(run.rows[0].form_id);
-
-    const fields = await getFieldsByFormId(run.rows[0].form_id);
+    const layout = await resolveRunLayout(run.rows[0]);
 
     // Fetch group name if this run is assigned to a group
     let groupName = null;
@@ -77,8 +112,8 @@ export async function GET(req) {
     return NextResponse.json({
       success: true,
       run: runData,
-      sections: sections.rows,
-      fields: fields.rows,
+      sections: layout.sections,
+      fields: layout.fields,
       checkout,
     });
   } catch (error) {

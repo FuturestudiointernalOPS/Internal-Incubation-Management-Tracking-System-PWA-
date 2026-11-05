@@ -27,10 +27,12 @@ export default function GoogleCalendarConnect({ status, syncing, onConnect, onSy
         type="button"
         onClick={onConnect}
         title={status.configured ? t("googleCalendar.connectHint") : t("googleCalendar.notConfiguredHint")}
-        className="btn btn-secondary gap-2 !py-1.5 !px-3 text-[11px]"
+        aria-label={t("googleCalendar.connect")}
+        className="btn btn-secondary gap-2 !py-1.5 !px-3 text-[11px] whitespace-nowrap shrink-0"
       >
         <CalendarPlus className="w-3.5 h-3.5 text-[var(--brand-orange)]" />
-        {t("googleCalendar.connect")}
+        {/* On a phone the label would wrap onto three lines: the icon is enough. */}
+        <span className="hidden sm:inline">{t("googleCalendar.connect")}</span>
       </button>
     );
   }
@@ -41,10 +43,11 @@ export default function GoogleCalendarConnect({ status, syncing, onConnect, onSy
         type="button"
         onClick={onConnect}
         title={t("googleCalendar.revokedHint")}
-        className="btn btn-secondary gap-2 !py-1.5 !px-3 text-[11px]"
+        aria-label={t("googleCalendar.reconnect")}
+        className="btn btn-secondary gap-2 !py-1.5 !px-3 text-[11px] whitespace-nowrap shrink-0"
       >
         <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-        {t("googleCalendar.reconnect")}
+        <span className="hidden sm:inline">{t("googleCalendar.reconnect")}</span>
       </button>
     );
   }

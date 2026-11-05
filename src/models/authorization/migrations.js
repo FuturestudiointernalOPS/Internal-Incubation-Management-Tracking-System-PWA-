@@ -9,10 +9,29 @@
  *
  * The `authz_migrations` table records applied migrations (self-healing
  * CREATE TABLE IF NOT EXISTS — no schema migration required). A migration
- * that throws is NOT recorded and retries on the next boot.
+ * that throws is NOT recorded and retries when migrations are next run.
+ *
+ * NOTHING HERE RUNS AT STARTUP: `oneTimeMigrationsEnabled()` gates every batch
+ * (see that function's note).
  */
 
 import db from "@/lib/db";
+
+/**
+ * ONE-TIME MIGRATIONS DO NOT RUN AT STARTUP — by default.
+ *
+ * They are all applied on every deployed database, so a boot had nothing left to
+ * do but read the ledger: ~35 round trips per cold process, and — for any
+ * migration whose marker was never written — a broken statement retried on every
+ * restart, at error level, forever. Two did exactly that.
+ *
+ * So the boot path no longer applies them. To apply them DELIBERATELY (a fresh
+ * database, a new environment, or a newly added migration), start the app once
+ * with `AUTHZ_RUN_MIGRATIONS=true`, then remove the variable: each migration is
+ * recorded in `authz_migrations` and never repeats.
+ */
+export const oneTimeMigrationsEnabled = () =>
+  process.env.AUTHZ_RUN_MIGRATIONS === "true";
 
 let schemaPromise = null;
 

@@ -155,6 +155,12 @@ export function I18nProvider({ children }) {
     getLanguageServerSnapshot,
   );
 
+  // Screen readers and the browser's own translation read <html lang>: keep it in
+  // step with the chosen language (the layout can only ship the default).
+  useEffect(() => {
+    if (typeof document !== "undefined" && lang) document.documentElement.lang = lang;
+  }, [lang]);
+
   // English ships with the bundle; every other language is a chunk that arrives
   // the first time it is selected. Until it lands, `t` falls back to English
   // (which is also what a missing key does), and the read below re-renders the

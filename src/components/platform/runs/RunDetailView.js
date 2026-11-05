@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Link2, Users, FileText, Mail, Send, Settings } from "lucide-react";
+import { BarChart3, Link2, Users, FileText, Mail, Send, Settings, Sparkles } from "lucide-react";
 import RunDetailHeader from "@/components/platform/runs/RunDetailHeader";
 import EvalProgressPanel from "@/components/platform/runs/EvalProgressPanel";
 import RunTabs from "@/components/platform/runs/RunTabs";
@@ -31,6 +31,7 @@ export default function RunDetailView({ bulkAbortRef, filterRowRef, runBulkAppro
 
   const tabs = [
     { id: "overview", label: t("platformMisc.runs.tabOverview"), icon: BarChart3 },
+    { id: "analytics", label: t("platformMisc.runs.tabAnalytics"), icon: Sparkles },
     { id: "share", label: t("platformMisc.runs.tabShare"), icon: Link2 },
     { id: "assignments", label: t("platformMisc.runs.tabAssignments", { count: assignments.length }), icon: Users },
     { id: "responses", label: t("platformMisc.runs.tabAllResponses"), icon: FileText, href: `/platform/responses?run_id=${selectedRun?.id || ""}` },

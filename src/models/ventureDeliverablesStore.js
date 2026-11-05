@@ -24,7 +24,7 @@ export function selectMilestoneById(milestoneId) {
 /** The deliverable counts (total, done) of a milestone. */
 export function selectDeliverableCountsByMilestone(milestoneId) {
   return db.execute({
-    sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status IN ('approved','completed') THEN 1 ELSE 0 END) as d FROM venture_deliverables WHERE milestone_id = ?",
+    sql: "SELECT COUNT(*) as t, SUM(CASE WHEN status IN ('approved','completed') AND COALESCE(approval_status, '') <> 'rejected' THEN 1 ELSE 0 END) as d FROM venture_deliverables WHERE milestone_id = ?",
     args: [milestoneId],
   });
 }

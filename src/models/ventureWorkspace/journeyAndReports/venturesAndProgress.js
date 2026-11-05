@@ -20,6 +20,12 @@ import db from "@/lib/db";
  * verified against the live schema, not assumed.
  */
 export async function listVenturesWithCounts({ effectiveContactId, assignedStaffId, status, search, includeArchived = false }) {
+  // Compare venture ids as text on BOTH sides. On this live schema
+  // `venture_members.venture_id` / `venture_staff_assignments.venture_id` are
+  // UUID while `v.id::text` is text — `uuid = text` is refused by Postgres
+  // ("operator does not exist") and takes the whole Super Admin directory down
+  // with a 500 that the UI paints as an empty list. `::text` on both sides also
+  // keeps working if a sibling environment still stores those columns as TEXT.
   let sql = `
       SELECT v.*,
         (SELECT COUNT(*) FROM venture_members vm WHERE vm.venture_id::text = v.id::text AND vm.member_type = 'founder' AND vm.removed_at IS NULL) as founder_count,
@@ -126,7 +132,7 @@ export async function countVentureRetrosByVentureId(dbId) {
 /** Profile-score fields of a venture by internal id. */
 export async function getVentureProfileFields(dbId) {
   return db.execute({
-    sql: "SELECT name, description, mission, vision, industry, sector, business_stage, website FROM ventures WHERE id = ?",
+    sql: "SELECT name, description, mission, vision, industry, sector, business_stage, website, logo_url FROM ventures WHERE id = ?",
     args: [dbId],
   });
 }

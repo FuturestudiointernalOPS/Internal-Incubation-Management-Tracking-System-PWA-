@@ -63,7 +63,7 @@ export default function WatchlistTab({
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">Readiness</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <div className="flex-1 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full transition-all ${readinessPct >= 80 ? "bg-emerald-500" : readinessPct >= 50 ? "bg-amber-500" : "bg-slate-400"}`} style={{ width: `${readinessPct}%` }} />
+                          <div className={`h-full rounded-full transition-all bg-[var(--progress-fill)]`} style={{ width: `${readinessPct}%` }} />
                         </div>
                         <span className="text-[10px] font-bold text-[var(--text-primary)]">{readinessPct}%</span>
                       </div>
@@ -74,7 +74,7 @@ export default function WatchlistTab({
                       {item.campaign_id ? (
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <div className="flex-1 h-1.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                            <div className="h-full bg-[var(--brand-orange)] rounded-full transition-all" style={{ width: `${campaignPct}%` }} />
+                            <div className="h-full bg-[var(--progress-fill)] rounded-full transition-all" style={{ width: `${campaignPct}%` }} />
                           </div>
                           <span className="text-[10px] font-bold text-[var(--text-primary)]">{campaignPct}%</span>
                         </div>

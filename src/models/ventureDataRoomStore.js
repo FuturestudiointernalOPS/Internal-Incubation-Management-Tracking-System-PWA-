@@ -84,6 +84,22 @@ export async function ensureDataRoomSchema(database = db) {
     `ALTER TABLE venture_document_versions ADD COLUMN IF NOT EXISTS file_type TEXT`,
     `CREATE INDEX IF NOT EXISTS idx_venture_documents_room
        ON venture_documents(venture_id, is_deleted, category)`,
+    `CREATE TABLE IF NOT EXISTS venture_data_room_share_links (
+       id SERIAL PRIMARY KEY,
+       venture_id UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE,
+       token TEXT NOT NULL UNIQUE,
+       name TEXT,
+       created_by TEXT,
+       expires_at TIMESTAMP,
+       revoked_at TIMESTAMP,
+       views_count INTEGER DEFAULT 0,
+       last_viewed_at TIMESTAMP,
+       created_at TIMESTAMP DEFAULT NOW()
+     )`,
+    `CREATE INDEX IF NOT EXISTS idx_data_room_share_links_venture
+       ON venture_data_room_share_links(venture_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_data_room_share_links_token
+       ON venture_data_room_share_links(token)`,
   ];
 
   for (const sql of statements) {
@@ -145,6 +161,7 @@ export function selectDataRoomDocumentStatusesForVentures(ventureIds = []) {
   const placeholders = ids.map(() => "?").join(", ");
   return db.execute({
     sql: `SELECT d.venture_id::text AS venture_id, d.category,
+                 d.id::text AS id, COALESCE(d.title, d.name) AS title,
                  CASE
                    WHEN d.expires_at IS NOT NULL AND d.expires_at < NOW()
                     AND COALESCE(NULLIF(d.review_status, ''), 'uploaded') <> 'rejected'
@@ -296,6 +313,8 @@ export async function insertDataRoomDocument({
   expiresAt,
   isPitchDeck = false,
 }, database = db) {
+  // The caller holds the venture CODE (the URL's VNT-…); the column is the UUID.
+  const internalId = await resolveVentureInternalId(ventureId, database);
   return database.execute({
     sql: `INSERT INTO venture_documents
             (venture_id, title, name, description, document_type, category,
@@ -303,8 +322,8 @@ export async function insertDataRoomDocument({
              is_pitch_deck, current_version, review_status, uploaded_by, expires_at)
           VALUES (?, ?, ?, ?, 'data_room', ?, ?, ?, ?, ?, ?, ?, 1, 'uploaded', ?, ?)
           RETURNING id`,
-    args: [ventureId, title, title, description, category, fileName, fileSize,
-      fileType, storagePath, storagePath, isPitchDeck ? 1 : 0, uploadedBy, expiresAt],
+    args: [internalId, title, title, description, category, fileName, fileSize,
+      fileType, storagePath, storagePath, Boolean(isPitchDeck), uploadedBy, expiresAt],
   });
 }
 
@@ -658,5 +677,71 @@ export async function selectDataRoomActivity(ventureRef, database = db) {
           ORDER BY created_at DESC
           LIMIT 200`,
     args: [ventureRef, ventureRef],
+  });
+}
+
+
+// ── Shareable Investor Links (External Read-Only Access) ────────────────────
+
+export async function insertDataRoomShareLink({
+  ventureRef,
+  token,
+  name,
+  createdBy,
+  expiresAt = null,
+}, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
+  return database.execute({
+    sql: `INSERT INTO venture_data_room_share_links
+             (venture_id, token, name, created_by, expires_at)
+           VALUES (?, ?, ?, ?, ?)
+           RETURNING *`,
+    args: [ventureId, token, name || 'General Investor Link', createdBy || 'system', expiresAt],
+  });
+}
+
+export async function selectDataRoomShareLinks(ventureRef, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
+  return database.execute({
+    sql: `SELECT id, token, name, created_by, expires_at, revoked_at, views_count, last_viewed_at, created_at,
+                  (revoked_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())) AS is_active
+           FROM venture_data_room_share_links
+           WHERE venture_id = ?
+           ORDER BY created_at DESC`,
+    args: [ventureId],
+  });
+}
+
+export async function selectDataRoomShareLinkByToken(token, database = db) {
+  return database.execute({
+    sql: `SELECT l.*, v.venture_id, v.name AS company_name, v.business_stage, v.industry, v.description, v.logo_url, v.website
+           FROM venture_data_room_share_links l
+           JOIN ventures v ON v.id = l.venture_id
+           WHERE l.token = ?
+             AND l.revoked_at IS NULL
+             AND (l.expires_at IS NULL OR l.expires_at > NOW())
+           LIMIT 1`,
+    args: [token],
+  });
+}
+
+export async function incrementDataRoomShareLinkViews(token, database = db) {
+  return database.execute({
+    sql: `UPDATE venture_data_room_share_links
+           SET views_count = COALESCE(views_count, 0) + 1,
+               last_viewed_at = NOW()
+           WHERE token = ?`,
+    args: [token],
+  });
+}
+
+export async function revokeDataRoomShareLink(ventureRef, linkId, database = db) {
+  const ventureId = await resolveVentureInternalId(ventureRef, database);
+  return database.execute({
+    sql: `UPDATE venture_data_room_share_links
+           SET revoked_at = NOW()
+           WHERE id = ? AND venture_id = ?
+           RETURNING *`,
+    args: [linkId, ventureId],
   });
 }

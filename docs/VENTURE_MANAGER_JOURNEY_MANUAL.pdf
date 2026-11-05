@@ -1,0 +1,6140 @@
+%PDF-1.3
+%ºß¬à
+3 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 4 0 R
+>>
+endobj
+4 0 obj
+<<
+/Length 2098
+>>
+stream
+0.200025 w
+0 G
+1. 0.4 0. rg
+0. 841.8899999999999864 595.2799999999999727 -250. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. g
+48. 767.8899999999999864 Td
+(IMPACTOS  ·  VENTURES) Tj
+ET
+BT
+/F2 34 Tf
+39.0999999999999943 TL
+1. g
+48. 709.8899999999999864 Td
+(The Journey Dashboard) Tj
+ET
+BT
+/F1 13 Tf
+14.9499999999999993 TL
+1. g
+48. 677.8899999999999864 Td
+(A guided manual for the Venture Manager) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+1. g
+48. 641.8899999999999864 Td
+(How to read it, run it, and keep it honest.) Tj
+ET
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 541.8899999999999864 Td
+(PREPARED FOR) Tj
+ET
+BT
+/F1 10.5 Tf
+12.0749999999999993 TL
+0.094 0.094 0.118 rg
+48. 525.8899999999999864 Td
+(The Venture Manager \(lead manager\) of a venture in ImpactOS.) Tj
+ET
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 498.6649999999999636 Td
+(WHAT THIS DOCUMENT COVERS) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+48. 482.6649999999999636 Td
+(The Journey tab of the Venture Manager workspace: what each part means, what the words mean, what you are) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+48. 468.1649999999999636 Td
+(expected to do there each week, and where the founder's view stops and yours begins.) Tj
+ET
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 441.6649999999999636 Td
+(WHAT IT IS NOT) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+48. 425.6649999999999636 Td
+(It is not a specification and it invents nothing. Every behaviour described here was read out of the application's) Tj
+ET
+BT
+/F1 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+48. 411.1649999999999636 Td
+(own code. Where a rule is enforced by the server, the manual says so.) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 372.6649999999999636 m
+547.2799999999999727 372.6649999999999636 l
+S
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+48. 354.6649999999999636 Td
+(Build: Ventures, commit 7b138936a and the work described in section 10) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+48. 341.6649999999999636 Td
+(Regenerate with: node scripts/docs/build-venture-manager-journey-manual.mjs) Tj
+ET
+endstream
+endobj
+5 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 6 0 R
+>>
+endobj
+6 0 obj
+<<
+/Length 6071
+>>
+stream
+0.8 w
+0.87 0.88 0.91 RG
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 789.8899999999999864 Td
+(Contents) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 767.8899999999999864 m
+547.2799999999999727 767.8899999999999864 l
+S
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 743.8899999999999864 Td
+( 1) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 743.8899999999999864 Td
+(What the Journey is) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 731.3899999999999864 Td
+(the plan of record, and the two numbers that measure it) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 720.3899999999999864 Td
+( 2) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 720.3899999999999864 Td
+(Where the Journey lives) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 707.8899999999999864 Td
+(the Venture Manager's tab bar) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 696.8899999999999864 Td
+( 3) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 696.8899999999999864 Td
+(The Journey tab at a glance) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 684.3899999999999864 Td
+(the roadmap card, then the stages) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 673.3899999999999864 Td
+( 4) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 673.3899999999999864 Td
+(The vocabulary) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 660.8899999999999864 Td
+(one word, one thing) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 649.8899999999999864 Td
+( 5) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 649.8899999999999864 Td
+(The eight status words) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 637.3899999999999864 Td
+(what each one means and what you do about it) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 626.3899999999999864 Td
+( 6) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 626.3899999999999864 Td
+(Working a Journey \(a stage\)) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 613.8899999999999864 Td
+(dates, reports, archiving) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 602.8899999999999864 Td
+( 7) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 602.8899999999999864 Td
+(Working a milestone) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 590.3899999999999864 Td
+(opening it, the menu, completing it) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 579.3899999999999864 Td
+( 8) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 579.3899999999999864 Td
+(Reviewing what the venture submitted) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 566.8899999999999864 Td
+(approve, or ask for changes) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 555.8899999999999864 Td
+( 9) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 555.8899999999999864 Td
+(Deliverables) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 543.3899999999999864 Td
+(evidence, dates, and the words you may set) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 532.3899999999999864 Td
+(10) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 532.3899999999999864 Td
+(The three buttons on an activity) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 519.8899999999999864 Td
+(Quick note, Activity report, Session) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 508.8899999999999864 Td
+(11) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 508.8899999999999864 Td
+(Booking a session) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 496.3899999999999864 Td
+(the rules, and what a session holds) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 485.3899999999999864 Td
+(12) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 485.3899999999999864 Td
+(The Notes tab) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 472.8899999999999864 Td
+(Milestone notes, Activity reports, Session memos) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 461.8899999999999864 Td
+(13) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 461.8899999999999864 Td
+(Journey reports) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 449.3899999999999864 Td
+(progress and closing reports) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 438.3899999999999864 Td
+(14) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 438.3899999999999864 Td
+(Templates and the archive) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 425.8899999999999864 Td
+(reuse a plan, retire a plan) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 414.8899999999999864 Td
+(15) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 414.8899999999999864 Td
+(What the founder sees) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 402.3899999999999864 Td
+(and what they never see) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 391.3899999999999864 Td
+(16) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 391.3899999999999864 Td
+(Your week in the Journey) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 378.8899999999999864 Td
+(a routine that takes twenty minutes) Tj
+ET
+BT
+/F2 9.5 Tf
+10.9249999999999989 TL
+1. 0.4 0. rg
+48. 367.8899999999999864 Td
+(17) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 367.8899999999999864 Td
+(If something looks wrong) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 355.3899999999999864 Td
+(the five questions we get most) Tj
+ET
+BT
+/F2 10 Tf
+11.5 TL
+0.094 0.094 0.118 rg
+74. 344.3899999999999864 Td
+(Glossary \(English / French\)) Tj
+ET
+BT
+/F1 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+74. 331.8899999999999864 Td
+(the same words in both languages) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(2 / 20) Tj
+ET
+endstream
+endobj
+7 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 8 0 R
+>>
+endobj
+8 0 obj
+<<
+/Length 4051
+>>
+stream
+0.8 w
+0.87 0.88 0.91 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 1) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(What the Journey is) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(The Journey is the venture's plan of record: the sequence of stages the studio guides a venture through, from setting) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(up a legal company to scaling one. It is the thing you and the founder actually work on together, week after week.) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 697.3399999999999181 Td
+(It is deliberately not a document. A plan in a document says what was agreed last quarter. The Journey says what is) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 683.5649999999999409 Td
+(true this morning: which stage is running, which milestone is open, which deliverable is waiting for your decision, which) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 669.7899999999999636 Td
+(session is booked for Thursday.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 644.0149999999999864 Td
+(Two numbers, two questions, never one number) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 627.0149999999999864 Td
+(Roadmap progress) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 627.0149999999999864 Td
+(How much of the planned work is done. It counts journeys, milestones, tasks and) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 613.9649999999999181 Td
+(deliverables that have actually been completed or approved. It is a measure of execution.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 596.9149999999999636 m
+547.2799999999999727 596.9149999999999636 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 592.9149999999999636 Td
+(Data Room readiness) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 592.9149999999999636 Td
+(How much of the required Data Room is filed and verified. It is a measure of fundraising) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 579.8650000000000091 Td
+(preparedness, and it lives in the Data Room tab, next to the documents that produce it.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 562.8149999999999409 m
+547.2799999999999727 562.8149999999999409 l
+S
+0.98 0.97 0.96 rg
+48. 556.8149999999999409 499.2799999999999727 -61. re
+f
+1. 0.4 0. rg
+48. 556.8149999999999409 3. -61. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 542.8149999999999409 Td
+(Why they are kept apart) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 529.8149999999999409 Td
+(A venture can execute beautifully and still not be ready to raise, or file every document and deliver nothing. Merging) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 516.8149999999999409 Td
+(the two into one scoreboard number would hide exactly the thing you need to see. The application computes them) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 503.8149999999999409 Td
+(from two different engines and never averages them.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 473.8149999999999409 Td
+(What the Journey is for, in one line) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 456.8149999999999409 Td
+(So that a founder, a Venture Manager and the Super Admin can look at the same screen and agree on what is done,) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 443.0399999999999636 Td
+(what is late, and what happens next.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(3 / 20) Tj
+ET
+endstream
+endobj
+9 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 10 0 R
+>>
+endobj
+10 0 obj
+<<
+/Length 6157
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 2) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Where the Journey lives) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(Open Ventures in the sidebar, choose the venture, and you land on its workspace. The tab bar is the whole venture; the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(Journey is one door in it. Your rights inside each tab come from your staff assignment on that venture, and the server) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 703.3399999999999181 Td
+(enforces them - the tab bar only decides what is worth showing you.) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 683.5649999999999409 Td
+(WHAT IT ANSWERS) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 675.5649999999999409 m
+547.2799999999999727 675.5649999999999409 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 663.5649999999999409 Td
+(Overview) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 663.5649999999999409 Td
+(What needs me today?) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 663.5649999999999409 Td
+(Four figures, the decisions waiting on you, a snapshot of the venture, and the venture's reported numbers as charts. Start here every morning.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 647.5249999999999773 m
+547.2799999999999727 647.5249999999999773 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 643.5249999999999773 Td
+(Journey) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 643.5249999999999773 Td
+(Where is the plan?) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 643.5249999999999773 Td
+(Roadmap progress, then every stage of the plan with its milestones, deliverables, sessions and reports. This manual is about this tab.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 627.4850000000000136 m
+547.2799999999999727 627.4850000000000136 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 623.4850000000000136 Td
+(Projects) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 623.4850000000000136 Td
+(The work as a list) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 623.4850000000000136 Td
+(The same milestones, activities and deliverables as rows and as a timeline. Lead manager only.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 607.4449999999999363 m
+547.2799999999999727 607.4449999999999363 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 603.4449999999999363 Td
+(Tasks) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 603.4449999999999363 Td
+(Who is doing what) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 603.4449999999999363 Td
+(The board for the venture's tasks, linked to milestones.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 587.4049999999999727 m
+547.2799999999999727 587.4049999999999727 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 583.4049999999999727 Td
+(Sessions) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 583.4049999999999727 Td
+(What meetings happened) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 583.4049999999999727 Td
+(Every booked session with its coach, materials and its one memo, plus the coach's write-up.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 567.3650000000000091 m
+547.2799999999999727 567.3650000000000091 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 563.3650000000000091 Td
+(Notes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 563.3650000000000091 Td
+(What we wrote down) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 563.3650000000000091 Td
+(Internal, staff-only notes: Milestone notes, Activity reports, Session memos.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 547.3249999999999318 m
+547.2799999999999727 547.3249999999999318 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 543.3249999999999318 Td
+(Data Room) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 543.3249999999999318 Td
+(Are we ready to raise?) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 543.3249999999999318 Td
+(Data Room readiness at the top, then the document categories themselves.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 527.2849999999998545 m
+547.2799999999999727 527.2849999999998545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 523.2849999999998545 Td
+(Profile) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 523.2849999999998545 Td
+(Who the venture is) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 523.2849999999998545 Td
+(The founder's profile, read-only: you follow the venture without owning its record. Lead manager only.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 507.2449999999998909 m
+547.2799999999999727 507.2449999999998909 l
+S
+0.98 0.97 0.96 rg
+48. 499.2449999999998909 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 499.2449999999998909 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 485.2449999999998909 Td
+(Projects and Profile) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 472.2449999999998909 Td
+(Those two tabs appear only for the venture's lead manager. If a colleague does not see them, that is the) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 459.2449999999998909 Td
+(assignment talking, not a bug.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(4 / 20) Tj
+ET
+endstream
+endobj
+11 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 12 0 R
+>>
+endobj
+12 0 obj
+<<
+/Length 5276
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 3) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(The Journey tab at a glance) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(The tab has two layers, top to bottom.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 705.1150000000000091 Td
+(The roadmap card \(top\)) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 688.1150000000000091 Td
+(A single percentage and four bars. It answers one question: how much of the planned work is actually done. Read it as) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 674.3399999999999181 Td
+(a thermometer, never as a grade.) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 654.5649999999999409 Td
+(COUNTS) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 646.5649999999999409 m
+547.2799999999999727 646.5649999999999409 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 634.5649999999999409 Td
+(Journeys) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 634.5649999999999409 Td
+(Stages) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 634.5649999999999409 Td
+(A stage reaches its end: every one of its milestones is complete.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 618.5249999999999773 m
+547.2799999999999727 618.5249999999999773 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 614.5249999999999773 Td
+(Milestones) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 614.5249999999999773 Td
+(Milestones) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 614.5249999999999773 Td
+(A milestone closes - either you mark it complete, or the work behind it finishes and the system closes it.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 598.4850000000000136 m
+547.2799999999999727 598.4850000000000136 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 594.4850000000000136 Td
+(Tasks) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 594.4850000000000136 Td
+(Tasks) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 594.4850000000000136 Td
+(A task reaches a completed status \(done, or accepted through review\).) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 578.4449999999999363 m
+547.2799999999999727 578.4449999999999363 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 574.4449999999999363 Td
+(Deliverables) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 574.4449999999999363 Td
+(Deliverables) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 574.4449999999999363 Td
+(A deliverable is approved. Submitted is not approved: review is what counts.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 558.4049999999999727 m
+547.2799999999999727 558.4049999999999727 l
+S
+0.98 0.97 0.96 rg
+48. 550.4049999999999727 499.2799999999999727 -48. re
+f
+0.05 0.48 0.32 rg
+48. 550.4049999999999727 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.055 0.478 0.322 rg
+62. 536.4049999999999727 Td
+(A percentage that will not move) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 523.4049999999999727 Td
+(If you approved nothing this week, the card does not move - and that is the correct answer. It measures finished) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 510.4049999999999727 Td
+(work, not effort, meetings attended, or how busy everyone felt.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 480.4049999999999727 Td
+(The stages \(below the card\)) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 463.4049999999999727 Td
+(Each stage is a block you can open. It shows its own status, its dates, its milestones and its journey reports. Several) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 449.6299999999999955 Td
+(stages can be running at the same time: stages do not wait for one another, they start when their own start date) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 435.8550000000000182 Td
+(arrives.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 422.0800000000000409 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 422.0800000000000409 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 408.0800000000000409 Td
+(Managing the plan itself) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 395.0800000000000409 Td
+(The Journey tab is also where the plan is edited: stages and milestones are added, renamed, reordered and) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 382.0800000000000409 Td
+(completed here. The server checks that you may manage milestones on this venture before any of it is written.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(5 / 20) Tj
+ET
+endstream
+endobj
+13 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 14 0 R
+>>
+endobj
+14 0 obj
+<<
+/Length 6593
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 4) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(The vocabulary) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(Six words cover everything on this screen. They nest, and each one only ever means one thing. Learn the ladder and) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(the rest of the manual reads itself.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 697.3399999999999181 Td
+(Journey) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 697.3399999999999181 Td
+(A stage of the plan - for example Foundation & Compliance, Validation, Early Traction. In) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 684.2899999999999636 Td
+(the interface a stage is labelled Journey. It has a start date, an end date and a status.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 667.2400000000000091 m
+547.2799999999999727 667.2400000000000091 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 663.2400000000000091 Td
+(Milestone) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 663.2400000000000091 Td
+(A checkpoint inside a stage. It is the unit of completion: a stage ends when its) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 650.1899999999999409 Td
+(milestones do. Milestones are what the review inbox, the deliverables and the sessions) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 637.1399999999999864 Td
+(are attached to.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 620.0899999999999181 m
+547.2799999999999727 620.0899999999999181 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 616.0899999999999181 Td
+(Activity) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 616.0899999999999181 Td
+(A specific piece of work inside a milestone - for example FT-01 Register the company.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 603.0399999999999636 Td
+(Deliverables belong to an activity, and the three action buttons \(note, report, session\) sit) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 589.9900000000000091 Td
+(on it.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 572.9400000000000546 m
+547.2799999999999727 572.9400000000000546 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 568.9400000000000546 Td
+(Deliverable) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 568.9400000000000546 Td
+(The artefact an activity must produce: a document, a link, a proof. It has dates, a status) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 555.8899999999999864 Td
+(and evidence, and it is approved by you.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 538.8400000000000318 m
+547.2799999999999727 538.8400000000000318 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 534.8400000000000318 Td
+(Task) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 534.8400000000000318 Td
+(A to-do assigned to a person. Tasks live on the Tasks tab and can be linked to a) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 521.7899999999999636 Td
+(milestone. A task can require a submission.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 504.7400000000000091 m
+547.2799999999999727 504.7400000000000091 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 500.7400000000000091 Td
+(Submission) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 500.7400000000000091 Td
+(What a founder files for a task that requires review. You approve it or send it back with a) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 487.6899999999999977 Td
+(written reason.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 470.6399999999999864 m
+547.2799999999999727 470.6399999999999864 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 452.6399999999999864 Td
+(Three more words that are not part of the ladder) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 435.6399999999999864 Td
+(Session) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 435.6399999999999864 Td
+(A dated meeting between the venture and a coach or advisor, always attached to a) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 422.589999999999975 Td
+(milestone. It holds one memo, materials, and the coach's write-up.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 405.5399999999999636 m
+547.2799999999999727 405.5399999999999636 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 401.5399999999999636 Td
+(Note) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 401.5399999999999636 Td
+(An internal, staff-only piece of writing attached to a milestone. Founders never see it.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 384.4899999999999523 m
+547.2799999999999727 384.4899999999999523 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 380.4899999999999523 Td
+(Journey report) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 380.4899999999999523 Td
+(A structured progress or closing report for a whole stage. It goes to the studio, not to the) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 367.4399999999999409 Td
+(venture's timeline.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 350.3899999999999864 m
+547.2799999999999727 350.3899999999999864 l
+S
+0.98 0.97 0.96 rg
+48. 344.3899999999999864 499.2799999999999727 -61. re
+f
+1. 0.4 0. rg
+48. 344.3899999999999864 3. -61. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 330.3899999999999864 Td
+(The word 'Journey' does double duty) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 317.3899999999999864 Td
+(The tab is called Journey, and each stage inside it is also called a Journey. When a colleague says 'the Journey is) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 304.3899999999999864 Td
+(complete', ask which one they mean. The interface shows the stage's own status, so the answer is always on) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 291.3899999999999864 Td
+(screen.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(6 / 20) Tj
+ET
+endstream
+endobj
+15 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 16 0 R
+>>
+endobj
+16 0 obj
+<<
+/Length 5847
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 5) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(The eight status words) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(Statuses are stored as fixed values and shown as eight words. The application never guesses a word for an unknown) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(value: it shows the raw value instead, so you can report it rather than be misled by it.) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 697.3399999999999181 Td
+(MEANS) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 689.3399999999999181 m
+547.2799999999999727 689.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 677.3399999999999181 Td
+(Upcoming) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 677.3399999999999181 Td
+(The stage it belongs to has not started yet: its start date has not arrived.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 677.3399999999999181 Td
+(Nothing. It is released by the calendar, not by you.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 661.2999999999999545 m
+547.2799999999999727 661.2999999999999545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 657.2999999999999545 Td
+(Blocked) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 657.2999999999999545 Td
+(The work is due, but a dependency it declares is not complete.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 657.2999999999999545 Td
+(Resolve the dependency. Moving it up or down the list will not release it.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 641.2599999999999909 m
+547.2799999999999727 641.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 637.2599999999999909 Td
+(Not started) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 637.2599999999999909 Td
+(Released, nobody has begun.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 637.2599999999999909 Td
+(Assign it, or move it to In progress once work really starts.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 621.2200000000000273 m
+547.2799999999999727 621.2200000000000273 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 617.2200000000000273 Td
+(In progress) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 617.2200000000000273 Td
+(Work is under way.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 617.2200000000000273 Td
+(Watch the dates. This is the state that hides slippage.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 601.1800000000000637 m
+547.2799999999999727 601.1800000000000637 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 597.1800000000000637 Td
+(Awaiting review) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 597.1800000000000637 Td
+(Something was submitted and is waiting for a decision.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 597.1800000000000637 Td
+(Decide it. This is your queue.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 581.1399999999999864 m
+547.2799999999999727 581.1399999999999864 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 577.1399999999999864 Td
+(Changes requested) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 577.1399999999999864 Td
+(You sent it back with a written reason.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 577.1399999999999864 Td
+(The founder resubmits a new version. Nothing was deleted.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 561.0999999999999091 m
+547.2799999999999727 561.0999999999999091 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 557.0999999999999091 Td
+(Completed) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 557.0999999999999091 Td
+(Done and closed.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 557.0999999999999091 Td
+(Nothing. It counts in roadmap progress.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 541.0599999999999454 m
+547.2799999999999727 541.0599999999999454 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 537.0599999999999454 Td
+(Approved) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 537.0599999999999454 Td
+(Accepted after review.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 537.0599999999999454 Td
+(Nothing. It counts in roadmap progress.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 521.0199999999999818 m
+547.2799999999999727 521.0199999999999818 l
+S
+0.98 0.97 0.96 rg
+48. 513.0199999999999818 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 513.0199999999999818 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 499.019999999999925 Td
+(Not started is not the same as upcoming) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 486.019999999999925 Td
+(Upcoming is the calendar holding the work back. Not started is you and the founder not having begun. They look) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 473.019999999999925 Td
+(similar in a list and they mean opposite things in a meeting.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(7 / 20) Tj
+ET
+endstream
+endobj
+17 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 18 0 R
+>>
+endobj
+18 0 obj
+<<
+/Length 5751
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 6) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Working a Journey \(a stage\)) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 724.8899999999999864 Td
+(How a stage starts and ends) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 707.8899999999999864 Td
+(1.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 707.8899999999999864 Td
+(A stage is created with a start date and an end date. Until the start date arrives it is Upcoming and its) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 694.3899999999999864 Td
+(milestones are held.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 675.8899999999999864 Td
+(2.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 675.8899999999999864 Td
+(On its start date it becomes Active on its own. Nobody presses a button; the screen releases it the first time it) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 662.3899999999999864 Td
+(is read that day.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 643.8899999999999864 Td
+(3.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 643.8899999999999864 Td
+(It becomes Completed when all of its milestones are complete.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 625.3899999999999864 Td
+(4.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 625.3899999999999864 Td
+(Several stages can be active at once. A venture does not have to finish Validation before starting Foundation) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 611.8899999999999864 Td
+(work, unless a milestone declares that dependency.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 583.3899999999999864 Td
+(What you can do on a stage) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 569.4300000000000637 m
+52.6000000000000014 570.3136555997292589 51.8836555997292663 571.0299999999999727 51. 571.0299999999999727 c
+50.1163444002707337 571.0299999999999727 49.3999999999999986 570.3136555997292589 49.3999999999999986 569.4300000000000637 c
+49.3999999999999986 568.5463444002707547 50.1163444002707337 567.8299999999999272 51. 567.8299999999999272 c
+51.8836555997292663 567.8299999999999272 52.6000000000000014 568.5463444002707547 52.6000000000000014 569.4300000000000637 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 566.3899999999999864 Td
+(Add, rename, reorder and delete stages and milestones.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 551.6549999999999727 m
+52.6000000000000014 552.5386555997292817 51.8836555997292663 553.2550000000001091 51. 553.2550000000001091 c
+50.1163444002707337 553.2550000000001091 49.3999999999999986 552.5386555997292817 49.3999999999999986 551.6549999999999727 c
+49.3999999999999986 550.7713444002707774 50.1163444002707337 550.0550000000000637 51. 550.0550000000000637 c
+51.8836555997292663 550.0550000000000637 52.6000000000000014 550.7713444002707774 52.6000000000000014 551.6549999999999727 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 548.6150000000000091 Td
+(Attach a journey report to the stage - a progress report while it runs, a closing report when it ends \(section 13\).) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 533.8800000000001091 m
+52.6000000000000014 534.7636555997293044 51.8836555997292663 535.4800000000000182 51. 535.4800000000000182 c
+50.1163444002707337 535.4800000000000182 49.3999999999999986 534.7636555997293044 49.3999999999999986 533.8800000000001091 c
+49.3999999999999986 532.9963444002708002 50.1163444002707337 532.2799999999999727 51. 532.2799999999999727 c
+51.8836555997292663 532.2799999999999727 52.6000000000000014 532.9963444002708002 52.6000000000000014 533.8800000000001091 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 530.8400000000000318 Td
+(Archive a stage you do not want in the working view, and restore it later \(section 14\).) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 516.1050000000000182 m
+52.6000000000000014 516.9886555997293272 51.8836555997292663 517.7050000000001546 51. 517.7050000000001546 c
+50.1163444002707337 517.7050000000001546 49.3999999999999986 516.9886555997293272 49.3999999999999986 516.1050000000000182 c
+49.3999999999999986 515.2213444002708229 50.1163444002707337 514.5050000000001091 51. 514.5050000000001091 c
+51.8836555997292663 514.5050000000001091 52.6000000000000014 515.2213444002708229 52.6000000000000014 516.1050000000000182 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 513.0650000000000546 Td
+(Save the whole Journey as a template, or start a new venture from one \(section 14\).) Tj
+ET
+0.98 0.97 0.96 rg
+48. 497.2900000000000773 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 497.2900000000000773 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 483.2900000000000773 Td
+(Reordering is not rescheduling) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 470.2900000000000773 Td
+(Moving a milestone up or down changes the order you read it in. It does not change dates and it does not release a) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 457.2900000000000773 Td
+(blocked milestone. Only a completed dependency does that.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(8 / 20) Tj
+ET
+endstream
+endobj
+19 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 20 0 R
+>>
+endobj
+20 0 obj
+<<
+/Length 5227
+>>
+stream
+0.8 w
+1. 0.4 0. RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 7) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Working a milestone) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(A milestone is where everything you actually do is attached. Click it to open it. When it is open you get, in one place:) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(what needs your decision, the deliverables of each activity, the sessions booked on it, and its internal notes.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 691.3399999999999181 Td
+(The milestone menu) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 674.3399999999999181 Td
+(WHAT IT DOES) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 666.3399999999999181 m
+547.2799999999999727 666.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 654.3399999999999181 Td
+(Edit) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 654.3399999999999181 Td
+(Change the title, description, dates, owner or dependency.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 654.3399999999999181 Td
+(The plan is wrong, not the work.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 638.2999999999999545 m
+547.2799999999999727 638.2999999999999545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 634.2999999999999545 Td
+(Move up / Move down) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 634.2999999999999545 Td
+(Reorder it within its stage.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 634.2999999999999545 Td
+(You are reshaping the reading order only.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 618.2599999999999909 m
+547.2799999999999727 618.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 614.2599999999999909 Td
+(Notes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 614.2599999999999909 Td
+(Open this milestone's internal notes in place.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 614.2599999999999909 Td
+(You have just come out of a call and need to write down what was decided.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 598.2200000000000273 m
+547.2799999999999727 598.2200000000000273 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 594.2200000000000273 Td
+(Mark completed) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 594.2200000000000273 Td
+(Close it as done.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 594.2200000000000273 Td
+(The work is genuinely finished and you can say why.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 578.1800000000000637 m
+547.2799999999999727 578.1800000000000637 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 558.1800000000000637 Td
+(Closing a milestone) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 541.1800000000000637 Td
+(You have two routes to a closed milestone, and they agree with each other. Either you mark it completed, or its) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 527.4049999999999727 Td
+(deliverables are approved and its tasks are done and the system closes it when the Journey is next read. A milestone) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 513.6300000000001091 Td
+(left half-closed is a signal, not a state to live in.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 499.855000000000075 499.2799999999999727 -61. re
+f
+0.69 0.2 0.24 rg
+48. 499.855000000000075 3. -61. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.69 0.204 0.243 rg
+62. 485.855000000000075 Td
+(Do not close a milestone to make the card look better) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 472.855000000000075 Td
+(Roadmap progress is read side by side with the founder's own numbers and by the Super Admin. A milestone) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 459.855000000000075 Td
+(closed over unfinished work buys a better percentage this week and an uncomfortable meeting at the end of the) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 446.855000000000075 Td
+(stage.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 416.855000000000075 Td
+(Submissions in the milestone) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 399.855000000000075 Td
+(If a task inside the milestone requires review, whatever the founder files appears at the top of the open milestone, in an) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 386.0800000000000978 Td
+(amber block. That is section 8.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+528.6050000000000182 22. Td
+(9 / 20) Tj
+ET
+endstream
+endobj
+21 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 22 0 R
+>>
+endobj
+22 0 obj
+<<
+/Length 5668
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 8) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Reviewing what the venture submitted) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(Submissions sit in the open milestone, not in a separate queue you have to remember to check. Each row tells you the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(task, the version, who filed it and when, the founder's own note, and a link to the file if there is one.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 691.3399999999999181 Td
+(The two decisions) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 674.3399999999999181 Td
+(Approve) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 674.3399999999999181 Td
+(The deliverable is accepted. The row leaves your queue and the work counts as done.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 657.2899999999999636 m
+547.2799999999999727 657.2899999999999636 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 653.2899999999999636 Td
+(Request changes) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 653.2899999999999636 Td
+(You must write what has to change. The founder sees it, fixes it and files a new version.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 640.2400000000000091 Td
+(The old version is kept - nothing is overwritten or deleted.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 623.1899999999999409 m
+547.2799999999999727 623.1899999999999409 l
+S
+0.98 0.97 0.96 rg
+48. 617.1899999999999409 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 617.1899999999999409 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 603.1899999999999409 Td
+(Write the reason as an instruction) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 590.1899999999999409 Td
+('Not good enough' produces another round. 'Add the bank statement for August and the registration certificate') Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 577.1899999999999409 Td
+(produces an approval. The comment is the deliverable of your review.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 547.1899999999999409 Td
+(Versions) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 530.1899999999999409 Td
+(Every submission carries a version number. A request for changes does not replace the previous submission: it) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 516.4149999999999636 Td
+(becomes version 2 of the same task, and the history stays readable. When you are asked 'who approved v1?', the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 502.6399999999999864 Td
+(answer is still there.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 476.8650000000000091 Td
+(What a review is not) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 462.9050000000000296 m
+52.6000000000000014 463.7886555997292817 51.8836555997292663 464.5050000000000523 51. 464.5050000000000523 c
+50.1163444002707337 464.5050000000000523 49.3999999999999986 463.7886555997292817 49.3999999999999986 462.9050000000000296 c
+49.3999999999999986 462.0213444002707774 50.1163444002707337 461.3050000000000068 51. 461.3050000000000068 c
+51.8836555997292663 461.3050000000000068 52.6000000000000014 462.0213444002707774 52.6000000000000014 462.9050000000000296 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 459.8650000000000091 Td
+(It is not a second opinion on the business idea. You are checking that the artefact exists, is the right one, and is) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 446.0900000000000318 Td
+(real.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 431.355000000000075 m
+52.6000000000000014 432.2386555997293272 51.8836555997292663 432.9550000000000978 51. 432.9550000000000978 c
+50.1163444002707337 432.9550000000000978 49.3999999999999986 432.2386555997293272 49.3999999999999986 431.355000000000075 c
+49.3999999999999986 430.4713444002708229 50.1163444002707337 429.7550000000000523 51. 429.7550000000000523 c
+51.8836555997292663 429.7550000000000523 52.6000000000000014 430.4713444002708229 52.6000000000000014 431.355000000000075 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 428.3150000000000546 Td
+(It is not permanent. An approval can be revisited through a new submission; the audit trail shows both decisions.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 413.5800000000000978 m
+52.6000000000000014 414.4636555997293499 51.8836555997292663 415.1800000000001205 51. 415.1800000000001205 c
+50.1163444002707337 415.1800000000001205 49.3999999999999986 414.4636555997293499 49.3999999999999986 413.5800000000000978 c
+49.3999999999999986 412.6963444002708457 50.1163444002707337 411.980000000000075 51. 411.980000000000075 c
+51.8836555997292663 411.980000000000075 52.6000000000000014 412.6963444002708457 52.6000000000000014 413.5800000000000978 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 410.5400000000000773 Td
+(It is not optional for review-required tasks: the task cannot close without a decision.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(10 / 20) Tj
+ET
+endstream
+endobj
+23 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 24 0 R
+>>
+endobj
+24 0 obj
+<<
+/Length 5306
+>>
+stream
+0.6 w
+1. 0.4 0. RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 9) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Deliverables) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(A deliverable is the artefact an activity must produce. It carries two dates \(a start and an end\), a status, and evidence -) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(a file, or a link.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 691.3399999999999181 Td
+(The words you may set, and the ones you may not) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 674.3399999999999181 Td
+(WHO SETS IT) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 666.3399999999999181 m
+547.2799999999999727 666.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 654.3399999999999181 Td
+(Not started) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 654.3399999999999181 Td
+(You) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+477.3807999999999652 654.3399999999999181 Td
+(Nothing has begun on this artefact.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 638.2999999999999545 m
+547.2799999999999727 638.2999999999999545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 634.2999999999999545 Td
+(In progress) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 634.2999999999999545 Td
+(You) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+477.3807999999999652 634.2999999999999545 Td
+(Someone is working on it.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 618.2599999999999909 m
+547.2799999999999727 618.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 614.2599999999999909 Td
+(Blocked) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 614.2599999999999909 Td
+(You) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+477.3807999999999652 614.2599999999999909 Td
+(It cannot proceed - say what is missing in the note.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 598.2200000000000273 m
+547.2799999999999727 598.2200000000000273 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 594.2200000000000273 Td
+(Awaiting review) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 594.2200000000000273 Td
+(The founder, by submitting) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+477.3807999999999652 594.2200000000000273 Td
+(Filed and waiting for your decision.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 578.1800000000000637 m
+547.2799999999999727 578.1800000000000637 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 574.1800000000000637 Td
+(Changes requested) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 574.1800000000000637 Td
+(You, by requesting changes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+477.3807999999999652 574.1800000000000637 Td
+(Sent back with a written reason.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 558.1399999999999864 m
+547.2799999999999727 558.1399999999999864 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 554.1399999999999864 Td
+(Approved) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 554.1399999999999864 Td
+(The review only) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+477.3807999999999652 554.1399999999999864 Td
+(Accepted. This is what moves roadmap progress.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 538.0999999999999091 m
+547.2799999999999727 538.0999999999999091 l
+S
+0.98 0.97 0.96 rg
+48. 530.0999999999999091 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 530.0999999999999091 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 516.0999999999999091 Td
+(You cannot type 'Approved') Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 503.0999999999999659 Td
+(Approval is the outcome of a review, not a field you may set. That is deliberate: it keeps the roadmap percentage) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 490.0999999999999659 Td
+(traceable to a decision with a name and a date on it.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 460.0999999999999659 Td
+(Evidence is private) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 443.0999999999999659 Td
+(Uploaded files are never public links. An authorised staff member opening the evidence gets a short-lived signed) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 429.3249999999999886 Td
+(address, generated at the moment of reading. If a link stops working after an hour, that is the system working as) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 415.5500000000000114 Td
+(designed - reopen the deliverable.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(11 / 20) Tj
+ET
+endstream
+endobj
+25 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 26 0 R
+>>
+endobj
+26 0 obj
+<<
+/Length 7454
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 10) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(The three buttons on an activity) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(Under each activity in an open milestone you will find three actions. They look similar and they stored different things,) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(which is why they were renamed. This is the section to read twice.) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 697.3399999999999181 Td
+(WHAT IT CREATES) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 689.3399999999999181 m
+547.2799999999999727 689.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 677.3399999999999181 Td
+(Quick note) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 677.3399999999999181 Td
+(A short internal note filed on the) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 665.2999999999999545 Td
+(milestone.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+317.6111999999999966 677.3399999999999181 Td
+(Staff only) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 677.3399999999999181 Td
+(Notes tab, Milestone notes) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 649.2599999999999909 m
+547.2799999999999727 649.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 645.2599999999999909 Td
+(Activity report) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 645.2599999999999909 Td
+(A fuller internal report filed on the) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 633.2200000000000273 Td
+(milestone, titled with the activity code) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+317.6111999999999966 645.2599999999999909 Td
+(Staff only) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 645.2599999999999909 Td
+(Notes tab, Activity reports) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 617.1800000000000637 m
+547.2799999999999727 617.1800000000000637 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 613.1800000000000637 Td
+(Session) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 613.1800000000000637 Td
+(A booked coaching session attached to) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+147.8559999999999945 601.1399999999999864 Td
+(the milestone) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+317.6111999999999966 613.1800000000000637 Td
+(Staff and the venture) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+487.3663999999999987 613.1800000000000637 Td
+(Sessions tab; also listed on the milestone) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 585.1000000000000227 m
+547.2799999999999727 585.1000000000000227 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 565.1000000000000227 Td
+(Why 'Activity report' and not 'Report') Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 548.1000000000000227 Td
+(Because there is a third thing called a journey report \(section 13\), which is a structured report for a whole stage. Two) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 534.3250000000000455 Td
+(different objects sharing the word 'report' is how a manager ends up looking in the wrong place. The activity one is now) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 520.5500000000000682 Td
+(named in full.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 506.7750000000000909 499.2799999999999727 -74. re
+f
+0.05 0.48 0.32 rg
+48. 506.7750000000000909 3. -74. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.055 0.478 0.322 rg
+62. 492.7750000000000909 Td
+(The same row, two names, no longer) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 479.7750000000000909 Td
+(An activity report is stored as an internal note with a kind of 'activity'. Before that distinction existed, the Notes tab) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 466.7750000000000909 Td
+(could not tell an activity report from a note written on the milestone itself, because both are filed in exactly the same) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 453.7750000000000909 Td
+(place. Now it can, and the two are listed separately. Nothing was rewritten: reports written before the change appear) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 440.7750000000000909 Td
+(under Milestone notes.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 410.7750000000000909 Td
+(Which one do I want?) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 396.8150000000001114 m
+52.6000000000000014 397.6986555997293635 51.8836555997292663 398.4150000000001342 51. 398.4150000000001342 c
+50.1163444002707337 398.4150000000001342 49.3999999999999986 397.6986555997293635 49.3999999999999986 396.8150000000001114 c
+49.3999999999999986 395.9313444002708593 50.1163444002707337 395.2150000000000887 51. 395.2150000000000887 c
+51.8836555997292663 395.2150000000000887 52.6000000000000014 395.9313444002708593 52.6000000000000014 396.8150000000001114 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 393.7750000000000909 Td
+(You were in a meeting and need to record what was said - Quick note.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 379.0400000000001342 m
+52.6000000000000014 379.9236555997293863 51.8836555997292663 380.6400000000001569 51. 380.6400000000001569 c
+50.1163444002707337 380.6400000000001569 49.3999999999999986 379.9236555997293863 49.3999999999999986 379.0400000000001342 c
+49.3999999999999986 378.156344400270882 50.1163444002707337 377.4400000000001114 51. 377.4400000000001114 c
+51.8836555997292663 377.4400000000001114 52.6000000000000014 378.156344400270882 52.6000000000000014 379.0400000000001342 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 376.0000000000001137 Td
+(You visited a bank, assessed a deliverable against a checklist, or documented a decision about one activity -) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 362.2250000000001364 Td
+(Activity report.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 347.4900000000001796 m
+52.6000000000000014 348.3736555997294317 51.8836555997292663 349.0900000000002024 51. 349.0900000000002024 c
+50.1163444002707337 349.0900000000002024 49.3999999999999986 348.3736555997294317 49.3999999999999986 347.4900000000001796 c
+49.3999999999999986 346.6063444002709275 50.1163444002707337 345.8900000000001569 51. 345.8900000000001569 c
+51.8836555997292663 345.8900000000001569 52.6000000000000014 346.6063444002709275 52.6000000000000014 347.4900000000001796 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 344.4500000000001592 Td
+(You need to sit down with the founder or a coach about this activity - Session.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(12 / 20) Tj
+ET
+endstream
+endobj
+27 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 28 0 R
+>>
+endobj
+28 0 obj
+<<
+/Length 7282
+>>
+stream
+0.6 w
+1. 0.4 0. RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 11) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Booking a session) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(A session is a dated meeting between the venture and a coach or advisor. The server refuses a session that does not) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(meet four rules, and it refuses them for founders exactly as it does for you.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 691.3399999999999181 Td
+(The four rules) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 674.3399999999999181 Td
+(A memo is required) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 674.3399999999999181 Td
+(A session without a note about why it exists is not created. The memo is what the) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 661.2899999999999636 Td
+(venture is told to expect.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 644.2400000000000091 m
+547.2799999999999727 644.2400000000000091 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 640.2400000000000091 Td
+(It belongs to a milestone) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 640.2400000000000091 Td
+(Sessions never exist outside the plan. If you cannot pick a milestone, the milestone is) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 627.1899999999999409 Td
+(missing - create it first.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 610.1399999999999864 m
+547.2799999999999727 610.1399999999999864 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 606.1399999999999864 Td
+(A date and a time, not in the past) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 606.1399999999999864 Td
+(Any future time is bookable. The booker decides; the system only refuses yesterday.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 589.0899999999999181 m
+547.2799999999999727 589.0899999999999181 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 585.0899999999999181 Td
+(Materials are validated) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 585.0899999999999181 Td
+(Up to five documents, and only files issued by this venture's own session upload. An) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 572.0399999999999636 Td
+(arbitrary address is refused.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 554.9900000000000091 m
+547.2799999999999727 554.9900000000000091 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 536.9900000000000091 Td
+(What a session holds) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 523.0299999999999727 m
+52.6000000000000014 523.9136555997292817 51.8836555997292663 524.6300000000001091 51. 524.6300000000001091 c
+50.1163444002707337 524.6300000000001091 49.3999999999999986 523.9136555997292817 49.3999999999999986 523.0299999999999727 c
+49.3999999999999986 522.1463444002707774 50.1163444002707337 521.4300000000000637 51. 521.4300000000000637 c
+51.8836555997292663 521.4300000000000637 52.6000000000000014 522.1463444002707774 52.6000000000000014 523.0299999999999727 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 519.9900000000000091 Td
+(Its one memo - the brief. It is edited in place, never appended to: a session does not accumulate briefs.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 505.2550000000000523 m
+52.6000000000000014 506.1386555997293044 51.8836555997292663 506.855000000000075 51. 506.855000000000075 c
+50.1163444002707337 506.855000000000075 49.3999999999999986 506.1386555997293044 49.3999999999999986 505.2550000000000523 c
+49.3999999999999986 504.3713444002708002 50.1163444002707337 503.6550000000000296 51. 503.6550000000000296 c
+51.8836555997292663 503.6550000000000296 52.6000000000000014 504.3713444002708002 52.6000000000000014 505.2550000000000523 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 502.2150000000000318 Td
+(Its materials, shared as private signed links.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 487.480000000000075 m
+52.6000000000000014 488.3636555997293272 51.8836555997292663 489.0800000000000978 51. 489.0800000000000978 c
+50.1163444002707337 489.0800000000000978 49.3999999999999986 488.3636555997293272 49.3999999999999986 487.480000000000075 c
+49.3999999999999986 486.5963444002708229 50.1163444002707337 485.8800000000000523 51. 485.8800000000000523 c
+51.8836555997292663 485.8800000000000523 52.6000000000000014 486.5963444002708229 52.6000000000000014 487.480000000000075 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 484.4400000000000546 Td
+(Its invitees, so you can see who was told.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 469.7050000000000978 m
+52.6000000000000014 470.5886555997293499 51.8836555997292663 471.3050000000001205 51. 471.3050000000001205 c
+50.1163444002707337 471.3050000000001205 49.3999999999999986 470.5886555997293499 49.3999999999999986 469.7050000000000978 c
+49.3999999999999986 468.8213444002708457 50.1163444002707337 468.105000000000075 51. 468.105000000000075 c
+51.8836555997292663 468.105000000000075 52.6000000000000014 468.8213444002708457 52.6000000000000014 469.7050000000000978 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 466.6650000000000773 Td
+(The coach's feedback, written from the Sessions tab, which is separate from the memo and keeps its author and) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 452.8900000000001 Td
+(date.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 437.1150000000001228 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 437.1150000000001228 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 423.1150000000001228 Td
+(Where the two write-ups appear) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 410.1150000000001228 Td
+(The memo and the coach feedback both live with the session, and both are now readable in one place: Notes,) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 397.1150000000001228 Td
+(Session memos. Before, the feedback was written from the Sessions tab and readable nowhere else.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 367.1150000000001228 Td
+(Cancelling and moving) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 350.1150000000001228 Td
+(A cancelled session leaves everyone's calendar; the record stays with a cancelled status. A moved session is pushed) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 336.3400000000001455 Td
+(to the calendars of the booker and the coach immediately, because a calendar that keeps the old slot is worse than no) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 322.5650000000001683 Td
+(entry at all.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(13 / 20) Tj
+ET
+endstream
+endobj
+29 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 30 0 R
+>>
+endobj
+30 0 obj
+<<
+/Length 10150
+>>
+stream
+0.6 w
+1. 0.4 0. RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 12) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(The Notes tab) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(Everything written by staff about a venture, in three sections. It is staff-only: the founder's account is refused by the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(server, not merely hidden by the interface.) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 697.3399999999999181 Td
+(HOLDS) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 689.3399999999999181 m
+547.2799999999999727 689.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 677.3399999999999181 Td
+(Milestone notes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+157.8415999999999997 677.3399999999999181 Td
+(A note about the milestone itself.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+517.3231999999999289 677.3399999999999181 Td
+(The New note button in this tab, or the Notes item in a milestone's menu.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 661.2999999999999545 m
+547.2799999999999727 661.2999999999999545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 657.2999999999999545 Td
+(Activity reports) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+157.8415999999999997 657.2999999999999545 Td
+(A staff report about one activity, still filed on that activity's milestone.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+517.3231999999999289 657.2999999999999545 Td
+(The Activity report button on an activity.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 641.2599999999999909 m
+547.2799999999999727 641.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 637.2599999999999909 Td
+(Session memos) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+157.8415999999999997 637.2599999999999909 Td
+(The memo of each session, and the coach's feedback on it.) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+517.3231999999999289 637.2599999999999909 Td
+(Booking or editing a session, and the Sessions tab.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 621.2200000000000273 m
+547.2799999999999727 621.2200000000000273 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 601.2200000000000273 Td
+(The one rule that shapes everything) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 584.2200000000000273 Td
+(An internal note must belong to a milestone. There are no venture-wide notes and no free-floating ones. It is not a filing) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 570.44500000000005 Td
+(preference: the server refuses any other scope. If you want to write something that is not about a milestone, it is not a) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 556.6700000000000728 Td
+(note - it is a journey report, or it is a message to the founder on a channel they can read.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 542.8950000000000955 499.2799999999999727 -61. re
+f
+0.69 0.2 0.24 rg
+48. 542.8950000000000955 3. -61. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.69 0.204 0.243 rg
+62. 528.8950000000000955 Td
+(Notes are not messages) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 515.8950000000000955 Td
+(The founder never receives them and there is no way to share one from here. If the founder needs to know) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 502.8950000000000955 Td
+(something, write it where they can read it: their reporting narrative, a comment on a submission, or a session) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 489.8950000000000955 Td
+(memo.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 459.8950000000000955 Td
+(Who can read and write a note) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 442.8950000000000955 Td
+(READS) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 434.8950000000000955 m
+547.2799999999999727 434.8950000000000955 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 422.8950000000000955 Td
+(Super Admin) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 422.8950000000000955 Td
+(Every note of every) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 410.855000000000075 Td
+(venture) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+277.6688000000000329 422.8950000000000955 Td
+(yes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3376000000000658 422.8950000000000955 Td
+(yes) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 394.8150000000001114 m
+547.2799999999999727 394.8150000000001114 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 390.8150000000001114 Td
+(Venture Manager \(assigned\)) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 390.8150000000001114 Td
+(The whole venture) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+277.6688000000000329 390.8150000000001114 Td
+(yes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3376000000000658 390.8150000000001114 Td
+(yes - any note) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 374.7750000000000909 m
+547.2799999999999727 374.7750000000000909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 370.7750000000000909 Td
+(Coach \(assigned, scoped\)) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 370.7750000000000909 Td
+(Only the milestones in) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 358.7350000000000705 Td
+(their assignment) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+277.6688000000000329 370.7750000000000909 Td
+(yes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3376000000000658 370.7750000000000909 Td
+(their own note only) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 342.6950000000001069 m
+547.2799999999999727 342.6950000000001069 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 338.6950000000001069 Td
+(Facilitator \(assigned,) Tj
+ET
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 326.6550000000000864 Td
+(scoped\)) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 338.6950000000001069 Td
+(Only the milestones in) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 326.6550000000000864 Td
+(their assignment) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+277.6688000000000329 338.6950000000001069 Td
+(yes) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3376000000000658 338.6950000000001069 Td
+(their own note only) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 310.6150000000001228 m
+547.2799999999999727 310.6150000000001228 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 306.6150000000001228 Td
+(Founder / team member) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 306.6150000000001228 Td
+(Nothing - the server) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 294.5750000000001592 Td
+(answers 404) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+277.6688000000000329 306.6150000000001228 Td
+(no) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3376000000000658 306.6150000000001228 Td
+(no) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 278.5350000000000819 m
+547.2799999999999727 278.5350000000000819 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 274.5350000000000819 Td
+(Any other staff member) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 274.5350000000000819 Td
+(Nothing - an active) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+167.8272000000000048 262.4950000000001182 Td
+(assignment is required) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+277.6688000000000329 274.5350000000000819 Td
+(no) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3376000000000658 274.5350000000000819 Td
+(no) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 246.4550000000000409 m
+547.2799999999999727 246.4550000000000409 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 226.4550000000000409 Td
+(Writing one) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 209.4550000000000409 Td
+(1.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 209.4550000000000409 Td
+(Choose New note, pick the milestone, give it a title and a body.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 190.9550000000000409 Td
+(2.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 190.9550000000000409 Td
+(Attach a link or a file if there is evidence.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 172.4550000000000409 Td
+(3.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 172.4550000000000409 Td
+(Save. It appears in Milestone notes, newest first.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 153.9550000000000409 Td
+(4.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 153.9550000000000409 Td
+(Deleting asks you to confirm first. What it actually does is archive the note: it disappears from every list and) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 140.4550000000000409 Td
+(the row is kept, so an accidental delete is recoverable rather than retyped. A coach may retract their own note;) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 126.9550000000000409 Td
+(removing someone else's needs the delete right.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(14 / 20) Tj
+ET
+endstream
+endobj
+31 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 32 0 R
+>>
+endobj
+32 0 obj
+<<
+/Length 7706
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 13) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Journey reports) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(A journey report is the written account of a stage: what the stage set out to do, what happened, and what you) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(recommend. It is addressed to the studio, and it is the only structured report in the Journey tab.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 691.3399999999999181 Td
+(Two kinds) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 674.3399999999999181 Td
+(Progress report) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 674.3399999999999181 Td
+(Written while the stage runs. It says where the stage has got to and what is outstanding.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 657.2899999999999636 m
+547.2799999999999727 657.2899999999999636 l
+S
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+48. 653.2899999999999636 Td
+(Closing report) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.361 0.376 0.416 rg
+166. 653.2899999999999636 Td
+(Written when the stage ends. It is the account of the stage as a whole.) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 636.2400000000000091 m
+547.2799999999999727 636.2400000000000091 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 618.2400000000000091 Td
+(What it records) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 604.2799999999999727 m
+52.6000000000000014 605.1636555997292817 51.8836555997292663 605.8799999999998818 51. 605.8799999999998818 c
+50.1163444002707337 605.8799999999998818 49.3999999999999986 605.1636555997292817 49.3999999999999986 604.2799999999999727 c
+49.3999999999999986 603.3963444002706638 50.1163444002707337 602.67999999999995 51. 602.67999999999995 c
+51.8836555997292663 602.67999999999995 52.6000000000000014 603.3963444002706638 52.6000000000000014 604.2799999999999727 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 601.2400000000000091 Td
+(A title and the reporting period.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 586.5049999999998818 m
+52.6000000000000014 587.3886555997291907 51.8836555997292663 588.1049999999999045 51. 588.1049999999999045 c
+50.1163444002707337 588.1049999999999045 49.3999999999999986 587.3886555997291907 49.3999999999999986 586.5049999999998818 c
+49.3999999999999986 585.6213444002705728 50.1163444002707337 584.9049999999999727 51. 584.9049999999999727 c
+51.8836555997292663 584.9049999999999727 52.6000000000000014 585.6213444002705728 52.6000000000000014 586.5049999999998818 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 583.4649999999999181 Td
+(A summary of the stage.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 568.7300000000000182 m
+52.6000000000000014 569.6136555997292135 51.8836555997292663 570.3299999999999272 51. 570.3299999999999272 c
+50.1163444002707337 570.3299999999999272 49.3999999999999986 569.6136555997292135 49.3999999999999986 568.7300000000000182 c
+49.3999999999999986 567.8463444002707092 50.1163444002707337 567.1299999999998818 51. 567.1299999999998818 c
+51.8836555997292663 567.1299999999998818 52.6000000000000014 567.8463444002707092 52.6000000000000014 568.7300000000000182 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 565.6899999999999409 Td
+(What was completed, and what is outstanding.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 550.9549999999999272 m
+52.6000000000000014 551.8386555997292362 51.8836555997292663 552.5550000000000637 51. 552.5550000000000637 c
+50.1163444002707337 552.5550000000000637 49.3999999999999986 551.8386555997292362 49.3999999999999986 550.9549999999999272 c
+49.3999999999999986 550.071344400270732 50.1163444002707337 549.3550000000000182 51. 549.3550000000000182 c
+51.8836555997292663 549.3550000000000182 52.6000000000000014 550.071344400270732 52.6000000000000014 550.9549999999999272 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 547.9149999999999636 Td
+(Support delivered, challenges met, and your recommendation.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 533.1800000000000637 m
+52.6000000000000014 534.0636555997292589 51.8836555997292663 534.7799999999999727 51. 534.7799999999999727 c
+50.1163444002707337 534.7799999999999727 49.3999999999999986 534.0636555997292589 49.3999999999999986 533.1800000000000637 c
+49.3999999999999986 532.2963444002707547 50.1163444002707337 531.5799999999999272 51. 531.5799999999999272 c
+51.8836555997292663 531.5799999999999272 52.6000000000000014 532.2963444002707547 52.6000000000000014 533.1800000000000637 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 530.1399999999999864 Td
+(A status: draft while you write, submitted when it goes to the studio, with the date it was submitted.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 514.3650000000000091 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 514.3650000000000091 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 500.3650000000000091 Td
+(The report a stage is owed) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 487.3650000000000091 Td
+(If a stage closes without its closing report, the Journey tab says so, in place, in amber. Nothing is blocked and no) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 474.3650000000000091 Td
+(work is lost - the omission is simply never silent.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 444.3650000000000091 Td
+(How it differs from the other two reports) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 427.3650000000000091 Td
+(SCOPE) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 419.3650000000000091 m
+547.2799999999999727 419.3650000000000091 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 407.3650000000000091 Td
+(Activity report) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 407.3650000000000091 Td
+(One activity) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3375999999999522 407.3650000000000091 Td
+(Staff only, inside the venture's notes) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 391.3249999999999886 m
+547.2799999999999727 391.3249999999999886 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 387.3249999999999886 Td
+(Journey report) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 387.3249999999999886 Td
+(One whole stage) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3375999999999522 387.3249999999999886 Td
+(The studio, through the submitted report) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 371.2849999999999682 m
+547.2799999999999727 371.2849999999999682 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 367.2849999999999682 Td
+(The founder's reporting) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+177.81280000000001 367.2849999999999682 Td
+(The venture's numbers) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+507.3375999999999522 367.2849999999999682 Td
+(Everyone who reads the venture's record) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 351.2449999999999477 m
+547.2799999999999727 351.2449999999999477 l
+S
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(15 / 20) Tj
+ET
+endstream
+endobj
+33 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 34 0 R
+>>
+endobj
+34 0 obj
+<<
+/Length 4645
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 14) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Templates and the archive) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 724.8899999999999864 Td
+(Templates) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 707.8899999999999864 Td
+(A good plan is worth reusing. A Journey can be saved as a template, and a new venture can start from one instead of) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 694.1150000000000091 Td
+(an empty page. Templates are blueprints: applying one copies its structure into the venture, and later edits to the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 680.3399999999999181 Td
+(venture never change the template.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 654.5649999999999409 Td
+(The archive) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 637.5649999999999409 Td
+(Archiving takes a stage out of the working view without deleting anything. The Journey tab offers an Active view and an) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 623.7899999999999636 Td
+(Archived view, and archived material comes back only when you ask for it.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 607.05499999999995 m
+52.6000000000000014 607.9386555997292589 51.8836555997292663 608.6549999999999727 51. 608.6549999999999727 c
+50.1163444002707337 608.6549999999999727 49.3999999999999986 607.9386555997292589 49.3999999999999986 607.05499999999995 c
+49.3999999999999986 606.171344400270641 50.1163444002707337 605.4549999999999272 51. 605.4549999999999272 c
+51.8836555997292663 605.4549999999999272 52.6000000000000014 606.171344400270641 52.6000000000000014 607.05499999999995 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 604.0149999999999864 Td
+(Select all, or select individual stages, then archive them together.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 589.2799999999999727 m
+52.6000000000000014 590.1636555997292817 51.8836555997292663 590.8799999999998818 51. 590.8799999999998818 c
+50.1163444002707337 590.8799999999998818 49.3999999999999986 590.1636555997292817 49.3999999999999986 589.2799999999999727 c
+49.3999999999999986 588.3963444002706638 50.1163444002707337 587.67999999999995 51. 587.67999999999995 c
+51.8836555997292663 587.67999999999995 52.6000000000000014 588.3963444002706638 52.6000000000000014 589.2799999999999727 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 586.2400000000000091 Td
+(Bulk delete exists and asks twice before it runs - the second confirmation is there because deletion is not) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 572.4649999999999181 Td
+(reversible.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 557.7300000000000182 m
+52.6000000000000014 558.6136555997293272 51.8836555997292663 559.3300000000000409 51. 559.3300000000000409 c
+50.1163444002707337 559.3300000000000409 49.3999999999999986 558.6136555997293272 49.3999999999999986 557.7300000000000182 c
+49.3999999999999986 556.8463444002707092 50.1163444002707337 556.1299999999999955 51. 556.1299999999999955 c
+51.8836555997292663 556.1299999999999955 52.6000000000000014 556.8463444002707092 52.6000000000000014 557.7300000000000182 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 554.6900000000000546 Td
+(Archived milestones are likewise hidden from the working view unless the manager explicitly asks for archived) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 540.9149999999999636 Td
+(content.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 525.1400000000001 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 525.1400000000001 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 511.1400000000000432 Td
+(Archive is the habitual choice) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 498.1400000000000432 Td
+(A stage you finished, a plan you replaced, a milestone that was really an experiment: archive them. Delete is for) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 485.1400000000000432 Td
+(things that were created by mistake.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(16 / 20) Tj
+ET
+endstream
+endobj
+35 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 36 0 R
+>>
+endobj
+36 0 obj
+<<
+/Length 4246
+>>
+stream
+0.8 w
+1. 0.4 0. RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 15) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(What the founder sees) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(The founder has their own workspace and their own Journey tab. It shows their roadmap, their milestones, their) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(deliverables, the sessions they can book, and their tasks.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 691.3399999999999181 Td
+(The line between you) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 674.3399999999999181 Td
+(STAFF ONLY) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 666.3399999999999181 m
+547.2799999999999727 666.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 654.3399999999999181 Td
+(The plan: stages, milestones, activities, deliverables, dates) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+287.6544000000000096 654.3399999999999181 Td
+(Internal notes) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 638.2999999999999545 m
+547.2799999999999727 638.2999999999999545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 634.2999999999999545 Td
+(The sessions they are invited to, and each session's memo) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+287.6544000000000096 634.2999999999999545 Td
+(Activity reports) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 618.2599999999999909 m
+547.2799999999999727 618.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 614.2599999999999909 Td
+(Their own submissions and your written decisions) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+287.6544000000000096 614.2599999999999909 Td
+(Coach feedback) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 598.2200000000000273 m
+547.2799999999999727 598.2200000000000273 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 594.2200000000000273 Td
+(The Data Room and its readiness figure) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+287.6544000000000096 594.2200000000000273 Td
+(Journey reports addressed to the studio) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 578.1800000000000637 m
+547.2799999999999727 578.1800000000000637 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 574.1800000000000637 Td
+(Their own reporting figures) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+287.6544000000000096 574.1800000000000637 Td
+(Readiness of other ventures, portfolio figures) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 558.1399999999999864 m
+547.2799999999999727 558.1399999999999864 l
+S
+0.98 0.97 0.96 rg
+48. 550.1399999999999864 499.2799999999999727 -48. re
+f
+1. 0.4 0. rg
+48. 550.1399999999999864 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+62. 536.1399999999999864 Td
+(The founder's numbers are theirs) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 523.1399999999999864 Td
+(You read the venture's reported figures through the charts on Overview; the reporting forms belong to the founder. If) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 510.1399999999999864 Td
+(a number looks wrong, the fix is a correction through the reporting flow, not an edit on your side.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 480.1399999999999864 Td
+(When a founder says 'I cannot see it') Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 463.1399999999999864 Td
+(Nine times in ten the answer is one of three things: the stage or milestone is still Upcoming, it was archived, or the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 449.3650000000000091 Td
+(material is internal by design. Check those three before opening a ticket.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(17 / 20) Tj
+ET
+endstream
+endobj
+37 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 38 0 R
+>>
+endobj
+38 0 obj
+<<
+/Length 5650
+>>
+stream
+0.6 w
+0.94 0.95 0.96 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 16) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Your week in the Journey) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(A routine that keeps the plan true, in about twenty minutes.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 705.1150000000000091 Td
+(Every Monday) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 688.1150000000000091 Td
+(1.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 688.1150000000000091 Td
+(Open Overview. Clear the decision list - every submission waiting on you is a founder who cannot move.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 669.6150000000000091 Td
+(2.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 669.6150000000000091 Td
+(Open Journey. Look at the roadmap card. If it did not move last week, ask which of the four bars should have.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 651.1150000000000091 Td
+(3.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 651.1150000000000091 Td
+(Open each active stage and check the milestones due this week. Anything In progress with an end date in the) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 637.6150000000000091 Td
+(past is the conversation.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 619.1150000000000091 Td
+(4.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 619.1150000000000091 Td
+(Open Sessions. Confirm what is booked, and that every session on the calendar has a memo worth reading.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 590.6150000000000091 Td
+(After every session) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 573.6150000000000091 Td
+(1.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 573.6150000000000091 Td
+(Write the memo if the coach has not - one memo per session, edited in place.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 555.1150000000000091 Td
+(2.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 555.1150000000000091 Td
+(Add the coach's feedback from the Sessions tab if it was given verbally.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 536.6150000000000091 Td
+(3.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 536.6150000000000091 Td
+(If the session produced a decision about one activity, write it as an Activity report on that activity.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 508.1150000000000091 Td
+(At the end of a stage) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 491.1150000000000091 Td
+(1.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 491.1150000000000091 Td
+(Confirm every milestone is closed, or record why one is not.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 472.6150000000000091 Td
+(2.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 472.6150000000000091 Td
+(Write the closing report - summary, completed, outstanding, challenges, recommendation.) Tj
+ET
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+1. 0.4 0. rg
+48. 454.1150000000000091 Td
+(3.) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+68. 454.1150000000000091 Td
+(Archive the stage if the working view is getting long.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 425.6150000000000091 Td
+(Monthly) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 411.6550000000000296 m
+52.6000000000000014 412.5386555997292817 51.8836555997292663 413.2550000000000523 51. 413.2550000000000523 c
+50.1163444002707337 413.2550000000000523 49.3999999999999986 412.5386555997292817 49.3999999999999986 411.6550000000000296 c
+49.3999999999999986 410.7713444002707774 50.1163444002707337 410.0550000000000068 51. 410.0550000000000068 c
+51.8836555997292663 410.0550000000000068 52.6000000000000014 410.7713444002707774 52.6000000000000014 411.6550000000000296 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 408.6150000000000091 Td
+(Read the founder's reported figures against the roadmap. Execution and numbers disagreeing is information, not an) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 394.8400000000000318 Td
+(error.) Tj
+ET
+1. 0.4 0. RG
+1. 0.4 0. rg
+52.6000000000000014 380.105000000000075 m
+52.6000000000000014 380.9886555997293272 51.8836555997292663 381.7050000000000978 51. 381.7050000000000978 c
+50.1163444002707337 381.7050000000000978 49.3999999999999986 380.9886555997293272 49.3999999999999986 380.105000000000075 c
+49.3999999999999986 379.2213444002708229 50.1163444002707337 378.5050000000000523 51. 378.5050000000000523 c
+51.8836555997292663 378.5050000000000523 52.6000000000000014 379.2213444002708229 52.6000000000000014 380.105000000000075 c
+f
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 377.0650000000000546 Td
+(Check the Data Room readiness card. A venture about to raise with an unverified Data Room is the most expensive) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+62. 363.2900000000000773 Td
+(surprise in the building.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(18 / 20) Tj
+ET
+endstream
+endobj
+39 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 40 0 R
+>>
+endobj
+40 0 obj
+<<
+/Length 3740
+>>
+stream
+0.8 w
+1. 0.4 0. RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(SECTION 17) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(If something looks wrong) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 724.8899999999999864 Td
+(A stage or milestone is missing) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 707.8899999999999864 Td
+(Check its status first: while it is Upcoming it is held by its start date and its milestones are not released. Then check the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 694.1150000000000091 Td
+(archive. Only then treat it as a defect.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 668.3399999999999181 Td
+(The roadmap percentage did not move) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 651.3399999999999181 Td
+(It only counts completed milestones, completed tasks and approved deliverables. A submitted deliverable is not) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 637.5649999999999409 Td
+(approved. A milestone with all its work done closes on the next read, not the instant the last approval lands.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 611.7899999999999636 Td
+(I wrote a note and cannot find it) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 594.7899999999999636 Td
+(Notes has three sections now. An activity report written from an activity is under Activity reports, not Milestone notes. A) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 581.0149999999999864 Td
+(session write-up is under Session memos. Reports written before the sections existed are under Milestone notes.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 555.2400000000000091 Td
+(A session will not save) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 538.2400000000000091 Td
+(Four rules, and the message names the one that failed: the memo is empty, no milestone was chosen, the date and) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 524.4650000000000318 Td
+(time is in the past, or a material was not uploaded through the session uploader.) Tj
+ET
+BT
+/F2 11.5 Tf
+13.2249999999999996 TL
+0.094 0.094 0.118 rg
+48. 498.6900000000000546 Td
+(The founder cannot see a note or a report) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 481.6900000000000546 Td
+(That is by design. Internal notes, activity reports, coach feedback and journey reports are staff instruments. If the) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 467.9150000000000773 Td
+(founder needs the content, put it where they can read it.) Tj
+ET
+0.98 0.97 0.96 rg
+48. 454.1400000000001 499.2799999999999727 -48. re
+f
+0.05 0.48 0.32 rg
+48. 454.1400000000001 3. -48. re
+f
+BT
+/F2 9 Tf
+10.3499999999999996 TL
+0.055 0.478 0.322 rg
+62. 440.1400000000001 Td
+(Report a defect with three facts) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 427.1400000000001 Td
+(What you expected, what you saw, and the venture code plus the milestone or activity name. The venture code is) Tj
+ET
+BT
+/F1 9 Tf
+10.3499999999999996 TL
+0.094 0.094 0.118 rg
+62. 414.1400000000001 Td
+(on the header of every screen; with it, a developer can find the row in minutes.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(19 / 20) Tj
+ET
+endstream
+endobj
+41 0 obj
+<</Type /Page
+/Parent 1 0 R
+/Resources 2 0 R
+/MediaBox [0 0 595.2799999999999727 841.8899999999999864]
+/Contents 42 0 R
+>>
+endobj
+42 0 obj
+<<
+/Length 8910
+>>
+stream
+0.8 w
+0.87 0.88 0.91 RG
+BT
+/F2 8 Tf
+9.1999999999999993 TL
+1. 0.4 0. rg
+48. 779.8899999999999864 Td
+(REFERENCE) Tj
+ET
+BT
+/F2 17 Tf
+19.5499999999999972 TL
+0.094 0.094 0.118 rg
+48. 762.8899999999999864 Td
+(Glossary - English / French) Tj
+ET
+0.87 0.88 0.91 RG
+0.8 w
+48. 750.8899999999999864 m
+547.2799999999999727 750.8899999999999864 l
+S
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 730.8899999999999864 Td
+(The interface is bilingual. These are the words as they appear in the two languages, taken from the application's own) Tj
+ET
+BT
+/F1 9.5 Tf
+10.9249999999999989 TL
+0.094 0.094 0.118 rg
+48. 717.1150000000000091 Td
+(translation files.) Tj
+ET
+BT
+/F2 7.8 Tf
+8.9699999999999989 TL
+0.361 0.376 0.416 rg
+48. 697.3399999999999181 Td
+(FRENCH) Tj
+ET
+0.09 0.09 0.12 RG
+1. w
+48. 689.3399999999999181 m
+547.2799999999999727 689.3399999999999181 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 677.3399999999999181 Td
+(Journey \(tab\)) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 677.3399999999999181 Td
+(Parcours) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 661.2999999999999545 m
+547.2799999999999727 661.2999999999999545 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 657.2999999999999545 Td
+(Journey \(a stage\)) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 657.2999999999999545 Td
+(Parcours / étape du parcours) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 641.2599999999999909 m
+547.2799999999999727 641.2599999999999909 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 637.2599999999999909 Td
+(Milestone) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 637.2599999999999909 Td
+(Jalon) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 621.2200000000000273 m
+547.2799999999999727 621.2200000000000273 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 617.2200000000000273 Td
+(Activity) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 617.2200000000000273 Td
+(Activité) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 601.1800000000000637 m
+547.2799999999999727 601.1800000000000637 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 597.1800000000000637 Td
+(Deliverable) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 597.1800000000000637 Td
+(Livrable) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 581.1399999999999864 m
+547.2799999999999727 581.1399999999999864 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 577.1399999999999864 Td
+(Task) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 577.1399999999999864 Td
+(Tâche) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 561.0999999999999091 m
+547.2799999999999727 561.0999999999999091 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 557.0999999999999091 Td
+(Session) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 557.0999999999999091 Td
+(Session \(séance\)) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+467.3952000000000453 557.0999999999999091 Td
+(the tab is called Sessions in both languages) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 541.0599999999999454 m
+547.2799999999999727 541.0599999999999454 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 537.0599999999999454 Td
+(Milestone note) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 537.0599999999999454 Td
+(Note de jalon) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 521.0199999999999818 m
+547.2799999999999727 521.0199999999999818 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 517.0199999999999818 Td
+(Activity report) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 517.0199999999999818 Td
+(Rapport d'activité) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 500.9799999999999045 m
+547.2799999999999727 500.9799999999999045 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 496.9799999999999045 Td
+(Session memo) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 496.9799999999999045 Td
+(Compte rendu de séance) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 480.939999999999884 m
+547.2799999999999727 480.939999999999884 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 476.939999999999884 Td
+(Journey report) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 476.939999999999884 Td
+(Rapport de parcours) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 460.8999999999998636 m
+547.2799999999999727 460.8999999999998636 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 456.8999999999998636 Td
+(Closing report) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 456.8999999999998636 Td
+(Rapport de clôture) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 440.8599999999998431 m
+547.2799999999999727 440.8599999999998431 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 436.8599999999998431 Td
+(Roadmap progress) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 436.8599999999998431 Td
+(Avancement du parcours) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 420.8199999999998226 m
+547.2799999999999727 420.8199999999998226 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 416.8199999999998226 Td
+(Data Room readiness) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 416.8199999999998226 Td
+(Complétude du Data Room) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 400.7799999999998022 m
+547.2799999999999727 400.7799999999998022 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 396.7799999999998022 Td
+(Approved) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 396.7799999999998022 Td
+(Approuvé) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 380.7399999999997817 m
+547.2799999999999727 380.7399999999997817 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 376.7399999999997817 Td
+(Awaiting review) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 376.7399999999997817 Td
+(En attente de revue) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 360.6999999999997613 m
+547.2799999999999727 360.6999999999997613 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 356.6999999999997613 Td
+(Changes requested) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 356.6999999999997613 Td
+(Modifications demandées) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 340.6599999999997408 m
+547.2799999999999727 340.6599999999997408 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 336.6599999999997408 Td
+(Blocked) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 336.6599999999997408 Td
+(Bloqué) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 320.6199999999997772 m
+547.2799999999999727 320.6199999999997772 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 316.6199999999997772 Td
+(Upcoming) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 316.6199999999997772 Td
+(À venir) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 300.5799999999998136 m
+547.2799999999999727 300.5799999999998136 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 296.5799999999998136 Td
+(Not started) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 296.5799999999998136 Td
+(Non commencé) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 280.5399999999998499 m
+547.2799999999999727 280.5399999999998499 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 276.5399999999998499 Td
+(In progress) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 276.5399999999998499 Td
+(En cours) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 260.4999999999998863 m
+547.2799999999999727 260.4999999999998863 l
+S
+BT
+/F2 8.6 Tf
+9.8899999999999988 TL
+0.094 0.094 0.118 rg
+48. 256.4999999999998863 Td
+(Completed) Tj
+ET
+BT
+/F1 8.6 Tf
+9.8899999999999988 TL
+0.361 0.376 0.416 rg
+207.769599999999997 256.4999999999998863 Td
+(Terminé) Tj
+ET
+0.94 0.95 0.96 RG
+0.6 w
+48. 240.4599999999999227 m
+547.2799999999999727 240.4599999999999227 l
+S
+0.87 0.88 0.91 RG
+0.8 w
+48. 220.4599999999999227 m
+547.2799999999999727 220.4599999999999227 l
+S
+BT
+/F3 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+48. 200.4599999999999227 Td
+(This manual describes the Journey tab as implemented. When the tab changes, change) Tj
+ET
+BT
+/F3 8.5 Tf
+9.7749999999999986 TL
+0.541 0.557 0.596 rg
+48. 188.4599999999999227 Td
+(scripts/docs/build-venture-manager-journey-manual.mjs with it and regenerate the PDF, so the screen and the page never disagree.) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+48. 22. Td
+(ImpactOS · Ventures - Journey Dashboard manual for Venture Managers) Tj
+ET
+BT
+/F1 7.5 Tf
+8.625 TL
+0.541 0.557 0.596 rg
+524.4800000000000182 22. Td
+(20 / 20) Tj
+ET
+endstream
+endobj
+1 0 obj
+<</Type /Pages
+/Kids [3 0 R 5 0 R 7 0 R 9 0 R 11 0 R 13 0 R 15 0 R 17 0 R 19 0 R 21 0 R 23 0 R 25 0 R 27 0 R 29 0 R 31 0 R 33 0 R 35 0 R 37 0 R 39 0 R 41 0 R ]
+/Count 20
+>>
+endobj
+43 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+44 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+45 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+46 0 obj
+<<
+/Type /Font
+/BaseFont /Helvetica-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+47 0 obj
+<<
+/Type /Font
+/BaseFont /Courier
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+48 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+49 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-Oblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+50 0 obj
+<<
+/Type /Font
+/BaseFont /Courier-BoldOblique
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+51 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Roman
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+52 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Bold
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+53 0 obj
+<<
+/Type /Font
+/BaseFont /Times-Italic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+54 0 obj
+<<
+/Type /Font
+/BaseFont /Times-BoldItalic
+/Subtype /Type1
+/Encoding /WinAnsiEncoding
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+55 0 obj
+<<
+/Type /Font
+/BaseFont /ZapfDingbats
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+56 0 obj
+<<
+/Type /Font
+/BaseFont /Symbol
+/Subtype /Type1
+/FirstChar 32
+/LastChar 255
+>>
+endobj
+2 0 obj
+<<
+/ProcSet [/PDF /Text /ImageB /ImageC /ImageI]
+/Font <<
+/F1 43 0 R
+/F2 44 0 R
+/F3 45 0 R
+/F4 46 0 R
+/F5 47 0 R
+/F6 48 0 R
+/F7 49 0 R
+/F8 50 0 R
+/F9 51 0 R
+/F10 52 0 R
+/F11 53 0 R
+/F12 54 0 R
+/F13 55 0 R
+/F14 56 0 R
+>>
+/XObject <<
+>>
+>>
+endobj
+57 0 obj
+<<
+/Producer (jsPDF 4.2.1)
+/CreationDate (D:20261105025952+01'00')
+>>
+endobj
+58 0 obj
+<<
+/Type /Catalog
+/Pages 1 0 R
+/OpenAction [3 0 R /FitH null]
+/PageLayout /OneColumn
+>>
+endobj
+xref
+0 59
+0000000000 65535 f 
+0000121674 00000 n 
+0000123627 00000 n 
+0000000015 00000 n 
+0000000152 00000 n 
+0000002302 00000 n 
+0000002439 00000 n 
+0000008562 00000 n 
+0000008699 00000 n 
+0000012802 00000 n 
+0000012940 00000 n 
+0000019150 00000 n 
+0000019289 00000 n 
+0000024618 00000 n 
+0000024757 00000 n 
+0000031403 00000 n 
+0000031542 00000 n 
+0000037442 00000 n 
+0000037581 00000 n 
+0000043385 00000 n 
+0000043524 00000 n 
+0000048804 00000 n 
+0000048943 00000 n 
+0000054664 00000 n 
+0000054803 00000 n 
+0000060162 00000 n 
+0000060301 00000 n 
+0000067808 00000 n 
+0000067947 00000 n 
+0000075282 00000 n 
+0000075421 00000 n 
+0000085625 00000 n 
+0000085764 00000 n 
+0000093523 00000 n 
+0000093662 00000 n 
+0000098360 00000 n 
+0000098499 00000 n 
+0000102798 00000 n 
+0000102937 00000 n 
+0000108640 00000 n 
+0000108779 00000 n 
+0000112572 00000 n 
+0000112711 00000 n 
+0000121862 00000 n 
+0000121988 00000 n 
+0000122119 00000 n 
+0000122253 00000 n 
+0000122391 00000 n 
+0000122515 00000 n 
+0000122644 00000 n 
+0000122776 00000 n 
+0000122912 00000 n 
+0000123040 00000 n 
+0000123167 00000 n 
+0000123296 00000 n 
+0000123429 00000 n 
+0000123531 00000 n 
+0000123880 00000 n 
+0000123966 00000 n 
+trailer
+<<
+/Size 59
+/Root 58 0 R
+/Info 57 0 R
+/ID [ <7B56A1C5E02FC64B763515C40172C87A> <7B56A1C5E02FC64B763515C40172C87A> ]
+>>
+startxref
+124070
+%%EOF

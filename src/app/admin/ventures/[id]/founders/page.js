@@ -10,6 +10,12 @@ const EMPTY_LIST = [];
 
 const pickVenture = (payload) => (payload?.success ? payload.venture || null : null);
 const pickFounders = (payload) => (payload?.success ? payload.founders || [] : []);
+// Only founder invitations belong to this screen; a team-member invitation is
+// managed from the Venture's Team tab.
+const pickFounderInvitations = (payload) =>
+  payload?.success
+    ? (payload.invitations || []).filter((invitation) => invitation.member_type === "founder")
+    : EMPTY_LIST;
 
 const ROLE_COLORS = {
   founder: "text-amber-400 bg-amber-500/10 border-amber-500/20",
@@ -29,7 +35,7 @@ export default function VentureFoundersPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", name: "", role: "co-founder" });
   const [inviting, setInviting] = useState(false);
-  const [, setInviteResult] = useState(null);
+  const [resendingId, setResendingId] = useState(null);
 
   // Transfer ownership modal
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -73,14 +79,25 @@ export default function VentureFoundersPage() {
     transform: pickFounders,
     deps: [id],
   });
+  // Invitations that were emailed and not accepted yet — including the founder
+  // invited when the Venture was created, who has no founder row yet.
+  const {
+    data: founderInvitations,
+    refresh: refreshInvitations,
+  } = useApi(id ? `/api/ventures/${id}/member-invitations` : null, {
+    defaultValue: EMPTY_LIST,
+    transform: pickFounderInvitations,
+    deps: [id],
+  });
 
   const loading = ventureLoading || foundersLoading;
 
-  // Every action below re-reads both, so the list and the Venture come from the
-  // reads that painted them.
+  // Every action below re-reads the Venture, its founder ledger and its pending
+  // invitations, so every panel comes from the reads that painted it.
   const reload = () => {
     refreshVenture();
     refreshFounders();
+    refreshInvitations();
   };
 
   // Which failure the panel below reports: the network's, or a read that came
@@ -105,7 +122,6 @@ export default function VentureFoundersPage() {
     }
 
     setInviting(true);
-    setInviteResult(null);
     try {
       const response = await fetch(`/api/ventures/${id}/founders`, {
         method: "POST",
@@ -115,7 +131,14 @@ export default function VentureFoundersPage() {
       const data = await response.json();
 
       if (data.success) {
-        notify(t("vadmin.founders.inviteSent", { name: inviteForm.name }));
+        // The invitation is saved either way; a delivery failure must not read
+        // as "sent".
+        notify(
+          data.email_sent === false
+            ? t("vadmin.founders.inviteEmailFailed", { email: inviteForm.email })
+            : t("vadmin.founders.inviteSent", { name: inviteForm.name }),
+          data.email_sent === false ? "error" : "success",
+        );
         setShowInviteModal(false);
         setInviteForm({ email: "", name: "", role: "co-founder" });
         reload();
@@ -155,6 +178,33 @@ export default function VentureFoundersPage() {
       notify(t("vadmin.founders.networkError"), "error");
     } finally {
       setTransferring(false);
+    }
+  };
+
+  const handleResendInvitation = async (invitation) => {
+    setResendingId(invitation.id);
+    try {
+      const response = await fetch(`/api/admin/ventures/${id}/resend-founder-invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ invitation_id: invitation.id }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        notify(
+          data.email_sent === false
+            ? t("vadmin.founders.resendEmailFailed", { email: invitation.email })
+            : t("vadmin.founders.resendSent", { email: invitation.email }),
+          data.email_sent === false ? "error" : "success",
+        );
+        reload();
+      } else {
+        notify(t((data.error || t("vadmin.founders.resendFailed")) || "") || (data.error || t("vadmin.founders.resendFailed")), "error");
+      }
+    } catch {
+      notify(t("vadmin.founders.networkError"), "error");
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -238,7 +288,18 @@ export default function VentureFoundersPage() {
     return ROLE_COLORS[role] || "text-blue-400 bg-blue-500/10 border-blue-500/20";
   };
 
-  const filteredFounders = founders.filter((founder) => {
+  // A pending invitation IS the pending founder entry: showing the invitation
+  // and a separate "pending" founder row for the same person would read as two
+  // invitations. Rows with no invitation behind them (intake records) stay.
+  const invitationEmails = new Set(
+    founderInvitations.map((invitation) => String(invitation.email || "").toLowerCase()),
+  );
+  const founderRows = founders.filter(
+    (founder) =>
+      !(founder.status === "pending" && invitationEmails.has(String(founder.email || "").toLowerCase())),
+  );
+
+  const filteredFounders = founderRows.filter((founder) => {
     if (!searchQuery) return true;
     const normalizedQuery = searchQuery.toLowerCase();
     return (
@@ -252,10 +313,13 @@ export default function VentureFoundersPage() {
     confirmAction,
     error,
     filteredFounders,
+    founderInvitations,
     founders,
     getRoleColor,
     handleInvite,
     handleReactivate,
+    handleResendInvitation,
+    resendingId,
     handleRemove,
     handleRoleUpdate,
     handleSuspend,

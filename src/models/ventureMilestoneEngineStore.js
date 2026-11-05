@@ -47,8 +47,14 @@ const NO_UNMET_BLOCKER = `
 const HELD_STATUSES_SQL = `('upcoming', 'blocked', 'locked')`;
 
 /** A milestone's tasks, read for their status alone. */
+// A task whose linked deliverable has been APPROVED is finished: the approval is
+// the evidence that the work is done, and it never rewrites the task row itself.
 const milestoneTaskSql = (archiveClause) =>
-  `SELECT status FROM venture_tasks WHERE milestone_id::text = ?${archiveClause}`;
+  `SELECT CASE WHEN EXISTS (
+            SELECT 1 FROM venture_deliverables d
+             WHERE d.task_id = venture_tasks.id AND d.approval_status = 'approved'
+          ) THEN 'done' ELSE status END AS status
+     FROM venture_tasks WHERE milestone_id::text = ?${archiveClause}`;
 
 // ── Venture code ─────────────────────────────────────────────────────────────
 
@@ -200,6 +206,16 @@ export function selectJourneyStageForBooking(stageId, dbId) {
 }
 
 // ── Status sync ──────────────────────────────────────────────────────────────
+
+/** The milestones of a Venture whose status the work inside them may still move. */
+export function selectOpenMilestoneIds(dbId) {
+  return db.execute({
+    sql: `SELECT id FROM venture_milestones
+           WHERE venture_id = ? AND COALESCE(is_archived, FALSE) = FALSE
+             AND status NOT IN ('completed', 'upcoming', 'blocked', 'locked')`,
+    args: [dbId],
+  });
+}
 
 /** One milestone's identity for the work-driven status sync. */
 export function selectMilestoneForSync(milestoneId, dbId) {

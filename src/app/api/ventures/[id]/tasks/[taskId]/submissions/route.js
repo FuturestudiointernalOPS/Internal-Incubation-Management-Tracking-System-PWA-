@@ -41,7 +41,7 @@ import {
  * Assignment-scope enforcement (Vinance 3): a delegated (non-global)
  * reviewer may only review submissions whose task lies inside one of his
  * ACTIVE assignment scopes for the Venture. Global roles always pass; an
- * active lead_manager assignment is a Venture-wide pass; actors WITHOUT any
+ * active venture_manager assignment is a Venture-wide pass; actors WITHOUT any
  * assignment rows keep the legacy behavior. Scope-resolution errors fail
  * CLOSED (403) so a bug can never over-grant review authority.
  */
@@ -153,7 +153,7 @@ export const POST = createHandler(async (req, { params }) => {
       } else if (scopes.length === 0) {
         inScope = true; // no assignment rows → legacy behavior unchanged
       } else if (hasVentureWideReach(scopes)) {
-        inScope = true; // venture_wide or lead_manager → Venture-wide pass
+        inScope = true; // venture_wide or venture_manager → Venture-wide pass
       } else {
         inScope = isTaskInScope(scopes, await resolveTaskContext(task));
       }

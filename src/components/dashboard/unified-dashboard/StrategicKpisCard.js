@@ -55,7 +55,7 @@ export default function StrategicKpisCard({ kpis, programs }) {
                       </div>
                       <div className="h-1 w-full bg-[var(--bg-primary)] rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-[var(--brand-orange)] to-amber-400 rounded-full transition-all"
+                          className="h-full bg-[var(--progress-fill)] rounded-full transition-all"
                           style={{ width: `${percent}%` }}
                         />
                       </div>

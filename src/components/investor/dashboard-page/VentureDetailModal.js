@@ -59,7 +59,7 @@ export default function VentureDetailModal({
                       <span className="font-black text-[var(--text-primary)]">{progressPercent}% of ${Number(campaign.target_raise).toLocaleString()}</span>
                     </div>
                     <div className="w-full h-2.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
-                      <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${progressPercent}%` }} />
+                      <div className="h-full bg-[var(--progress-fill)] rounded-full transition-all" style={{ width: `${progressPercent}%` }} />
                     </div>
                   </div>
                 )}
