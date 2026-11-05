@@ -191,6 +191,9 @@ export function useDashboardNavigation({
           items.push(ventureDoor);
         }
       }
+      if (rel.isFounder) {
+        items.push({ id: "founder_meetings", name: "MEETINGS", icon: Calendar, href: "/founder/meetings" });
+      }
       // The investor context: an APPROVED investor profile is a relationship the
       // baseline badge cannot carry, so a "member" who was taken as an investor
       // gets their investor space here — exactly like the program and venture
@@ -198,6 +201,7 @@ export function useDashboardNavigation({
       // role string.
       if (investorAccount) {
         items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
+        items.push({ id: "investor_deal_flow", name: "DEAL FLOW", icon: Briefcase, href: "/investor/deal-flow" });
       }
       return items;
     }
