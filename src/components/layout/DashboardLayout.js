@@ -200,6 +200,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             email: sessionData.user.email,
             role: sessionData.user.role,
             group_name: sessionData.user.group_name,
+            image: sessionData.user.image,
           };
           publishUser(userWithFullData);
 
@@ -492,6 +493,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             NOTIFICATIONS_PREVIEW={NOTIFICATIONS_PREVIEW}
             router={router}
             user={user}
+            role={activeRole}
+            profiles={activeProfiles}
             setPendingInvites={setPendingInvites}
             setPendingAssignments={setPendingAssignments}
             setMobileMenuOpen={setMobileMenuOpen}

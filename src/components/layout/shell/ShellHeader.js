@@ -1,7 +1,8 @@
 "use client";
 
 import { Sun, Moon, Monitor, Bell, ChevronRight, ChevronDown, Menu } from "lucide-react";
-import { tnav, navCrumb } from "./navigation";
+import Link from "next/link";
+import { tnav, navCrumb, profileHrefFor } from "./navigation";
 import {
   carriesContextualValue,
   isInternalStaffRole,
@@ -13,6 +14,7 @@ import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { notificationText } from "@/lib/notificationText";
 import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
 import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export default function ShellHeader({
   pathname,
@@ -33,6 +35,8 @@ export default function ShellHeader({
   NOTIFICATIONS_PREVIEW,
   router,
   user,
+  role,
+  profiles,
   setPendingInvites,
   setPendingAssignments,
   setMobileMenuOpen,
@@ -481,15 +485,20 @@ export default function ShellHeader({
                 )}
               </div>
 
-              <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-primary)]">
-                <div className="text-right hidden sm:block">
-                  <p className="text-[11px] font-bold leading-none">
-                    {user?.name || t("common.user")}
-                  </p>
-                </div>
-                <div className="w-8 h-8 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
-                  {String(user?.name || "U").charAt(0)}
-                </div>
+              <div className="pl-4 border-l border-[var(--border-primary)]">
+                <Link
+                  href={profileHrefFor(role, profiles)}
+                  title={t(tnav("profile"))}
+                  aria-label={t(tnav("profile"))}
+                  className="flex items-center gap-3 rounded hover:opacity-80 transition-opacity"
+                >
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[11px] font-bold leading-none">
+                      {user?.name || t("common.user")}
+                    </p>
+                  </div>
+                  <UserAvatar name={user?.name} image={user?.image} />
+                </Link>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(true)}
