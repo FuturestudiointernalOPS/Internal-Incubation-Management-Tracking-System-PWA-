@@ -183,22 +183,6 @@ export async function provisionInvestorFromApproval({ contactCid, submission, fo
     await reportInvestorProvisioningFailure("writing the qualification markers", error, cid);
   }
 
-  // 4b. Approval timestamp + provenance (Phases 1–4 metrics). Guarded exactly
-  //     like the markers above: an environment that predates the column is
-  //     reported, never fatal, and the approval itself still succeeds.
-  try {
-    await db.execute({
-      sql: `UPDATE investor_profiles
-               SET approved_at = COALESCE(approved_at, NOW()),
-                   source = COALESCE(source, 'public_form'),
-                   updated_at = NOW()
-             WHERE id = ?`,
-      args: [profileId],
-    });
-  } catch (error) {
-    await reportInvestorProvisioningFailure("writing the approval timestamp", error, cid);
-  }
-
   // 5. Preferences — one row per profile.
   if (industries.length || countries.length || stages.length || ticketMin !== null || ticketMax !== null) {
     try {

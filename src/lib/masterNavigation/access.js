@@ -34,7 +34,7 @@ export const ROLE_ACCESS = {
       communication: ["messages", "announcements", "forms"],
       programs: ["all_programs", "create_program", "progress"],
       ventures: ["all_ventures"],
-      investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_campaigns", "investors_relationships", "investors_portfolio", "investors_deal_flow", "investors_introductions", "investors_metrics"],
+      investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_campaigns", "investors_relationships"],
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],
       knowledge: ["knowledge_base"],

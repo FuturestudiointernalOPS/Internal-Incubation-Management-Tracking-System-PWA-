@@ -21,7 +21,6 @@ jest.mock("@/models/investor", () => ({
   listActiveFundraisingCampaigns: jest.fn(),
   listActiveInvestorRelationshipWorkspaces: jest.fn(),
   listActiveVenturesForRecommendations: jest.fn(),
-  listActiveDealFlowEntriesWithVenture: jest.fn(),
   listInvestorPipelineEntries: jest.fn(),
   listInvestorWatchlist: jest.fn(),
   listUpcomingRelationshipMeetings: jest.fn(),
@@ -229,21 +228,20 @@ describe("dashboard", () => {
       },
     ];
 
-    const [scored] = scoreVentures({ profile, ventures, mode: "full_pipeline" });
+    const [scored] = scoreVentures({ profile, ventures });
 
-    expect(scored.match_score).toBe(100); // 30 + 25 + 20 + 25 (completion bonus removed)
-    expect(scored.match_reasons).toHaveLength(4);
+    expect(scored.match_score).toBe(100); // 30 + 25 + 20 + 15 + 10
+    expect(scored.match_reasons).toHaveLength(5);
   });
 
   it("does not match a venture whose stage merely contains the wished stage", () => {
     const profile = { industries: [], countries: [], startup_stages: ["Seed"] };
     const ventures = [{ id: "v1", business_stage: "Pre-Seed", completion_index: 90 }];
 
-    const result = scoreVentures({ profile, ventures, mode: "full_pipeline" });
+    const [scored] = scoreVentures({ profile, ventures });
 
-    // No exact stage match, and the completion bonus is gone — the venture is
-    // filtered out entirely rather than kept on a readiness score.
-    expect(result).toEqual([]);
+    expect(scored.match_score).toBe(10); // readiness bonus only — no stage match
+    expect(scored.match_reasons).toEqual(["Readiness: 90%"]);
   });
 
   it("returns the empty payload for a caller with no profile", async () => {
@@ -265,7 +263,6 @@ describe("dashboard", () => {
     investor.listInvestorPipelineEntries.mockResolvedValue({ rows: [{ id: "p1" }] });
     investor.listInvestorWatchlist.mockResolvedValue({ rows: [{ id: "w1" }] });
     investor.listActiveVenturesForRecommendations.mockResolvedValue({ rows: [] });
-    investor.listActiveDealFlowEntriesWithVenture.mockResolvedValue({ rows: [] });
     investor.getInvestorPipelineStats.mockResolvedValue({ rows: [{ total_capital: 10 }] });
     investor.countInvestorWatchlist.mockResolvedValue({ rows: [{ count: "2" }] });
     investor.listActiveFundraisingCampaigns.mockResolvedValue({ rows: [{ id: "c1" }] });
@@ -274,13 +271,8 @@ describe("dashboard", () => {
 
     const result = await buildInvestorDashboard({ session });
 
-    expect(result.profile).toEqual({ id: 7, visibility_mode: "deal_flow_only" });
-    expect(result.pipeline).toEqual([
-      { id: "p1", venture_name: null, stage: null, stage_changed_at: null },
-    ]);
-    expect(result.watchlist).toEqual([
-      { id: "w1", venture_name: null, industry: null, country: null, description: null },
-    ]);
+    expect(result.profile).toEqual({ id: 7 });
+    expect(result.pipeline).toEqual([{ id: "p1" }]);
     expect(result.campaigns).toEqual([{ id: "c1" }]);
     expect(result.relationships).toEqual([{ id: "rw1", next_meetings: [{ id: "m1" }] }]);
     expect(result.stats).toEqual({ total_capital: 10, watchlist_count: 2 });

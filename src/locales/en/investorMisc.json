@@ -19,32 +19,6 @@
       "confirmPasswordPlaceholder": "Re-enter password",
       "submitButton": "Set Password"
     },
-    "dealFlow": {
-      "title": "Deal Flow",
-      "subtitle": "Ventures currently raising, shared by Future Studio",
-      "empty": "No live deal flow right now",
-      "deckAvailable": "Deck available",
-      "watchlist": "Watchlist",
-      "addPipeline": "Add to pipeline",
-      "openDeck": "Open deck"
-    },
-    "meetings": {
-      "title": "Meetings",
-      "subtitle": "Propose and confirm meeting times with investors",
-      "empty": "No meetings to schedule yet",
-      "investor": "Investor",
-      "slots": "Proposed times",
-      "accept": "Accept",
-      "confirmed": "Confirmed meetings",
-      "start": "Start",
-      "duration": "Duration (minutes)",
-      "propose": "Propose"
-    },
-    "deck": {
-      "viewOnly": "View only",
-      "downloadDisabled": "Download is disabled for this deck.",
-      "unavailable": "This deck is not available."
-    },
     "portfolio": {
       "title": "Portfolio",
       "yourInvestedVentures": "Your invested ventures",
