@@ -1026,9 +1026,12 @@
       "title": "Guide du Venture Manager",
       "subtitle": "L'onglet Parcours, page par page.",
       "intro": "Chaque entrée ci-dessous correspond à une page du manuel imprimé : ce qu'elle explique et la règle à retenir. Rien ici ne modifie un enregistrement — c'est le compagnon de lecture de l'écran, toujours à jour.",
+      "button": "Guide",
+      "searchPlaceholder": "Rechercher dans le guide — jalon, approbation, séance…",
+      "searchCount": "{count} page(s)",
+      "searchEmpty": "Aucune page ne correspond à ce mot. Essayez « jalon », « approbation » ou « séance ».",
       "contents": "Sommaire",
       "pageLabel": "Page {n}",
-      "open": "Lire",
       "close": "Retour au sommaire",
       "page": {
         "what": {

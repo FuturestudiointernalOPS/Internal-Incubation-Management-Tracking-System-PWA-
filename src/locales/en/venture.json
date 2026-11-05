@@ -1025,9 +1025,12 @@
       "title": "Venture Manager Handbook",
       "subtitle": "The Journey tab, page by page.",
       "intro": "Each entry below is one page of the printed manual: what it explains, and the rule worth remembering. Nothing here changes a record — it is the reading companion to the screen, and it is always the current edition.",
+      "button": "Handbook",
+      "searchPlaceholder": "Search the handbook — milestone, approval, session…",
+      "searchCount": "{count} page(s)",
+      "searchEmpty": "No page matches that word. Try 'milestone', 'approval' or 'session'.",
       "contents": "Contents",
       "pageLabel": "Page {n}",
-      "open": "Read",
       "close": "Back to contents",
       "page": {
         "what": {

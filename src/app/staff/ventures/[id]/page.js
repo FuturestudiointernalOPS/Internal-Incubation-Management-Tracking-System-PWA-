@@ -13,6 +13,7 @@ import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
 import RecurringSchedulePanel from "@/components/ventures/sessions/RecurringSchedulePanel";
+import HandbookButton from "@/components/ventures/handbook/HandbookModal";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 import CockpitMetrics from "@/components/ventures/cockpit/CockpitMetrics";
@@ -273,9 +274,13 @@ export default function StaffVentureWorkspace() {
         </div>
       )}
 
-      {/* Tabs — same bar as the Super Admin venture hub, for consistency */}
-      <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
-        {visibleTabs.map((tab) => {
+      {/* Tabs — same bar as the Super Admin venture hub, for consistency.
+          The handbook is pinned at the right of this bar so it is one click away
+          on every tab of THIS venture, and it opens as a popup: a manager reads
+          a page and carries on without leaving the screen. */}
+      <div className="flex items-center gap-2 border-b border-[var(--border-primary)]">
+        <div className="flex gap-1 overflow-x-auto scrollbar-thin flex-1">
+          {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
@@ -293,6 +298,8 @@ export default function StaffVentureWorkspace() {
             </button>
           );
         })}
+        </div>
+        <HandbookButton className="shrink-0 mr-1" />
       </div>
 
       {activeTab === "overview" && (

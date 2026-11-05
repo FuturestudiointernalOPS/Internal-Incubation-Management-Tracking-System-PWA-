@@ -156,9 +156,6 @@ export const MASTER_NAVIGATION = [
   { id: "projects", name: "PROJECTS", icon: "rocket", href: "/admin/projects" },
   { id: "weekly_ops", name: "WEEKLY OPS", icon: "calendar", href: "/staff/op-report" },
   myProjectsNode,
-  // The Venture Manager's reading companion. Its content is the in-app handbook;
-  // the printed manual is generated from the same words.
-  { id: "handbook", name: "HANDBOOK", icon: "bookOpen", href: "/staff/handbook" },
   { id: "my_programs", name: "MY PROGRAMS", icon: "briefcase", href: "/facilitator/programs" },
   { id: "reviews", name: "MY REVIEWS", icon: "clipboardList", href: "/facilitator/reviews" },
   { id: "profile", name: "PROFILE", icon: "user", href: "/facilitator/profile" },
