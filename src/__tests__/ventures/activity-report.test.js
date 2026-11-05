@@ -34,13 +34,13 @@ beforeEach(() => {
 
 const open = async () => {
   render(<I18nProvider><ActivityReport ventureId="VNT-1" milestone={milestone} activity={activity} /></I18nProvider>);
-  fireEvent.click(screen.getByRole("button", { name: /Report|Rapport/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Activity report|Rapport d'activité/ }));
   await screen.findByText(/Visited the bank/);
 };
 
-test("the button says Report, not Notes", () => {
+test("the button says Activity report, not Notes", () => {
   render(<I18nProvider><ActivityReport ventureId="VNT-1" milestone={milestone} activity={activity} /></I18nProvider>);
-  expect(screen.getByRole("button", { name: /Report|Rapport/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Activity report|Rapport d'activité/ })).toBeTruthy();
   expect(screen.queryByText(/^Notes?$/)).toBeNull();
 });
 
@@ -70,11 +70,11 @@ test("a new report is filed on the milestone, titled with the activity", async (
   const title = screen.getByPlaceholderText(/Title|Titre/);
   expect(title.value).toBe("FT-01 · Register the company");
   fireEvent.change(screen.getByPlaceholderText(/Write the note|Écrire la note/), { target: { value: "Second visit done" } });
-  fireEvent.click(screen.getByRole("button", { name: /Add report|Ajouter le rapport/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Add activity report|Ajouter le rapport d'activité/ }));
   await waitFor(() => expect(calls.find((call) => call.method === "POST")).toBeTruthy());
   expect(calls.find((call) => call.method === "POST")).toMatchObject({
     url: "/api/ventures/VNT-1/notes",
-    body: { title: "FT-01 · Register the company", body: "Second visit done", scope_ref_type: "milestone", scope_ref_id: "m1", attachments: [] },
+    body: { title: "FT-01 · Register the company", body: "Second visit done", scope_ref_type: "milestone", scope_ref_id: "m1", note_kind: "activity", attachments: [] },
   });
 });
 

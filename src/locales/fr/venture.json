@@ -924,10 +924,13 @@
       "deleted": "Note supprimée.",
       "deleteFailed": "Échec de la suppression.",
       "section": {
-        "milestones": "Jalons",
-        "sessions": "Sessions"
+        "milestones": "Notes de jalon",
+        "activity": "Rapports d'activité",
+        "sessions": "Comptes rendus de séance"
       },
-      "sessionsHint": "Notes rédigées lors de chaque session. Elles restent liées à cette session."
+      "sessionsHint": "Le compte rendu de chaque séance, et le retour rédigé sur celle-ci. Les deux restent liés à cette séance.",
+      "activityHint": "Rapports du personnel rédigés depuis une activité. Ils sont classés sur le jalon de l'activité, avec l'activité dans le titre.",
+      "coachFeedback": "Retour du coach"
     },
     "insights": "Apprentissages",
     "validation": "Validation",
@@ -1536,15 +1539,15 @@
       },
       "sessionBookedEmailFailed": "Séance réservée — mais l'e-mail n'a pas pu être envoyé à {emails}. Transmettez-leur les détails autrement.",
       "report": {
-        "button": "Rapport",
-        "title": "Rapports",
+        "button": "Rapport d'activité",
+        "title": "Rapports d'activité",
         "activity": "Activité",
         "milestone": "Jalon",
         "thisActivity": "Cette activité ({count})",
         "wholeMilestone": "Tout le jalon ({count})",
-        "empty": "Aucun rapport pour le moment. Écris le premier ci-dessous.",
-        "new": "Nouveau rapport",
-        "add": "Ajouter le rapport",
+        "empty": "Aucun rapport d'activité pour le moment. Rédige le premier ci-dessous.",
+        "new": "Nouveau rapport d'activité",
+        "add": "Ajouter le rapport d'activité",
         "createdOn": "Créé le",
         "createdAt": "Heure",
         "author": "Rédigé par",

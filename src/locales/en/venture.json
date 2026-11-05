@@ -923,10 +923,13 @@
       "deleted": "Note deleted.",
       "deleteFailed": "Delete failed.",
       "section": {
-        "milestones": "Milestones",
-        "sessions": "Sessions"
+        "milestones": "Milestone notes",
+        "activity": "Activity reports",
+        "sessions": "Session memos"
       },
-      "sessionsHint": "Notes written in each session. They stay with that session."
+      "sessionsHint": "The memo of each session, and the feedback written on it. Both stay with that session.",
+      "activityHint": "Staff reports written from an activity. They are stored on the activity's milestone, with the activity in the title.",
+      "coachFeedback": "Coach feedback"
     },
     "insights": "Insights",
     "validation": "Validation",
@@ -1536,15 +1539,15 @@
       },
       "sessionBookedEmailFailed": "Session booked — but we could not e-mail {emails}. Send them the details another way.",
       "report": {
-        "button": "Report",
-        "title": "Reports",
+        "button": "Activity report",
+        "title": "Activity reports",
         "activity": "Activity",
         "milestone": "Milestone",
         "thisActivity": "This activity ({count})",
         "wholeMilestone": "Whole milestone ({count})",
-        "empty": "No report yet. Write the first one below.",
-        "new": "New report",
-        "add": "Add report",
+        "empty": "No activity report yet. Write the first one below.",
+        "new": "New activity report",
+        "add": "Add activity report",
         "createdOn": "Created on",
         "createdAt": "Time",
         "author": "Written by",
