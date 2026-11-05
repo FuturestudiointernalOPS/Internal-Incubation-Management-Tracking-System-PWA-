@@ -10,7 +10,8 @@ import VentureWorkspaceScreen from "@/components/participant/ventures/VentureWor
 import {
   pickVenture, ventureToForm, pickMembers, pickInvitations, pickDashboard,
   pickProgress, pickMyWork, pickCalendar, pickJourney, EMPTY_ROADMAP,
-  pickInvestmentReadiness, pickOptionLists, pickAccess, tabsFor,
+  pickInvestmentReadiness, pickOptionLists, pickAccess,
+  SETUP_SECTIONS, SETUP_TAB, resolveWorkspaceTab,
 } from "@/components/participant/ventures/ventureScreenModel";
 import {
   ventureToPayload, inputStyle, cardStyle, notifyMsg,
@@ -82,10 +83,12 @@ export default function VentureDetail() {
   const params = useParams();
   const searchParams = useSearchParams();
 
-  // The open tab lives in the address (`?tab=`), so a reload, a shared link or a
-  // bookmark lands on the same tab instead of falling back to the dashboard.
-  // Derived, never copied into state: the address is the single source.
+  // The open tab lives in the address (`?tab=` / `?section=`), so a reload, a
+  // shared link or a bookmark lands on the same screen instead of falling back
+  // to the dashboard. Derived, never copied into state: the address is the
+  // single source. Legacy `?tab=profile|baseline|team` still opens SetUp.
   const requestedTab = searchParams?.get("tab");
+  const requestedSection = searchParams?.get("section");
 
   // The signed-in identity comes from the shell's session cache rather than the
   // browser's stored copy, so it needs no effect and no read of its own.
@@ -101,8 +104,13 @@ export default function VentureDetail() {
     { defaultValue: null, transform: pickAccess },
   );
   const canReport = access?.capabilities?.edit?.allowed === true;
-  const allowedTabs = tabsFor({ canReport });
-  const activeTab = allowedTabs.includes(requestedTab) ? requestedTab : "dashboard";
+  const { activeTab, setupSection } = resolveWorkspaceTab({
+    requestedTab,
+    requestedSection,
+    canReport,
+  });
+  // Content key for lazy reads: on SetUp, the open sub-screen drives the fetch.
+  const contentTab = activeTab === SETUP_TAB ? setupSection : activeTab;
 
   // The venture record is read through the shared hook, which owns the cache,
   // the cache-first paint and the discarding of a stale answer.
@@ -125,14 +133,24 @@ export default function VentureDetail() {
   const form = baseForm ? { ...baseForm, ...(formEdits || {}) } : {};
   const setForm = setFormEdits;
 
-  // Navigate top-level sections. Re-entering Journey resets to the milestone
-  // timeline so the primary tab always behaves predictably.
+  // Navigate top-level doors and SetUp sub-screens. Profile / baseline / team
+  // (and bare "setup") land on the canonical SetUp address so Launchpad buttons
+  // and the SetUp sub-nav share one URL shape.
   function openSection(section) {
+    const base = `/participant/ventures/${params.id}`;
+    if (SETUP_SECTIONS.includes(section)) {
+      if (activeTab === SETUP_TAB && setupSection === section) return;
+      router.replace(`${base}?tab=${SETUP_TAB}&section=${section}`, { scroll: false });
+      return;
+    }
+    if (section === SETUP_TAB) {
+      if (activeTab === SETUP_TAB && setupSection === "profile") return;
+      router.replace(`${base}?tab=${SETUP_TAB}&section=profile`, { scroll: false });
+      return;
+    }
     if (section === activeTab) return;
     router.replace(
-      section === "dashboard"
-        ? `/participant/ventures/${params.id}`
-        : `/participant/ventures/${params.id}?tab=${section}`,
+      section === "dashboard" ? base : `${base}?tab=${section}`,
       { scroll: false },
     );
   }
@@ -149,14 +167,14 @@ export default function VentureDetail() {
   // people figures now come from the dashboard aggregate (`team`), so one read
   // has stopped being fetched to be unused.
   const { data: members, loading: membersLoading, refresh: loadMembers } = useApi(
-    ready && activeTab === "team" ? `/api/ventures/${params.id}/members` : null,
+    ready && contentTab === "team" ? `/api/ventures/${params.id}/members` : null,
     { defaultValue: [], transform: pickMembers },
   );
 
   // Pending invitations sit beside the roster, so a founder can see who has been
   // asked and withdraw an invitation that was never accepted.
   const { data: invitations, refresh: loadInvitations } = useApi(
-    ready && activeTab === "team"
+    ready && contentTab === "team"
       ? `/api/ventures/${params.id}/member-invitations`
       : null,
     { defaultValue: [], transform: pickInvitations },
@@ -418,6 +436,7 @@ export default function VentureDetail() {
       venture={venture}
       brandColor={form.brandColor}
       activeTab={activeTab}
+      setupSection={setupSection}
       onSection={openSection}
       onBack={() => router.push("/founder/ventures")}
       canReport={canReport}
