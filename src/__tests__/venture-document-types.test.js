@@ -25,6 +25,21 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
+// The unscoped document-type authority is the explicit portfolio write right.
+jest.mock("@/models/authorization/index", () => ({
+  getAuthorizationContext: jest.fn(async (session) => {
+    const isSuperAdmin = session?.role === "super_admin";
+    return {
+      role: session?.role,
+      isSuperAdmin,
+      effective: isSuperAdmin
+        ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+        : {},
+      restrictions: {},
+    };
+  }),
+}));
+
 const {
   buildUniqueDocumentTypeCode,
   canManageVentureDocumentTypes,
@@ -214,9 +229,9 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
   test("a Super Admin is allowed without asking the database", async () => {
     const db = dbWithRows();
 
-    await expect(canManageVentureDocumentTypes({ role: "super_admin" }, VENTURE, db)).resolves.toBe(
-      true,
-    );
+    await expect(
+      canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
+    ).resolves.toBe(true);
     expect(db.execute).not.toHaveBeenCalled();
   });
 
@@ -230,6 +245,21 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
     expect(sql).toContain("responsibility_code = 'venture_manager'");
     expect(sql).toContain("status = 'active'");
     expect(args).toEqual([VENTURE, "USR-1"]);
+  });
+
+  test("a Super Admin whose portfolio right was revoked is refused", async () => {
+    const db = dbWithRows();
+    // The same owner, but `edit_all` is no longer in the effective matrix.
+    require("@/models/authorization/index").getAuthorizationContext.mockResolvedValueOnce({
+      role: "super_admin",
+      isSuperAdmin: true,
+      effective: { ventures: { view: 5, edit: 5, view_all: 5 } },
+      restrictions: {},
+    });
+
+    await expect(
+      canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
+    ).resolves.toBe(false);
   });
 
   test("a staff member who does not lead it is refused, and without a Venture too", async () => {

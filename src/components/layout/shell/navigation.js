@@ -44,6 +44,7 @@ const NAV_KEY_MAP = {
   watchlist: "navigation.watchlist",
   ventures: "navigation.ventures",
   all_ventures: "navigation.allVentures",
+  venture_reporting_settings: "vadmin.list.reportingSettings",
   journey_reports: "navigation.journeyReports",
   document_types: "navigation.documentTypes",
   investors: "navigation.investors",

@@ -102,6 +102,33 @@ describe("resolveAuthorizationContext carries the active profiles", () => {
     expect(ctx.profiles).toEqual([]);
     expect(mockAssignments.listActiveProfileKeys).not.toHaveBeenCalled();
   });
+
+  test("a Super Admin's rights come from the default profile, so revoking one is effective", async () => {
+    mockReads.resolveRoleDefaultBaseProfile.mockResolvedValueOnce({
+      rows: [{ profile_key: "super_admin_default", label: "Super Admin Default" }],
+    });
+    mockReads.getBaseCapabilityRows.mockResolvedValueOnce({
+      rows: [
+        { module: "ventures", capability: "view", access_level: 5 },
+        { module: "ventures", capability: "view_all", access_level: 5 },
+      ],
+    });
+
+    const ctx = await resolveAuthorizationContext({ cid: "SA", role: "super_admin" });
+
+    expect(ctx.baseCaps).toEqual({
+      ventures: { view: 5, view_all: 5 },
+    });
+    // The capability the profile does NOT carry is not silently restored by the
+    // historical full matrix: a revocation must be expressible.
+    expect(ctx.effective.ventures.edit_all).toBeUndefined();
+  });
+
+  test("with no default profile the full matrix remains the fallback", async () => {
+    mockReads.resolveRoleDefaultBaseProfile.mockResolvedValueOnce({ rows: [] });
+    const ctx = await resolveAuthorizationContext({ cid: "SA", role: "super_admin" });
+    expect(ctx.baseCaps.ventures.view_all).toBeGreaterThan(0);
+  });
 });
 
 describe("the cache keys on the active profiles", () => {

@@ -41,6 +41,7 @@ import {
   deleteVentureDocumentTypeRow,
   selectLeadManagerAssignment,
 } from "@/models/ventureDocumentTypesStore";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 
 /**
  * Give a Venture the six built-in categories when it has none yet — and leave an
@@ -205,7 +206,8 @@ export async function deleteVentureDocumentType({ ventureId, id }, database) {
  */
 export async function canManageVentureDocumentTypes(session, ventureId, database) {
   if (!session || !ventureId) return false;
-  if (session.role === "super_admin") return true;
+  // The explicit portfolio WRITE right replaces the old Super Admin bypass.
+  if ((await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed) return true;
   if (!session.cid) return false;
 
   const result = await selectLeadManagerAssignment(ventureId, session.cid, database);
