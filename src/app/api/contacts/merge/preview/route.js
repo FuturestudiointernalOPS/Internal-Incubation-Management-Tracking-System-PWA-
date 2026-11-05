@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAnyAuthorization } from "@/models/authorization/index";
 import { previewContactMerge } from "@/services/contacts/merge";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,10 @@ export async function GET(req) {
     await initDb();
     const authError = await requireAuth();
     if (authError) return authError;
-    const capError = await requireAuthorization("contacts", "view");
+    const capError = await requireAnyAuthorization([
+      { module: "duplicates", capability: "view" },
+      { module: "contacts", capability: "view" },
+    ]);
     if (capError) return capError;
 
     const { searchParams } = new URL(req.url);

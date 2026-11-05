@@ -56,6 +56,9 @@ jest.mock("@/models/contacts/contactStore", () => ({
   createPasswordSetupToken: jest.fn().mockResolvedValue(true),
   markContactInvited: jest.fn().mockResolvedValue(true),
   findContactCidByPhone: jest.fn().mockResolvedValue({ rows: [] }),
+  // Registration asks whether the address already exists before writing; without
+  // this the call throws inside the use-case and no contact is ever written.
+  findContactCidByEmailAny: jest.fn().mockResolvedValue({ rows: [] }),
   updateContactFields: jest.fn().mockResolvedValue({ rows: [] }),
   getContactIdentityByCid: jest.fn().mockResolvedValue({ rows: [] }),
   markAdminNotificationsRead: jest.fn().mockResolvedValue(true),

@@ -15,7 +15,7 @@ import { registerParticipantViaGroupLink } from "@/services/lms";
 export async function POST(req) {
   try {
     await initDb();
-    const { name, email, password, phone, group_id } = await req.json();
+    const { name, email, password, phone, group_id, whatsapp_opt_in } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: "Name, email, and password are required." }, { status: 400 });
@@ -30,6 +30,7 @@ export async function POST(req) {
       password,
       phone,
       groupId: group_id,
+      whatsappOptIn: whatsapp_opt_in === true,
     });
 
     if (!result.ok) {

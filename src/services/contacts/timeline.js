@@ -15,6 +15,7 @@ import {
   getProgramIdsForPm,
 } from "@/models/contacts/programMembership";
 import { isProgramManagerProfileSession } from "@/services/authorization/programManagement";
+import { can } from "@/services/authorization/context";
 import {
   getContactTimelineEvents,
   getTimelineContactIdentity,
@@ -22,6 +23,36 @@ import {
 } from "@/models/contacts/timeline";
 
 import { isMemberSurfaceRole } from "@/lib/identity";
+
+/**
+ * Which right opens which timeline domain. Every event carries the module it
+ * came from; the reader only receives the modules they may actually see, so a
+ * domain never leaks into another's history.
+ */
+const TIMELINE_MODULE_RIGHTS = {
+  contacts:       ["contacts", "view"],
+  crm:            ["crm", "view"],
+  programs:       ["programs", "view"],
+  // Program groups are part of the program's history, not a module of their own.
+  groups:         ["programs", "view"],
+  ventures:       ["ventures", "view"],
+  investors:      ["investor", "view"],
+  communications: ["messaging", "view"],
+  // A form submission is run data — and the CRM is deliberately separate from
+  // forms and submissions, so this never follows from a CRM grant.
+  forms:          ["runs", "view"],
+  system:         ["contacts", "view"],
+  automation:     ["contacts", "view"],
+};
+
+/** The domains this internal reader may see, from the rights they hold. */
+async function visibleTimelineModules(session) {
+  const entries = Object.entries(TIMELINE_MODULE_RIGHTS);
+  const decisions = await Promise.all(
+    entries.map(([, [moduleKey, capability]]) => can(session, moduleKey, capability)),
+  );
+  return entries.filter((_, index) => decisions[index]).map(([moduleName]) => moduleName);
+}
 
 /** Whether this caller may read this contact's timeline (own-record for members). */
 export function mayReadContactTimeline(session, cid) {
@@ -40,14 +71,28 @@ export async function listContactTimeline(session, cid, { moduleFilter, typeFilt
     pmProgramIds = programsResult.rows.map((row) => row.id);
   }
 
-  const result = await getContactTimelineEvents(
-    cid,
+  // The CRM events on this shared timeline are CRM data: a reader without
+  // `crm.view` never sees them.
+  const includeCrm = await can(session, "crm", "view");
+
+  // A personal identity reads only its own record (`mayReadContactTimeline`),
+  // and every event there is about them: its timeline keeps its existing rules.
+  // Every OTHER reader gets the per-domain filter — a CRM operator without the
+  // programme right does not read programme events, and a programme actor without
+  // the CRM right does not read CRM events.
+  const visibleModules = isMemberSurfaceRole(session.role)
+    ? null
+    : await visibleTimelineModules(session);
+
+  const result = await getContactTimelineEvents(cid, {
     moduleFilter,
     typeFilter,
     pmProgramIds,
     limit,
     offset,
-  );
+    includeCrm,
+    visibleModules,
+  });
   const contactResult = await getTimelineContactIdentity(cid);
 
   return {

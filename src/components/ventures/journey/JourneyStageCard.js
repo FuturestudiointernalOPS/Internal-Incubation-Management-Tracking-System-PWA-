@@ -167,6 +167,12 @@ export default function JourneyStageCard({
               <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.stageStartDate")}</label>
               <input
                 type="date"
+                // Today or later; a start date already on file may be earlier and stays valid.
+                min={(() => {
+                  const today = new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+                  const current = String(stage.start_date || "").slice(0, 10);
+                  return current && current < today ? current : today;
+                })()}
                 value={editForm.start_date || ""}
                 onChange={(event) => setEditForm({ ...editForm, start_date: event.target.value })}
                 className="w-full px-3 py-2 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"

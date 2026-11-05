@@ -44,6 +44,7 @@ export async function startCheckoutForSubmission({
   phone = null,
   language = "en",
   consent = false,
+  whatsappOptIn = false,
   browserToken = null,
 }) {
   const existing = await findRegistrationByCourseAndEmail(course.id, email);
@@ -61,6 +62,7 @@ export async function startCheckoutForSubmission({
       language,
       runId: run.id,
       submissionId,
+      whatsappOptIn: whatsappOptIn === true,
     });
     await resetRegistrationForRetry(existing.id);
     return {
@@ -87,6 +89,7 @@ export async function startCheckoutForSubmission({
     currency: course.currency,
     providerAmount: toProviderAmount(course.amount, course.amountUnit),
     consent: true,
+    whatsappOptIn: whatsappOptIn === true,
   });
 
   // The browser that captured the registration receives a one-way token in an

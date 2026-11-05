@@ -24,11 +24,18 @@ const FIXTURE = {
       id: "crm",
       href: null,
       subItems: [
-        { id: "crm_dashboard", href: "/admin/crm", subItems: null },
-        { id: "all_contacts", href: "/admin/communications/contacts", subItems: null },
-        { id: "crm_membership", href: "/admin/crm/membership", subItems: null },
-        { id: "crm_timeline", href: "/admin/crm/timeline", subItems: null },
-        { id: "crm_duplicates", href: "/admin/crm/duplicates", subItems: null },
+        { id: "crm_dashboard", href: "/crm", subItems: null },
+        { id: "all_contacts", href: "/crm/contacts", subItems: null },
+        { id: "crm_organizations", href: "/crm/organizations", subItems: null },
+        { id: "crm_leads", href: "/crm/leads", subItems: null },
+        { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },
+        { id: "crm_pipelines", href: "/crm/pipelines", subItems: null },
+        { id: "crm_activities", href: "/crm/activities", subItems: null },
+        { id: "crm_segments", href: "/crm/segments", subItems: null },
+        { id: "crm_automations", href: "/crm/automations", subItems: null },
+        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
+        { id: "crm_membership", href: "/crm/membership", subItems: null },
+        { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
         { id: "pending_users", href: "/admin/pending-users", subItems: null },
         { id: "bulk_upload", href: "/admin/bulk-upload", subItems: null },
       ],
@@ -184,8 +191,32 @@ const FIXTURE = {
   ],
 
   crm: [
-    { id: "crm_dashboard", href: "/crm", subItems: null },
-    { id: "forms", href: "/platform", subItems: null },
+    {
+      id: "crm",
+      href: null,
+      subItems: [
+        { id: "crm_dashboard", href: "/crm", subItems: null },
+        { id: "all_contacts", href: "/crm/contacts", subItems: null },
+        { id: "crm_organizations", href: "/crm/organizations", subItems: null },
+        { id: "crm_leads", href: "/crm/leads", subItems: null },
+        { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },
+        { id: "crm_pipelines", href: "/crm/pipelines", subItems: null },
+        { id: "crm_activities", href: "/crm/activities", subItems: null },
+        { id: "crm_segments", href: "/crm/segments", subItems: null },
+        { id: "crm_automations", href: "/crm/automations", subItems: null },
+        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
+        { id: "crm_membership", href: "/crm/membership", subItems: null },
+        { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
+      ],
+    },
+    // Forms and runs live under Communication, never under CRM.
+    {
+      id: "communication",
+      href: null,
+      subItems: [
+        { id: "forms", href: "/platform", subItems: null },
+      ],
+    },
   ],
 };
 
@@ -298,6 +329,7 @@ describe("Master navigation — role projections", () => {
 describe("capability projection — buildAccessNav contract", () => {
   const {
     NAV_CAPABILITY_REQUIREMENTS,
+    requirementAlternatives,
     buildRoleNav,
     buildAccessNav,
   } = require("@/lib/masterNavigation");
@@ -314,8 +346,14 @@ describe("capability projection — buildAccessNav contract", () => {
 
   test("every requirement resolves to a real catalog capability", () => {
     for (const [, req] of Object.entries(NAV_CAPABILITY_REQUIREMENTS)) {
-      expect(CAPABILITY_CATALOG[req.module]).toBeDefined();
-      expect(CAPABILITY_CATALOG[req.module].capabilities[req.capability]).toBeDefined();
+      const alternatives = requirementAlternatives(req);
+      expect(alternatives.length).toBeGreaterThan(0);
+      for (const alternative of alternatives) {
+        expect(CAPABILITY_CATALOG[alternative.module]).toBeDefined();
+        expect(
+          CAPABILITY_CATALOG[alternative.module].capabilities[alternative.capability],
+        ).toBeDefined();
+      }
     }
   });
 
@@ -346,6 +384,40 @@ describe("capability projection — buildAccessNav contract", () => {
     ]);
   });
 
+  test("a records-only profile gets the commercial objects, not people", () => {
+    const nav = buildAccessNav("staff", { crm: { view: 1 } });
+    const crm = nav.find((item) => item.id === "crm");
+    expect(crm).toBeDefined();
+    expect(crm.subItems.map((subItem) => subItem.id)).toEqual([
+      "crm_dashboard",
+      "crm_organizations",
+      "crm_leads",
+      "crm_opportunities",
+      "crm_pipelines",
+      "crm_activities",
+      "crm_segments",
+      "crm_automations",
+    ]);
+    expect(crm.subItems.map((subItem) => subItem.href)).toEqual([
+      "/crm",
+      "/crm/organizations",
+      "/crm/leads",
+      "/crm/opportunities",
+      "/crm/pipelines",
+      "/crm/activities",
+      "/crm/segments",
+      "/crm/automations",
+    ]);
+  });
+
+  test("membership alone opens the CRM section with only the roster", () => {
+    const nav = buildAccessNav("staff", { org_membership: { view: 1 } });
+    const crm = nav.find((item) => item.id === "crm");
+    expect(crm).toBeDefined();
+    expect(crm.subItems.map((subItem) => subItem.id)).toEqual(["crm_membership"]);
+    expect(crm.subItems[0].href).toBe("/crm/membership");
+  });
+
   test("membership appears only when org_membership.view is held", () => {
     const without = buildAccessNav("staff", { contacts: { view: 1 } });
     expect(ids(without)).not.toContain("crm_membership");
@@ -373,23 +445,29 @@ describe("capability projection — buildAccessNav contract", () => {
   });
 
   test("role-only sections (rituals) are never granted by a capability", () => {
-    const everything = Object.fromEntries(
-      Object.entries(NAV_CAPABILITY_REQUIREMENTS).map(([, req]) => [
-        req.module,
-        { [req.capability]: 5 },
-      ]),
-    );
+    const everything = {};
+    for (const req of Object.values(NAV_CAPABILITY_REQUIREMENTS)) {
+      for (const alternative of requirementAlternatives(req)) {
+        everything[alternative.module] = {
+          ...(everything[alternative.module] || {}),
+          [alternative.capability]: 5,
+        };
+      }
+    }
     const staff = ids(buildAccessNav("staff", everything));
     expect(staff).not.toContain("rituals");
   });
 
   test("lms is capability-grantable and lands on a reachable page per role", () => {
-    const everything = Object.fromEntries(
-      Object.entries(NAV_CAPABILITY_REQUIREMENTS).map(([, req]) => [
-        req.module,
-        { [req.capability]: 5 },
-      ]),
-    );
+    const everything = {};
+    for (const req of Object.values(NAV_CAPABILITY_REQUIREMENTS)) {
+      for (const alternative of requirementAlternatives(req)) {
+        everything[alternative.module] = {
+          ...(everything[alternative.module] || {}),
+          [alternative.capability]: 5,
+        };
+      }
+    }
     // Admin-capable role → keeps the admin landing.
     const saLms = buildAccessNav("super_admin", everything).find((item) => item.id === "lms");
     expect(saLms).toBeDefined();

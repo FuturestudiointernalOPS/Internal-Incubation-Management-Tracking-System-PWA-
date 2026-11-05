@@ -42,7 +42,11 @@ test("nothing written means the standard subject and no message block", async ()
   expect(sent().subject).toContain("Due soon");
   expect(sent().subject).toContain("Validate demand");
   expect(sent().html).not.toContain("border-left: 3px solid");
-  expect(sent().attachments).toBeNull();
+  // The deadline still travels as a calendar entry even when nothing was written.
+  const [calendar] = sent().attachments;
+  expect(calendar.filename).toBe("reminder.ics");
+  expect(calendar.contentType).toBe("text/calendar");
+  expect(String(calendar.content)).toContain("BEGIN:VEVENT");
 });
 
 test("a written subject and message go out exactly as written", async () => {
@@ -84,7 +88,10 @@ test("an attachment is handed to the transport with the message", async () => {
     attachments: files,
   });
 
-  expect(sent().attachments).toBe(files);
+  // The caller's file is passed through untouched; the calendar entry rides along.
+  const attachments = sent().attachments;
+  expect(attachments[0]).toBe(files[0]);
+  expect(attachments.map((file) => file.filename)).toEqual(["plan.pdf", "reminder.ics"]);
 });
 
 test("the copy addresses are handed to the transport, never dropped", async () => {

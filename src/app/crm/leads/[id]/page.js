@@ -8,12 +8,14 @@ import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import CrmActivityPanel from "@/components/ui/CrmActivityPanel";
 import CrmScorePanel from "@/components/ui/CrmScorePanel";
+import { useCrmCapabilities } from "@/components/crm/useCrmCapabilities";
 
 export const dynamic = "force-dynamic";
 
 export default function CrmLeadDetailPage({ params }) {
   const { t } = useI18n();
   const router = useRouter();
+  const { cid, isSuperAdmin } = useCrmCapabilities();
   
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +115,12 @@ export default function CrmLeadDetailPage({ params }) {
               {lead.contact_name && (
                 <div className="flex items-center gap-3">
                   <User className="w-4 h-4 text-[var(--text-secondary)]" />
-                  <span className="text-sm text-[var(--text-primary)]">{lead.contact_name}</span>
+                  <a
+                    href={`/crm/people/${lead.contact_cid}`}
+                    className="text-sm text-[var(--text-primary)] hover:text-[var(--brand-orange)] hover:underline"
+                  >
+                    {lead.contact_name}
+                  </a>
                 </div>
               )}
               {lead.organization_name && (
@@ -138,7 +145,14 @@ export default function CrmLeadDetailPage({ params }) {
       <CrmScorePanel lead={lead} onUpdate={(updated) => setLead((current) => ({ ...current, ...updated }))} />
 
       {/* Activities + Next Action */}
-      <CrmActivityPanel leadId={lead.id} />
+      <CrmActivityPanel
+        leadId={lead.id}
+        record={lead}
+        canSetNextAction={Boolean(isSuperAdmin || (cid && lead.owner_cid && lead.owner_cid === cid))}
+        onNextActionSaved={(updated) =>
+          updated && setLead((current) => ({ ...current, ...updated }))
+        }
+      />
     </div>
   );
 }

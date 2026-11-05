@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { User, Clock, Send, Mail, ArrowLeft } from "lucide-react";
+import { User, Clock, Send, Mail, ArrowLeft, Pencil } from "lucide-react";
+import WhatsAppAction from "@/components/crm/WhatsAppAction";
 import { ROLE_LABELS, INVITATION_STATUS_LABELS } from "./constants";
 
 /**
@@ -17,8 +18,12 @@ export default function PersonHeader({
   inviting,
   inviteMessage,
   t,
+  basePath = "/crm",
+  canInvite = true,
+  canEdit = false,
   onBack,
   onInvite,
+  onEdit,
 }) {
   return (
     <>
@@ -28,7 +33,7 @@ export default function PersonHeader({
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("crm.backToPrevious")}
         </button>
-        <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+        <Link href={basePath} className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
           <ArrowLeft className="w-3.5 h-3.5" />
           {t("crm.people.backToCrmDashboard")}
         </Link>
@@ -74,7 +79,17 @@ export default function PersonHeader({
               {t(INVITATION_STATUS_LABELS[invitationStatus] || "") || invitationStatus}
             </span>
 
-            {invitationStatus === "activated" ? (
+            {canEdit && onEdit && (
+              <button
+                onClick={onEdit}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--border-primary)] text-[var(--text-secondary)] text-[10px] font-bold uppercase tracking-widest hover:text-[var(--text-primary)] hover:border-[var(--brand-orange)] transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" />
+                {t("common.edit")}
+              </button>
+            )}
+
+            {canInvite && (invitationStatus === "activated" ? (
               <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
                 {t("crm.contacts.invitationActivated") || "Activated"}
               </span>
@@ -91,7 +106,7 @@ export default function PersonHeader({
                     ? t("crm.contacts.inviteUser") || "Invite User"
                     : t("crm.contacts.resendActivation") || "Resend Invitation"}
               </button>
-            )}
+            ))}
 
             {inviteMessage && (
               <p
@@ -102,6 +117,9 @@ export default function PersonHeader({
                 {inviteMessage.text}
               </p>
             )}
+
+            {/* WhatsApp is offered only when the shared rule allows it. */}
+            <WhatsAppAction contact={contact} />
           </div>
         </div>
       </div>

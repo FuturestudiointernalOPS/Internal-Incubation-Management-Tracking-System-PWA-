@@ -43,7 +43,7 @@ const pickGlobalContacts = (payload) => (payload?.success ? payload.contacts || 
 export default function ResponsesPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const goBack = useSafeBack("/admin/crm");
+  const goBack = useSafeBack("/crm");
 
   // Both reads' loaders — cache-first paint, discarding a stale response, the
   // background refresh — belong to the hook, so the screen keeps no data state
@@ -187,7 +187,7 @@ export default function ResponsesPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToPrevious")}
           </button>
-          <Link href="/admin/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToCrm")}
           </Link>

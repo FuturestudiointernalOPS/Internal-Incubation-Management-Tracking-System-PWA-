@@ -90,10 +90,10 @@ function overrideLevelFor(assignment, capability) {
  */
 export async function getFacilitatorPermissionLevel(programId, assignment, capability) {
   try {
-    // D-5 depends on two one-time migrations (the facilitator profile and the
-    // assignment key). The authorization resolver already awaits them before any
-    // decision; this guard does not pass through it, so it waits too. Memoised
-    // per process — a no-op after the first call.
+    // The assignment-key migrations are applied on every deployed database and
+    // run only when deliberately enabled; this call is therefore an immediate
+    // no-op in normal operation, kept so an enabled run still happens before the
+    // first facilitator decision.
     await ensureCapabilityBackfills();
 
     const target = await levelFromProfileOrDefault(programId, assignment, capability);

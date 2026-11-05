@@ -15,6 +15,7 @@ import PageHero from "@/components/ui/PageHero";
 import KpiCard from "@/components/ui/KpiCard";
 import SectionHead from "@/components/ui/SectionHead";
 import ParticipantCommandCalendar from "@/components/ui/ParticipantCommandCalendar";
+import CreateActions from "@/components/create/CreateActions";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 const EMPTY_HOME = { payload: null, failure: false };
@@ -58,7 +59,7 @@ export default function ParticipantDashboardHome() {
       kicker={formatLocaleDate(new Date(), { weekday: "long", day: "numeric", month: "long", year: "numeric" }, lang)}
       title={t("participant.template.welcome", { name: participant?.name?.split(" ")[0] || t("participant.defaultName") })}
       subtitle={primaryProgram ? `${primaryProgram.name} · ${t("participant.activeSession")} · ${t("participantMisc.dashboardHome.weekOf", { current: primaryProgram.currentWeek, total: primaryProgram.durationWeeks || "?" })}` : t("participant.noProgramsDesc")}
-      action={<button type="button" className="stf-btn pr" onClick={() => setAddRequest(previous => previous + 1)}><Plus size={15} /> {t("participant.template.newReminder")}</button>}
+      action={<div className="flex flex-wrap items-center justify-end gap-2"><CreateActions /><button type="button" className="stf-btn pr" onClick={() => setAddRequest(previous => previous + 1)}><Plus size={15} /> {t("participant.template.newReminder")}</button></div>}
     />
     <div className="stf-grid c4"><Metric label={t("participant.programCompletion")} value={`${metrics.programCompletion || 0}%`} icon={TrendingUp} /><Metric label={t("participant.attendance")} value={`${metrics.attendanceRate || 0}%`} icon={Check} /><Metric label={t("participant.template.approvedAssignments")} value={assignmentsLoading ? t("common.loading") : assignments ? `${assignments.filter(item => item.submission?.status === "approved").length} / ${assignments.length}` : t("participant.template.notAvailable")} icon={FileText} /><Metric label={t("participant.kpiAchievement")} value={`${metrics.kpiCompletion || 0}%`} icon={TrendingUp} /></div>
     <ParticipantCommandCalendar events={calendarEvents} addRequest={addRequest} />

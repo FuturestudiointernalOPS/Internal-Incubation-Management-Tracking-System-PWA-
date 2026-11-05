@@ -69,6 +69,10 @@ export function ensureCheckoutSchema() {
         // resume an unpaid payment directly, while a stranger who merely knows the
         // email is answered neutrally. HASH only, like the resume token.
         "ALTER TABLE lms_registrations ADD COLUMN IF NOT EXISTS browser_token_hash TEXT",
+        // WhatsApp consent is captured on the checkout form and travels with the
+        // registration until the paid account exists. FALSE is the only safe
+        // default: a missing value must never read as an agreement.
+        "ALTER TABLE lms_registrations ADD COLUMN IF NOT EXISTS whatsapp_opt_in BOOLEAN NOT NULL DEFAULT FALSE",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_browser_token ON lms_registrations(browser_token_hash) WHERE browser_token_hash IS NOT NULL",
         "CREATE UNIQUE INDEX IF NOT EXISTS idx_lms_registrations_reference ON lms_registrations(reference)",
         // A refund does not decide the access: revoking it is a SEPARATE, explicit

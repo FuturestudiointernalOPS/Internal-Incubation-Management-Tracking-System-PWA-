@@ -179,6 +179,7 @@
       "titleRequired": "A document title is required.",
       "categoryInvalid": "Choose a valid Data Room category.",
       "fileRequired": "Attach a file or paste an external link.",
+      "pastExpiry": "The expiry date cannot be in the past.",
       "invalidExpiry": "Enter a valid expiry date.",
       "saveFailed": "The document could not be saved. Nothing was recorded — please try again.",
       "decisionInvalid": "Choose a valid review decision.",

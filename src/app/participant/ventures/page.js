@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import CreateActions from "@/components/create/CreateActions";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -39,6 +40,7 @@ export default function ParticipantVentures() {
             <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>{t("venture.myVentures")}</h1>
             <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{t("venture.title")}</p>
           </div>
+          <CreateActions only={["venture"]} tone="primary" />
         </div>
 
         {loading ? (

@@ -1,6 +1,5 @@
 "use client";
 
-import { useI18n } from "@/lib/i18n";
 import { useState, useEffect, useRef } from "react";
 import {
   HOVER_CAPABLE_QUERY,
@@ -15,7 +14,7 @@ import {
   normalizeRole,
   PROGRAM_MANAGER_PROFILE,
 } from "@/lib/identity";
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogOut, ChevronDown, Globe } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogOut, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -51,7 +50,6 @@ export const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
-  const { switchLang } = useI18n();
   const participant = pathname?.startsWith("/participant");
   // D-1 — a staff identity carrying the program-manager PROFILE belongs in the
   // PM space; the role alone no longer says so. The legacy value stays in the
@@ -406,19 +404,6 @@ export const SidebarContent = ({
           )}
           </>}
         </div>
-        <button
-          aria-label={t("common.language")}
-          title={t("common.language")}
-          onClick={() => {
-            if (typeof window === "undefined") return;
-            const current = localStorage.getItem("impactos_lang") || "en";
-            switchLang(current === "en" ? "fr" : "en");
-          }}
-          className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-tertiary transition-all font-semibold text-[13px]"
-        >
-          <Globe className="w-4 h-4 flex-shrink-0" />
-          {!collapsed && <span>FR/EN</span>}
-        </button>
         <button
           aria-label={t(tnav("logout"))}
           title={t(tnav("logout"))}

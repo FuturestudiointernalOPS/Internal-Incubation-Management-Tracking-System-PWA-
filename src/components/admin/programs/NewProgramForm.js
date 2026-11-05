@@ -30,7 +30,13 @@ import {
  * Integrated with v2_knowledge_bank and Personnel Registry.
  */
 
-export default function NewProgramForm() {
+export default function NewProgramForm({
+  // Where the "back" link and the post-create redirect go. The admin screen
+  // keeps its defaults; the delegated `/create/program` surface passes its own.
+  backHref = "/admin/programs",
+  backLabelKey = "adminMisc.newProgram.programList",
+  successHref = "/admin/programs",
+}) {
   const router = useRouter();
   const { t } = useI18n();
   const [isDeploying, setIsDeploying] = useState(false);
@@ -267,7 +273,7 @@ export default function NewProgramForm() {
       });
       if (payload.success) {
         notify("success", t("adminMisc.newProgram.programCreatedFromTemplate"));
-        setTimeout(() => router.push("/admin/programs"), 1500);
+        setTimeout(() => router.push(successHref), 1500);
       } else {
         notify("error", t((payload.error || t("adminMisc.newProgram.failed")) || "") || (payload.error || t("adminMisc.newProgram.failed")));
       }
@@ -347,7 +353,7 @@ export default function NewProgramForm() {
 
       if (payload.success) {
         notify("success", t("adminMisc.newProgram.created"));
-        setTimeout(() => router.push("/admin/programs"), 1500);
+        setTimeout(() => router.push(successHref), 1500);
       } else {
         throw new Error(t((payload.error || t("adminMisc.newProgram.failedToSaveProgram")) || "") || (payload.error || t("adminMisc.newProgram.failedToSaveProgram")));
       }
@@ -370,11 +376,11 @@ export default function NewProgramForm() {
         {/* HEADER */}
         <header className="space-y-4 border-b border-[var(--border-primary)] pb-10">
           <button
-            onClick={() => router.push("/admin/programs")}
+            onClick={() => router.push(backHref)}
             className="group flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-all font-bold text-[10px] uppercase tracking-wide"
           >
             <ArrowLeft className="w-3 h-3 group-hover:-translate-x-1 transition-transform" />{" "}
-            {t("adminMisc.newProgram.programList")}
+            {t(backLabelKey)}
           </button>
           <div className="space-y-1">
             <div className="flex items-center gap-2">

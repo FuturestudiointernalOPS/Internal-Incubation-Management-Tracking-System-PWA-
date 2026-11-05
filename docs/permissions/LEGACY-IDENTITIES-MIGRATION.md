@@ -70,16 +70,20 @@ Fichier : `src/models/authorization/legacyIdentityStore.js` (SQL + transaction)
 Service : `src/services/authorization/legacyIdentityMigration.js`
 Branchement : `src/services/authorization/contextBootstrap.js`
 
-### Elle s'exécute toute seule, une fois par base
+### Elle ne s'exécute plus au démarrage
 
 Le mécanisme `runAuthzMigration(name, fn)` exécute la correction **une seule
-fois par base**, au premier démarrage (ou à la première lecture d'autorisation
-après déploiement), et inscrit le nom `legacy-identities-normalization-v1` dans
-`authz_migrations`. Les démarrages suivants la sautent.
+fois par base** et inscrit le nom `legacy-identities-normalization-v1` dans
+`authz_migrations`. Mais aucune migration one-time ne tourne plus au démarrage :
+elles sont toutes appliquées sur les bases déployées, et une migration dont le
+marqueur n'est jamais inscrit était retentée à chaque redémarrage, en erreur,
+indéfiniment. Pour l'appliquer volontairement (base neuve, nouvel environnement,
+ou migration ajoutée), démarrez l'application **une fois** avec
+`AUTHZ_RUN_MIGRATIONS=true`, puis retirez la variable.
 
-Si elle échoue, **rien n'est inscrit** : la transaction est annulée et elle sera
-retentée au démarrage suivant. C'est le comportement voulu — une base à moitié
-migrée est pire qu'une base non migrée.
+Si elle échoue, **rien n'est inscrit** : la transaction est annulée, et l'erreur
+est inscrite dans `authz_migration_failures`. C'est le comportement voulu — une
+base à moitié migrée est pire qu'une base non migrée.
 
 Le contrôle est **dans la transaction** : une ancienne étiquette qui subsiste,
 ou une relation active sans carte, lève une erreur et annule tout.

@@ -7,6 +7,8 @@
 export const TIMELINE_LIMIT = 200;
 
 export const MODULE_COLORS = {
+  contacts: "bg-sky-500/10 text-sky-400 border-sky-500/20",
+  groups: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
   forms: "bg-purple-500/10 text-purple-400 border-purple-500/20",
   programs: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   ventures: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
@@ -43,6 +45,9 @@ export const INVITATION_STATUS_LABELS = {
 };
 
 export const MODULE_LABELS = {
+  crm: "crm.modules.crm",
+  contacts: "crm.modules.contacts",
+  groups: "crm.modules.groups",
   forms: "crm.modules.forms",
   programs: "crm.modules.programs",
   ventures: "crm.modules.ventures",

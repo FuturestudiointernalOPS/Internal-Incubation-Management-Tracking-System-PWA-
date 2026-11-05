@@ -24,6 +24,10 @@ import {
   insertParticipantForRegistration,
   insertParticipantProgramMembership,
 } from "@/models/platformConfig";
+import {
+  setWhatsappConsent,
+  WHATSAPP_CONSENT_SOURCES,
+} from "@/services/communications/whatsappConsent";
 
 /**
  * Register a participant through a public group link.
@@ -35,7 +39,7 @@ import {
  * same-program facilitator conflict, and keep the canonical membership table in
  * sync.
  */
-export async function registerParticipantViaGroupLink({ name, email, password, phone, groupId }) {
+export async function registerParticipantViaGroupLink({ name, email, password, phone, groupId, whatsappOptIn }) {
   // Find the group in families or v2_groups.
   let groupResult = await findRegistrationGroupInFamilies(groupId);
   if (groupResult.rows.length === 0) {
@@ -53,9 +57,27 @@ export async function registerParticipantViaGroupLink({ name, email, password, p
   // An existing email is NOT proof of ownership: never rewrite an account's
   // password, name or group from an anonymous form. The submission is still
   // accepted (and reviewed); the existing account keeps its own credentials.
-  if (existingContact.rows.length === 0) {
+  const isNewContact = existingContact.rows.length === 0;
+  if (isNewContact) {
     const hashedPassword = await hashPassword(password, { rounds: 12 });
     await insertContactForRegistration(cid, name, normalizedEmail, phone, hashedPassword, group.name);
+  }
+
+  // Consent can only be given by the person registering. It is therefore
+  // recorded ONLY for a contact this submission actually created — never for an
+  // existing account whose email someone typed into a public form. A failure to
+  // record it must never fail the registration itself.
+  if (isNewContact && whatsappOptIn === true) {
+    try {
+      await setWhatsappConsent({
+        cid,
+        accepted: true,
+        source: WHATSAPP_CONSENT_SOURCES.PARTICIPANT_REGISTRATION,
+        phone,
+      });
+    } catch (_) {
+      // Best-effort: the account exists and the review can proceed.
+    }
   }
 
   if (group.program_id) {

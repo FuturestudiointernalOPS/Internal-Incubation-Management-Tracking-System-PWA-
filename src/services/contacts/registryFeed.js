@@ -15,6 +15,7 @@
  */
 
 import { reconcileProgramGroups } from "@/services/contacts/contactGroupSync";
+import { attachWhatsappStatus } from "@/services/contacts/whatsappStatus";
 import { attachInvitationStatus } from "@/models/invitations";
 import {
   getPmAssignedPrograms,
@@ -183,5 +184,9 @@ export async function buildRegistryFeed({ pmId, statusFilter }) {
     };
   });
 
-  return { contacts, families: familiesList, teams: teamsRows };
+  return {
+    contacts: await attachWhatsappStatus(contacts),
+    families: familiesList,
+    teams: teamsRows,
+  };
 }

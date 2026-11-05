@@ -1,0 +1,31 @@
+{
+  "creation": {
+    "kicker": "New record",
+    "title": "Create",
+    "subtitle": "Start something new. Only what you are allowed to create appears here.",
+    "backToCreate": "Back to Create",
+    "section": {
+      "title": "What do you want to create?",
+      "subtitle": "Each door below is opened by a permission you hold."
+    },
+    "program": {
+      "title": "Program",
+      "createAction": "Create Program",
+      "description": "Set up a new program: dates, personnel, groups, KPIs and materials."
+    },
+    "venture": {
+      "title": "Venture",
+      "createAction": "Add a Venture",
+      "description": "Register a venture and invite its founder by email.",
+      "heading": "Add a Venture",
+      "subtitle": "Record the venture and send its founder an invitation to create their account and access the venture workspace."
+    },
+    "investor": {
+      "title": "Investor",
+      "createAction": "Invite an Investor",
+      "description": "Generate the application link to hand to a prospective investor.",
+      "heading": "Invite an Investor",
+      "subtitle": "Share the link with the investor. Their application is reviewed in Investor Management, and approval creates their account."
+    }
+  }
+}

@@ -237,7 +237,12 @@ export async function GET(req) {
     const cidFilter = searchParams.get("cid");
 
     const capError = await requireAuthorization("contacts", "view");
-    const canReadDirectory = !capError;
+    // A delegated program CREATOR needs the internal staff directory to pick the
+    // program manager of the program they are creating. The wizard cannot save
+    // without that choice, and `programs.create` is already a sensitive right,
+    // so holding it opens the same directory read `contacts.view` opens.
+    const createRightsError = await requireAuthorization("programs", "create");
+    const canReadDirectory = !capError || !createRightsError;
 
     const outcome = await readRegistryContacts({
       session,

@@ -29,6 +29,8 @@ import { NextResponse } from "next/server";
  *   - /api/public/* (group lookup + registration + public course catalogue)
  *   - /api/webhooks/kkiapay (Kkiapay's own payment callback: the provider has
  *     no session, and the x-kkiapay-secret signature is the credential)
+ *   - /api/integrations/whatsapp/webhook (Meta's callback: the HMAC signature
+ *     over the raw body is the credential, verified in-route)
  *   - /api/lms/checkout-reconcile (a scheduler's replay of unclosed Kkiapay
  *     payments: the scheduler has no session, and the x-cron-secret shared
  *     secret is the credential — every OTHER /api/lms/* route stays behind a
@@ -96,6 +98,10 @@ const publicApiPaths = [
   // be lost.
   "/api/integrations/google-calendar/webhook",
   "/api/integrations/google-calendar/cron",
+  // Meta holds no session either. The HMAC signature over the raw body is the
+  // credential, verified in-route; without this the callback is refused at the
+  // edge and every reply and delivery status is silently lost.
+  "/api/integrations/whatsapp/webhook",
   // The daily reminder sweep. A clock holds no session cookie, so without this
   // the request is refused at the edge with 401 and the route never runs — the
   // job would look "configured" and silently never send anything. The route's

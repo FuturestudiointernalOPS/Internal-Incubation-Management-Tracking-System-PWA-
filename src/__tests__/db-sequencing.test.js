@@ -280,6 +280,37 @@ describe("authorization resolution", () => {
 // queries against the ledger on the first gated request of a process.
 
 describe("the authorization migration ledger", () => {
+  // One-time migrations run only when explicitly enabled (they are applied on
+  // every deployed database — see `oneTimeMigrationsEnabled`).
+  beforeEach(() => {
+    process.env.AUTHZ_RUN_MIGRATIONS = "true";
+  });
+
+  afterEach(() => {
+    delete process.env.AUTHZ_RUN_MIGRATIONS;
+  });
+
+  test("a normal boot does not touch the ledger at all", async () => {
+    delete process.env.AUTHZ_RUN_MIGRATIONS;
+    jest.resetModules();
+    mockSequencer.reset();
+    const { resolveAuthorizationContext } = require(
+      "@/services/authorization/context",
+    );
+
+    await resolveAuthorizationContext({ cid: "USER_SEQ_BOOT_OFF", role: "staff" });
+
+    const report = mockSequencer.report();
+    expect(
+      report.calls.filter((sql) => String(sql).includes("authz_migrations")),
+    ).toHaveLength(0);
+    expect(
+      report.records.filter((record) =>
+        String(record.sql).includes("authz_migrations"),
+      ),
+    ).toHaveLength(0);
+  });
+
   test("the batch reads it once, and an applied migration costs nothing to ask about", async () => {
     jest.resetModules();
     mockSequencer.reset();

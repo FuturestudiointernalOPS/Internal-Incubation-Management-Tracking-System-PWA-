@@ -20,6 +20,7 @@
 const { buildAccessNav } = require("@/lib/masterNavigation");
 const {
   NAV_CAPABILITY_REQUIREMENTS,
+  requirementAlternatives,
 } = require("@/lib/masterNavigation/access");
 const { explainAuthorization } = require("@/services/authorization/contextDecisions");
 const {
@@ -152,14 +153,21 @@ describe("Lot 7 — what the sidebar shows, the server allows", () => {
       for (const id of renderedIds(nav)) {
         const requirement = NAV_CAPABILITY_REQUIREMENTS[id];
         if (!requirement) continue;
-        const decision = explainAuthorization(
-          ctx,
-          requirement.module,
-          requirement.capability,
-        );
-        if (!decision.allowed) {
+        // A requirement may offer alternatives (crm.view OR contacts.view).
+        // The sidebar is honest when at least one of them is allowed.
+        const decisions = requirementAlternatives(requirement).map((alternative) => ({
+          alternative,
+          decision: explainAuthorization(
+            ctx,
+            alternative.module,
+            alternative.capability,
+          ),
+        }));
+        if (!decisions.some(({ decision }) => decision.allowed)) {
           violations.push(
-            `${id} requires ${requirement.module}.${requirement.capability} (${decision.reason})`,
+            `${id} requires one of ${decisions
+              .map(({ alternative }) => `${alternative.module}.${alternative.capability}`)
+              .join(" or ")}`,
           );
         }
       }

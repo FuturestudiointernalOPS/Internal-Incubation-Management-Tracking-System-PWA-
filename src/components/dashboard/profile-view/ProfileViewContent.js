@@ -10,7 +10,9 @@ import SearchableSelect from "@/components/ui/SearchableSelect";
 import SectionCard from "./SectionCard";
 
 export default function ProfileViewContent({ ctx }) {
-  const { addAltEmail, altBusy, altEmails, altNotice, contact, countryOptions, deriveCurrentRole, editedCountryCode, editedLanguage, formatDate, formatDateTime, groupInfo, handlePhotoUpload, handleSave, history, languageOptions, newAltEmail, photoMessage, programs, removeAltEmail, roleLabel, saveMessage, saving, setEditedAlternativePhone, setEditedCountryCode, setEditedLanguage, setEditedName, setEditedPhone, setNewAltEmail, statusLabel, storedCountryCode, submissions, t, timeline, uploadingPhoto, participant } = ctx;
+  const { addAltEmail, altBusy, altEmails, altNotice, contact, countryOptions, deriveCurrentRole, editedCountryCode, editedLanguage, editedPhone, editedWhatsappOptIn, formatDate, formatDateTime, groupInfo, handlePhotoUpload, handleSave, history, languageOptions, newAltEmail, photoMessage, programs, removeAltEmail, roleLabel, saveMessage, saving, setEditedAlternativePhone, setEditedCountryCode, setEditedLanguage, setEditedName, setEditedPhone, setEditedWhatsappOptIn, setNewAltEmail, statusLabel, storedCountryCode, submissions, t, timeline, uploadingPhoto, participant } = ctx;
+  const whatsappConsent = editedWhatsappOptIn ?? contact.whatsapp_opt_in === true;
+  const phoneReady = String(editedPhone ?? contact.phone ?? "").replace(/\D/g, "").length >= 8;
 return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -133,6 +135,36 @@ return (
                 editable
                 onChange={setEditedPhone}
               />
+
+              {/* WhatsApp consent — the person's own choice, never inferred. */}
+              <div className="sm:col-span-2 rounded-xl border border-[var(--border-primary)] bg-[var(--surface-2)] p-3">
+                <label className={`flex items-start gap-3 ${phoneReady ? "cursor-pointer" : "cursor-not-allowed opacity-70"}`}>
+                  <input
+                    type="checkbox"
+                    checked={whatsappConsent}
+                    disabled={!phoneReady}
+                    onChange={(event) => setEditedWhatsappOptIn(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--brand-orange)] disabled:opacity-40"
+                  />
+                  <span className="space-y-1">
+                    <span className="block text-[10px] font-bold text-[var(--text-primary)] leading-snug">
+                      {t("adminMisc.profile.whatsappConsent")}
+                    </span>
+                    <span className="block text-[9px] font-medium text-[var(--text-secondary)] leading-snug">
+                      {phoneReady
+                        ? t("adminMisc.profile.whatsappConsentHint")
+                        : t("adminMisc.profile.whatsappConsentNeedsPhone")}
+                    </span>
+                    {whatsappConsent && contact.whatsapp_opted_in_at && (
+                      <span className="block text-[9px] font-bold uppercase tracking-wider text-emerald-400">
+                        {t("adminMisc.profile.whatsappConsentSince", {
+                          date: formatDate(contact.whatsapp_opted_in_at),
+                        })}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              </div>
               <InfoRow
                 icon={Shield}
                 label={t("adminMisc.profile.role")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarPlus, CheckCircle2, Download, Eye, FileSearch, XCircle, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
+import { CalendarPlus, Download, Eye, FileSearch, FileText, History, Pencil, ShieldCheck, Share2, Trash2, Upload } from "lucide-react";
 import { dataRoomCategory, isLegacyDocumentCategory } from "@/lib/dataRoom";
 import { formatBytes, formatDate, STATUS_ACCENT, STATUS_CLASS, documentTitle } from "./dataRoomUi";
 
@@ -22,7 +22,6 @@ export default function DataRoomDocumentCard({
   onReplace,
   onEdit,
   onReview,
-  onDecide,
   onSession,
   onAccess,
   onDelete,
@@ -104,26 +103,6 @@ export default function DataRoomDocumentCard({
             <ActionButton icon={Share2} label={t("dataRoom.shareAccess")} onClick={() => onAccess(documentEntry)} />
             <ActionButton icon={Pencil} label={t("dataRoom.editDetails")} onClick={() => onEdit(documentEntry)} />
             <ActionButton icon={Trash2} label={t("dataRoom.delete")} danger onClick={() => onDelete(documentEntry)} />
-          </>
-        ) : null}
-        {canReview && href ? (
-          <>
-            <button
-              type="button"
-              onClick={() => onDecide(documentEntry, "verified")}
-              disabled={decided}
-              className="stf-btn sm pr disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <CheckCircle2 size={11} /> {t("dataRoom.preview.approve")}
-            </button>
-            <button
-              type="button"
-              onClick={() => onDecide(documentEntry, "rejected")}
-              disabled={decided}
-              className="stf-btn sm rj disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <XCircle size={11} /> {t("dataRoom.preview.reject")}
-            </button>
           </>
         ) : null}
         {canReview && status === "rejected" ? (
