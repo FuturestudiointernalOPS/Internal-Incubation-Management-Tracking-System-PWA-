@@ -8,7 +8,7 @@ import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
-import { formatMetric, formatBand } from "./monthlyDisplay";
+import { formatMetric } from "./monthlyDisplay";
 import { getCurrencySymbol } from "@/lib/currencies";
 
 /**
@@ -130,6 +130,21 @@ function reportToForm(report) {
   };
 }
 
+/**
+ * Every money field is answered as an EXACT amount, or not at all.
+ * The band codes are cleared: no new filing may carry a range.
+ */
+function exactOnly(form) {
+  const next = { ...form };
+  for (const key of ["mrr", "otherRevenue", "expenses", "cash"]) {
+    const value = next[`${key}Value`];
+    const answered = value !== "" && value !== null && value !== undefined;
+    next[`${key}Mode`] = answered ? "exact" : "";
+    next[`${key}Band`] = "";
+  }
+  return next;
+}
+
 const STATUS_VARIANT = {
   draft: "default",
   submitted: "warning",
@@ -137,17 +152,17 @@ const STATUS_VARIANT = {
   rejected: "danger",
 };
 
-function MoneyField({ field, form, set, bands, disabled, t, lang, currency }) {
-  const mode = form[`${field.key}Mode`] || "";
-  const bandOptions = (bands?.[field.kind] || []).map((band) => ({
-    value: band.code,
-    label: formatBand(lang, band),
-  }));
-  const modeOptions = [
-    ...(field.optional ? [{ value: "", label: t("venture.reporting.monthly.notProvided") }] : []),
-    { value: "exact", label: t("venture.reporting.mode.exact") },
-    { value: "band", label: t("venture.reporting.mode.band") },
-  ];
+/**
+ * A money input. EXACT ONLY.
+ *
+ * The exact/range choice was withdrawn from the studio's reporting: a range is
+ * an estimate, and an estimate cannot be audited. The input therefore takes an
+ * amount and nothing else. A draft saved earlier as a range still shows which
+ * band it held, because that is the record — but it cannot be SAVED again until
+ * the founder states the actual figure.
+ */
+function MoneyField({ field, form, set, disabled, t, currency }) {
+  const legacyBand = form[`${field.key}Mode`] === "band" ? form[`${field.key}Band`] : "";
 
   return (
     <div
@@ -157,33 +172,19 @@ function MoneyField({ field, form, set, bands, disabled, t, lang, currency }) {
       <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
         {t(`venture.reporting.monthly.field.${field.key}`)}
       </p>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <AppSelect
-          label={t("venture.reporting.monthly.mode")}
-          value={mode}
-          onChange={set(`${field.key}Mode`)}
-          options={modeOptions}
-          disabled={disabled}
-        />
-        {mode === "band" ? (
-          <AppSelect
-            label={t("venture.reporting.monthly.band")}
-            value={form[`${field.key}Band`] || ""}
-            onChange={set(`${field.key}Band`)}
-            options={bandOptions}
-            disabled={disabled}
-          />
-        ) : (
-          <AppInput
-            type="number"
-            min="0"
-            label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
-            value={form[`${field.key}Value`] ?? ""}
-            onChange={set(`${field.key}Value`)}
-            disabled={disabled || mode === ""}
-          />
-        )}
-      </div>
+      <AppInput
+        type="number"
+        min="0"
+        label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
+        value={form[`${field.key}Value`] ?? ""}
+        onChange={set(`${field.key}Value`)}
+        disabled={disabled}
+      />
+      {legacyBand ? (
+        <p className="text-[10px] leading-snug" style={{ color: "var(--text-tertiary)" }}>
+          {t("venture.reporting.monthly.legacyBand", { band: legacyBand })}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -236,7 +237,9 @@ export default function VentureMonthlyReport({ ventureId, reloadKey = 0 }) {
     setStatus("");
     const result = await api(base, {
       method: "POST",
-      body: JSON.stringify({ ...form, period, submit }),
+      // Ranges were withdrawn: every money field is sent as EXACT, and the band
+      // codes are cleared. A field left empty stays unanswered (never zero).
+      body: JSON.stringify({ ...exactOnly(form), period, submit }),
     });
     setSaving(false);
     if (!result.ok) {
@@ -350,10 +353,8 @@ export default function VentureMonthlyReport({ ventureId, reloadKey = 0 }) {
               field={field}
               form={form}
               set={set}
-              bands={detail?.bands}
               disabled={locked}
               t={t}
-              lang={lang}
               currency={currency}
             />
           ))}

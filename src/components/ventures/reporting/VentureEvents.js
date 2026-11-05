@@ -8,7 +8,6 @@ import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import AppBadge from "@/components/ui/AppBadge";
 import SectionHead from "@/components/ui/SectionHead";
-import { formatBand } from "./monthlyDisplay";
 import { formatCurrencyAmount, getCurrencySymbol } from "@/lib/currencies";
 
 /**
@@ -137,7 +136,6 @@ function EvidencePicker({ value, name, onChange, slot, base, t }) {
 export default function VentureEvents({ ventureId, reloadKey = 0 }) {
   const { t, lang } = useI18n();
   const [events, setEvents] = useState([]);
-  const [bands, setBands] = useState({ flow: [], cash: [] });
   // The Venture's current currency — the fallback for amounts recorded before
   // the currency was stamped on the event.
   const [currency, setCurrency] = useState("XOF");
@@ -161,7 +159,6 @@ export default function VentureEvents({ ventureId, reloadKey = 0 }) {
     ]);
     if (eventsRes.ok) {
       setEvents(eventsRes.payload.events || []);
-      setBands(eventsRes.payload.bands || { flow: [], cash: [] });
       setCurrency(eventsRes.payload.currency || "XOF");
       setSummary(eventsRes.payload.interviews || { withEvidence: 0, minimum: 0, met: false });
     }
@@ -179,7 +176,11 @@ export default function VentureEvents({ ventureId, reloadKey = 0 }) {
     setSaving(true);
     setErrors([]);
     setStatus("");
-    const result = await api(`${base}/events`, { method: "POST", body: JSON.stringify(form) });
+    const result = await api(`${base}/events`, {
+      method: "POST",
+      // Exact only (Phase 4): the band code is cleared on every save.
+      body: JSON.stringify({ ...form, amountMode: form.amountValue === "" ? "" : "exact", amountBand: "" }),
+    });
     setSaving(false);
     if (!result.ok) {
       setErrors(result.payload.errors || [result.payload.error || "errors.somethingWrong"]);
@@ -230,10 +231,6 @@ export default function VentureEvents({ ventureId, reloadKey = 0 }) {
   };
 
   const visible = SHOW[form.eventType] || [];
-  const flowBands = (bands?.flow || []).map((band) => ({
-    value: band.code,
-    label: formatBand(lang, band),
-  }));
 
   if (loading) return <AppCard>{t("common.loading")}</AppCard>;
 
@@ -284,31 +281,14 @@ export default function VentureEvents({ ventureId, reloadKey = 0 }) {
 
         {visible.includes("amount") && (
           <div className="grid gap-4 md:grid-cols-2">
-            <AppSelect
-              label={t("venture.reporting.monthly.mode")}
-              value={form.amountMode}
-              onChange={set("amountMode")}
-              options={[
-                { value: "exact", label: t("venture.reporting.mode.exact") },
-                { value: "band", label: t("venture.reporting.mode.band") },
-              ]}
+            {/* Exact only: the amount is what actually moved (Phase 4). */}
+            <AppInput
+              type="number"
+              min="0"
+              label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
+              value={form.amountValue}
+              onChange={set("amountValue")}
             />
-            {form.amountMode === "band" ? (
-              <AppSelect
-                label={t("venture.reporting.monthly.band")}
-                value={form.amountBand}
-                onChange={set("amountBand")}
-                options={flowBands}
-              />
-            ) : (
-              <AppInput
-                type="number"
-                min="0"
-                label={t("venture.reporting.monthly.amount", { currency: getCurrencySymbol(currency) })}
-                value={form.amountValue}
-                onChange={set("amountValue")}
-              />
-            )}
           </div>
         )}
 

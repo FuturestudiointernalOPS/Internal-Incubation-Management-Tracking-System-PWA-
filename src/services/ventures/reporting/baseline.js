@@ -2,10 +2,18 @@ import {
   runInTransaction,
   selectActiveBaseline,
   insertBaseline,
+  selectTeamSnapshot,
   supersedeBaseline as supersedeBaselineRow,
 } from "@/models/ventureReportingStore";
 import { ensureReportingSchema } from "./settings";
-import { canCaptureBaseline, validateSupersedeReason, toAmount, toCount } from "./rules";
+import {
+  canCaptureBaseline,
+  validateSupersedeReason,
+  toAmount,
+  toCount,
+  snapshotFte,
+  normalizePeriod,
+} from "./rules";
 import { currentReportingCurrency } from "./monthly";
 
 const shape = (row) =>
@@ -49,17 +57,16 @@ const toPayload = ({ ventureUuid, ventureCode, actorCid, input = {} }) => ({
 /** Money is valid only if the chosen mode carries its value. */
 function validateMoney(payload) {
   const errors = [];
+  // Ranges withdrawn (Phase 4). A baseline captured BEFORE this change keeps its
+  // band forever; a NEW or superseding capture states the amount.
+  if (payload.cashMode === "band" || payload.outsideFinancingMode === "band") {
+    errors.push("venture.reporting.validation.bandRemoved");
+  }
   if (payload.cashMode === "exact" && payload.cashValue === null) {
     errors.push("venture.reporting.validation.cashValue");
   }
-  if (payload.cashMode === "band" && !payload.cashBand) {
-    errors.push("venture.reporting.validation.cashBand");
-  }
   if (payload.outsideFinancingMode === "exact" && payload.outsideFinancingValue === null) {
     errors.push("venture.reporting.validation.financingValue");
-  }
-  if (payload.outsideFinancingMode === "band" && !payload.outsideFinancingBand) {
-    errors.push("venture.reporting.validation.financingBand");
   }
   return errors;
 }
@@ -70,6 +77,34 @@ export async function getBaseline({ ventureUuid }) {
   return shape((result.rows || [])[0]);
 }
 
+/**
+ * FTE is a WORKFORCE figure. The founder enters the team once, in the workforce
+ * card, and the baseline inherits the equivalent — it is never typed a second
+ * time next to the very numbers it is made of. An explicit `fte` still wins for
+ * callers that send one; a missing or incomplete snapshot yields `null`
+ * ("not reported"), never a zero.
+ */
+async function fteFromWorkforce(ventureUuid) {
+  const period = normalizePeriod(new Date().toISOString().slice(0, 7));
+  if (!period) return null;
+  const result = await selectTeamSnapshot(ventureUuid, period);
+  const row = (result.rows || [])[0];
+  if (!row) return null;
+  return snapshotFte({
+    fullTime: row.full_time_employees,
+    partTimeDays: row.part_time_days,
+    fullTimeFounders: row.full_time_founders,
+  });
+}
+
+/** The FTE a capture should store: what the caller stated, else the workforce. */
+async function resolveFte({ ventureUuid, input, fallback = null }) {
+  const stated = toAmount(input.fte);
+  if (stated !== null) return stated;
+  const derived = await fteFromWorkforce(ventureUuid);
+  return derived === null ? fallback : derived;
+}
+
 /** Capture once. A second capture is refused — supersede instead. */
 export async function captureBaseline({ ventureUuid, ventureCode, actorCid, input = {} }) {
   await ensureReportingSchema();
@@ -78,7 +113,8 @@ export async function captureBaseline({ ventureUuid, ventureCode, actorCid, inpu
     return { errors: ["venture.reporting.validation.baselineLocked"] };
   }
   const currency = await currentReportingCurrency(ventureUuid);
-  const payload = toPayload({ ventureUuid, ventureCode, actorCid, input: { ...input, currency } });
+  const fte = await resolveFte({ ventureUuid, input });
+  const payload = toPayload({ ventureUuid, ventureCode, actorCid, input: { ...input, fte, currency } });
   const errors = validateMoney(payload);
   if (errors.length) return { errors };
   const result = await insertBaseline(payload);
@@ -99,8 +135,17 @@ export async function supersedeBaseline({ ventureUuid, ventureCode, actorCid, re
     await supersedeBaselineRow(query, { ventureUuid, actorCid, reason: String(reason).trim() });
     if (input) {
       const currency = await currentReportingCurrency(ventureUuid);
+      // A replacement keeps the FTE it knew when no newer workforce snapshot
+      // can produce one — otherwise superseding would silently erase it.
+      const fte = await resolveFte({
+        ventureUuid,
+        input,
+        fallback: active.rows[0].fte === null || active.rows[0].fte === undefined
+          ? null
+          : Number(active.rows[0].fte),
+      });
       const result = await insertBaseline(
-        toPayload({ ventureUuid, ventureCode, actorCid, input: { ...input, currency } }),
+        toPayload({ ventureUuid, ventureCode, actorCid, input: { ...input, fte, currency } }),
         query,
       );
       inserted = (result.rows || [])[0];

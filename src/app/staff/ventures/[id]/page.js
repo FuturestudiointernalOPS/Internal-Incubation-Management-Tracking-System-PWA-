@@ -6,12 +6,14 @@ import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/lib/notify";
-import { Loader2, Rocket, ListTodo, Calendar, Route, StickyNote, FolderKanban, FolderOpen, TrendingUp, Building2 } from "lucide-react";
+import { Loader2, Rocket, ListTodo, Calendar, Route, StickyNote, FolderKanban, FolderOpen, Building2 } from "lucide-react";
 import VenturePageHeader from "@/components/ventures/VenturePageHeader";
 import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
+import RecurringSchedulePanel from "@/components/ventures/sessions/RecurringSchedulePanel";
+import HandbookButton from "@/components/ventures/handbook/HandbookModal";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 import CockpitMetrics from "@/components/ventures/cockpit/CockpitMetrics";
@@ -23,7 +25,7 @@ import VenturePeoplePanel from "@/components/ventures/projects/VenturePeoplePane
 import VentureReportingCharts from "@/components/ventures/reporting/VentureReportingCharts";
 import { useApi } from "@/lib/hooks/useApi";
 import { VentureWorkspace } from "@/components/ventures/workspace/VentureContext";
-import { InvestmentTab } from "@/components/ventures/workspace/tabs/GrowthTabs";
+import { DataRoomReadinessCard, RoadmapReadinessCard } from "@/components/ventures/workspace/tabs/GrowthTabs";
 import { pickInvestmentReadiness } from "@/components/participant/ventures/ventureScreenModel";
 import { cardStyle } from "@/components/participant/ventures/ventureScreenHelpers";
 
@@ -50,9 +52,6 @@ const TABS = [
   // The Project lens on the same work: every milestone, activity and deliverable
   // in one row each — the Super Admin's "Project" button, for the Venture Manager.
   { id: "projects", label: "venture.projects.pageTitle", icon: FolderKanban, leadManagerOnly: true },
-  // Investment readiness: the same two indicators the founder sees (roadmap
-  // progress and Data Room completeness), between the work lens and the tasks.
-  { id: "investment", label: "venture.investment", icon: TrendingUp },
   { id: "tasks", label: "venture.tasks", icon: ListTodo },
   { id: "sessions", label: "venture.sessions", icon: Calendar },
   { id: "notes", label: "venture.notes", icon: StickyNote },
@@ -101,8 +100,12 @@ export default function StaffVentureWorkspace() {
   const visibleTabs = TABS.filter((tab) => !tab.leadManagerOnly || isLeadManager);
   const activeTab = visibleTabs.some((tab) => tab.id === tabFromUrl) ? tabFromUrl : "overview";
 
+  // One read, two homes: Data Room readiness in the Data Room tab, roadmap
+  // progress in the Journey tab. `investment` is retired — an old ?tab=investment
+  // is not in TABS, so it falls back to Overview.
+  const readinessTabs = activeTab === "dataRoom" || activeTab === "journey";
   const { data: investmentReadiness } = useApi(
-    activeTab === "investment" ? `/api/ventures/${id}/investment-readiness` : null,
+    readinessTabs ? `/api/ventures/${id}/investment-readiness` : null,
     { defaultValue: null, transform: pickInvestmentReadiness, deps: [id, activeTab] },
   );
 
@@ -271,9 +274,13 @@ export default function StaffVentureWorkspace() {
         </div>
       )}
 
-      {/* Tabs — same bar as the Super Admin venture hub, for consistency */}
-      <div className="flex gap-1 border-b border-[var(--border-primary)] overflow-x-auto scrollbar-thin">
-        {visibleTabs.map((tab) => {
+      {/* Tabs — same bar as the Super Admin venture hub, for consistency.
+          The handbook is pinned at the right of this bar so it is one click away
+          on every tab of THIS venture, and it opens as a popup: a manager reads
+          a page and carries on without leaving the screen. */}
+      <div className="flex items-center gap-2 border-b border-[var(--border-primary)]">
+        <div className="flex gap-1 overflow-x-auto scrollbar-thin flex-1">
+          {visibleTabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
@@ -291,6 +298,8 @@ export default function StaffVentureWorkspace() {
             </button>
           );
         })}
+        </div>
+        <HandbookButton className="shrink-0 mr-1" />
       </div>
 
       {activeTab === "overview" && (
@@ -315,6 +324,8 @@ export default function StaffVentureWorkspace() {
 
       </>
       )}
+
+      {activeTab === "sessions" && <RecurringSchedulePanel ventureId={id} />}
 
       {activeTab === "sessions" && (
         <div className="card">
@@ -342,7 +353,14 @@ export default function StaffVentureWorkspace() {
         </div>
       )}
 
-      {activeTab === "journey" && <JourneyManagerPanel ventureId={id} />}
+      {activeTab === "journey" && (
+        <VentureWorkspace.Provider value={{ investmentReadiness, cardStyle }}>
+          <div className="space-y-4">
+            <RoadmapReadinessCard />
+            <JourneyManagerPanel ventureId={id} />
+          </div>
+        </VentureWorkspace.Provider>
+      )}
 
       {/* Projects — the same read the Super Admin's venture "Project" page shows.
           The server gate is `ventures.view` + venture scope, which already admits
@@ -381,15 +399,16 @@ export default function StaffVentureWorkspace() {
         </div>
       )}
 
-      {activeTab === "investment" && (
-        <VentureWorkspace.Provider value={{ investmentReadiness, cardStyle }}>
-          <InvestmentTab />
-        </VentureWorkspace.Provider>
-      )}
-
       {activeTab === "tasks" && <VentureTasksPanel ventureId={id} />}
 
-      {activeTab === "dataRoom" && <VentureDataRoom ventureId={id} />}
+      {activeTab === "dataRoom" && (
+        <VentureWorkspace.Provider value={{ investmentReadiness, cardStyle }}>
+          <div className="space-y-4">
+            <DataRoomReadinessCard />
+            <VentureDataRoom ventureId={id} />
+          </div>
+        </VentureWorkspace.Provider>
+      )}
 
       {activeTab === "notes" && <VentureNotesPanel ventureId={id} />}
 

@@ -1,6 +1,11 @@
-import { selectTeamSnapshot, upsertTeamSnapshot } from "@/models/ventureReportingStore";
+import {
+  selectTeamSnapshot,
+  upsertTeamSnapshot,
+  selectActiveBaseline,
+  setBaselineFteIfNull,
+} from "@/models/ventureReportingStore";
 import { ensureReportingSchema } from "./settings";
-import { computeTeamShares, toCount, toAmount, normalizePeriod } from "./rules";
+import { computeTeamShares, snapshotFte, toCount, toAmount, normalizePeriod } from "./rules";
 
 /**
  * Kept as a re-export because Phase 1 callers (and its test) import
@@ -56,5 +61,33 @@ export async function saveTeam({ ventureUuid, ventureCode, actorCid, input = {} 
     actorCid,
   });
 
-  return { team: shape((result.rows || [])[0]) };
+  const row = (result.rows || [])[0];
+  if (row) await backfillBaselineFte({ ventureUuid, period, snapshot: row });
+
+  return { team: shape(row) };
+}
+
+/**
+ * A baseline captured BEFORE the workforce card was filled carries no FTE — the
+ * founder was never asked twice. Fill it once, from the snapshot of the month
+ * the baseline belongs to, and only while it is still empty.
+ */
+async function backfillBaselineFte({ ventureUuid, period, snapshot }) {
+  const active = await selectActiveBaseline(ventureUuid);
+  const baseline = (active.rows || [])[0];
+  if (!baseline || (baseline.fte !== null && baseline.fte !== undefined)) return;
+
+  const capturedMonth = baseline.captured_at
+    ? new Date(baseline.captured_at).toISOString().slice(0, 7)
+    : null;
+  if (!capturedMonth || `${capturedMonth}-01` !== period) return;
+
+  const fte = snapshotFte({
+    fullTime: snapshot.full_time_employees,
+    partTimeDays: snapshot.part_time_days,
+    fullTimeFounders: snapshot.full_time_founders,
+  });
+  if (fte === null) return;
+
+  await setBaselineFteIfNull(ventureUuid, fte);
 }

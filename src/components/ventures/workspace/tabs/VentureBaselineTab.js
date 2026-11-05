@@ -4,10 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import AppCard from "@/components/ui/AppCard";
 import AppInput from "@/components/ui/AppInput";
-import AppSelect from "@/components/ui/AppSelect";
 import AppButton from "@/components/ui/AppButton";
 import SectionHead from "@/components/ui/SectionHead";
+import InfoHint from "@/components/ui/InfoHint";
 import { formatCurrencyAmount, getCurrencySymbol } from "@/lib/currencies";
+// Pure rules module (no database, no HTTP) — the ONE FTE formula, shared with
+// the monthly metrics and the stage rules, so the tab cannot drift from them.
+import { snapshotFte } from "@/services/ventures/reporting/rules";
 
 async function api(path, options) {
   const response = await fetch(path, {
@@ -22,6 +25,28 @@ function currentPeriod() {
   return new Date().toISOString().slice(0, 7);
 }
 
+/** An untouched input is "not reported", not a zero. */
+function numOrNull(value) {
+  return value === "" || value === null || value === undefined ? null : value;
+}
+
+const fteText = (value) =>
+  value === null || value === undefined ? "—" : String(Math.round(Number(value) * 100) / 100);
+
+/**
+ * A baseline is captured with AMOUNTS. The range mode was withdrawn (Phase 4);
+ * an amount that is not filled stays unanswered instead of becoming a band.
+ */
+function exactBaseline(form) {
+  return {
+    ...form,
+    cashMode: "exact",
+    cashBand: "",
+    outsideFinancingMode: "exact",
+    outsideFinancingBand: "",
+  };
+}
+
 export default function VentureBaselineTab({ ventureId }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
@@ -32,7 +57,6 @@ export default function VentureBaselineTab({ ventureId }) {
   const [baseline, setBaseline] = useState(null);
   const [supersedeReason, setSupersedeReason] = useState("");
   const [baselineForm, setBaselineForm] = useState({
-    fte: "",
     payingCustomers: "",
     cashMode: "exact",
     cashValue: "",
@@ -77,7 +101,8 @@ export default function VentureBaselineTab({ ventureId }) {
     setStatus("");
     const result = await api(`${base}/baseline`, {
       method: "POST",
-      body: JSON.stringify(baselineForm),
+      // Exact only: the range mode was withdrawn (Phase 4).
+      body: JSON.stringify(exactBaseline(baselineForm)),
     });
     setSaving(false);
     if (!result.ok) {
@@ -95,7 +120,7 @@ export default function VentureBaselineTab({ ventureId }) {
     setStatus("");
     const result = await api(`${base}/baseline`, {
       method: "PUT",
-      body: JSON.stringify({ reason: supersedeReason, baseline: baselineForm }),
+      body: JSON.stringify({ reason: supersedeReason, baseline: exactBaseline(baselineForm) }),
     });
     setSaving(false);
     if (!result.ok) {
@@ -157,11 +182,20 @@ export default function VentureBaselineTab({ ventureId }) {
         : "—"
     : "—";
 
+  // FTE belongs to the WORKFORCE, not to the money grid: it is produced by the
+  // team figures below and stored once, with the baseline.
+  const workforceFte = snapshotFte({
+    fullTime: numOrNull(team?.fullTimeEmployees),
+    partTimeDays: numOrNull(team?.partTimeDays),
+    fullTimeFounders: numOrNull(team?.fullTimeFounders),
+  });
+  const shownFte = baseline ? baseline.fte : workforceFte;
+
   return (
     <div className="space-y-6">
       <SectionHead
-        title={t("venture.baseline") || "Baseline"}
-        subtitle="The historical starting line of the venture: initial finances, customer traction and genesis workforce."
+        title={t("venture.baseline") || "Venture Baseline"}
+        subtitle={t("venture.reporting.baseline.subtitle")}
       />
 
       {errors.length > 0 && (
@@ -175,10 +209,14 @@ export default function VentureBaselineTab({ ventureId }) {
       )}
       {status && <p className="text-xs font-bold text-emerald-600">{status}</p>}
 
-      {/* ── Section 1: Initial Business & Financial Position ── */}
+      {/* ── Section 1: money and customers — the financial starting line ── */}
       <AppCard padding="normal" className="space-y-4">
-        <h3 className="text-xs font-black uppercase tracking-wider text-[var(--brand-orange)]">
-          1. Initial Financial & Traction Position
+        <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-[var(--brand-orange)]">
+          {t("venture.reporting.baseline.sectionPositionTitle")}
+          <InfoHint
+            label={t("venture.reporting.hint.sectionFinancial")}
+            text={t("venture.reporting.hint.sectionFinancial")}
+          />
         </h3>
         {baseline ? (
           <>
@@ -187,11 +225,10 @@ export default function VentureBaselineTab({ ventureId }) {
                 {t("venture.reporting.baseline.locked")}
               </p>
               <p className="text-[11px] text-[var(--text-secondary)] mt-0.5">
-                This initial baseline is locked as the historical reference for growth and job creation calculations.
+                {t("venture.reporting.baseline.lockedNote")}
               </p>
             </div>
             <div className="grid gap-3 md:grid-cols-2 text-xs" style={{ color: "var(--text-secondary)" }}>
-              <span>{t("venture.reporting.baseline.fte")}: <strong className="text-[var(--text-primary)]">{baseline.fte ?? "—"}</strong></span>
               <span>{t("venture.reporting.baseline.payingCustomers")}: <strong className="text-[var(--text-primary)]">{baseline.payingCustomers ?? "—"}</strong></span>
               <span>{t("venture.reporting.baseline.cash", { currency: currencySymbol })}: <strong className="text-[var(--text-primary)]">{cashText}</strong></span>
               <span>{t("venture.reporting.baseline.outsideFinancing", { currency: currencySymbol })}: <strong className="text-[var(--text-primary)]">{financingText}</strong></span>
@@ -200,7 +237,12 @@ export default function VentureBaselineTab({ ventureId }) {
               <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
                 {t("venture.reporting.baseline.supersedeTitle")}
               </p>
-              <AppInput label={t("venture.reporting.baseline.reason")} value={supersedeReason} onChange={(event) => setSupersedeReason(event.target.value)} />
+              <AppInput
+                label={t("venture.reporting.baseline.reason")}
+                hint={t("venture.reporting.hint.baselineSupersedeReason")}
+                value={supersedeReason}
+                onChange={(event) => setSupersedeReason(event.target.value)}
+              />
               <AppButton variant="danger" onClick={supersedeBaseline} disabled={saving}>
                 {t("venture.reporting.action.supersede")}
               </AppButton>
@@ -209,36 +251,38 @@ export default function VentureBaselineTab({ ventureId }) {
         ) : (
           <>
             <div className="grid gap-4 md:grid-cols-2">
-              <AppInput type="number" label={t("venture.reporting.baseline.fte")} value={baselineForm.fte} onChange={(event) => setBaselineForm((c) => ({ ...c, fte: event.target.value }))} />
-              <AppInput type="number" label={t("venture.reporting.baseline.payingCustomers")} value={baselineForm.payingCustomers} onChange={(event) => setBaselineForm((c) => ({ ...c, payingCustomers: event.target.value }))} />
-              <AppSelect
-                label={t("venture.reporting.baseline.cashMode")}
-                value={baselineForm.cashMode}
-                onChange={(event) => setBaselineForm((c) => ({ ...c, cashMode: event.target.value }))}
-                options={[
-                  { value: "exact", label: t("venture.reporting.mode.exact") },
-                  { value: "band", label: t("venture.reporting.mode.band") },
-                ]}
+              <AppInput
+                type="number"
+                label={t("venture.reporting.baseline.payingCustomers")}
+                hint={t("venture.reporting.hint.baselinePayingCustomers")}
+                value={baselineForm.payingCustomers}
+                onChange={(event) => setBaselineForm((c) => ({ ...c, payingCustomers: event.target.value }))}
               />
-              {baselineForm.cashMode === "exact" ? (
-                <AppInput type="number" label={t("venture.reporting.baseline.cash", { currency: getCurrencySymbol(currentCurrency) })} value={baselineForm.cashValue} onChange={(event) => setBaselineForm((c) => ({ ...c, cashValue: event.target.value }))} />
-              ) : (
-                <AppInput label={t("venture.reporting.baseline.cashBand")} value={baselineForm.cashBand} onChange={(event) => setBaselineForm((c) => ({ ...c, cashBand: event.target.value }))} />
-              )}
-              <AppSelect
-                label={t("venture.reporting.baseline.financingMode")}
-                value={baselineForm.outsideFinancingMode}
-                onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingMode: event.target.value }))}
-                options={[
-                  { value: "exact", label: t("venture.reporting.mode.exact") },
-                  { value: "band", label: t("venture.reporting.mode.band") },
-                ]}
+              {/* Exact only: ranges were withdrawn from new captures (Phase 4). */}
+              <AppInput
+                type="number"
+                label={t("venture.reporting.baseline.cash", { currency: getCurrencySymbol(currentCurrency) })}
+                hint={t("venture.reporting.hint.baselineCash")}
+                value={baselineForm.cashValue}
+                onChange={(event) => setBaselineForm((c) => ({ ...c, cashValue: event.target.value }))}
               />
-              {baselineForm.outsideFinancingMode === "exact" ? (
-                <AppInput type="number" label={t("venture.reporting.baseline.outsideFinancing", { currency: getCurrencySymbol(currentCurrency) })} value={baselineForm.outsideFinancingValue} onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingValue: event.target.value }))} />
-              ) : (
-                <AppInput label={t("venture.reporting.baseline.outsideFinancingBand")} value={baselineForm.outsideFinancingBand} onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingBand: event.target.value }))} />
-              )}
+              {baselineForm.cashMode === "band" && baselineForm.cashBand ? (
+                <p className="text-[11px] md:col-span-2" style={{ color: "var(--text-tertiary)" }}>
+                  {t("venture.reporting.monthly.legacyBand", { band: baselineForm.cashBand })}
+                </p>
+              ) : null}
+              <AppInput
+                type="number"
+                label={t("venture.reporting.baseline.outsideFinancing", { currency: getCurrencySymbol(currentCurrency) })}
+                hint={t("venture.reporting.hint.baselineFinancing")}
+                value={baselineForm.outsideFinancingValue}
+                onChange={(event) => setBaselineForm((c) => ({ ...c, outsideFinancingValue: event.target.value }))}
+              />
+              {baselineForm.outsideFinancingMode === "band" && baselineForm.outsideFinancingBand ? (
+                <p className="text-[11px] md:col-span-2" style={{ color: "var(--text-tertiary)" }}>
+                  {t("venture.reporting.monthly.legacyBand", { band: baselineForm.outsideFinancingBand })}
+                </p>
+              ) : null}
             </div>
             <AppButton onClick={captureBaseline} disabled={saving}>
               {t("venture.reporting.baseline.capture")}
@@ -247,14 +291,37 @@ export default function VentureBaselineTab({ ventureId }) {
         )}
       </AppCard>
 
-      {/* ── Section 2: Genesis Headcount & Demographic Breakdown ── */}
+      {/* ── Section 2: the workforce, and the FTE it produces ── */}
       <AppCard padding="normal" className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black uppercase tracking-wider text-[var(--brand-orange)]">
-            2. Starting Workforce & Demographic Indicators
+          <h3 className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-[var(--brand-orange)]">
+            {t("venture.reporting.baseline.sectionWorkforceTitle")}
+            <InfoHint
+              label={t("venture.reporting.hint.sectionWorkforce")}
+              text={t("venture.reporting.hint.sectionWorkforce")}
+            />
           </h3>
           <span className="text-[11px] text-[var(--text-secondary)]">
-            Period: {teamPeriod}
+            {t("venture.reporting.baseline.period")}: {teamPeriod}
+          </span>
+        </div>
+
+        {/* The FTE is read, never typed: it is the workforce figures below, run
+            through the one shared formula. */}
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-3 rounded-lg bg-[var(--surface-2)] text-xs">
+          <span className="font-bold text-[var(--text-primary)]">
+            {t("venture.reporting.baseline.fte")}: {fteText(shownFte)}
+          </span>
+          <InfoHint
+            label={t("venture.reporting.hint.baselineFte")}
+            text={t("venture.reporting.hint.baselineFte")}
+          />
+          <span className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+            {baseline
+              ? baseline.fte === null || baseline.fte === undefined
+                ? t("venture.reporting.baseline.fteMissing")
+                : t("venture.reporting.baseline.fteCaptured")
+              : t("venture.reporting.baseline.fteComputed")}
           </span>
         </div>
         <div className="grid gap-4 md:grid-cols-3">
@@ -263,6 +330,7 @@ export default function VentureBaselineTab({ ventureId }) {
               key={key}
               type="number"
               label={t(`venture.reporting.team.${key}`)}
+              hint={t(`venture.reporting.hint.${key}`)}
               value={team?.[key] ?? ""}
               onChange={(event) => setTeam((current) => ({ ...(current || {}), [key]: event.target.value }))}
             />
@@ -286,7 +354,7 @@ export default function VentureBaselineTab({ ventureId }) {
         )}
         <div className="flex justify-end">
           <AppButton onClick={saveTeam} disabled={saving}>
-            {t("common.save")} Workforce Snapshot
+            {t("venture.reporting.baseline.saveWorkforce")}
           </AppButton>
         </div>
       </AppCard>

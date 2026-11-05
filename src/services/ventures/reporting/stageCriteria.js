@@ -17,6 +17,7 @@
  */
 
 import { settingValue } from "./settingDefinitions";
+import { computeFte } from "./rules";
 
 export const STAGES = ["idea", "validation", "early_traction", "growth", "scaling"];
 
@@ -249,10 +250,14 @@ const scalingCriteria = ({ months, metrics, events, quarter, settings }) => {
   const window = last(months, sustainedMonths);
   const growthValues = window.map((row) => asPercent(metricOf(metrics, row.period, "customer_growth_3m")));
   const latest = last(months, 1)[0] || null;
-  const nonFounderFte =
-    latest && latest.fullTime !== null && latest.fullTime !== undefined
-      ? Number(latest.fullTime) + Number(latest.partTimeDays ?? 0) / 20
-      : null;
+  const nonFounderFte = latest
+    ? computeFte({
+        fullTime: latest.fullTime,
+        partTimeDays: latest.partTimeDays,
+        // Founders are excluded on purpose: they are not evidence of hiring.
+        includeFounders: false,
+      })
+    : null;
 
   return [
     result("new_market", hasEvent(events, "new_market") ? MET : NOT_MET, { expected: 1, unit: "event" }),

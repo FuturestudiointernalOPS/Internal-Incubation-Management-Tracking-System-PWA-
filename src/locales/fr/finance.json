@@ -1,5 +1,9 @@
 {
   "finance": {
+    "displayCurrency": {
+      "label": "Devise d'affichage",
+      "follow": "Suivre la venture ({currency})"
+    },
     "dashboard": {
       "title": "Tableau de Bord Financier",
       "subtitle": "Vue d'ensemble — tous les projets",

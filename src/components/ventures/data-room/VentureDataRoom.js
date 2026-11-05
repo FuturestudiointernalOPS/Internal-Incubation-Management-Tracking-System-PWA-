@@ -189,16 +189,10 @@ export default function VentureDataRoom({ ventureId, className = "" }) {
             </button>
           )}
 
-          {canUpload && (
-            <button
-              type="button"
-              onClick={() => setUploadState({ mode: "create", category: selectedCategory || undefined })}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--brand-orange)] text-black text-xs font-extrabold transition-all shadow-sm hover:opacity-90"
-            >
-              <Upload size={14} />
-              <span>{t("dataRoom.upload")}</span>
-            </button>
-          )}
+          {/* The header "Upload document" button was removed on purpose: files
+              are filed per CATEGORY (click a coverage row, or the empty room),
+              so an upload always lands in a folder with a requirement behind it
+              instead of in an unclassified pile. */}
         </div>
       </div>
 

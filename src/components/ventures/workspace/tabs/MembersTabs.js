@@ -7,18 +7,64 @@ import { useVenture } from "../VentureContext";
 import { getFounderMembers, getTeamMembers } from "../ventureMeta";
 import VentureSupportCard from "@/components/ventures/support/VentureSupportCard";
 
-/* Add Member — a founder invites ANOTHER FOUNDER by email; the person joins the
-   Venture only after accepting the emailed link. The type is fixed to founder:
-   team members and roles are the Venture's staff decision, and the server
-   refuses anything else from a founder. */
+/* Add Member — the TYPE is chosen before the email.
+
+   A founder may only invite other founders; a staff actor (Super Admin, Venture
+   Manager) may invite a team member as well. The server enforces that split
+   (`errors.founderInviteOnly`), so the chooser is shown to a staff actor only —
+   offering a founder an option that would be refused is not a choice, it is a
+   trap. Roles stay staff-only either way: the type decides membership, never
+   permissions. */
+const STAFF_ROLES = new Set([
+  "super_admin", "staff", "program_manager",
+  "facilitator", "finance", "crm", "team",
+]);
+
 function AddMemberModal() {
   const { t } = useI18n();
-  const { showAddMember, setShowAddMember, inviteEmail, setInviteEmail, inviting, handleInviteMember, inputStyle } = useVenture();
+  const {
+    showAddMember, setShowAddMember, inviteEmail, setInviteEmail, inviting,
+    handleInviteMember, inputStyle, addMemberType, setAddMemberType, user,
+  } = useVenture();
   if (!showAddMember) return null;
+
+  const isStaff = STAFF_ROLES.has(String(user?.role || "").toLowerCase());
+  const type = isStaff ? addMemberType : "founder";
+
   return (
     <AppModal isOpen onClose={() => setShowAddMember(false)} title={t("venture.addMember")} size="sm">
       <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); handleInviteMember(); }}>
-        <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>{t("venture.addMemberFounderHint")}</p>
+        {isStaff && (
+          <div>
+            <span className="block text-sm font-medium mb-1">{t("venture.memberType")}</span>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { value: "founder", label: t("venture.addAsFounder") },
+                { value: "team_member", label: t("venture.teamMembers") },
+              ].map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={type === option.value}
+                  onClick={() => setAddMemberType(option.value)}
+                  className="px-3 py-2 rounded-lg text-sm font-bold border transition-colors"
+                  style={{
+                    ...inputStyle,
+                    borderColor:
+                      type === option.value ? "var(--brand-orange)" : "var(--border-primary)",
+                    color:
+                      type === option.value ? "var(--brand-orange)" : "var(--text-secondary)",
+                  }}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="text-[12px]" style={{ color: "var(--text-secondary)" }}>
+          {type === "team_member" ? t("venture.addMemberTeamHint") : t("venture.addMemberFounderHint")}
+        </p>
         <div>
           <label className="block text-sm font-medium mb-1" htmlFor="invite-founder-email">{t("venture.inviteEmail")}</label>
           <input
@@ -106,7 +152,7 @@ export function TeamTab() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[11px] font-black uppercase tracking-wider text-[var(--text-secondary)]">{t("venture.teamMembers")} ({membersLoading ? "…" : members.length})</h2>
-          {/* Only founders can be added from here (fixed server-side too). */}
+          {/* Founders invite founders; staff may also invite team members. */}
           <button
             onClick={() => { setAddMemberType("founder"); setShowAddMember(true); }}
             className="stf-btn pr"

@@ -32,7 +32,14 @@ export const GET = createHandler(async (req, { params }) => {
     getProfileHistory({ ventureUuid: venture.id }),
   ]);
 
-  return NextResponse.json({ success: true, profile, history });
+  return NextResponse.json({
+    success: true,
+    profile,
+    history,
+    // The Venture's own name: the static profile defaults its LEGAL NAME to
+    // this so a founder never retypes what the platform already knows.
+    venture_name: venture.venture_name || null,
+  });
 });
 
 export const POST = createHandler(async (req, { params }) => {

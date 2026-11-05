@@ -62,6 +62,12 @@ export default function ImpactPanel({ dashboard, baseline }) {
         />
         <StatusCard
           tone="o"
+          label={t("vadmin.reportsImpact.headcount")}
+          value={num(dashboard?.team?.headcount ?? null, lang)}
+          hint={t("vadmin.reportsImpact.headcountHint")}
+        />
+        <StatusCard
+          tone="o"
           label={t("vadmin.reportsImpact.womenShare")}
           value={dashboard?.team?.womenShare == null ? "—" : `${num(dashboard.team.womenShare, lang, 1)}%`}
           hint={t("vadmin.reportsImpact.teamHint")}

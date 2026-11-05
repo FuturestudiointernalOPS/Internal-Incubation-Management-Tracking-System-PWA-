@@ -27,11 +27,11 @@ export const DUE_DILIGENCE_FOLDERS = [
   },
   {
     key: "legal",
-    categories: ["legal_corporate", "due_diligence"],
+    categories: ["legal_corporate"],
   },
   {
     key: "product",
-    categories: ["product_technology", "team", "impact_sustainability", "reports_milestones"],
+    categories: ["product_technology", "impact_sustainability", "reports_milestones"],
   },
 ];
 

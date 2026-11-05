@@ -34,6 +34,12 @@ export default [
 "CREATE TABLE IF NOT EXISTS venture_journey_template_tasks (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), milestone_id UUID NOT NULL REFERENCES venture_journey_template_milestones(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, priority TEXT DEFAULT 'medium', labels JSONB DEFAULT '[]', checklist JSONB DEFAULT '[]', review_required BOOLEAN DEFAULT FALSE, required_deliverable_type TEXT, display_order INTEGER DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())",
 // Vinance 3 Phase 2 — contextual notes: attachments (text/links/files)
 "ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS attachments JSONB",
+// WHICH KIND of staff note this is. The server only ever allows the milestone
+// scope, so the scope cannot tell an activity report from a note written on the
+// milestone itself — this column does. NULL = milestone note, which is what
+// every row written before this column existed was, so nothing is reclassified
+// by guesswork.
+"ALTER TABLE venture_notes ADD COLUMN IF NOT EXISTS note_kind TEXT",
 // Vinance 3 Phase 1 (coach identity) — sessions know WHO the coach is as
 // a platform user (Future Studio staff or invited external coach). Soft
 // ref: legacy venture_coaches rows keep working via coach_name fallback.

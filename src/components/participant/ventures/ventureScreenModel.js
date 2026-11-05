@@ -5,8 +5,11 @@
 // no state and read nothing themselves, so they live here and the screen imports
 // them, keeping the screen's body about state and orchestration only.
 
+// `investment` is retired: the Data Room's completeness is shown INSIDE the Data
+// Room, and roadmap progress inside the Journey. An old `?tab=investment` link is
+// not in this list, so the screen falls back to the first tab.
 export const TABS = [
-  "dashboard", "profile", "baseline", "team", "journey", "investment", "dataRoom",
+  "dashboard", "profile", "baseline", "team", "journey", "dataRoom",
 ];
 
 /**

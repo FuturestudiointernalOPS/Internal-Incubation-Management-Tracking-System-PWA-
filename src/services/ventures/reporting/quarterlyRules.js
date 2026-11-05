@@ -58,23 +58,23 @@ const moneyOf = (input, field) => {
   };
 };
 
-const bandKnown = (bands, code) => (bands.flow || []).some((band) => band.code === code);
-
 /**
  * Only the impossible is refused. A blank field is NOT an error — the spec
  * treats an unanswered question as missing, and the stage engine says so.
  */
-export function validateQuarterlyReport(input = {}, { bands = {} } = {}) {
+export function validateQuarterlyReport(input = {}) {
   const errors = [];
 
   for (const field of ["salesMarketing", "expansion", "churned"]) {
     const money = moneyOf(input, field);
     if (!money.mode) continue;
-    if (money.mode === "exact" && money.value === null) {
-      errors.push(`venture.reporting.quarterly.validation.${field}`);
+    // Ranges withdrawn (Phase 4): a new or corrected quarter states amounts.
+    if (money.mode === "band") {
+      errors.push("venture.reporting.validation.bandRemoved");
+      continue;
     }
-    if (money.mode === "band" && !bandKnown(bands, money.band)) {
-      errors.push(`venture.reporting.quarterly.validation.${field}Band`);
+    if (money.value === null) {
+      errors.push(`venture.reporting.quarterly.validation.${field}`);
     }
   }
 

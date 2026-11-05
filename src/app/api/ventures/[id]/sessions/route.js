@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { ventureOwned, ventureNotFound, resolveVentureDbId } from "@/lib/ventureOwnership";
-import { listSessions, getSession, createSession, updateSession, cancelSession, rescheduleSession, deleteSession, addSessionNote, recordAttendance, createActionItem, updateActionItem } from "@/services/ventures/sessions";
+import { listSessions, listSessionNotesForVenture, getSession, createSession, updateSession, cancelSession, rescheduleSession, deleteSession, addSessionNote, recordAttendance, createActionItem, updateActionItem } from "@/services/ventures/sessions";
 import { isStaffActorForVenture } from "@/lib/ventureAuth";
 import { signSessionMaterials } from "@/lib/ventureEvidence";
 import { checkSessionBooking } from "@/services/ventures/sessionBooking";
@@ -66,9 +66,26 @@ export const GET = createHandler(async (req, { params }) => {
     if (!inviteesBySession.has(key)) inviteesBySession.set(key, []);
     inviteesBySession.get(key).push(invitee);
   }
+  // Coach feedback travels with the session too. The memo lives on the session
+  // row; the feedback written from this tab lives in `venture_session_notes`.
+  // The Notes panel reads both, so a write-up can never go missing from there.
+  //
+  // STAFF ONLY. This list is readable by the Venture's own members, and the
+  // feedback is staff commentary: a founder must never receive it just because
+  // their screen would not render it.
+  const actor = access.session || req.session;
+  const isStaffViewer = await isStaffActorForVenture(id, actor).catch(() => false);
+  const sessionNotes = isStaffViewer ? await listSessionNotesForVenture(id) : [];
+  const notesBySession = new Map();
+  for (const note of sessionNotes) {
+    const key = String(note.session_id);
+    if (!notesBySession.has(key)) notesBySession.set(key, []);
+    notesBySession.get(key).push(note);
+  }
   const withInvitees = signed.map((session) => ({
     ...session,
     invitees: inviteesBySession.get(String(session.id)) || [],
+    notes: notesBySession.get(String(session.id)) || [],
   }));
   return NextResponse.json({ success: true, sessions: withInvitees });
 });
@@ -80,6 +97,11 @@ export const POST = createHandler(async (req, { params }) => {
   const body = await req.json();
   const { action } = body;
   const actor = access.session || req.session;
+
+  // A write gate is not an authorship rule: a Venture's own founders hold
+  // `ventures.edit` because they book their own sessions. Anything that is
+  // STAFF COMMENTARY therefore asks this question, not the route gate.
+  const isStaffViewer = () => isStaffActorForVenture(id, actor).catch(() => false);
 
   // Object-level authorization: any action that targets an EXISTING session must
   // name a session OF THIS venture. Called from each such branch — placed AFTER
@@ -292,12 +314,31 @@ export const POST = createHandler(async (req, { params }) => {
     const session = await getSession(parseInt(body.session_id));
     const dbId = await resolveVentureDbId(id);
     if (!ventureOwned(session, id, dbId)) return ventureNotFound();
-    return NextResponse.json({ success: true, session });
+    if (await isStaffViewer()) return NextResponse.json({ success: true, session });
+    // A viewer who is NOT staff is the Venture itself. Staff commentary never
+    // reaches it: the appended notes (`coach_feedback`, and the admin page's
+    // `shared` notes, which are staff writing too) and the preparation notes are
+    // withheld HERE, on the server — not left to a screen that might not render
+    // them. The memo on the row is the brief the Venture was told about, and the
+    // times, participants and materials stay.
+    const ventureFacing = { ...session };
+    delete ventureFacing.notes;
+    delete ventureFacing.preparation_notes;
+    return NextResponse.json({ success: true, session: ventureFacing });
   }
 
   if (action === "add_note") {
+    // Staff commentary about a meeting. Without this the Venture could write a
+    // "coach_feedback" note about its own session, because it holds the editor
+    // capability the route gate checks.
+    if (!(await isStaffViewer())) {
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
+    }
     if (!(await sessionBelongsToVenture(body.session_id))) return ventureNotFound();
-    const noteResult = await addSessionNote({ sessionId: parseInt(body.session_id), noteType: body.note_type, content: body.content, authorCid: req.session?.cid, authorName: req.session?.name });
+    // Two kinds only: the coach's write-up, or a staff note. Anything else is
+    // stored as a staff note rather than inventing a third category.
+    const noteType = body.note_type === "coach_feedback" ? "coach_feedback" : "shared";
+    const noteResult = await addSessionNote({ sessionId: parseInt(body.session_id), noteType, content: body.content, authorCid: req.session?.cid, authorName: req.session?.name });
     return NextResponse.json({ success: true, note_id: noteResult.id });
   }
 

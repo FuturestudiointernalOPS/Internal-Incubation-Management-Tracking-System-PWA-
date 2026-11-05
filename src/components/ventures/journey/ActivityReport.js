@@ -68,7 +68,10 @@ export default function ActivityReport({ ventureId, milestone, activity }) {
       const response = await fetch(`/api/ventures/${ventureId}/notes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: form.title, body: form.body, scope_ref_type: "milestone", scope_ref_id: milestone.id, attachments }),
+        // A staff note about this ACTIVITY. It is still filed on the milestone
+        // (the notes API refuses any other scope); `note_kind` is what lets the
+        // Notes panel group it apart from a note written on the milestone.
+        body: JSON.stringify({ title: form.title, body: form.body, scope_ref_type: "milestone", scope_ref_id: milestone.id, note_kind: "activity", attachments }),
       });
       const payload = await response.json();
       if (payload.success) {

@@ -4,6 +4,8 @@ import { useI18n } from "@/lib/i18n";
 import KpiCard from "@/components/ui/KpiCard";
 import SectionHead from "@/components/ui/SectionHead";
 import TrajectoryChart from "./TrajectoryChart";
+import DisplayCurrencySelect from "@/components/finance/DisplayCurrencySelect";
+import { useDisplayCurrency, useFxRate } from "@/lib/hooks/useDisplayCurrency";
 import {
   buildScorecard,
   latestMonth,
@@ -29,6 +31,11 @@ export default function BusinessSnapshot({ dashboard, baseline }) {
   const month = latestMonth(months);
   const currency = month?.currency || dashboard?.latest?.currency || "XOF";
 
+  // The reader's own unit. Conversion is a DISPLAY act: the figures behind these
+  // charts are the ones the founder filed, in the currency they filed them.
+  const { displayCurrency, setDisplayCurrency } = useDisplayCurrency();
+  const fx = useFxRate(currency, displayCurrency);
+
   if (!dashboard?.hasData) {
     return (
       <div className="space-y-4">
@@ -40,21 +47,38 @@ export default function BusinessSnapshot({ dashboard, baseline }) {
     );
   }
 
-  const scorecard = buildScorecard({ dashboard, lang });
+  const scorecard = buildScorecard({ dashboard, lang, fx });
+
+  // The series are converted ONCE, here, so the bars, the axis and the tooltip
+  // all speak the same unit. Runway is months and is never converted.
+  const displayUnit = fx ? fx.quote : currency;
+  const toDisplay = (value) =>
+    fx && fx.rate && value !== null && value !== undefined ? Number(value) * fx.rate : value;
 
   const rows = months.map((entry) => ({
     label: String(entry.period || "").slice(0, 7),
-    revenue: pointValue(entry.totalRevenue),
+    revenue: toDisplay(pointValue(entry.totalRevenue)),
     customers: entry.payingCustomers ?? null,
     retention: pointValue(entry.retention) === null ? null : Math.round(pointValue(entry.retention) * 1000) / 10,
     runway: pointValue(entry.runway),
+    netBurn: toDisplay(pointValue(entry.netBurn)),
   }));
 
   const moneyTick = (value) => (Number.isFinite(Number(value)) ? num(value, lang) : "");
 
   return (
     <div className="space-y-5">
-      <SectionHead title={t("vadmin.reportsBusiness.title")} subtitle={t("vadmin.reportsBusiness.subtitle")} />
+      <SectionHead
+        title={t("vadmin.reportsBusiness.title")}
+        subtitle={t("vadmin.reportsBusiness.subtitle")}
+        action={
+          <DisplayCurrencySelect
+            value={displayCurrency}
+            onChange={setDisplayCurrency}
+            ventureCurrency={currency}
+          />
+        }
+      />
 
       {/* ── 1. The twelve figures management reads first ── */}
       <div className="stf-grid c4">
@@ -120,7 +144,7 @@ export default function BusinessSnapshot({ dashboard, baseline }) {
           emptyLabel={t("vadmin.reportsBusiness.noData")}
           series={[{ key: "revenue", label: t("vadmin.reportsCharts.revenueTitle"), color: "var(--brand-orange)" }]}
           yTickFormatter={moneyTick}
-          tooltipFormatter={(value) => money(value, currency, lang)}
+          tooltipFormatter={(value) => money(value, displayUnit, lang)}
         />
         <TrajectoryChart
           title={t("vadmin.reportsCharts.customersTitle")}
@@ -146,6 +170,15 @@ export default function BusinessSnapshot({ dashboard, baseline }) {
           emptyLabel={t("vadmin.reportsBusiness.noData")}
           series={[{ key: "runway", label: t("vadmin.reportsCharts.runwayTitle"), color: toneColor(dimensionStatus(dashboard, "runway")) }]}
           tooltipFormatter={(value) => num(value, lang, 1)}
+        />
+        <TrajectoryChart
+          title={t("vadmin.reportsCharts.netBurnTitle")}
+          subtitle={t("vadmin.reportsCharts.netBurnSubtitle")}
+          rows={rows}
+          emptyLabel={t("vadmin.reportsBusiness.noData")}
+          series={[{ key: "netBurn", label: t("vadmin.reportsCharts.netBurnTitle"), color: "var(--brand-orange)" }]}
+          yTickFormatter={moneyTick}
+          tooltipFormatter={(value) => money(value, displayUnit, lang)}
         />
       </div>
     </div>

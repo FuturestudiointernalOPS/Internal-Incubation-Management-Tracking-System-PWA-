@@ -4,8 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import AppInput from "@/components/ui/AppInput";
 import AppSelect from "@/components/ui/AppSelect";
-import AppButton from "@/components/ui/AppButton";
+import CountrySelect from "@/components/ventures/CountrySelect";
 import { STANDARD_CURRENCIES } from "@/lib/currencies";
+
+/** Matches the inputs around it, for the country picker's own chrome. */
+const INPUT_STYLE = {
+  background: "var(--surface-1)",
+  borderColor: "var(--border-primary)",
+  color: "var(--text-primary)",
+};
 
 const BUSINESS_MODELS = [
   { value: "subscription", labelKey: "venture.reporting.model.subscription" },
@@ -36,10 +43,18 @@ const EMPTY_PROFILE = {
   vatIncluded: "",
 };
 
-const profileToForm = (profile) =>
+/**
+ * The profile row → the form.
+ *
+ * `legalName` is AUTOMATED: a stored value always wins, but an empty profile (or
+ * a profile that never answered it) is seeded with the Venture's own name — most
+ * Ventures are registered under the name they go by. It stays editable, because
+ * the registered form ("… SARL", "… Ltd") is the founder's to correct.
+ */
+const profileToForm = (profile, ventureName = "") =>
   profile
     ? {
-        legalName: profile.legalName || "",
+        legalName: profile.legalName || ventureName || "",
         tradeName: profile.tradeName || "",
         foundingDate: profile.foundingDate || "",
         registrationStatus: profile.registrationStatus || "",
@@ -58,9 +73,15 @@ const profileToForm = (profile) =>
         accountingBasis: profile.accountingBasis || "",
         vatIncluded: profile.vatIncluded ? "yes" : "no",
       }
-    : EMPTY_PROFILE;
+    : { ...EMPTY_PROFILE, legalName: ventureName || "" };
 
-export default function VentureBusinessProfileSection({ ventureId }) {
+/**
+ * `registerSave` lets the PROFILE PAGE's single Save button drive this section.
+ * The section owns its own draft and its own endpoint; it hands the caller a
+ * function instead of rendering a second button, so "Save" on the profile page
+ * means everything on the page — not one section at a time.
+ */
+export default function VentureBusinessProfileSection({ ventureId, registerSave }) {
   const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,6 +90,9 @@ export default function VentureBusinessProfileSection({ ventureId }) {
   const [profile, setProfile] = useState(null);
   const [history, setHistory] = useState([]);
   const [form, setForm] = useState(EMPTY_PROFILE);
+  // What is already stored, so an untouched section does not create a new
+  // version every time the page's Save is pressed.
+  const [baseline, setBaseline] = useState(null);
 
   const base = `/api/ventures/${encodeURIComponent(ventureId)}/reporting/profile`;
 
@@ -82,7 +106,9 @@ export default function VentureBusinessProfileSection({ ventureId }) {
       if (res.ok) {
         setProfile(payload.profile || null);
         setHistory(payload.history || []);
-        setForm(profileToForm(payload.profile));
+        const nextForm = profileToForm(payload.profile, payload.venture_name || "");
+        setForm(nextForm);
+        setBaseline(JSON.stringify(nextForm));
       }
     } catch {
       // silent fallback
@@ -98,6 +124,13 @@ export default function VentureBusinessProfileSection({ ventureId }) {
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
 
   const saveProfile = async () => {
+    // Nothing typed here since the last save → nothing to write. This is what
+    // keeps the page's Save from minting a new profile version on every click.
+    // `baseline === null` means the section has not finished loading (or the
+    // read failed): saving an empty form over a stored profile would be worse
+    // than not saving at all.
+    if (baseline === null) return { skipped: true };
+    if (JSON.stringify(form) === baseline) return { skipped: true };
     setSaving(true);
     setErrors([]);
     setStatus("");
@@ -119,17 +152,26 @@ export default function VentureBusinessProfileSection({ ventureId }) {
       const payload = await res.json().catch(() => ({}));
       if (!res.ok) {
         setErrors(payload.errors || [payload.error || "errors.somethingWrong"]);
-        return;
+        return { ok: false };
       }
       setProfile(payload.profile);
       setStatus(t("venture.reporting.message.saved"));
+      setBaseline(JSON.stringify(form));
       await load();
+      return { ok: true };
     } catch {
       setErrors(["errors.somethingWrong"]);
+      return { ok: false };
     } finally {
       setSaving(false);
     }
   };
+
+  // Hand the CURRENT saver up after every render, so the page's Save always
+  // calls the closure holding the latest draft.
+  useEffect(() => {
+    if (registerSave) registerSave(saveProfile);
+  });
 
   if (loading) return null;
 
@@ -154,10 +196,26 @@ export default function VentureBusinessProfileSection({ ventureId }) {
       {status && <p className="text-xs font-bold text-emerald-600">{status}</p>}
 
       <div className="grid gap-4 md:grid-cols-2">
-        <AppInput label={t("venture.reporting.field.legalName")} value={form.legalName} onChange={set("legalName")} />
+        <div>
+          <AppInput label={t("venture.reporting.field.legalName")} value={form.legalName} onChange={set("legalName")} />
+          <p className="mt-1 text-[10px]" style={{ color: "var(--text-tertiary)" }}>
+            {t("venture.reporting.field.legalNameHint")}
+          </p>
+        </div>
         <AppInput label={t("venture.reporting.field.tradeName")} value={form.tradeName} onChange={set("tradeName")} />
         <AppInput type="date" label={t("venture.reporting.field.foundingDate")} value={form.foundingDate} onChange={set("foundingDate")} />
-        <AppInput label={t("venture.reporting.field.registrationCountry")} value={form.registrationCountry} onChange={set("registrationCountry")} />
+        <div>
+          <label className="mb-1 block text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+            {t("venture.reporting.field.registrationCountry")}
+          </label>
+          <CountrySelect
+            value={form.registrationCountry}
+            inputStyle={INPUT_STYLE}
+            onSelect={(code, name) =>
+              setForm((current) => ({ ...current, registrationCountry: code || name || "" }))
+            }
+          />
+        </div>
         <AppSelect
           label={t("venture.reporting.field.businessModel")}
           value={form.businessModel}
@@ -175,6 +233,7 @@ export default function VentureBusinessProfileSection({ ventureId }) {
         />
         <AppSelect
           label={t("venture.reporting.field.socialProtection")}
+          hint={t("venture.reporting.hint.socialProtection")}
           value={form.socialProtection}
           onChange={set("socialProtection")}
           options={[
@@ -184,6 +243,7 @@ export default function VentureBusinessProfileSection({ ventureId }) {
         />
         <AppSelect
           label={t("venture.reporting.field.accountingBasis")}
+          hint={t("venture.reporting.hint.accountingBasis")}
           value={form.accountingBasis}
           onChange={set("accountingBasis")}
           options={[
@@ -201,20 +261,13 @@ export default function VentureBusinessProfileSection({ ventureId }) {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 pt-2 border-t border-[var(--border-primary)]">
-        <AppInput label={t("venture.reporting.field.northStarName")} value={form.northStarName} onChange={set("northStarName")} />
-        <AppInput label={t("venture.reporting.field.northStarUnit")} value={form.northStarUnit} onChange={set("northStarUnit")} />
-      </div>
-      <div>
-        <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
-          {t("venture.reporting.field.northStarDefinition")}
-        </label>
-        <textarea
-          value={form.northStarDefinition}
-          onChange={set("northStarDefinition")}
-          rows={2}
-          className="w-full rounded-xl border px-4 py-3 text-[13px] outline-none"
-          style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)", color: "var(--text-primary)" }}
+        <AppInput
+          label={t("venture.reporting.field.northStarName")}
+          hint={t("venture.reporting.hint.northStarName")}
+          value={form.northStarName}
+          onChange={set("northStarName")}
         />
+        <AppInput label={t("venture.reporting.field.northStarUnit")} value={form.northStarUnit} onChange={set("northStarUnit")} />
       </div>
       <div>
         <label className="mb-2 block text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
@@ -241,15 +294,15 @@ export default function VentureBusinessProfileSection({ ventureId }) {
         />
       </div>
 
-      <div className="flex items-center justify-between gap-4 pt-3 border-t border-[var(--border-primary)]">
+      <div className="flex items-center justify-between gap-4 pt-3 border-t" style={{ borderColor: "var(--border-primary)" }}>
         <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
           {profile
             ? `${t("venture.reporting.version.current")}: v${profile.version}`
             : t("venture.reporting.version.none")}
         </p>
-        <AppButton onClick={saveProfile} disabled={saving}>
-          {profile ? t("venture.reporting.action.newVersion") : t("venture.reporting.action.save")} Business Info
-        </AppButton>
+        <p className="text-[11px]" style={{ color: "var(--text-secondary)" }}>
+          {saving ? t("venture.saving") : ""}
+        </p>
       </div>
 
       {history.length > 0 && (

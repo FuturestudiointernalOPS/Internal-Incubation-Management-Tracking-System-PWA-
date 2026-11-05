@@ -951,7 +951,9 @@
       "retentionTitle": "Rétention",
       "retentionSubtitle": "Part des clients conservés d'un mois à l'autre",
       "runwayTitle": "Autonomie",
-      "runwaySubtitle": "Mois de trésorerie restants, selon le brûlage déclaré"
+      "runwaySubtitle": "Mois de trésorerie restants, selon le brûlage déclaré",
+      "netBurnTitle": "Consommation nette",
+      "netBurnSubtitle": "Trésorerie consommée chaque mois — en dessous de zéro, la venture est rentable"
     },
     "reportsVerdict": {
       "title": "Ce que cela signifie",
@@ -1007,8 +1009,10 @@
       "title": "Impact",
       "jobsCreated": "Emplois créés depuis la référence",
       "jobsLost": "perdus",
-      "jobsSupported": "Emplois soutenus (ETP)",
+      "jobsSupported": "ETP soutenus (fondateurs inclus)",
       "fteHint": "Équivalent temps plein, dernier mois validé",
+      "headcount": "Effectif",
+      "headcountHint": "Personnes inscrites : temps plein + temps partiel + fondateurs",
       "womenShare": "Femmes dans l'équipe",
       "youthShare": "Équipe de moins de 35 ans",
       "teamHint": "Dernière photographie d'équipe validée",

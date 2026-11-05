@@ -27,6 +27,7 @@ import operatingModel from "./schema/operatingModel";
 import governance from "./schema/governance";
 import journey from "./schema/journey";
 import sessionInvitees from "./schema/sessionInvitees";
+import recurringSchedules from "./schema/recurringSchedules";
 import reminders from "./schema/reminders";
 import reporting from "./schema/reporting";
 
@@ -45,6 +46,7 @@ export async function ensureVentureSchema() {
     ...governance,
     ...journey,
     ...sessionInvitees,
+    ...recurringSchedules,
     ...reminders,
     ...reporting,
   ];

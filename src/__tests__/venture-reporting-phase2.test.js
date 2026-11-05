@@ -235,20 +235,20 @@ describe("monthly submission validation", () => {
     expect(errors).toContain("venture.reporting.monthly.validation.mrr");
   });
 
-  test("a band code the studio removed is refused", () => {
-    const errors = validateMonthlyReport(
+  test("a band code the studio removed is refused — and so is every band", () => {
+    const removed = validateMonthlyReport(
       monthlyInput({ mrrMode: "band", mrrValue: "", mrrBand: "F9" }),
       { bands: BANDS },
     );
-    expect(errors).toContain("venture.reporting.monthly.validation.mrrBand");
+    expect(removed).toContain("venture.reporting.validation.bandRemoved");
   });
 
-  test("a known band is accepted", () => {
+  test("a known band is refused too: ranges are no longer accepted", () => {
     const errors = validateMonthlyReport(
       monthlyInput({ mrrMode: "band", mrrValue: "", mrrBand: "F1" }),
       { bands: BANDS },
     );
-    expect(errors).toEqual([]);
+    expect(errors).toContain("venture.reporting.validation.bandRemoved");
   });
 
   test("zero is an ANSWER; silence is not", () => {

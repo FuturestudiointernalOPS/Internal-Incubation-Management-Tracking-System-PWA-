@@ -18,7 +18,7 @@
  *      integers here, so the stage engine that follows can rely on them.
  */
 
-import { shiftPeriod } from "./rules";
+import { computeFte, shiftPeriod } from "./rules";
 import { findBand } from "./monthlyRules";
 
 /** Stable order — the dashboard and the tests both rely on it. */
@@ -99,6 +99,15 @@ function bandMetric(bounds, direction = "higher") {
  * Returns null when the field was never answered, or when the stored band code
  * no longer exists (the studio removed it) — another case of "not reported".
  */
+/**
+ * The `{ low, high }` an exact-or-band money field actually means.
+ *
+ * LEGACY READ PATH. Ranges are no longer accepted from any form (see
+ * docs/VENTURE_FINANCIAL_REPORTING.md §4): this function exists so the months,
+ * quarters, baselines and events that were REPORTED as ranges before the change
+ * still produce a figure — flagged `approximate`, never silently treated as an
+ * exact amount. New filings can only reach it through `mode: "exact"`.
+ */
 export function moneyBounds(money, kind, bands) {
   if (!money || !money.mode) return null;
   if (money.mode === "exact") {
@@ -109,6 +118,21 @@ export function moneyBounds(money, kind, bands) {
   if (!band || band.low === null || band.high === null) return null;
   return { low: Number(band.low), high: Number(band.high), approximate: true };
 }
+
+/**
+ * The SAME money unit on both sides?
+ *
+ * Growth, average burn and runway compare money from different months. The
+ * engine had no way to notice a venture that switched reporting currency, so it
+ * divided CFA by dollars and published the result. A month filed before the
+ * stamp existed is UNKNOWN, not different: it is treated as compatible, because
+ * refusing every legacy comparison would wipe history that is probably fine.
+ */
+const sameCurrency = (a, b) => {
+  const left = a ? String(a).trim().toUpperCase() : null;
+  const right = b ? String(b).trim().toUpperCase() : null;
+  return !left || !right || left === right;
+};
 
 const addBounds = (a, b) => ({
   low: a.low + b.low,
@@ -213,11 +237,15 @@ export function computeMonthlyMetrics({ report, history, bands = {} }) {
 
   // 6. MRR growth, month on month.
   const previousMrr = previous ? moneyBounds(previous.mrr, "flow", bands) : null;
-  out.mrr_growth_mom = bandMetric(growthBounds(mrr, previousMrr, 1), "higher");
+  out.mrr_growth_mom = sameCurrency(report.currency, previous?.currency)
+    ? bandMetric(growthBounds(mrr, previousMrr, 1), "higher")
+    : notApplicable();
 
   // 7. MRR growth, 3-month.
   const mrThreeBack = threeBack ? moneyBounds(threeBack.mrr, "flow", bands) : null;
-  out.mrr_growth_3m = bandMetric(growthBounds(mrr, mrThreeBack, 3), "higher");
+  out.mrr_growth_3m = sameCurrency(report.currency, threeBack?.currency)
+    ? bandMetric(growthBounds(mrr, mrThreeBack, 3), "higher")
+    : notApplicable();
 
   // 8. User-to-paid ratio — paying ÷ active users.
   out.user_to_paid =
@@ -260,10 +288,13 @@ export function computeMonthlyMetrics({ report, history, bands = {} }) {
   out.net_burn = bandMetric(currentBurn, "lower");
 
   // 13. Average burn — the mean of the last three net burns (this month
-  // included). Fewer than three months of data means not applicable.
+  // included). Fewer than three months of data means not applicable, and so
+  // does a window that spans a currency change: averaging CFA into dollars is
+  // arithmetic without a meaning.
   const burns = [0, 1, 2].map((offset) => {
     const month = monthsAgo(offset);
-    return month ? netBurnBounds(month, bands) : null;
+    if (!month || !sameCurrency(report.currency, month.currency)) return null;
+    return netBurnBounds(month, bands);
   });
   const averageBurn = burns.every(Boolean)
     ? {
@@ -297,10 +328,14 @@ export function computeMonthlyMetrics({ report, history, bands = {} }) {
   }
 
   // 15. FTE — full-time employees + (part-time days ÷ 20) + full-time founders.
-  out.fte =
-    report.fullTime !== null && report.fullTimeFounders !== null
-      ? exact(report.fullTime + (report.partTimeDays ?? 0) / 20 + report.fullTimeFounders)
-      : notApplicable();
+  // The formula lives in `computeFte`, shared with the stage rules so the two
+  // can never drift apart.
+  const fteValue = computeFte({
+    fullTime: report.fullTime,
+    partTimeDays: report.partTimeDays,
+    fullTimeFounders: report.fullTimeFounders,
+  });
+  out.fte = fteValue === null ? notApplicable() : exact(fteValue);
 
   // Guarantee every key exists, even if a branch above forgot one.
   for (const key of METRIC_KEYS) {

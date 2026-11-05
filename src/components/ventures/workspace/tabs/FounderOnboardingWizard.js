@@ -14,6 +14,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
+import { useI18n } from "@/lib/i18n";
 import AppButton from "@/components/ui/AppButton";
 
 const pickSupport = (payload) => (payload?.success ? payload.support || null : null);
@@ -24,6 +25,11 @@ const pickSupport = (payload) => (payload?.success ? payload.support || null : n
  * Guided Day-1 launchpad for startup founders inside their Venture Workspace.
  * Introduces their designated Venture Manager (Handler) and gives them a clear,
  * actionable checklist to complete setup without getting lost across tabs.
+ *
+ * Once every step is done the checklist has served its purpose, so it can be
+ * DISMISSED — and a dismissed checklist never comes back. The flag is per
+ * Venture and per browser (the same place the collapse state already lives), so
+ * a second device shows it again until it is dismissed there too.
  */
 export default function FounderOnboardingWizard({
   venture,
@@ -32,6 +38,7 @@ export default function FounderOnboardingWizard({
   team,
   journeyStages = [],
 }) {
+  const { t } = useI18n();
   const ventureId = venture?.venture_id || venture?.id;
 
   // Initialize collapse state safely from storage
@@ -39,6 +46,15 @@ export default function FounderOnboardingWizard({
     if (typeof window === "undefined" || !ventureId) return false;
     try {
       return localStorage.getItem(`fs_wizard_collapsed_${ventureId}`) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  const [dismissed, setDismissed] = useState(() => {
+    if (typeof window === "undefined" || !ventureId) return false;
+    try {
+      return localStorage.getItem(`fs_wizard_dismissed_${ventureId}`) === "true";
     } catch {
       return false;
     }
@@ -84,6 +100,21 @@ export default function FounderOnboardingWizard({
       }
     }
   };
+
+  const dismiss = () => {
+    setDismissed(true);
+    if (typeof window !== "undefined" && ventureId) {
+      try {
+        localStorage.setItem(`fs_wizard_dismissed_${ventureId}`, "true");
+      } catch {
+        // Storage access handled gracefully
+      }
+    }
+  };
+
+  // Gone for good once dismissed. Declared after every hook, so the component
+  // still obeys the rules of hooks across renders.
+  if (dismissed) return null;
 
   return (
     <div
@@ -138,22 +169,35 @@ export default function FounderOnboardingWizard({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={toggleCollapse}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors hover:bg-surface-3"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          {collapsed ? (
-            <>
-              Show Checklist <ChevronDown size={14} />
-            </>
-          ) : (
-            <>
-              Minimize <ChevronUp size={14} />
-            </>
+        <div className="flex items-center gap-2">
+          {progressPercent === 100 && (
+            <button
+              type="button"
+              onClick={dismiss}
+              title={t("venture.wizard.dismissHint")}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold transition-colors hover:bg-surface-3"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              {t("venture.wizard.dismiss")}
+            </button>
           )}
-        </button>
+          <button
+            type="button"
+            onClick={toggleCollapse}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors hover:bg-surface-3"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {collapsed ? (
+              <>
+                Show Checklist <ChevronDown size={14} />
+              </>
+            ) : (
+              <>
+                Minimize <ChevronUp size={14} />
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ── Expanded Steps Grid ── */}

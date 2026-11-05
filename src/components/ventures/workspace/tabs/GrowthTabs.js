@@ -1,51 +1,27 @@
 "use client";
 
-import { FileCheck2, Loader2 } from "lucide-react";
+import { FileCheck2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useVenture } from "../VentureContext";
 
 /**
- * INVESTMENT TAB — two indicators, two questions, never one number.
+ * TWO INDICATORS, TWO QUESTIONS, NEVER ONE NUMBER — each painted beside the
+ * thing that changes it:
  *
- *   Roadmap progress   — how much of the planned work is done.
- *   Investment readiness — how many of the Venture's REQUIRED Data Room
- *                          categories are filed and verified.
+ *   Roadmap progress      (RoadmapReadinessCard) — journey / milestones / tasks /
+ *                          deliverables. Shown inside the JOURNEY tab.
+ *   Data Room readiness   (DataRoomReadinessCard) — how many of the Venture's
+ *                          REQUIRED Data Room categories are filed and verified.
+ *                          Shown inside the DATA ROOM tab.
  *
  * Both come from `/api/ventures/[id]/investment-readiness`, which computes them
- * from two different engines. The old eight-document checklist that lived here
- * is gone: it matched document categories by substring against a vocabulary the
- * Data Room does not use, so a Venture that filed everything correctly could
- * never clear it.
+ * from two different engines. They used to share an "Investment readiness" tab,
+ * which put a roadmap figure next to a document figure and the documents on the
+ * next tab. The old eight-document checklist that once lived here is gone: it
+ * matched document categories by substring against a vocabulary the Data Room
+ * does not use, so a Venture that filed everything correctly could never clear
+ * it.
  */
-export function InvestmentTab() {
-  const { t } = useI18n();
-  const { investmentReadiness, cardStyle } = useVenture();
-
-  if (!investmentReadiness) {
-    return (
-      <div className="text-center py-8">
-        <Loader2 className="animate-spin mx-auto" style={{ color: "var(--text-secondary)" }} size={24} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <RoadmapReadinessCard />
-        <DataRoomReadinessCard />
-      </div>
-      <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
-        {t("venture.dataRoomReadiness.hint")}
-      </p>
-      <div className="rounded-xl p-4 border" style={cardStyle}>
-        <p className="text-[10px] font-black uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
-          {t("venture.dataRoomReadiness.where")}
-        </p>
-      </div>
-    </div>
-  );
-}
 
 /** Roadmap progress — what the Venture is evaluated on, week to week. */
 export function RoadmapReadinessCard() {
@@ -113,7 +89,7 @@ export function RoadmapReadinessCard() {
 }
 
 /**
- * Investment readiness — the Data Room's own completeness figure.
+ * Data Room readiness — the Data Room's own completeness figure.
  *
  * `null` means INDETERMINATE (the Venture has nothing marked `required`), and it
  * is shown as « — »: not 0%, which would read as a Venture that failed, and not

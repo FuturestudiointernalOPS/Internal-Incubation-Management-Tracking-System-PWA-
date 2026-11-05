@@ -11,6 +11,7 @@ import {
   insertVentureNote,
   getVentureNote,
   archiveVentureNote,
+  NOTE_KINDS,
 } from "@/models/ventureWorkspace";
 
 /**
@@ -146,6 +147,10 @@ export const POST = createHandler(
     }
     const scopeRefType = body.scope_ref_type || null;
     const scopeRefId = body.scope_ref_id ? String(body.scope_ref_id) : null;
+    // WHAT the note is. Every note is filed on a milestone either way, so this is
+    // the only thing that can tell an activity report from a note written on the
+    // milestone itself. Unknown values fall back to a milestone note.
+    const noteKind = NOTE_KINDS.includes(String(body.note_kind || "")) ? String(body.note_kind) : "milestone";
     // Vinance 3 rule: internal notes belong to a milestone and never exist
     // outside one — venture-wide, section and workstream scopes are refused.
     if (scopeRefType !== "milestone" || !scopeRefId) {
@@ -186,6 +191,7 @@ export const POST = createHandler(
       scopeRefType,
       scopeRefId,
       attachments,
+      noteKind,
     });
     try {
       const { addVentureHistory } = await import("@/services/ventures/activity");

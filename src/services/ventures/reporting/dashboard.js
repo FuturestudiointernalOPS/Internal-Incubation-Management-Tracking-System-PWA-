@@ -23,7 +23,7 @@ import {
 } from "@/models/ventureReportingStore";
 import { ensureReportingSchema, getReportingSettings } from "./settings";
 import { rowToMonthlyInput, dateStringOrNull, shapeMetric, numericOrNull } from "./monthlyRules";
-import { computeTeamShares } from "./rules";
+import { computeHeadcount, computeTeamShares } from "./rules";
 import { settingValue } from "./settingDefinitions";
 import { moneyBounds } from "./metrics";
 import { computeYearlyFigures, survivalAt, timeInStages, monthsBetween } from "./yearly";
@@ -137,6 +137,15 @@ export async function getVentureDashboard({ ventureUuid }) {
   // woman among forty employees is not women-led. It needs the founder records.
   const founders = (foundersResult.rows || []).map((row) => ({ gender: row.gender }));
   const shares = teamRow ? computeTeamShares(teamRow, founders) : null;
+  // People on the books, beside the FTE. They answer different questions: ten
+  // part-timers are ten people and possibly two full-time equivalents.
+  const headcount = teamRow
+    ? computeHeadcount({
+        fullTime: teamRow.full_time_employees,
+        partTime: teamRow.part_time_employees,
+        fullTimeFounders: teamRow.full_time_founders,
+      })
+    : null;
 
   // ── Yearly roll-ups (§10) ──────────────────────────────────────────────
   const yearlyMonths = reports.map((month) => {
@@ -144,6 +153,9 @@ export async function getVentureDashboard({ ventureUuid }) {
     const netBurn = metricsByPeriod.get(month.period)?.net_burn;
     return {
       period: month.period,
+      // The rolling totals are withheld when the window spans currencies, so the
+      // engine needs the unit each month was filed in.
+      currency: month.currency || activeCurrency,
       mrrValue: mrr ? (mrr.low + mrr.high) / 2 : null,
       payingCustomers: month.payingCustomers,
       netBurn: netBurn && netBurn.status === "computed" ? Number(netBurn.value) : null,
@@ -194,6 +206,7 @@ export async function getVentureDashboard({ ventureUuid }) {
     womenLed: shares?.womenLed ?? null,
     womenFounders: shares?.womenFounders ?? null,
     founderCount: shares?.founderCount ?? null,
+    headcount,
   };
 
   // ── Customer concentration ──────────────────────────────────────────────

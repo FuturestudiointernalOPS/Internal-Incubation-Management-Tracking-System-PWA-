@@ -19,7 +19,15 @@ const exec = (query, sql, args) => (query ? query(sql, args) : db.execute({ sql,
 /** Resolve either the internal UUID or the human `VNT-…` code to both. */
 export async function selectVentureIdentity(idOrCode) {
   return db.execute({
-    sql: "SELECT id, venture_id FROM ventures WHERE id::text = ? OR venture_id = ? LIMIT 1",
+    // `venture_name` is the human label (company_name is canonical, `name` is
+    // the legacy column). The static profile uses it as the default legal name:
+    // most Ventures are registered under the name they are known by, and the
+    // founder can still correct it to the exact registered form.
+    sql: `SELECT id, venture_id,
+                 COALESCE(NULLIF(company_name, ''), NULLIF(name, '')) AS venture_name
+            FROM ventures
+           WHERE id::text = ? OR venture_id = ?
+           LIMIT 1`,
     args: [String(idOrCode), String(idOrCode)],
   });
 }
@@ -217,6 +225,24 @@ export async function insertBaseline(b, query) {
       b.outsideFinancingMode, b.outsideFinancingValue, b.outsideFinancingBand, b.currency || null, b.actorCid || null,
     ],
   );
+}
+
+/**
+ * Backfill the baseline FTE from a workforce snapshot — once.
+ *
+ * Only an EMPTY baseline is touched: a captured value is the historical
+ * reference, and a later team edit must never rewrite it. The caller decides
+ * which snapshot may speak for the baseline (the month it was captured).
+ */
+export async function setBaselineFteIfNull(ventureUuid, fte) {
+  if (fte === null || fte === undefined) return { rows: [] };
+  return db.execute({
+    sql: `UPDATE venture_baseline
+             SET fte = ?
+           WHERE venture_uuid = ? AND superseded_at IS NULL AND fte IS NULL
+           RETURNING *`,
+    args: [fte, ventureUuid],
+  });
 }
 
 export async function supersedeBaseline(query, { ventureUuid, actorCid, reason }) {

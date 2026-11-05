@@ -208,8 +208,8 @@ describe("financing events", () => {
     expect(errors).toContain("venture.reporting.events.validation.financingType");
   });
 
-  test("a band the studio publishes is accepted, an unknown one is not", () => {
-    const good = validateEvent(
+  test("a band is refused, whether or not the studio publishes it", () => {
+    const known = validateEvent(
       {
         eventType: "financing_received",
         eventDate: "2026-10-01",
@@ -217,11 +217,11 @@ describe("financing events", () => {
         amountBand: "F1",
         financingType: "grant",
       },
-      { bands: BANDS, now: TODAY },
+      { now: TODAY },
     );
-    expect(good).toEqual([]);
+    expect(known).toContain("venture.reporting.validation.bandRemoved");
 
-    const bad = validateEvent(
+    const unknown = validateEvent(
       {
         eventType: "financing_received",
         eventDate: "2026-10-01",
@@ -229,9 +229,9 @@ describe("financing events", () => {
         amountBand: "F9",
         financingType: "grant",
       },
-      { bands: BANDS, now: TODAY },
+      { now: TODAY },
     );
-    expect(bad).toContain("venture.reporting.events.validation.amountBand");
+    expect(unknown).toContain("venture.reporting.validation.bandRemoved");
   });
 
   test("the row keeps the mode it was answered in", () => {

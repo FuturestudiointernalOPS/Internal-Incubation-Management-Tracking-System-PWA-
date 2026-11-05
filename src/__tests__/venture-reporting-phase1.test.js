@@ -25,6 +25,7 @@ jest.mock("@/models/ventureReportingStore", () => ({
   upsertTeamSnapshot: jest.fn(),
   selectActiveBaseline: jest.fn(),
   insertBaseline: jest.fn(),
+  setBaselineFteIfNull: jest.fn(),
   supersedeBaseline: jest.fn(),
   selectCurrentFounders: jest.fn(),
   deactivateFounders: jest.fn(),
@@ -42,6 +43,7 @@ const {
   computeTeamShares,
   canCaptureBaseline,
   validateSupersedeReason,
+  snapshotFte,
   toCount,
   toAmount,
 } = require("@/services/ventures/reporting/rules");
@@ -68,21 +70,27 @@ describe("static profile validation", () => {
     expect(validateStaticProfile(VALID)).toEqual([]);
   });
 
-  test("every required field is named, not just 'required'", () => {
+  test("only the registration essentials are required", () => {
     const errors = validateStaticProfile({});
     expect(errors).toEqual(
       expect.arrayContaining([
         "venture.reporting.validation.legalName",
         "venture.reporting.validation.foundingDate",
         "venture.reporting.validation.businessModel",
-        "venture.reporting.validation.sector",
-        "venture.reporting.validation.problemStatement",
-        "venture.reporting.validation.idealCustomerProfile",
-        "venture.reporting.validation.northStarName",
-        "venture.reporting.validation.northStarDefinition",
-        "venture.reporting.validation.northStarUnit",
       ]),
     );
+    // Everything the founder may not know yet is optional at registration —
+    // these must not block the save.
+    for (const key of [
+      "sector",
+      "northStarDefinition",
+      "problemStatement",
+      "idealCustomerProfile",
+      "northStarName",
+      "northStarUnit",
+    ]) {
+      expect(errors).not.toContain(`venture.reporting.validation.${key}`);
+    }
   });
 
   test("a future founding date is refused", () => {
@@ -196,6 +204,20 @@ describe("baseline rules", () => {
   test("superseding always requires a reason", () => {
     expect(validateSupersedeReason("")).toContain("venture.reporting.validation.supersedeReason");
     expect(validateSupersedeReason("Wrong opening cash")).toEqual([]);
+  });
+});
+
+describe("the baseline FTE comes from the workforce", () => {
+  test("full-timers + part-time days ÷ 20 + full-time founders", () => {
+    expect(snapshotFte({ fullTime: 3, partTimeDays: 40, fullTimeFounders: 2 })).toBe(7);
+    expect(snapshotFte({ fullTime: 0, partTimeDays: 10, fullTimeFounders: 1 })).toBe(1.5);
+  });
+
+  test("an untouched snapshot is not reported, not a measured zero", () => {
+    // `toCount` turns a cleared field into 0, so a saved blank form would
+    // otherwise become a 0-FTE baseline that every later job is measured from.
+    expect(snapshotFte({ fullTime: 0, partTimeDays: 0, fullTimeFounders: 0 })).toBeNull();
+    expect(snapshotFte({})).toBeNull();
   });
 });
 

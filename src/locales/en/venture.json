@@ -1,16 +1,43 @@
 {
   "venture": {
+    "wizard": {
+      "dismiss": "Dismiss",
+      "dismissHint": "Hide this checklist for good — your Venture is set up."
+    },
     "reporting": {
       "title": "Venture reporting",
       "subtitle": "The studio's record of who the venture is and where it starts.",
       "notApplicable": "Not applicable",
+      "hint": {
+        "accountingBasis": "Cash: money counts when it is received or paid. Accrual: money counts when it is earned or owed, whatever the payment date.",
+        "socialProtection": "Yes if the venture contributes to a social protection scheme for its team — pension, health cover, maternity or accident insurance.",
+        "northStarName": "The one number the venture steers by — the measure that best shows it is winning. It is reported every month, beside revenue.",
+        "sectionFinancial": "The venture's starting line in money and customers: cash in the bank, funding already received and paying customers when the studio first recorded it. Every growth figure is measured from here.",
+        "sectionWorkforce": "Who was already working in the venture at the baseline. Jobs created are counted against this snapshot.",
+        "baselineFte": "Full-Time Equivalent (FTE): a capacity measure, not the number of people employed. Full-time employees + (part-time days ÷ 20) + full-time founders. Ten part-timers working two days each are ten people but only one FTE.",
+        "baselinePayingCustomers": "Paying customers at the baseline date — the count all later growth and churn are measured from.",
+        "baselineAmountMode": "Exact: type the amount. Band: pick the studio's range, for a founder who only knows roughly.",
+        "baselineCash": "Cash in the bank at the baseline date, in the venture's reporting currency.",
+        "baselineBand": "Choose the studio's range that contains the amount. It is used at its midpoint and marked approximate.",
+        "baselineFinancing": "Money received from outside investors, lenders or grants before the baseline date — not revenue.",
+        "baselineSupersedeReason": "Why this baseline is being replaced. The old one is kept in history; nothing is deleted.",
+        "fullTimeFounders": "Founders working full time. Counted in FTE, but excluded from the 'non-founder hiring' test.",
+        "partTimeFounders": "Founders working part time. Their days belong in the part-time days field.",
+        "fullTimeEmployees": "Non-founder employees on a full-time contract.",
+        "partTimeEmployees": "Non-founder employees on a part-time contract, counted by the days they work.",
+        "partTimeDays": "Total part-time days worked — divided by 20 to become full-time equivalents.",
+        "womenEmployees": "How many employees are women. Used for the team's gender share.",
+        "menEmployees": "How many employees are men. Used with the women count for the team's gender share.",
+        "under35Women": "Women under 35 — the youth measure the studio reports.",
+        "under35Men": "Men under 35 — the youth measure the studio reports."
+      },
       "tabLabel": "Reporting",
       "tab": {
         "dashboard": "Dashboard",
         "businessInfo": "Business Info",
         "founders": "Founders",
         "headcount": "Headcount",
-        "baseline": "Baseline",
+        "baseline": "Venture Baseline",
         "monthly": "Monthly",
         "quarterly": "Quarterly",
         "events": "Events",
@@ -59,6 +86,7 @@
       },
       "field": {
         "legalName": "Legal name",
+        "legalNameHint": "Filled in from the venture name — change it if the registered legal name differs.",
         "tradeName": "Trade name",
         "foundingDate": "Founding date",
         "registrationStatus": "Registration status",
@@ -101,6 +129,15 @@
       },
       "baseline": {
         "fte": "Full-Time Equivalent (FTE)",
+        "sectionPositionTitle": "1. Initial Financial & Customer Position",
+        "sectionWorkforceTitle": "2. Starting Workforce & Full-Time Equivalent",
+        "lockedNote": "This baseline is locked as the historical reference for growth and job-creation calculations. It is never edited — supersede it instead.",
+        "saveWorkforce": "Save workforce snapshot",
+        "fteComputed": "Calculated from the workforce figures below and saved with the baseline.",
+        "fteCaptured": "Saved when the baseline was captured.",
+        "fteMissing": "Not recorded — this baseline predates the workforce card. Supersede it to fill the FTE from the current team.",
+        "period": "Period",
+        "subtitle": "The venture's starting line: initial finances, customer traction and starting workforce.",
         "payingCustomers": "Paying customers",
         "cash": "Cash in bank ({currency})",
         "cashBand": "Cash range",
@@ -151,6 +188,8 @@
         "mode": "Entry mode",
         "amount": "Amount ({currency})",
         "band": "Range",
+        "bandCurrencyNote": "These ranges are written in {currency} — the studio has no ladder in this venture's reporting currency yet.",
+        "legacyBand": "Saved as an estimated range ({band}). Enter the actual amount to save it again.",
         "calculated": "Calculated from the validated report",
         "selfSustaining": "Self-sustaining",
         "lockedNote": "This month is under review. It cannot be edited until the studio validates or rejects it.",
@@ -647,6 +686,7 @@
       },
       "versionLabel": "Version",
       "validation": {
+        "bandRemoved": "Ranges are no longer accepted — enter the actual amount.",
         "legalName": "Legal name is required.",
         "foundingDate": "Founding date is required.",
         "businessModel": "Business model is required.",
@@ -730,7 +770,7 @@
     "noVentures": "No ventures yet. Create your first venture to get started.",
     "myVentures": "My Ventures",
     "profile": "Profile",
-    "baseline": "Baseline",
+    "baseline": "Venture Baseline",
     "settings": "Settings",
     "cancel": "Cancel",
     "creating": "Creating...",
@@ -783,6 +823,8 @@
     "memberSince": "Member since",
     "addMember": "Add Member",
     "addMemberFounderHint": "Add another founder to this Venture. They receive an email and join as a founder once they accept the link.",
+    "addMemberTeamHint": "Invite a team member. They get workspace access but no role — roles stay a Venture Manager or Super Admin decision.",
+    "memberType": "Add as",
     "memberRole": "Role",
     "confirmRemove": "Remove this member?",
     "confirmRemoveAdvisor": "Remove this advisor?",
@@ -881,10 +923,225 @@
       "deleted": "Note deleted.",
       "deleteFailed": "Delete failed.",
       "section": {
-        "milestones": "Milestones",
-        "sessions": "Sessions"
+        "milestones": "Milestone notes",
+        "activity": "Activity reports",
+        "sessions": "Session memos"
       },
-      "sessionsHint": "Notes written in each session. They stay with that session."
+      "sessionsHint": "The memo of each session, and the feedback written on it. Both stay with that session.",
+      "activityHint": "Staff reports written from an activity. They are stored on the activity's milestone, with the activity in the title.",
+      "coachFeedback": "Coach feedback"
+    },
+    "schedule": {
+      "title": "Recurring meeting schedule",
+      "subtitle": "Plan the rhythm. Nothing is booked from here — preview first.",
+      "empty": "No recurring schedule for this venture yet.",
+      "new": "New schedule",
+      "cancel": "Cancel",
+      "previewButton": "Preview occurrences",
+      "save": "Save schedule",
+      "saved": "Schedule saved as a draft. Nothing has been booked.",
+      "previewOnly": "Preview only — nothing was saved.",
+      "window": "{from} to {to}",
+      "occurrenceCount": "{count} occurrences in this window",
+      "noOccurrences": "Nothing in this window. Check the start date and the meeting days.",
+      "field": {
+        "title": "Title",
+        "type": "Meeting type",
+        "timezone": "Timezone",
+        "frequency": "Frequency",
+        "interval": "Every",
+        "intervalUnit": "period(s)",
+        "slots": "Meeting days and times",
+        "weekday": "Day",
+        "start": "Start",
+        "minutes": "Minutes",
+        "addSlot": "Add a day",
+        "removeSlot": "Remove",
+        "validFrom": "Starts on",
+        "validUntil": "Ends on (optional)",
+        "maxOccurrences": "Or stop after (occurrences)",
+        "description": "Purpose"
+      },
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "biweekly": "Every two weeks",
+        "monthly": "Monthly"
+      },
+      "weekday": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "type": {
+        "coaching": "Coaching",
+        "mentorship": "Mentorship",
+        "progress_review": "Progress review",
+        "pitch_review": "Pitch review",
+        "technical": "Technical support"
+      },
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended"
+      },
+      "version": "Version {n}",
+      "action": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "end": "End schedule",
+        "newVersion": "Replace from a date"
+      },
+      "preview": {
+        "title": "Next occurrences",
+        "utc": "UTC {time}",
+        "local": "{start}–{end}"
+      },
+      "error": {
+        "title": "A title is required.",
+        "frequency": "Choose a frequency.",
+        "interval": "The interval must be between 1 and 12.",
+        "slots": "Add at least one meeting day and time.",
+        "slotWeekday": "Choose a day for every meeting slot.",
+        "slotStart": "Each slot needs a start time, HH:MM.",
+        "slotDuration": "Each slot needs a duration between 5 and 480 minutes.",
+        "validFrom": "A valid start date is required.",
+        "validUntil": "The end date is not valid.",
+        "validUntilBefore": "The end date cannot be before the start date.",
+        "maxOccurrences": "The occurrence limit must be a whole number above zero.",
+        "timezone": "Unknown timezone. Use an IANA name such as Africa/Porto-Novo.",
+        "versionFrom": "The replacement must start after the version it replaces.",
+        "ended": "This schedule has ended.",
+        "action": "Unknown action.",
+        "notFound": "Schedule not found."
+      }
+    },
+    "handbook": {
+      "title": "Venture Manager Handbook",
+      "subtitle": "The Journey tab, page by page.",
+      "intro": "Each entry below is one page of the printed manual: what it explains, and the rule worth remembering. Nothing here changes a record — it is the reading companion to the screen, and it is always the current edition.",
+      "button": "Handbook",
+      "searchPlaceholder": "Search the handbook — milestone, approval, session…",
+      "searchCount": "{count} page(s)",
+      "searchEmpty": "No page matches that word. Try 'milestone', 'approval' or 'session'.",
+      "contents": "Contents",
+      "pageLabel": "Page {n}",
+      "close": "Back to contents",
+      "page": {
+        "what": {
+          "title": "What the Journey is",
+          "summary": "The plan of record, and the two numbers that measure it.",
+          "body": "The Journey is the venture's plan: the stages the studio guides it through, from setting up a company to scaling one. It is deliberately not a document — it says what is true this morning, not what was agreed last quarter.\n\nRoadmap progress measures execution. Data Room readiness measures fundraising preparedness. They come from two different engines and are never averaged into one score.",
+          "bullets": "Roadmap progress counts completed milestones, completed tasks and approved deliverables.\nData Room readiness lives in the Data Room tab, beside the documents that produce it.\nA venture can execute well and still not be ready to raise — the two numbers keep that visible."
+        },
+        "where": {
+          "title": "Where the Journey lives",
+          "summary": "The Venture Manager's tab bar, and what each door is for.",
+          "body": "Open Ventures, choose the venture, and you land on its workspace. Your rights inside each tab come from your staff assignment on that venture, and the server enforces them — the tab bar only decides what is worth showing you.",
+          "bullets": "Overview answers what needs you today. Journey answers where the plan is.\nProjects shows the same work as rows and as a timeline, for the lead manager only.\nTasks, Sessions, Notes, Data Room and Profile follow. Data Room holds its own readiness figure."
+        },
+        "glance": {
+          "title": "The Journey tab at a glance",
+          "summary": "The roadmap card first, the stages below it.",
+          "body": "A single percentage and four bars answer one question: how much of the planned work is actually done. Read it as a thermometer, never as a grade.\n\nBelow the card, each stage is a block you can open. Several stages can run at once: a stage starts when its own start date arrives, not when the previous one ends.",
+          "bullets": "If you approved nothing this week, the card does not move — that is the correct answer.\nIt measures finished work, not effort, meetings attended or how busy everyone felt."
+        },
+        "vocabulary": {
+          "title": "The vocabulary",
+          "summary": "Six words that nest, and each one means one thing.",
+          "body": "Journey is a stage of the plan. A milestone is a checkpoint inside it, and the unit of completion. An activity is a specific piece of work inside a milestone. A deliverable is the artefact an activity must produce. A task is a to-do assigned to a person. A submission is what a founder files for a task that requires review.",
+          "bullets": "The tab is called Journey, and each stage inside it is also called a Journey — when someone says 'the Journey is complete', ask which one they mean.\nSessions, notes and journey reports sit beside the ladder, not inside it."
+        },
+        "status": {
+          "title": "The eight status words",
+          "summary": "Upcoming, Blocked, Not started, In progress, Awaiting review, Changes requested, Completed, Approved.",
+          "body": "Statuses are stored as fixed values and shown as eight words. The application never guesses a word for an unknown value: it shows the raw value instead, so you can report it rather than be misled by it.",
+          "bullets": "Upcoming is the calendar holding the work back; Not started is nobody having begun. They look alike and mean opposite things.\nBlocked is released by a completed dependency, never by reordering the list.\nAwaiting review is your queue: decide it."
+        },
+        "stage": {
+          "title": "Working a Journey (a stage)",
+          "summary": "How a stage starts, ends, and is written up.",
+          "body": "A stage is created with a start and an end date. Until its start date arrives it is Upcoming and its milestones are held. On the date it becomes Active on its own, and it becomes Completed when all of its milestones are.",
+          "bullets": "Add, rename, reorder and delete stages and milestones here.\nAttach a progress report while the stage runs, and a closing report when it ends.\nArchive a stage rather than deleting it, unless it was created by mistake.\nMoving a milestone up or down changes the reading order, never the dates and never a dependency."
+        },
+        "milestone": {
+          "title": "Working a milestone",
+          "summary": "Open it, and everything you do is attached here.",
+          "body": "Click a milestone to open it. In one place you get what needs your decision, the deliverables of each activity, the sessions booked on it and its internal notes.",
+          "bullets": "Edit, move up or down, open its notes, or mark it completed from the menu.\nA milestone closes either because you mark it, or because its deliverables are approved and its tasks are done.\nDo not close one to make the card look better: the same number is read by the founder and the studio."
+        },
+        "review": {
+          "title": "Reviewing what the venture submitted",
+          "summary": "Approve, or send it back with a written reason.",
+          "body": "Submissions appear at the top of the open milestone, not in a separate queue you have to remember to check. Each row shows the task, the version, who filed it, when, the founder's note and a link to the file.",
+          "bullets": "Approving accepts the deliverable and the work counts as done.\nRequesting changes requires a comment — write it as an instruction, not as a verdict.\nA new version never erases the previous one: the history stays readable."
+        },
+        "deliverables": {
+          "title": "Deliverables",
+          "summary": "Evidence, dates, and the words you may set.",
+          "body": "A deliverable carries two dates, a status and evidence — a file or a link. Uploaded files are never public: an authorised reader gets a short-lived signed address, generated when they open it.",
+          "bullets": "You may set Not started, In progress or Blocked.\nAwaiting review is set by the founder submitting; Changes requested by your review.\nApproved cannot be typed: it is the outcome of a review, which is why the percentage is traceable to a decision."
+        },
+        "activity": {
+          "title": "The three buttons on an activity",
+          "summary": "Quick note, Activity report, Session — similar, and not the same.",
+          "body": "Each activity offers three actions. A quick note and an activity report are both internal notes filed on the milestone; the report is the fuller one and is titled with the activity code. A session is a real booked meeting that the venture can see.",
+          "bullets": "Recorded a meeting or a decision — quick note.\nAssessed one activity against a checklist — activity report.\nNeed to sit down with the founder or a coach — session.\nNotes are staff-only: the founder never receives them."
+        },
+        "session": {
+          "title": "Booking a session",
+          "summary": "Four rules the server enforces, for you and for the founder.",
+          "body": "A session is a dated meeting attached to a milestone. It carries one memo, materials, its invitees and, after the meeting, the coach's write-up.",
+          "bullets": "A memo is required, and the session must belong to a milestone.\nThe date and time must be in the future; any future time is bookable.\nUp to five materials, and only files uploaded through this venture's own uploader.\nCancelling removes it from everyone's calendar; moving it updates it in place."
+        },
+        "notes": {
+          "title": "The Notes tab",
+          "summary": "Milestone notes, Activity reports, Session memos — staff only.",
+          "body": "Everything staff write about a venture, in three sections. The founder's account is refused by the server, not merely hidden by the interface.\n\nAn internal note must belong to a milestone: there are no venture-wide notes and no free-floating ones.",
+          "bullets": "Milestone notes are written on the milestone; activity reports come from an activity; session memos come from a session.\nThe session memo is the brief the venture was told about; the coach feedback is staff commentary. Both are readable here.\nIf the founder needs to know something, write it where they can read it — this is not a messaging channel."
+        },
+        "reports": {
+          "title": "Journey reports",
+          "summary": "The progress and closing reports for a whole stage.",
+          "body": "A journey report is the written account of a stage: what it set out to do, what happened, and what you recommend. It records a period, a summary, what was completed and outstanding, the support delivered, the challenges and your recommendation.",
+          "bullets": "A progress report is written while the stage runs; a closing report when it ends.\nIt moves from draft to submitted, and the date it was submitted is kept.\nIf a stage closes without its closing report, the tab says so in place — nothing is blocked, but the omission is never silent."
+        },
+        "templates": {
+          "title": "Templates and the archive",
+          "summary": "Reuse a plan, retire a plan.",
+          "body": "A good plan is worth reusing: a Journey can be saved as a template and applied to a new venture, which copies its structure without linking the two afterwards.",
+          "bullets": "Archiving takes a stage out of the working view and deletes nothing.\nThe tab has an Active and an Archived view; archived content returns only when you ask for it.\nBulk delete exists and asks twice — archive is the habitual choice."
+        },
+        "founder": {
+          "title": "What the founder sees",
+          "summary": "The plan and the sessions, never the staff commentary.",
+          "body": "The founder has their own workspace and their own Journey tab: their roadmap, milestones, deliverables, sessions they can book, and their tasks. Internal notes, activity reports, coach feedback and journey reports are staff instruments and never reach them.",
+          "bullets": "The reporting forms belong to the founder; you read their figures, you do not edit them.\nWhen a founder says 'I cannot see it', check three things: the stage is still Upcoming, it was archived, or it is internal by design."
+        },
+        "week": {
+          "title": "Your week in the Journey",
+          "summary": "A routine that keeps the plan true, in about twenty minutes.",
+          "body": "Clear the decision list first: every submission waiting on you is a founder who cannot move. Then read the roadmap card — if it did not move last week, ask which of the four bars should have. Then check the milestones due this week and the sessions booked.",
+          "bullets": "After every session: the memo, the coach's feedback, and an activity report if a decision was taken.\nAt the end of a stage: confirm every milestone is closed, write the closing report, then archive the stage.\nMonthly: read the founder's numbers against the roadmap, and check the Data Room readiness."
+        },
+        "troubleshooting": {
+          "title": "If something looks wrong",
+          "summary": "The five questions we get most.",
+          "body": "Most surprises are a status or a scope, not a defect. Check those before opening a ticket, and report with three facts: what you expected, what you saw, and the venture code plus the milestone or activity name.",
+          "bullets": "A stage is missing: check Upcoming, then the archive.\nThe percentage did not move: only completed milestones, completed tasks and approved deliverables count.\nA note is not where you expect: look under Activity reports or Session memos.\nA session will not save: the message names the rule that failed.\nThe founder cannot see something: it is internal by design."
+        },
+        "glossary": {
+          "title": "Glossary — English and French",
+          "summary": "The same words in both languages of the interface.",
+          "body": "Journey is Parcours. Milestone is Jalon. Activity is Activité. Deliverable is Livrable. Task is Tâche. Session is Session, though the tab keeps its English name in both languages. Roadmap progress is Avancement du parcours, and Data Room readiness is Complétude du Data Room.",
+          "bullets": "Milestone note: Note de jalon. Activity report: Rapport d'activité. Session memo: Compte rendu de séance.\nJourney report: Rapport de parcours. Closing report: Rapport de clôture.\nApproved: Approuvé. Awaiting review: En attente de revue. Changes requested: Modifications demandées."
+        }
+      }
     },
     "insights": "Insights",
     "validation": "Validation",
@@ -1058,10 +1315,8 @@
       "desc": "How much of the planned Journey work is done — journeys, milestones, tasks and deliverables."
     },
     "dataRoomReadiness": {
-      "title": "Investment readiness",
+      "title": "Data Room readiness",
       "desc": "Share of the required Data Room categories that are filed and verified.",
-      "hint": "Investment readiness is the Data Room's own completeness figure. It answers a different question from roadmap progress, so the two are never merged into one number.",
-      "where": "Where this comes from: the documents you file in the Data Room, measured against the requirements set for your business stage.",
       "indeterminate": "Not measurable yet — no Data Room category is marked required for this Venture.",
       "counts": "{verified} of {total} required categories verified"
     },
@@ -1496,15 +1751,15 @@
       },
       "sessionBookedEmailFailed": "Session booked — but we could not e-mail {emails}. Send them the details another way.",
       "report": {
-        "button": "Report",
-        "title": "Reports",
+        "button": "Activity report",
+        "title": "Activity reports",
         "activity": "Activity",
         "milestone": "Milestone",
         "thisActivity": "This activity ({count})",
         "wholeMilestone": "Whole milestone ({count})",
-        "empty": "No report yet. Write the first one below.",
-        "new": "New report",
-        "add": "Add report",
+        "empty": "No activity report yet. Write the first one below.",
+        "new": "New activity report",
+        "add": "Add activity report",
         "createdOn": "Created on",
         "createdAt": "Time",
         "author": "Written by",
@@ -2003,13 +2258,16 @@
       "northStarTitle": "North Star Metric",
       "northStarSubtitle": "Core venture value delivery indicator",
       "northStarDataSource": "Data source: Validated monthly report (north_star_value)",
-      "runwayTitle": "Capital Runway & Net Burn Projection",
-      "runwaySubtitle": "Operational runway in months and net burn rate",
+      "runwayTitle": "Runway",
+      "runwaySubtitle": "Months of cash left at the reported burn rate",
       "runwayDataSource": "Data source: Computed metric: cash_in_bank / monthly_burn",
       "unit": "Unit",
       "customersCount": "Customers",
-      "monthsOfRunway": "Months Runway",
-      "netBurn": "Net Burn"
+      "monthsOfRunway": "Runway",
+      "netBurn": "Net Burn",
+      "netBurnTitle": "Net Burn",
+      "netBurnSubtitle": "Cash spent each month — below zero means profitable",
+      "netBurnDataSource": "Data source: Computed metric: expenses − revenue"
     }
   }
 }

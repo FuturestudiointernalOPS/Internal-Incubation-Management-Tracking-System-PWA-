@@ -19,8 +19,15 @@ export const pointValue = (point) =>
     ? Number(point.value)
     : null;
 
-export const money = (value, currency, lang) =>
-  value === null || value === undefined ? "—" : formatCurrencyAmount(value, currency, localeFor(lang));
+export const money = (value, currency, lang, fx = null) => {
+  if (value === null || value === undefined) return "—";
+  // A display conversion is marked `≈`: the stored amount is still the filed
+  // one, and a reader must never mistake the two.
+  if (fx && fx.rate) {
+    return `≈ ${formatCurrencyAmount(Number(value) * fx.rate, fx.quote, localeFor(lang))}`;
+  }
+  return formatCurrencyAmount(value, currency, localeFor(lang));
+};
 
 export const num = (value, lang, digits = 0) =>
   value === null || value === undefined || !Number.isFinite(Number(value))
@@ -132,7 +139,7 @@ export function customerGrowth(months = []) {
  * Revenue growth and customer growth are BOTH here, side by side: they are
  * different questions and regularly disagree.
  */
-export function buildScorecard({ dashboard, lang }) {
+export function buildScorecard({ dashboard, lang, fx = null }) {
   const months = dashboard?.months || [];
   const month = latestMonth(months);
   const currency = month?.currency || dashboard?.latest?.currency || "XOF";
@@ -143,7 +150,7 @@ export function buildScorecard({ dashboard, lang }) {
     {
       key: "revenue",
       labelKey: "venture.reporting.metric.total_revenue",
-      value: money(pointValue(month?.totalRevenue), currency, lang),
+      value: money(pointValue(month?.totalRevenue), currency, lang, fx),
       hint: growth === null ? null : `${growth >= 0 ? "+" : ""}${percent(growth, lang)} / 3m`,
       tone: growth === null ? TONE.muted : growth >= 0 ? TONE.good : TONE.bad,
     },
@@ -180,7 +187,7 @@ export function buildScorecard({ dashboard, lang }) {
     {
       key: "arpu",
       labelKey: "venture.reporting.metric.arpu",
-      value: money(pointValue(month?.arpu), currency, lang),
+      value: money(pointValue(month?.arpu), currency, lang, fx),
       hint: null,
       tone: TONE.muted,
     },
@@ -222,7 +229,7 @@ export function buildScorecard({ dashboard, lang }) {
     {
       key: "netBurn",
       labelKey: "venture.reporting.metric.net_burn",
-      value: money(pointValue(month?.netBurn), currency, lang),
+      value: money(pointValue(month?.netBurn), currency, lang, fx),
       hint: null,
       tone: TONE.muted,
     },

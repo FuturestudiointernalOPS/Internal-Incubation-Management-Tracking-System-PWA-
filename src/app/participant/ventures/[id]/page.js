@@ -247,8 +247,11 @@ export default function VentureDetail() {
     await fetch(`/api/ventures/${params.id}/advisors`, { method: "PATCH", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ advisor_id: advisorId, action: "remove" }) });
     fetchAdvisors(true);
   }
+  // One read, two homes: the Data Room's completeness is shown in the Data Room
+  // tab, roadmap progress in the Journey tab. The endpoint keeps both indicators
+  // separate — the screens only decide where each one is painted.
   const { data: investmentReadiness, refresh: fetchInvestmentReadiness } = useApi(
-    ready && activeTab === "investment"
+    ready && (activeTab === "dataRoom" || activeTab === "journey")
       ? `/api/ventures/${params.id}/investment-readiness`
       : null,
     { defaultValue: null, transform: pickInvestmentReadiness },
