@@ -18,9 +18,9 @@ export function getDashboardSession() {
 
 export function setDashboardSession(value) {
   session = value;
-  // The shell is the only writer. Anything rendering from this cache subscribes
-  // (see useSessionUser), so a screen can pick up the identity as soon as the
-  // shell has fetched it instead of re-reading the browser's stored copy.
+  // Anything rendering from this cache subscribes (see useSessionUser), so a
+  // screen can pick up the identity as soon as the shell has fetched it instead
+  // of re-reading the browser's stored copy.
   for (const listener of listeners) listener();
 }
 
@@ -33,6 +33,23 @@ export function subscribeDashboardSession(listener) {
   return () => {
     listeners.delete(listener);
   };
+}
+
+/**
+ * Apply a change the signed-in user just saved (e.g. a new profile photo) to both
+ * the session and the browser's stored copy, so the shell shows it immediately.
+ */
+export function updateDashboardSessionUser(fields) {
+  const current = getDashboardSession();
+  if (current?.user) {
+    setDashboardSession({ ...current, user: { ...current.user, ...fields } });
+  }
+  try {
+    const stored = JSON.parse(localStorage.getItem("user") || "{}");
+    localStorage.setItem("user", JSON.stringify({ ...stored, ...fields }));
+  } catch {
+    // A browser with storage disabled keeps the change for this load only.
+  }
 }
 
 // ─── The identity, including the browser's stored copy ───────────────────────
