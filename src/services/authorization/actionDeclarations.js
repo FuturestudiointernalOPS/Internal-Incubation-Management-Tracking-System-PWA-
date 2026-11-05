@@ -124,6 +124,7 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/auth/setup-password/validate/route.js", kind: "auth-flow", reason: "Validation d'un jeton de configuration (rate-limit + jeton)." },
   { file: "src/app/api/investor/setup-password/route.js", kind: "auth-flow", reason: "Définition de mot de passe investisseur par jeton." },
   { file: "src/app/api/investor/register/route.js", kind: "auth-flow", reason: "Flux retiré (HTTP 410) — n'expose aucune donnée." },
+  { file: "src/app/api/investor/invitations/[token]/route.js", kind: "token", reason: "Validation d'un lien d'invitation investisseur par jeton (unguessable) ; ne renvoie que l'email et le nom de l'invité, jamais le jeton ni son hash." },
   { file: "src/app/api/invites/[token]/route.js", kind: "token", reason: "Validation d'un jeton d'invitation (unguessable)." },
   { file: "src/app/api/venture-member-invites/[token]/route.js", kind: "token", reason: "Invitation membre de venture par jeton." },
   { file: "src/app/api/verify/certificate/[token]/route.js", kind: "token", reason: "Vérification publique de certificat ; champs volontairement publics." },
@@ -196,6 +197,9 @@ const NO_GUARD_ALLOWED = new Set([
   // Stubs : répondent toujours 501 « feature not available in this schema ».
   "src/app/api/forms/route.js",
   "src/app/api/forms/[form_id]/route.js",
+  // Invitation investisseur par JETON (public par conception) : le jeton est
+  // la seule autorisation ; la réponse ne contient que l'email/nom de l'invité.
+  "src/app/api/investor/invitations/[token]/route.js",
   // Décision déléguée : services/programs/participantPrograms.js
   // (requireAuthorization("programs","view") / requireAuth([...]) /
   // requireProgramScope), remontée par `isAuthError`.

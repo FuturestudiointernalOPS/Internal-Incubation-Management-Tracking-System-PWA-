@@ -6,13 +6,13 @@
  * Semantics for scoped resources (program / project / venture):
  *
  *   1. Authenticate
- *   2. Super Admin bypass (existing resolver)
- *   3. CAPABILITY  — the resolver decides (eligibility + default/individual
- *                    access + restrictions). Global capabilities remain
- *                    global where they are designed to be (e.g. programs.view
- *                    holders may manage programs globally); this helper does
- *                    NOT grant global access because of an assignment.
- *   4. CONTEXT ASSIGNMENT — the user must actually be assigned to THIS
+ *   2. CAPABILITY  — the resolver decides (eligibility + default/individual
+ *                    access + restrictions). This is the SAME decision for a
+ *                    Super Admin: the owner's rights live in their profile too.
+ *   3. Super Admin SCOPE WAIVER — a Super Admin holding the right is not bound
+ *                    by an assignment (that is what the portfolio authority
+ *                    means). The capability check above is never waived.
+ *   4. CONTEXT ASSIGNMENT — everyone else must actually be assigned to THIS
  *                    resource (v2_program_staff / contact_roles for programs,
  *                    project_members for projects, venture_members for
  *                    ventures).
@@ -34,7 +34,7 @@
 
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
-import { getAuthorizationContext, evaluateAuthorization } from "./context";
+import { getAuthorizationContext, evaluateAuthorization, explainAuthorization } from "./context";
 import { AUTHZ_REASONS } from "./contextDecisions";
 import { isWithinScope, resolveVentureScopeId } from "./scope";
 import {
@@ -59,7 +59,9 @@ import { resolveProgramAssignment as resolveProgramStanding } from "./programAss
  * (Lot 8); the measurement lives in `scripts/db-audit/program-perimeter-compare.sql`,
  * not in this decision.
  *
- * EXCEPTION — Super Admin bypasses every policy, as everywhere else.
+ * EXCEPTION — Super Admin is not bound by a scope POLICY (the role has global
+ * authority), but it IS bound by the CAPABILITY: removing the right from the
+ * owner's matrix removes the action.
  */
 export const ENFORCED_SCOPE_POLICY = {
   program: "program_managed",
@@ -150,9 +152,25 @@ export async function decide({
       return { allowed: false, status: 401, errorKey: "errors.authRequired", reason: "unauthenticated" };
     }
 
-    // Super Admin bypass — existing resolver semantics.
+    // Super Admin — the RIGHT decides (the owner's profile carries it), then the
+    // assignment is waived: a global authority is not attached to one resource.
+    // A revoked right therefore denies the owner on scoped routes too.
     const authorizationContext = await getAuthorizationContext(session);
     if (authorizationContext?.isSuperAdmin) {
+      const ownerDecision = explainAuthorization(
+        authorizationContext,
+        module,
+        capability,
+        minLevel,
+      );
+      if (!ownerDecision.allowed) {
+        return {
+          allowed: false,
+          status: 403,
+          errorKey: "errors.insufficientPermissions",
+          reason: ownerDecision.reason,
+        };
+      }
       return { allowed: true, status: 200, errorKey: null, reason: AUTHZ_REASONS.SUPER_ADMIN };
     }
 

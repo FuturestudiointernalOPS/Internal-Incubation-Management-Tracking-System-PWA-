@@ -49,8 +49,15 @@ BLOCKS              user_capability_restrictions DELETE the capability.
     │               A block is not a level reduction — re-granting does not
     │               bypass it; only removing the block does.
     │
+RIGHTS              the effective matrix decides for EVERY identity, Super
+    │               Admin included. The owner's default rights live in the
+    │               `super_admin_default` profile: an administrator grants or
+    │               revokes them from the Permissions screen like any other.
+    │
 SCOPE               scope.js predicates read authoritative assignment rows
     │               (not the capability cache). Fail closed on any uncertainty.
+    │               A Super Admin holding the right is not bound by an
+    │               assignment; the right itself is still required.
     ▼
 EFFECTIVE PERMISSION
 ```

@@ -30,6 +30,21 @@ jest.mock("@/server/auth/guards", () => ({ requireSession: jest.fn() }));
 jest.mock("@/models/authorization/backfill", () => ({
   ensureCapabilityBackfills: jest.fn(async () => {}),
 }));
+// The Super Admin path now READS the rights matrix (the role is not an
+// allow-all). Pin the resolved context so these guard tests stay pure.
+jest.mock("@/services/authorization/contextCache", () => ({
+  getAuthorizationContext: jest.fn(async (session) => ({
+    role: session?.role,
+    isSuperAdmin: session?.role === "super_admin",
+    eligibility: {},
+    profiles: [],
+    effective: {
+      projects: { view: 5, edit: 5 },
+      programs: { view: 5, edit: 5 },
+    },
+    restrictions: {},
+  })),
+}));
 
 const { getSession } = require("@/server/auth/session");
 const { requireSession } = require("@/server/auth/guards");
@@ -188,11 +203,26 @@ describe("getFacilitatorPermissionLevel", () => {
 });
 
 describe("requireProjectAccess", () => {
-  it("admits a super_admin without touching the database", async () => {
+  it("admits a super_admin that holds the project right (the matrix decides)", async () => {
     requireSession.mockResolvedValue({ ...STAFF, role: "super_admin" });
 
     await expect(authz.requireProjectAccess("7")).resolves.toBeNull();
-    expect(mockExecute).not.toHaveBeenCalled();
+  });
+
+  it("refuses a super_admin whose project right was revoked", async () => {
+    const { getAuthorizationContext } = require("@/services/authorization/contextCache");
+    requireSession.mockResolvedValue({ ...STAFF, role: "super_admin" });
+    getAuthorizationContext.mockResolvedValueOnce({
+      role: "super_admin",
+      isSuperAdmin: true,
+      eligibility: {},
+      profiles: [],
+      effective: {},
+      restrictions: {},
+    });
+
+    const response = await authz.requireProjectAccess("7");
+    expect(response.status).toBe(403);
   });
 
   it("answers 404 for an unknown project", async () => {

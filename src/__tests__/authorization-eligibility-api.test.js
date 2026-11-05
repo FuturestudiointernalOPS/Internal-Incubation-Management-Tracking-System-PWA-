@@ -34,10 +34,11 @@ describe("permissions.configure_eligibility (Phase A)", () => {
     );
   });
 
-  test("SA may configure eligibility (bypass)", () => {
-    expect(authorize(saCtx(), "permissions", "configure_eligibility")).toBe(
-      true,
-    );
+  test("SA holds configure_eligibility through its matrix", () => {
+    const sa = saCtx({
+      effective: { permissions: { configure_eligibility: 5 } },
+    });
+    expect(authorize(sa, "permissions", "configure_eligibility")).toBe(true);
   });
 
   test("holder of the capability may configure; others are denied", () => {

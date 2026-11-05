@@ -6,18 +6,20 @@
  * on their own, and it is why this module reads no session and no repository.
  *
  * The rules:
- *   - Super Admin is DENIED if explicitly restricted, downgraded by an explicit
- *     grant below minLevel, or — for the `ventures` module — missing the right
- *     from their effective matrix. Eligibility is bypassed entirely.
+ *   - EVERY identity — Super Admin included — is allowed only when the
+ *     capability is in its EFFECTIVE matrix at the required level. For a Super
+ *     Admin that matrix is the `super_admin_default` profile plus personal
+ *     grants minus personal restrictions, so every action is a right an
+ *     administrator can grant or revoke from the Permissions screen.
+ *   - Eligibility (the feature ceiling) is bypassed for a Super Admin: it says
+ *     which identities MAY receive a feature, never which right they hold.
  *   - Everyone else is ELIGIBLE (the feature, which fails closed) AND their
  *     effective level >= minLevel.
  *
- * WHY VENTURES IS DIFFERENT: seeing and acting on EVERY Venture used to be a
- * property of the Super Admin role (the bypass itself). It is now an explicit
- * right (`ventures.view_all` / `ventures.edit_all`, plus the action rights), so
- * the owner's matrix is authoritative too: an administrator can grant or revoke
- * those rights from the Permissions screen. The rest of the platform keeps the
- * historical bypass.
+ * The Super Admin role no longer carries an implicit "allow all" for any
+ * module. Its full rights live in the seeded `super_admin_default` profile, so
+ * the default behavior is unchanged while a revoked right takes effect for the
+ * owner exactly as it does for anyone else.
  *   - `buildPermissionExplanation` reports the identity rows that produced each
  *     eligibility verdict, because "why does this person have access" is a
  *     question an administrator asks with the data in front of them.
@@ -34,8 +36,8 @@ import { explainEligibility } from "./eligibility";
 /**
  * Pure decision: "Can this context perform ACTION on FEATURE?"
  *
- * Super Admin: DENY on an explicit restriction, a downgrade below minLevel, or
- * a missing `ventures` right. Everyone else: ELIGIBLE (feature) AND effective
+ * Super Admin: its effective matrix decides (a restriction, a missing row or a
+ * level below minLevel denies). Everyone else: ELIGIBLE (feature) AND effective
  * level >= minLevel.
  */
 export const AUTHZ_REASONS = {
@@ -61,29 +63,21 @@ export function explainAuthorization(ctx, module, capability, minLevel = 1) {
   }
 
   if (ctx.isSuperAdmin) {
+    // The owner's rights are DATA too. `effective` is the default profile's
+    // rows + personal grants − personal restrictions, so a right removed from
+    // the Permissions screen (or blocked for this person) denies the owner just
+    // as it denies anyone else. A restriction still reports BLOCKED explicitly,
+    // because that is a different answer from "the row is missing".
     if (ctx.restrictions?.[module]?.has(capability)) {
       return { allowed: false, reason: AUTHZ_REASONS.BLOCKED, minLevel };
     }
-    const grantLevel = ctx.grants?.[module]?.[capability];
-    if (grantLevel !== undefined) {
-      return Number(grantLevel) >= minLevel
-        ? { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel }
-        : { allowed: false, reason: AUTHZ_REASONS.INSUFFICIENT_LEVEL, minLevel };
-    }
-    // VENTURES — the perimeter and its actions are rights, not a role
-    // property. The effective matrix is the profile's rows plus grants minus
-    // restrictions, so revoking the right from the default profile (or from the
-    // person) denies the owner exactly as it denies anyone else.
-    if (module === "ventures") {
-      const level = Number(ctx.effective?.ventures?.[capability] ?? 0);
-      if (level >= minLevel) return { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel };
-      return {
-        allowed: false,
-        reason: level > 0 ? AUTHZ_REASONS.INSUFFICIENT_LEVEL : AUTHZ_REASONS.MISSING_PERMISSION,
-        minLevel,
-      };
-    }
-    return { allowed: true, reason: AUTHZ_REASONS.SUPER_ADMIN, minLevel };
+    const level = Number(ctx.effective?.[module]?.[capability] ?? 0);
+    if (level >= minLevel) return { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel };
+    return {
+      allowed: false,
+      reason: level > 0 ? AUTHZ_REASONS.INSUFFICIENT_LEVEL : AUTHZ_REASONS.MISSING_PERMISSION,
+      minLevel,
+    };
   }
 
   // Spec §11 — the account gate is the FIRST question after the Super Admin
