@@ -932,6 +932,96 @@
       "activityHint": "Rapports du personnel rédigés depuis une activité. Ils sont classés sur le jalon de l'activité, avec l'activité dans le titre.",
       "coachFeedback": "Retour du coach"
     },
+    "schedule": {
+      "title": "Rythme de réunions récurrentes",
+      "subtitle": "Planifiez le rythme. Rien n'est réservé ici — prévisualisez d'abord.",
+      "empty": "Aucun rythme récurrent pour cette venture.",
+      "new": "Nouveau rythme",
+      "cancel": "Annuler",
+      "previewButton": "Prévisualiser les occurrences",
+      "save": "Enregistrer le rythme",
+      "saved": "Rythme enregistré en brouillon. Aucune séance n'a été réservée.",
+      "previewOnly": "Prévisualisation seule — rien n'a été enregistré.",
+      "window": "du {from} au {to}",
+      "occurrenceCount": "{count} occurrences dans cette période",
+      "noOccurrences": "Rien dans cette période. Vérifiez la date de début et les jours choisis.",
+      "field": {
+        "title": "Titre",
+        "type": "Type de réunion",
+        "timezone": "Fuseau horaire",
+        "frequency": "Fréquence",
+        "interval": "Toutes les",
+        "intervalUnit": "période(s)",
+        "slots": "Jours et heures de réunion",
+        "weekday": "Jour",
+        "start": "Début",
+        "minutes": "Minutes",
+        "addSlot": "Ajouter un jour",
+        "removeSlot": "Retirer",
+        "validFrom": "Débute le",
+        "validUntil": "Se termine le (facultatif)",
+        "maxOccurrences": "Ou s'arrête après (occurrences)",
+        "description": "Objet"
+      },
+      "frequency": {
+        "daily": "Quotidien",
+        "weekly": "Hebdomadaire",
+        "biweekly": "Toutes les deux semaines",
+        "monthly": "Mensuel"
+      },
+      "weekday": {
+        "0": "Dimanche",
+        "1": "Lundi",
+        "2": "Mardi",
+        "3": "Mercredi",
+        "4": "Jeudi",
+        "5": "Vendredi",
+        "6": "Samedi"
+      },
+      "type": {
+        "coaching": "Coaching",
+        "mentorship": "Mentorat",
+        "progress_review": "Revue d'avancement",
+        "pitch_review": "Revue de pitch",
+        "technical": "Appui technique"
+      },
+      "status": {
+        "draft": "Brouillon",
+        "active": "Actif",
+        "paused": "En pause",
+        "ended": "Terminé"
+      },
+      "version": "Version {n}",
+      "action": {
+        "pause": "Mettre en pause",
+        "resume": "Reprendre",
+        "end": "Terminer le rythme",
+        "newVersion": "Remplacer à partir d'une date"
+      },
+      "preview": {
+        "title": "Prochaines occurrences",
+        "utc": "UTC {time}",
+        "local": "{start}–{end}"
+      },
+      "error": {
+        "title": "Un titre est requis.",
+        "frequency": "Choisissez une fréquence.",
+        "interval": "L'intervalle doit être entre 1 et 12.",
+        "slots": "Ajoutez au moins un jour et une heure de réunion.",
+        "slotWeekday": "Choisissez un jour pour chaque créneau.",
+        "slotStart": "Chaque créneau a besoin d'une heure de début, HH:MM.",
+        "slotDuration": "Chaque créneau a besoin d'une durée entre 5 et 480 minutes.",
+        "validFrom": "Une date de début valide est requise.",
+        "validUntil": "La date de fin n'est pas valide.",
+        "validUntilBefore": "La date de fin ne peut pas précéder la date de début.",
+        "maxOccurrences": "La limite d'occurrences doit être un entier supérieur à zéro.",
+        "timezone": "Fuseau inconnu. Utilisez un nom IANA, par exemple Africa/Porto-Novo.",
+        "versionFrom": "Le remplacement doit commencer après la version qu'il remplace.",
+        "ended": "Ce rythme est terminé.",
+        "action": "Action inconnue.",
+        "notFound": "Rythme introuvable."
+      }
+    },
     "insights": "Apprentissages",
     "validation": "Validation",
     "problem": "Problème",

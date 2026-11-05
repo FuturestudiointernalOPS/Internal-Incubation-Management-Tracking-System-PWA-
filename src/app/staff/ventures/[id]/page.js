@@ -12,6 +12,7 @@ import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
 import VentureTasksPanel from "@/components/ventures/VentureTasksPanel";
 import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
 import CoachSessionPanel from "@/components/ventures/CoachSessionPanel";
+import RecurringSchedulePanel from "@/components/ventures/sessions/RecurringSchedulePanel";
 import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
 import VentureProfileReadOnly from "@/components/ventures/VentureProfileReadOnly";
 import CockpitMetrics from "@/components/ventures/cockpit/CockpitMetrics";
@@ -316,6 +317,8 @@ export default function StaffVentureWorkspace() {
 
       </>
       )}
+
+      {activeTab === "sessions" && <RecurringSchedulePanel ventureId={id} />}
 
       {activeTab === "sessions" && (
         <div className="card">

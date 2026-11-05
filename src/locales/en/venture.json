@@ -931,6 +931,96 @@
       "activityHint": "Staff reports written from an activity. They are stored on the activity's milestone, with the activity in the title.",
       "coachFeedback": "Coach feedback"
     },
+    "schedule": {
+      "title": "Recurring meeting schedule",
+      "subtitle": "Plan the rhythm. Nothing is booked from here — preview first.",
+      "empty": "No recurring schedule for this venture yet.",
+      "new": "New schedule",
+      "cancel": "Cancel",
+      "previewButton": "Preview occurrences",
+      "save": "Save schedule",
+      "saved": "Schedule saved as a draft. Nothing has been booked.",
+      "previewOnly": "Preview only — nothing was saved.",
+      "window": "{from} to {to}",
+      "occurrenceCount": "{count} occurrences in this window",
+      "noOccurrences": "Nothing in this window. Check the start date and the meeting days.",
+      "field": {
+        "title": "Title",
+        "type": "Meeting type",
+        "timezone": "Timezone",
+        "frequency": "Frequency",
+        "interval": "Every",
+        "intervalUnit": "period(s)",
+        "slots": "Meeting days and times",
+        "weekday": "Day",
+        "start": "Start",
+        "minutes": "Minutes",
+        "addSlot": "Add a day",
+        "removeSlot": "Remove",
+        "validFrom": "Starts on",
+        "validUntil": "Ends on (optional)",
+        "maxOccurrences": "Or stop after (occurrences)",
+        "description": "Purpose"
+      },
+      "frequency": {
+        "daily": "Daily",
+        "weekly": "Weekly",
+        "biweekly": "Every two weeks",
+        "monthly": "Monthly"
+      },
+      "weekday": {
+        "0": "Sunday",
+        "1": "Monday",
+        "2": "Tuesday",
+        "3": "Wednesday",
+        "4": "Thursday",
+        "5": "Friday",
+        "6": "Saturday"
+      },
+      "type": {
+        "coaching": "Coaching",
+        "mentorship": "Mentorship",
+        "progress_review": "Progress review",
+        "pitch_review": "Pitch review",
+        "technical": "Technical support"
+      },
+      "status": {
+        "draft": "Draft",
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended"
+      },
+      "version": "Version {n}",
+      "action": {
+        "pause": "Pause",
+        "resume": "Resume",
+        "end": "End schedule",
+        "newVersion": "Replace from a date"
+      },
+      "preview": {
+        "title": "Next occurrences",
+        "utc": "UTC {time}",
+        "local": "{start}–{end}"
+      },
+      "error": {
+        "title": "A title is required.",
+        "frequency": "Choose a frequency.",
+        "interval": "The interval must be between 1 and 12.",
+        "slots": "Add at least one meeting day and time.",
+        "slotWeekday": "Choose a day for every meeting slot.",
+        "slotStart": "Each slot needs a start time, HH:MM.",
+        "slotDuration": "Each slot needs a duration between 5 and 480 minutes.",
+        "validFrom": "A valid start date is required.",
+        "validUntil": "The end date is not valid.",
+        "validUntilBefore": "The end date cannot be before the start date.",
+        "maxOccurrences": "The occurrence limit must be a whole number above zero.",
+        "timezone": "Unknown timezone. Use an IANA name such as Africa/Porto-Novo.",
+        "versionFrom": "The replacement must start after the version it replaces.",
+        "ended": "This schedule has ended.",
+        "action": "Unknown action.",
+        "notFound": "Schedule not found."
+      }
+    },
     "insights": "Insights",
     "validation": "Validation",
     "problem": "Problem",

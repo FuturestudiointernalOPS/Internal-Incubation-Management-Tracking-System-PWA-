@@ -287,6 +287,81 @@ Severity: **S1** data loss or confidentiality · **S2** wrong history or broken 
 ## What this assessment does not claim
 
 - It does not measure current usage volumes `[U]`.
-- It does not assume Google Calendar removes deleted/cancelled events — that must be verified before P7 `[U]`.
 - It does not decide D2/D4/D5/D6/D8/D9; those remain Future Studio's calls.
 - It does not touch code, schema, migrations, records or permissions.
+
+---
+
+## I. P1 implementation record (delivered)
+
+**Approved scope:** schema, occurrence calculation, preview, schedule versions. **Not**
+approved and **not** implemented: generating sessions, notifications, calendar
+events, invitations, engagement memos.
+
+### I.1 What shipped
+
+| Piece | File | Evidence |
+|---|---|---|
+| Schedule + exception tables, duplicate guard on sessions | `src/services/ventures/schema/recurringSchedules.js` (registered in `schema.js`) | `UNIQUE (schedule_id, occurrence_key)` partial index; `UNIQUE (schedule_id, occurrence_key)` on exceptions |
+| Timezone maths | `recurringSchedules/timezone.js` | two-pass offset lookup; `Intl`, no new dependency |
+| Occurrence calculation | `recurringSchedules/occurrences.js` | pure; stable local keys; applies exceptions |
+| Validation / normalisation | `recurringSchedules/validate.js` | i18n keys, whole-number checks |
+| Service (create / pause / end / new version / list) | `recurringSchedules/index.js` | preview writes nothing |
+| API | `src/app/api/ventures/[id]/session-schedules/route.js` | staff-only (`calendar.schedule`); `preview`/`create`/`pause`/`resume`/`end`/`new_version` |
+| UI | `src/components/ventures/sessions/RecurringSchedulePanel.js` (mounted in the Venture Manager's Sessions tab) | form, preview table, versions, status actions |
+| Locales | `en/venture.json`, `fr/venture.json` under `venture.schedule.*` | parity 0/0 |
+
+### I.2 Demonstrations (run as tests, `src/__tests__/venture-recurring-schedule.test.js`)
+
+| Requirement | Test | Result |
+|---|---|---|
+| Tuesday 16:00–16:30 and Friday 15:00–15:30, different durations | "Tuesday 16:00–16:30 and Friday 15:00–15:30, two weeks" | 4 occurrences, per-day durations asserted |
+| Changing a schedule leaves history untouched | "the old version keeps its dates; the new one starts on its own date" | no date claimed twice |
+| Versions preserve the previous arrangement | `venture-recurring-schedule-versioning.test.js` | old ended the day before; `version 2`, `supersedes_id` = previous |
+| Duplicate occurrences impossible | "the same rule produces the same keys, and no key repeats" + the partial unique index | keys stable and unique |
+| Timezone correctness | Porto-Novo UTC+1 year-round; Paris +2/+1 with the wall clock held | instants asserted |
+| Skip / move workflow | "one occurrence can be skipped…" / "…moved…" | exception applied, pattern unchanged |
+
+`max_occurrences` is counted from the start of the schedule, not from the preview
+window — asserted.
+
+### I.3 Screenshots
+
+Not produced: this environment has no browser to capture one. The interface is
+verified by its rendering tests and by the component's own labels; a screenshot
+can be taken from `Ventures → [venture] → Sessions → Recurring meeting schedule`
+once the branch is running. **No image is claimed here that does not exist.**
+
+### I.4 Decision register after P1
+
+| # | Decision | Status |
+|---|---|---|
+| N1 | Recurrence lives in a schedule table, materialised later | **Decided by P1** (P1 stores the rule; P2 materialises) |
+| N2 | Generation timing | **Open** — P2 |
+| N3 | Horizon | **Open** — P2 |
+| N4 | Timezone helper | **Decided by implementation:** (a) `Intl`, no dependency. Reversible. |
+| N5 | Which timezone wins | **Decided by P1:** the schedule's own zone, defaulting to Africa/Porto-Novo |
+| N6 | Exception storage | **Decided by P1:** exception table; the calculator already applies it |
+| N7 | Modify-future behaviour | **Decided by P1:** version the schedule; old one ended the day before |
+| N8 | Who may manage schedules | **Decided by P1:** staff only, `calendar.schedule`; founders refused |
+| N9 | Reminder channel | **Open** — P7 |
+| N10 | Memo requirement by type | **Open** — D6 |
+| D2, D4, D5, D6, D8, D9 | Engagement record decisions | **Still open** — untouched by P1 |
+
+### I.5 Outstanding verification: Google Calendar — ANSWERED
+
+Verified in `services/integrations/googleCalendar/index.js` and `mapping.js` `[V]`:
+
+| Case | Behaviour | Mechanism |
+|---|---|---|
+| Cancelled session | **Removed from Google**, attendees notified | the personal-session query excludes `cancelled`/`no_show`, so the event vanishes from the source list; `planEventSync` puts the orphaned link in `deletes`; `deleteEvent(..., NOTIFY_ATTENDEES)` |
+| Deleted session | Same as cancelled | same diffing path |
+| Rescheduled session | **Moved, not duplicated** | the event fingerprint changes → `updates` → `patchEvent` on the same Google event id |
+| Duplicate entries | **Impossible** | one link per `(source, source_id)`; a create happens only when no link exists |
+| Manual deletion in Google | Re-created on the next push | `isGone(error)` → `insertEvent` + new link |
+
+Residual caveat: propagation happens on each person's sync (or immediately for the
+people the cancel route pushes). A guest who is not a platform user sees the
+cancellation because Google notifies attendees on delete.
+
+**P1 does not depend on this.** It is recorded because P2 does.
