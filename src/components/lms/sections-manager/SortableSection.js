@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   Plus,
   Pencil,
@@ -17,6 +18,7 @@ import AppButton from "@/components/ui/AppButton";
 import RichTextContent from "@/components/ui/RichTextContent";
 import SectionResourcesPanel from "../SectionResourcesPanel";
 import AssessmentCard from "./AssessmentCard";
+import EmbeddedVideo from "../EmbeddedVideo";
 
 /**
  * ONE section card, sortable with dnd-kit. The whole card is the drag node (so
@@ -45,6 +47,14 @@ export default function SortableSection({
   onEditAssessment,
   onDeleteAssessment,
 }) {
+  const [openLessonIds, setOpenLessonIds] = useState(() => new Set());
+  const toggleLesson = (id) =>
+    setOpenLessonIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const {
     attributes,
     listeners,
@@ -84,14 +94,16 @@ export default function SortableSection({
 
       {/* Section header */}
       <div
-        className="flex items-center gap-2 px-4 py-3 flex-wrap"
+        className="flex items-center gap-2 px-4 py-3 flex-wrap cursor-pointer"
         style={{ background: "var(--surface-2)" }}
+        onClick={onToggleCollapse}
       >
         <button
           type="button"
           ref={setActivatorNodeRef}
           {...attributes}
           {...listeners}
+          onClick={(event) => event.stopPropagation()}
           title={t("lms.sections.dragToReorder")}
           aria-label={t("lms.sections.dragToReorder")}
           className="p-1.5 rounded-lg cursor-grab active:cursor-grabbing transition-colors"
@@ -101,7 +113,10 @@ export default function SortableSection({
         </button>
         <button
           type="button"
-          onClick={onToggleCollapse}
+          onClick={(event) => {
+            event.stopPropagation();
+            onToggleCollapse();
+          }}
           title={collapsed ? t("lms.sections.expand") : t("lms.sections.collapse")}
           className="p-1.5 rounded-lg transition-colors"
           style={{ color: "var(--text-tertiary)" }}
@@ -126,7 +141,10 @@ export default function SortableSection({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={onEditSection}
+            onClick={(event) => {
+              event.stopPropagation();
+              onEditSection();
+            }}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: "var(--text-tertiary)" }}
             title={t("lms.sections.edit")}
@@ -135,7 +153,10 @@ export default function SortableSection({
           </button>
           <button
             type="button"
-            onClick={onDeleteSection}
+            onClick={(event) => {
+              event.stopPropagation();
+              onDeleteSection();
+            }}
             className="p-1.5 rounded-lg transition-colors"
             style={{ color: "var(--text-tertiary)" }}
             title={t("lms.sections.delete")}
@@ -164,12 +185,24 @@ export default function SortableSection({
               {t("lms.lessons.emptyHint")}
             </p>
           ) : (
-            section.lessons.map((lesson, lessonIndex) => (
+            section.lessons.map((lesson, lessonIndex) => {
+              const hasVideo = Boolean(lesson.youtube_video_id);
+              const isOpen = openLessonIds.has(lesson.id);
+              return (
               <div
                 key={lesson.id}
-                className="flex items-center gap-3 p-3 rounded-lg border"
+                className="rounded-lg border"
                 style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
               >
+              <div
+                className="flex items-center gap-3 p-3 cursor-pointer"
+                onClick={() => toggleLesson(lesson.id)}
+              >
+                {isOpen ? (
+                  <ChevronUp className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+                ) : (
+                  <ChevronDown className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+                )}
                 <Film className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold truncate" style={{ color: "var(--text-primary)" }}>
@@ -202,7 +235,10 @@ export default function SortableSection({
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => onMoveLesson(lesson, "up")}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onMoveLesson(lesson, "up");
+                    }}
                     disabled={lessonIndex === 0 || savingId === lesson.id}
                     className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
                     style={{ color: "var(--text-tertiary)" }}
@@ -212,7 +248,10 @@ export default function SortableSection({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onMoveLesson(lesson, "down")}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onMoveLesson(lesson, "down");
+                    }}
                     disabled={lessonIndex === section.lessons.length - 1 || savingId === lesson.id}
                     className="p-1.5 rounded-lg transition-colors disabled:opacity-30"
                     style={{ color: "var(--text-tertiary)" }}
@@ -222,7 +261,10 @@ export default function SortableSection({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onEditLesson(lesson)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onEditLesson(lesson);
+                    }}
                     className="p-1.5 rounded-lg transition-colors"
                     style={{ color: "var(--text-tertiary)" }}
                     title={t("lms.lessons.edit")}
@@ -231,7 +273,10 @@ export default function SortableSection({
                   </button>
                   <button
                     type="button"
-                    onClick={() => onDeleteLesson(lesson)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      onDeleteLesson(lesson);
+                    }}
                     className="p-1.5 rounded-lg transition-colors"
                     style={{ color: "var(--text-tertiary)" }}
                     title={t("lms.lessons.delete")}
@@ -240,7 +285,35 @@ export default function SortableSection({
                   </button>
                 </div>
               </div>
-            ))
+              {isOpen && (
+                <div className="px-3 pb-3 max-w-sm">
+                  {hasVideo ? (
+                    <EmbeddedVideo
+                      key={lesson.youtube_video_id}
+                      videoId={lesson.youtube_video_id}
+                      title={lesson.title}
+                      playLabel={t("lms.courses.videoPlay")}
+                    />
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-center py-3" style={{ color: "var(--text-tertiary)" }}>
+                      {t("lms.courses.videoLessonEmpty")}
+                    </p>
+                  )}
+              {isOpen && (
+                <div className="px-3 pb-3">
+                  <SectionResourcesPanel
+                    courseId={courseId}
+                    sectionId={section.id}
+                    lessonId={lesson.id}
+                    canEdit={canEdit}
+                  />
+                </div>
+              )}
+                </div>
+              )}
+              </div>
+              );
+            })
           )}
 
           <div className="flex items-center gap-2 pt-1">
@@ -266,8 +339,11 @@ export default function SortableSection({
             />
           )}
 
-          {/* Section material (documents + videos) */}
-          <SectionResourcesPanel courseId={courseId} sectionId={section.id} canEdit={canEdit} />
+          {/* Older chapter-level material: kept readable and removable, but new
+              material is added per lesson (inside each lesson above). */}
+          {(section.resources || []).length > 0 && (
+            <SectionResourcesPanel courseId={courseId} sectionId={section.id} canEdit={canEdit} />
+          )}
         </div>
       )}
     </div>

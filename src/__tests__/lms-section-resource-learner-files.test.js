@@ -170,6 +170,6 @@ test("the learner course payload reads material through the learner view", () =>
   // `learning/` split now, and a pin that read only the barrel would go green
   // without guarding anything.
   const source = readSurface("src/services/lms/learning.js");
-  expect(source).toContain("learnerSectionResourcesByCourse");
-  expect(source).not.toContain("listSectionResourcesByCourse");
+  expect(source).toContain("learnerCourseResourceGroups");
+  expect(source).not.toContain("listCourseResourceGroups");
 });

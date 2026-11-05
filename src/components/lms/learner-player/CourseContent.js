@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, HelpCircle } from "lucide-react";
+import { ChevronDown, HelpCircle, Lock } from "lucide-react";
 import LessonStateIcon from "@/components/lms/LessonStateIcon";
 import RichTextContent from "@/components/ui/RichTextContent";
 import { useI18n } from "@/lib/i18n";
@@ -119,13 +119,24 @@ function SidebarAssessmentRow({ t, assessment, onOpen }) {
   return (
     <button
       type="button"
-      onClick={() => onOpen(assessment.id)}
-      className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-colors"
+      onClick={() => !assessment.locked && onOpen(assessment.id)}
+      disabled={assessment.locked}
+      aria-disabled={assessment.locked}
+      title={assessment.locked ? t("lms.assessment.lockedHint") : undefined}
+      className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left transition-colors ${assessment.locked ? "opacity-60 cursor-not-allowed" : ""}`}
       style={{ color: "var(--text-primary)" }}
     >
-      <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
+      {assessment.locked ? (
+        <Lock className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+      ) : (
+        <HelpCircle className="w-4 h-4 shrink-0" style={{ color: "var(--brand-blue)" }} />
+      )}
       <span className="text-xs font-bold truncate flex-1">{assessment.title}</span>
-      {assessment.passed ? (
+      {assessment.locked ? (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
+          {t("lms.assessment.locked")}
+        </span>
+      ) : assessment.passed ? (
         <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--chart-success)" }}>
           ✓
         </span>

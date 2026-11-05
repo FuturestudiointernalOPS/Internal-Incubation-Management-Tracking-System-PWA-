@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle, ChevronDown } from "lucide-react";
+import { PlayCircle, AlertCircle, HelpCircle, CheckCircle2, XCircle, ChevronDown, Lock } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import LearnerProgressBar from "./LearnerProgressBar";
 import LessonStateIcon from "./LessonStateIcon";
@@ -322,11 +322,16 @@ function AssessmentRow({ t, assessment, onOpen }) {
   return (
     <button
       type="button"
-      onClick={() => onOpen(assessment.id)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mt-1"
+      onClick={() => !assessment.locked && onOpen(assessment.id)}
+      disabled={assessment.locked}
+      aria-disabled={assessment.locked}
+      title={assessment.locked ? t("lms.assessment.lockedHint") : undefined}
+      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors mt-1 ${assessment.locked ? "opacity-60 cursor-not-allowed" : ""}`}
       style={{ background: "var(--surface-2)", color: "var(--text-primary)" }}
     >
-      {passed ? (
+      {assessment.locked ? (
+        <Lock className="w-4 h-4 shrink-0" style={{ color: "var(--text-tertiary)" }} />
+      ) : passed ? (
         <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: "var(--chart-success)" }} />
       ) : attempted ? (
         <XCircle className="w-4 h-4 shrink-0" style={{ color: "var(--chart-danger)" }} />
@@ -336,7 +341,11 @@ function AssessmentRow({ t, assessment, onOpen }) {
       <span className="text-xs font-bold truncate flex-1" style={{ color: "var(--text-primary)" }}>
         {t("lms.assessments.title")}: {assessment.title}
       </span>
-      {passed ? (
+      {assessment.locked ? (
+        <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--text-tertiary)" }}>
+          {t("lms.assessment.locked")}
+        </span>
+      ) : passed ? (
         <span className="text-[9px] font-black uppercase tracking-wider shrink-0" style={{ color: "var(--chart-success)" }}>
           {t("lms.assessment.passed")}
           {assessment.bestPercent != null ? ` ${assessment.bestPercent}%` : ""}

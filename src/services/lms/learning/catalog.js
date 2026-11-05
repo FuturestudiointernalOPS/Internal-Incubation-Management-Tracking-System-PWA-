@@ -9,10 +9,10 @@
 
 import { LmsError } from "@/models/lms/errors";
 import { getCourse } from "@/models/lms/courses";
-import { learnerSectionResourcesByCourse } from "@/models/lms/sectionResources";
+import { learnerCourseResourceGroups } from "@/models/lms/sectionResources";
 import { selectUsableEnrollment, selectEnrollmentsByUser, selectCoursesByIds } from "@/models/lms/learningStore";
 import { loadStructure, loadEnrollmentProgress, getEnrollment, loadAssessmentStates } from "./structure";
-import { computeCourseProgress, findContinueLesson } from "./progress";
+import { computeCourseProgress, findContinueLesson, isAssessmentUnlocked } from "./progress";
 import { finalizeCourseCompletion } from "./completion";
 
 function learnerAssessment(state) {
@@ -105,7 +105,12 @@ export async function getLearnerCourse(courseId, userCid) {
   const certificate = await finalizeCourseCompletion({ course, enrollment, courseProgress });
 
   // Section material, signed for the learner (uploads get a short-lived link).
-  const resourcesBySection = await learnerSectionResourcesByCourse(courseId);
+  const { bySection: resourcesBySection, byLesson: resourcesByLesson } =
+    await learnerCourseResourceGroups(courseId);
+
+  const passedById = {};
+  for (const state of assessmentStates.values()) passedById[String(state.id)] = state.passed;
+  const lockedFor = (assessment) => !isAssessmentUnlocked(assessment, structure, progress, passedById);
 
   const sections = structure.map((section) => {
     const completedInSection = section.lessons.filter((lesson) => progress[String(lesson.id)] === "completed").length;
@@ -115,7 +120,9 @@ export async function getLearnerCourse(courseId, userCid) {
       description: section.description ?? null,
       position: section.position,
       resources: resourcesBySection.get(String(section.id)) || [],
-      assessment: section.assessment ? learnerAssessment(assessmentStates.get(String(section.assessment.id))) : null,
+      assessment: section.assessment
+        ? { ...learnerAssessment(assessmentStates.get(String(section.assessment.id))), locked: lockedFor(section.assessment) }
+        : null,
       progress: { completed: completedInSection, total: section.lessons.length },
       lessons: section.lessons.map((lesson) => ({
         id: lesson.id,
@@ -125,6 +132,7 @@ export async function getLearnerCourse(courseId, userCid) {
         is_required: lesson.is_required,
         duration_minutes: lesson.duration_minutes,
         youtube_video_id: lesson.youtube_video_id,
+        resources: resourcesByLesson.get(String(lesson.id)) || [],
         state: progress[String(lesson.id)] === "completed" ? "completed" : "not_started",
       })),
     };
@@ -139,7 +147,7 @@ export async function getLearnerCourse(courseId, userCid) {
 
   const courseAssessments = [...assessmentStates.values()]
     .filter((state) => !state.section_id)
-    .map(learnerAssessment);
+    .map((state) => ({ ...learnerAssessment(state), locked: lockedFor(state) }));
 
   return {
     course: {

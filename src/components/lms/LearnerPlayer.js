@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -10,6 +11,7 @@ import {
   AlertCircle,
   ListVideo,
   Film,
+  Lock,
 } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import EmbeddedVideo from "./EmbeddedVideo";
@@ -302,6 +304,16 @@ export default function LearnerPlayer({ courseId, lessonId }) {
               </div>
             )}
 
+          {/* Material attached to THIS lesson */}
+          {(lesson.resources || []).length > 0 && (
+            <div
+              className="rounded-xl border p-5 space-y-3"
+              style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+            >
+              <SectionResourcesList resources={lesson.resources} />
+            </div>
+          )}
+
           {/* Up-next assessment CTA (last lesson of a section / of the course) */}
           {upcomingAssessment && (
             <div
@@ -319,7 +331,11 @@ export default function LearnerPlayer({ courseId, lessonId }) {
                   </p>
                 </div>
               </div>
-              {upcomingAssessment.passed ? (
+              {upcomingAssessment.locked ? (
+                <AppButton variant="secondary" icon={Lock} disabled title={t("lms.assessment.lockedHint")}>
+                  {t("lms.assessment.locked")}
+                </AppButton>
+              ) : upcomingAssessment.passed ? (
                 <AppButton variant="success" icon={CheckCircle2} disabled>
                   {t("lms.assessment.passed")}
                 </AppButton>
@@ -356,10 +372,10 @@ export default function LearnerPlayer({ courseId, lessonId }) {
         </div>
       </div>
 
-      {/* In-place completion feedback: blur the page, confirm, then fade back. */}
-      {(completing || justCompleted) && (
+      {/* In-place completion feedback: blur the whole screen, confirm, then fade back. */}
+      {(completing || justCompleted) && typeof document !== "undefined" && createPortal(
         <div
-          className="absolute inset-0 z-30 flex items-center justify-center rounded-xl"
+          className="fixed inset-0 z-[400] flex items-center justify-center"
           style={{ background: "rgba(127,127,127,0.12)", backdropFilter: "blur(3px)" }}
           aria-live="polite"
         >
@@ -383,7 +399,8 @@ export default function LearnerPlayer({ courseId, lessonId }) {
               </>
             )}
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

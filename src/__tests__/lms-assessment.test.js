@@ -332,7 +332,19 @@ describe("course progress with required/optional assessments", () => {
     seedEnrollment();
     await submitAssessment("A-1", "U-LEARNER", correctAnswers);
     const progress = mockFake.state.lms_lesson_progress;
-    expect(progress).toHaveLength(0); // no lesson marked complete by assessment pass
+    expect(progress).toHaveLength(1); // only the lesson the learner finished; the pass added none
+  });
+
+  test("an assessment stays locked until the chapter's lessons are completed", async () => {
+    seedCourseWithAssessment();
+    seedEnrollment({ lessonsDone: false });
+    await expect(submitAssessment("A-1", "U-LEARNER", correctAnswers)).rejects.toMatchObject({
+      message: "lms.errors.assessmentLocked",
+    });
+    await expect(getAssessmentForTake("A-1", "U-LEARNER")).rejects.toMatchObject({
+      message: "lms.errors.assessmentLocked",
+    });
+    expect(mockFake.state.lms_assessment_attempts || []).toHaveLength(0);
   });
 
   test("passing a required assessment contributes to live course progress", async () => {
@@ -344,5 +356,29 @@ describe("course progress with required/optional assessments", () => {
     const result = await submitAssessment("A-1", "U-LEARNER", correctAnswers);
     expect(result.courseProgress.complete).toBe(true);
     expect(result.courseCompleted).toBe(true);
+  });
+});
+
+describe("isAssessmentUnlocked", () => {
+  const { isAssessmentUnlocked } = require("@/services/lms/learning/progress");
+  const structure = [
+    { id: "S1", lessons: [{ id: "L1" }, { id: "L2", is_required: false }], assessment: { id: "A1", is_required: true } },
+    { id: "S2", lessons: [{ id: "L3" }], assessment: { id: "A2", is_required: true } },
+  ];
+
+  test("a chapter assessment needs that chapter's required lessons only", () => {
+    const a1 = { id: "A1", section_id: "S1" };
+    expect(isAssessmentUnlocked(a1, structure, {}, {})).toBe(false);
+    expect(isAssessmentUnlocked(a1, structure, { L1: "completed" }, {})).toBe(true); // optional L2 ignored
+    expect(isAssessmentUnlocked({ id: "A2", section_id: "S2" }, structure, { L1: "completed" }, {})).toBe(false);
+  });
+
+  test("the final assessment needs every required lesson and every chapter assessment passed", () => {
+    const final = { id: "F", section_id: null };
+    const done = { L1: "completed", L3: "completed" };
+    expect(isAssessmentUnlocked(final, structure, { L1: "completed" }, {})).toBe(false);
+    expect(isAssessmentUnlocked(final, structure, done, {})).toBe(false);
+    expect(isAssessmentUnlocked(final, structure, done, { A1: true })).toBe(false);
+    expect(isAssessmentUnlocked(final, structure, done, { A1: true, A2: true })).toBe(true);
   });
 });

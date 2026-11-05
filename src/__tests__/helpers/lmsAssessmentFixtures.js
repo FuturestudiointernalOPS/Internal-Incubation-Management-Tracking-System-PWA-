@@ -64,10 +64,19 @@ module.exports = function createAssessmentFixtures(mockFake) {
     mockFake.seed("lms_assessment_questions", [Q_MC, Q_TF]);
   }
 
-  function seedEnrollment() {
+  // Assessments open only once the lessons are done, so the learner has
+  // finished the course's lesson by default; `lessonsDone: false` seeds a
+  // learner who has not.
+  function seedEnrollment({ lessonsDone = true } = {}) {
     mockFake.seed("lms_enrollments", [
       { id: "E-1", course_id: "C-1", user_cid: "U-LEARNER", source: "admin", status: "active" },
     ]);
+    mockFake.seed(
+      "lms_lesson_progress",
+      lessonsDone
+        ? [{ id: "P-0", enrollment_id: "E-1", lesson_id: "L-1", status: "completed" }]
+        : [],
+    );
   }
 
   const correctAnswers = [

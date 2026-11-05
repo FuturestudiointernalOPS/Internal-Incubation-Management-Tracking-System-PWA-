@@ -296,32 +296,12 @@ export default function SectionResourcesEditor({
             </span>
           )}
         </div>
-        {canEdit && (
-          <button
-            type="button"
-            onClick={openCreate}
-            className="text-[9px] font-black uppercase hover:underline flex items-center gap-1 shrink-0"
-            style={{ color: accent }}
-          >
-            <Plus className="w-3 h-3" /> {t("lms.sessionResources.add")}
-          </button>
-        )}
       </div>
 
       <div className="space-y-2">
         {loading ? (
           <div className="flex justify-center py-6">
             <div className="w-4 h-4 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (resources || []).length === 0 ? (
-          <div className="py-5 flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-2xl opacity-40">
-            <FileText className="w-6 h-6 mb-1.5" />
-            <p
-              className="text-[9px] font-bold uppercase tracking-widest"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              {t("lms.sessionResources.empty")}
-            </p>
           </div>
         ) : (
           resources.map((resource) => (
@@ -333,6 +313,46 @@ export default function SectionResourcesEditor({
               onDelete={() => onDelete?.(resource)}
             />
           ))
+        )}
+
+        {/* The whole zone adds a resource — no separate button. */}
+        {(canEdit || (!loading && (resources || []).length === 0)) && (
+          <div
+            role={canEdit ? "button" : undefined}
+            tabIndex={canEdit ? 0 : undefined}
+            onClick={canEdit ? openCreate : undefined}
+            onKeyDown={
+              canEdit
+                ? (event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openCreate();
+                    }
+                  }
+                : undefined
+            }
+            className={`flex flex-col items-center justify-center border-2 border-dashed border-[var(--border-primary)] rounded-2xl transition-colors ${
+              !loading && (resources || []).length === 0 ? "py-5" : "py-3"
+            } ${canEdit ? "cursor-pointer hover:bg-[var(--surface-2)]" : "opacity-40"}`}
+          >
+            {!loading && (resources || []).length === 0 ? (
+              <>
+                <FileText className="w-6 h-6 mb-1.5" style={{ color: "var(--text-tertiary)" }} />
+                <p className="text-[9px] font-bold uppercase tracking-widest" style={{ color: "var(--text-secondary)" }}>
+                  {t("lms.sessionResources.empty")}
+                </p>
+                {canEdit && (
+                  <p className="text-[9px] font-bold uppercase tracking-widest mt-1" style={{ color: accent }}>
+                    {t("lms.sessionResources.add")}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-widest" style={{ color: accent }}>
+                <Plus className="w-3 h-3" /> {t("lms.sessionResources.add")}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
