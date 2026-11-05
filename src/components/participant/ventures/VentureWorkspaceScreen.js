@@ -14,6 +14,7 @@ export default function VentureWorkspaceScreen({
   venture,
   brandColor,
   activeTab,
+  setupSection = "profile",
   onSection,
   onBack,
   canReport = false,
@@ -43,6 +44,7 @@ export default function VentureWorkspaceScreen({
         venture={venture}
         brandColor={brandColor}
         activeTab={activeTab}
+        setupSection={setupSection}
         onSection={onSection}
         onBack={onBack}
         canReport={canReport}

@@ -13,7 +13,18 @@ import {
   RoadmapReadinessCard,
 } from "@/components/ventures/workspace/tabs/GrowthTabs";
 import VentureReportingScreen from "@/components/ventures/reporting/VentureReportingScreen";
-import { REPORTING_TAB, tabsFor } from "@/components/participant/ventures/ventureScreenModel";
+import {
+  REPORTING_TAB,
+  SETUP_SECTIONS,
+  SETUP_TAB,
+  tabsFor,
+} from "@/components/participant/ventures/ventureScreenModel";
+
+function tabLabelKey(tab) {
+  if (tab === "dataRoom") return "dataRoom.title";
+  if (tab === REPORTING_TAB) return "venture.reporting.tabLabel";
+  return `venture.${tab}`;
+}
 
 // The Venture detail screen's markup. The screen owns every piece of state, the
 // reads and the handlers; this view only paints them and reports intent back
@@ -23,6 +34,7 @@ export default function VentureWorkspaceView({
   venture,
   brandColor,
   activeTab,
+  setupSection = "profile",
   onSection,
   onBack,
   canReport = false,
@@ -35,6 +47,9 @@ export default function VentureWorkspaceView({
   // components/ventures). Display name follows the admin rule company_name
   // first.
   const ventureDisplayName = venture.company_name || venture.name || "Venture";
+  const openSetupSection = SETUP_SECTIONS.includes(setupSection)
+    ? setupSection
+    : "profile";
 
   return (
     <div className="max-w-6xl mx-auto space-y-6" style={{ color: "var(--text-primary)" }}>
@@ -63,7 +78,7 @@ export default function VentureWorkspaceView({
           <button key={tab} onClick={() => onSection(tab)}
             className={`px-3.5 py-2.5 text-[10px] font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${activeTab === tab ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
             style={{ borderColor: activeTab === tab ? "var(--brand-orange)" : "transparent" }}
-          >{t(tab === "dataRoom" ? "dataRoom.title" : tab === REPORTING_TAB ? "venture.reporting.tabLabel" : `venture.${tab}`)}</button>
+          >{t(tabLabelKey(tab))}</button>
         ))}
       </div>
 
@@ -84,9 +99,33 @@ export default function VentureWorkspaceView({
           <VentureDataRoom ventureId={venture.venture_id || venture.id} />
         </div>
       )}
-      {activeTab === "profile" && <ProfileTab ventureId={venture.venture_id || venture.id} />}
-      {activeTab === "baseline" && <VentureBaselineTab ventureId={venture.venture_id || venture.id} />}
-      {activeTab === "team" && <TeamTab />}
+
+      {/* SetUp groups Profile / Venture Baseline / Team — same screens as before,
+          only the top-level door changed. */}
+      {activeTab === SETUP_TAB && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-1 border-b border-[var(--border-primary)] overflow-x-auto">
+            {SETUP_SECTIONS.map((section) => (
+              <button
+                key={section}
+                type="button"
+                onClick={() => onSection(section)}
+                className={`px-3 py-2 text-[10px] font-black uppercase tracking-wider border-b-2 transition-colors whitespace-nowrap ${openSetupSection === section ? "text-[var(--brand-orange)]" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                style={{ borderColor: openSetupSection === section ? "var(--brand-orange)" : "transparent" }}
+              >
+                {t(`venture.${section}`)}
+              </button>
+            ))}
+          </div>
+          {openSetupSection === "profile" && (
+            <ProfileTab ventureId={venture.venture_id || venture.id} />
+          )}
+          {openSetupSection === "baseline" && (
+            <VentureBaselineTab ventureId={venture.venture_id || venture.id} />
+          )}
+          {openSetupSection === "team" && <TeamTab />}
+        </div>
+      )}
 
       {/* The Venture Data Foundation: its own sub-tabs, inside the workspace the
           founder already opens. See docs/HANDOVER_VENTURES.md §1.5.
