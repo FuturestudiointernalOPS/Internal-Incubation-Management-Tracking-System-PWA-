@@ -9,7 +9,7 @@ import {
   updateMeetingOutcome,
   markConfirmationEmailSent,
   markReminderSent,
-  listMeetingsDueIn6h,
+  listMeetingsDueToday,
   listSlotsForWorkspace,
   listWorkspacesByInvestor,
   listWorkspacesByVentureIds,
@@ -214,20 +214,20 @@ export async function recordMeetingOutcome({ meetingId, status, outcomeCode = nu
   return { ok: true, meeting: result.rows?.[0] };
 }
 
-/** Send the 6-hour-before reminder for due confirmed meetings. */
+/** Send today's reminder for confirmed meetings later today. */
 export async function sendDueMeetingReminders({ session }) {
   let sent = 0;
-  const due = (await listMeetingsDueIn6h()).rows || [];
+  const due = (await listMeetingsDueToday()).rows || [];
 
   for (const meeting of due) {
-    if (await sendReminder(meeting, "6 hours")) {
-      await markReminderSent({ meetingId: meeting.id, which: "6h" });
+    if (await sendReminder(meeting, "today")) {
+      await markReminderSent({ meetingId: meeting.id, which: "daily" });
       await emitInvestorEvent({
         session,
         eventType: "meeting_reminder_sent",
         relatedId: meeting.id,
         actorType: "system",
-        metadata: { window: "6h" },
+        metadata: { window: "daily" },
       });
       sent += 1;
     }
@@ -246,7 +246,7 @@ async function sendReminder(meeting, window) {
   try {
     await sendStandaloneEmail({
       to: recipient,
-      subject: `Future Studio — Meeting in ${window}`,
+      subject: `Future Studio — Meeting ${window}`,
       email_type: "investor_meeting_reminder",
       contact_cid: null,
       body: `Reminder: your meeting starts at ${new Date(meeting.start_at).toISOString()} (UTC).\nLink: ${meeting.video_link || "—"}`,

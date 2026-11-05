@@ -108,7 +108,9 @@ export async function markReminderSent({ meetingId, which }) {
       ? "reminder_24h_sent_at"
       : which === "1h"
         ? "reminder_1h_sent_at"
-        : "reminder_6h_sent_at";
+        : which === "6h"
+          ? "reminder_6h_sent_at"
+          : "reminder_daily_sent_at";
   return db.execute({
     sql: `UPDATE relationship_meetings SET ${column} = NOW() WHERE id = ?`,
     args: [meetingId],
@@ -142,6 +144,19 @@ export async function listMeetingsDueIn6h() {
              AND start_at > NOW()
              AND start_at <= NOW() + INTERVAL '6 hours'
              AND reminder_6h_sent_at IS NULL`,
+    args: [],
+  });
+}
+
+/** The daily sweep: confirmed meetings later today not yet reminded. */
+export async function listMeetingsDueToday() {
+  return db.execute({
+    sql: `SELECT * FROM relationship_meetings
+           WHERE status = 'confirmed'
+             AND start_at::date = CURRENT_DATE
+             AND start_at > NOW()
+             AND reminder_daily_sent_at IS NULL
+           ORDER BY start_at ASC`,
     args: [],
   });
 }
