@@ -27,17 +27,6 @@ export async function getRunById(runId) {
   });
 }
 
-/**
- * The form's live (active) run, most recently updated first. Publish reuses it
- * instead of minting another run for the same form.
- */
-export async function getActiveRunForFormId(formId) {
-  return db.execute({
-    sql: "SELECT * FROM platform_form_runs WHERE form_id = ? AND status = 'active' ORDER BY updated_at DESC LIMIT 1",
-    args: [parseInt(formId)],
-  });
-}
-
 /** Review rows for one submission, newest first. */
 export async function getSubmissionReviewsBySubmissionId(submissionId) {
   return db.execute({

@@ -20,23 +20,6 @@ export async function updateFormRunMetadataById({ id, name, description, status,
   });
 }
 
-/**
- * Point a run at a newly published form version, and optionally rename it
- * (the service decides whether the name is the auto-generated "<form> v<N>").
- */
-export async function updateRunFormVersionById({ id, formVersion, name }) {
-  const fields = ["form_version = ?"];
-  const args = [parseInt(formVersion)];
-  if (name) { fields.push("name = ?"); args.push(name); }
-  fields.push("updated_at = NOW()");
-  args.push(parseInt(id));
-
-  return db.execute({
-    sql: `UPDATE platform_form_runs SET ${fields.join(", ")} WHERE id = ? RETURNING *`,
-    args,
-  });
-}
-
 // ── DELETE /api/platform/form-runs ───────────────────────────────────────────
 
 /** Delete a run's email-log rows (cascade cleanup before run delete). */
