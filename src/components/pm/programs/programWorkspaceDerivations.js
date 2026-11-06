@@ -7,17 +7,23 @@
 import { buildProgramTabs } from "@/components/pm/programs/programTabs";
 import { selectVisibleTabs } from "@/components/pm/programs/programWorkspaceSelectors";
 
-// Assigned registration form (public link) - resolved from the Form Run
-// assigned directly to this Program (target_type = "program"), or to the
-// person's family when the screen has no program id. The ADDRESS says which of
-// the two questions is being asked, so "nothing to ask" is simply no address
-// and the read's default (null) is what the header shows.
+// Assigned registration form (public link) — prefer a Form Run assigned to the
+// Program (`target_type = "program"`). Callers that also know a family/group id
+// should fall back to `buildRegFormGroupUrl` when the programme read is empty.
 export function buildRegFormUrl(id, regGroupId) {
-  return id
-    ? `/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`
-    : regGroupId
-      ? `/api/platform/form-runs?group_id=${encodeURIComponent(String(regGroupId))}`
-      : null;
+  if (id) {
+    return `/api/platform/form-runs?program_id=${encodeURIComponent(String(id))}`;
+  }
+  return regGroupId
+    ? `/api/platform/form-runs?group_id=${encodeURIComponent(String(regGroupId))}`
+    : null;
+}
+
+/** Group/family-targeted registration run (fallback when the programme has none). */
+export function buildRegFormGroupUrl(regGroupId) {
+  return regGroupId
+    ? `/api/platform/form-runs?group_id=${encodeURIComponent(String(regGroupId))}`
+    : null;
 }
 
 export function countPendingSubmissions(submissions) {
