@@ -8,7 +8,7 @@ import {
   ChevronRight,
   Clock,
   FolderKanban,
-  Mic,
+  Info,
   Plus,
   RefreshCw,
   Target,
@@ -29,13 +29,13 @@ export function TodayTasksCard({ tasks, busyId, onToggle, onAdd, onOpenAll }) {
   const done = tasks.filter((task) => task.status === "completed").length;
   return (
     <div className="stf-card">
-      <h3>
-        <CheckCircle2 size={16} />
-        {t("staffMisc.front.dashboard.todayTasks")}
-        <span className="stf-tag o" style={{ marginLeft: "auto" }}>
-          {done}/{tasks.length}
-        </span>
-      </h3>
+      <div className="stf-ch">
+        <div>
+          <span className="stf-k">{t("staffMisc.front.dashboard.workKicker")}</span>
+          <h3 style={{ marginTop: 2 }}>{t("staffMisc.front.dashboard.todayTasks")}</h3>
+        </div>
+        <span className="stf-tag o">{done}/{tasks.length}</span>
+      </div>
       <div className="stf-bar-prog">
         <i style={{ width: `${tasks.length ? (done / tasks.length) * 100 : 0}%` }} />
       </div>
@@ -112,19 +112,26 @@ export function WeeklyReportsCard({ week, status, regularity, loading, onOpen })
       </span>
     </button>
   );
+  const count = (status.standup ? 1 : 0) + (status.retro ? 1 : 0);
   return (
-    <div className="stf-card">
-      <h3>
-        <Mic size={16} />
-        {t("staffMisc.front.dashboard.weekReports")}
-      </h3>
-      <p className="stf-k" style={{ marginBottom: 6 }}>
+    <div className="stf-card stf-routine" style={{ marginBottom: 16 }}>
+      <div className="stf-ch">
+        <div>
+          <span className="stf-k">{t("staffMisc.front.dashboard.routineKicker")}</span>
+          <h3 style={{ marginTop: 2 }}>{t("staffMisc.front.dashboard.routineTitle")}</h3>
+        </div>
+        <span className="stf-tag">{t("staffMisc.front.dashboard.routineCount", { count })}</span>
+      </div>
+      <p className="stf-k" style={{ margin: "0 0 2px" }}>
         {t("staffMisc.front.dashboard.weekLabel", { week: week.week, year: week.year })}
+        {" · "}
+        <span className={`stf-tag ${tone}`}>{t(`staffMisc.front.regularity.${regularity}`)}</span>
       </p>
       {line("standup", t("reports.mondayStandup"), status.standup, "standup")}
       {line("retro", t("reports.fridayRetro"), status.retro, "retro")}
-      <p className="stf-k" style={{ margin: "14px 0 6px" }}>{t("staffMisc.front.dashboard.regularity")}</p>
-      <span className={`stf-tag ${tone}`}>{t(`staffMisc.front.regularity.${regularity}`)}</span>
+      <p className="stf-hint">
+        <Info size={14} /> {t("staffMisc.front.dashboard.routineHint")}
+      </p>
       <div style={{ marginTop: 12 }}>
         <button type="button" className="stf-btn sm" onClick={() => onOpen("standup")}>
           {t("staffMisc.front.dashboard.openWeeklyOps")}
@@ -139,13 +146,16 @@ export function BlockersCard({ blockers, resolvingId, onResolve, onOpenAll }) {
   const { t } = useI18n();
   return (
     <div className="stf-card">
-      <h3>
-        <AlertTriangle size={16} />
-        {t("staffMisc.front.dashboard.blockers")}
-        {blockers.length > 0 && (
-          <span className="stf-tag r" style={{ marginLeft: "auto" }}>{blockers.length}</span>
-        )}
-      </h3>
+      <div className="stf-ch">
+        <div>
+          <span className="stf-k">{t("staffMisc.front.dashboard.attentionKicker")}</span>
+          <h3 style={{ marginTop: 2 }}>
+            {t("staffMisc.front.dashboard.blockers")}
+            {blockers.length > 0 && <span className="stf-tag r">{blockers.length}</span>}
+          </h3>
+        </div>
+        <AlertTriangle size={20} style={{ color: blockers.length ? "var(--stf-crit)" : "var(--stf-done)" }} />
+      </div>
       {blockers.length === 0 ? (
         <div className="stf-empty">
           <CheckCircle2 size={30} style={{ color: "var(--stf-done)" }} />
@@ -448,6 +458,39 @@ export function ShortcutsSection({ onGo }) {
         {link(t("staffMisc.front.sectionD.tasks"), t("staffMisc.front.sectionD.tasksText"), "/staff/tasks", "b")}
         {link(t("staffMisc.front.sectionD.forms"), t("staffMisc.front.sectionD.formsText"), "/platform", "b")}
         {link(t("staffMisc.front.sectionD.messages"), t("staffMisc.front.sectionD.messagesText"), "/staff/messages")}
+      </div>
+    </section>
+  );
+}
+
+/** "My areas": one door per area the person works in, with its figure. */
+export function AreasSection({ areas }) {
+  const { t } = useI18n();
+  return (
+    <section style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 12 }}>
+        <span className="stf-k" style={{ display: "block" }}>{t("staffMisc.front.dashboard.areasKicker")}</span>
+        <h3 className="stf-card-title" style={{ margin: "2px 0 0", fontSize: 18 }}>{t("staffMisc.front.dashboard.areasTitle")}</h3>
+      </div>
+      <div className="stf-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", marginBottom: 0 }}>
+        {areas.map((area) => (
+          <button key={area.key} type="button" className="stf-area" onClick={area.onClick}>
+            <div className="top">
+              <span className={`stf-tag ${area.tone || ""}`}>{area.tag}</span>
+              <area.icon size={18} />
+            </div>
+            <div className="fig">
+              <b>{area.loading ? "…" : area.value}</b>
+              <span>{area.label}</span>
+            </div>
+            <div className="foot">
+              <span>{area.line}</span>
+              <i>
+                {t("staffMisc.front.dashboard.open")} <ChevronRight size={13} />
+              </i>
+            </div>
+          </button>
+        ))}
       </div>
     </section>
   );

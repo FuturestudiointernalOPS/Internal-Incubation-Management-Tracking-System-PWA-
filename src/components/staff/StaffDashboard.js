@@ -1,7 +1,6 @@
 "use client";
 
 import PageHero from "@/components/ui/PageHero";
-import KpiCard from "@/components/ui/KpiCard";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, BarChart3, FolderKanban, ListChecks, Users } from "lucide-react";
@@ -12,6 +11,7 @@ import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { pickDashboard } from "@/components/dashboard/unified-dashboard/constants";
 import StaffCalendar from "./StaffCalendar";
 import {
+  AreasSection,
   AssignmentsCard,
   BlockersCard,
   MeetingsCard,
@@ -214,6 +214,7 @@ export default function StaffDashboard() {
     <div className="stf" style={{ paddingBottom: 60 }}>
       {/* Hero */}
       <PageHero
+        plain
         kicker={now.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         title={
           firstName
@@ -231,42 +232,23 @@ export default function StaffDashboard() {
         }
       />
 
-      {/* KPIs */}
-      <div className="stf-grid">
-        <KpiCard label={t("staffMisc.front.dashboard.kpiPrograms")} value={activePrograms} icon={FolderKanban} loading={loading} />
-        <KpiCard label={t("staffMisc.front.dashboard.kpiProjects")} value={summary.projects || 0} icon={Users} loading={loading} />
-        <KpiCard label={t("staffMisc.front.dashboard.kpiTasks")} value={summary.tasks?.open || 0} icon={ListChecks} loading={loading} />
-        <KpiCard label={t("staffMisc.front.dashboard.kpiReports")} value={`${(currentWeek.standup ? 1 : 0) + (currentWeek.retro ? 1 : 0)} / 2`} icon={BarChart3} loading={loading} />
-      </div>
-
-      {/* Calendar */}
-      <StaffCalendar
-        events={events}
-        now={now}
-        loading={loading}
-        onRangeChange={onRangeChange}
-        onOpenTask={onOpenTask}
-        onSetStatus={(item, status) => setStatus(item.relatedId, status)}
-        onCreateTask={onCreateTask}
-        onCreateMeeting={onCreateMeeting}
-        formRequest={formRequest}
+      {/* Routine: the stand-up and the retro come first */}
+      <WeeklyReportsCard
+        week={thisWeek}
+        status={currentWeek}
+        regularity={standing}
+        loading={reportsRead.loading}
+        onOpen={(tab) => go(`/staff/op-report?tab=${tab}`)}
       />
 
-      {/* Today */}
-      <div className="stf-grid g3">
+      {/* Work of the day and blockers */}
+      <div className="stf-grid h2">
         <TodayTasksCard tasks={tasks} busyId={busyTask} onToggle={onToggleTask} onAdd={() => ask("task")} onOpenAll={() => go("/staff/tasks")} />
-        <MeetingsCard meetings={meetings} onAdd={() => ask("meeting")} />
-        <WeeklyReportsCard
-          week={thisWeek}
-          status={currentWeek}
-          regularity={standing}
-          loading={reportsRead.loading}
-          onOpen={(tab) => go(`/staff/op-report?tab=${tab}`)}
-        />
+        <BlockersCard blockers={quick.blockers || EMPTY} resolvingId={resolving} onResolve={onResolveBlocker} onOpenAll={() => go("/staff/op-report?tab=summary")} />
       </div>
 
       <div className="stf-grid g3">
-        <BlockersCard blockers={quick.blockers || EMPTY} resolvingId={resolving} onResolve={onResolveBlocker} onOpenAll={() => go("/staff/op-report?tab=summary")} />
+        <MeetingsCard meetings={meetings} onAdd={() => ask("meeting")} />
         {(data?.assignments || []).length > 0 ? (
           <AssignmentsCard assignments={data.assignments} actionId={actionId} onAction={onAssignmentAction} onOpenAll={() => go("/staff/tasks")} />
         ) : (
@@ -280,6 +262,29 @@ export default function StaffDashboard() {
         )}
         <ProjectsCard projects={quick.projects || EMPTY} onOpen={(project) => go(`/staff/projects/${project.id}`)} onOpenAll={() => go("/staff/projects")} />
       </div>
+
+      {/* My areas */}
+      <AreasSection
+        areas={[
+          { key: "programs", tag: t("staffMisc.front.sectionA.active"), tone: "g", icon: FolderKanban, value: activePrograms, label: t("staffMisc.front.dashboard.areaPrograms"), line: t("staffMisc.front.sectionA.title"), loading, onClick: () => go("/pm/programs") },
+          { key: "projects", tag: t("staffMisc.front.dashboard.kpiProjects"), tone: "b", icon: Users, value: summary.projects || 0, label: t("staffMisc.front.dashboard.areaProjects"), line: t("staffMisc.front.dashboard.allProjects"), loading, onClick: () => go("/staff/projects") },
+          { key: "tasks", tag: t("staffMisc.front.dashboard.kpiTasks"), tone: "o", icon: ListChecks, value: summary.tasks?.open || 0, label: t("staffMisc.front.dashboard.areaTasks"), line: t("staffMisc.front.dashboard.allTasks"), loading, onClick: () => go("/staff/tasks") },
+          { key: "reports", tag: t("staffMisc.front.dashboard.kpiReports"), icon: BarChart3, value: `${(currentWeek.standup ? 1 : 0) + (currentWeek.retro ? 1 : 0)} / 2`, label: t("staffMisc.front.dashboard.areaReports"), line: t("staffMisc.front.dashboard.openWeeklyOps"), loading, onClick: () => go("/staff/op-report") },
+        ]}
+      />
+
+      {/* Calendar */}
+      <StaffCalendar
+        events={events}
+        now={now}
+        loading={loading}
+        onRangeChange={onRangeChange}
+        onOpenTask={onOpenTask}
+        onSetStatus={(item, status) => setStatus(item.relatedId, status)}
+        onCreateTask={onCreateTask}
+        onCreateMeeting={onCreateMeeting}
+        formRequest={formRequest}
+      />
 
       {/* Sections A–D */}
       <ProgramsSection
