@@ -9,13 +9,15 @@ import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
+import AppInput from "@/components/ui/AppInput";
+import AppTextarea from "@/components/ui/AppTextarea";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
 
 const pickInvestorProfile = (response) =>
-  response?.success ? response.profile || null : null;
+  response?.success && response.profile ? { ...response.profile, features: response.features || {} } : null;
 
 // The values the two forms start from. They are a pure shaping of what was
 // stored, so the forms are the stored profile with the person's own edits laid
@@ -32,6 +34,7 @@ const EMPTY_PROFILE_FORM = {
   ticketMin: "",
   ticketMax: "",
   philosophy: "",
+  logoUrl: "", pastInvestments: "",
 };
 
 const profileToForm = (storedProfile) =>
@@ -47,6 +50,7 @@ const profileToForm = (storedProfile) =>
         ticketMin: storedProfile.ticket_size_min || "",
         ticketMax: storedProfile.ticket_size_max || "",
         philosophy: storedProfile.investment_philosophy || "",
+        logoUrl: storedProfile.logo_url || "", pastInvestments: storedProfile.past_investments || "",
       }
     : EMPTY_PROFILE_FORM;
 
@@ -105,12 +109,13 @@ export default function InvestorProfilePage() {
           biography: field("biography"),
           website: field("website"),
           linkedin: field("linkedin"),
+          ...(profile?.features?.dashboardV2 ? { logo_url: field("logoUrl"), past_investments: field("pastInvestments") } : {}),
         }),
       });
       const data = await response.json();
       if (data.success) {
         setToast({ type: "success", message: t("investorMisc.profile.saved") });
-        setProfile(data.profile);
+        setProfile({ ...data.profile, features: data.features || {} });
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
       }
@@ -197,6 +202,12 @@ export default function InvestorProfilePage() {
         {/* PROFILE TAB */}
         {activeTab === "profile" && (
           <div className="space-y-4">
+            {profile?.features?.dashboardV2 && <AppCard padding="lg">
+              <AppInput label={t("investorMisc.dashboardV2.logo")} value={field("logoUrl")}
+                onChange={event => setField("logoUrl", event.target.value)} maxLength={2000} />
+              <AppTextarea className="mt-4" label={t("investorMisc.dashboardV2.pastInvestments")}
+                value={field("pastInvestments")} onChange={event => setField("pastInvestments", event.target.value)} maxLength={4000} />
+            </AppCard>}
             <AppCard padding="lg">
               <div className="space-y-4">
                 <div>

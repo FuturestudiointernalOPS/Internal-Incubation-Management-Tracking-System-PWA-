@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
@@ -15,7 +16,7 @@ import { listEvaluationsForViewer, createEvaluation } from "@/services/investor"
  * The own-scope binding of the pipeline and the write dispatch by type live in
  * `@/services/investor`.
  */
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
@@ -66,3 +67,5 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "evaluation");

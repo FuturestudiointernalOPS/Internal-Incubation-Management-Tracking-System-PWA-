@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
@@ -6,7 +7,7 @@ import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/
 import { listPipelineForViewer, addOrUpdatePipeline } from "@/services/investor";
 
 /** POST /api/investor/pipeline — add venture to pipeline or update stage */
-export async function POST(req) {
+async function POSTWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("create");
@@ -36,7 +37,7 @@ export async function POST(req) {
 }
 
 /** GET /api/investor/pipeline — list pipeline for current investor or by venture */
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     // Phase 1.5: authentication only — scoping is derived in the service.
@@ -58,3 +59,7 @@ export async function GET(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "pipeline");
+
+export const POST = withInvestorPrivacy(POSTWithOriginalGuards, "pipeline");

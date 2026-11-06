@@ -39,9 +39,58 @@ de production pour faire fonctionner la connexion. Une connexion normale écrit
 une session et un historique ; ce n'est pas une opération strictement en lecture seule.
 Les routes peuvent aussi appeler la maintenance de schéma existante `initDb()`.
 
+## Vérifications d'interface ajoutées — encore NOT_RUN
+
+Le parcours d'introduction et l'accès aux decks ont évolué depuis la checklist
+initiale. Les points suivants doivent être validés avec des données fictives et un
+stockage de test avant toute approbation de phase :
+
+- Dashboard investisseur : vérifier le deck depuis Discover, le détail d'une
+  entreprise et Watchlist ; demander une introduction pour une entreprise déjà
+  au Pipeline, puis vérifier le retrait d'une demande encore en attente.
+- Administration Deal Flow : téléverser un PDF de moins de 10 Mo, le publier,
+  puis vérifier l'ouverture par un investisseur autorisé et le refus d'un deck
+  non publié ou d'un lien de stockage public.
+- Rendez-vous : vérifier les propositions dans deux fuseaux horaires, la
+  confirmation d'un seul créneau, l'absence de doublon après double soumission,
+  les reports/annulations et les rappels à 24 h, 6 h et 1 h.
+- Vérifier les messages de validation, d'échec de stockage et de décision dans
+  les deux langues, ainsi que l'envoi contenu des courriels.
+
+Ces vérifications n'ont pas été exécutées dans cette session. Comme `.env.local`
+pointe vers le staging, ne pas lancer le serveur ni téléverser de fichier tant
+qu'un environnement de test isolé n'est pas configuré ou qu'une autorisation
+explicite pour ces mutations staging n'a pas été donnée.
+
+## Point de contrôle Phase 3/4 — 6 novembre 2026
+
+L'autorisation explicite de mutation staging a été reçue. La migration additive
+`20261106_investor_phase3_4.sql` a été appliquée sur `mbpaxrfhqqclzyiefuab`.
+La contrainte des statuts de réunion et les tables de créneaux/retours ont été
+vérifiées en lecture seule après l'application. Le runner réinitialise le mode
+de session à sa valeur héritée avant de la fermer ; aucun réglage permanent de
+rôle ou de base n'a été modifié. Aucune donnée de démonstration ni aucun
+courriel n'a été créé ou envoyé.
+
+- Tests automatisés ciblés Phase 3/4 : 6 suites, 47 tests réussis.
+- Frontières service/modèle : 1 029 tests réussis.
+- ESLint ciblé : 0 erreur, 0 avertissement ; parité EN/FR : aucune clé manquante.
+- Build de production : interrompu après cinq minutes sans progression ; **non validé**.
+- Parcours navigateur, comptes fictifs, courriels sandbox et 29 lignes de
+  `BASELINE_CHECKLIST.csv` : **NOT_RUN**. Le dépôt ne fournit pas de transport
+  e-mail sandbox identifié ; les configurations transactionnelles existantes
+  peuvent utiliser un fournisseur réel.
+- Les interrupteurs `investor_introductions_v1`, `investor_messaging_v1` et
+  `investor_meetings_v1` n'existent pas dans le registre staging ; les fonctions
+  protégées par drapeau restent désactivées. Ils n'ont pas été activés.
+
+Les phases 3 et 4 ne sont donc pas déclarées terminées et la phase 5 n'est pas
+commencée. L'acceptation produit et les essais isolés restent nécessaires.
+
 ## Premier passage avec ton compte : observation seulement
 
-- Vérifier les trois onglets actuels : Discover, Pipeline, Watchlist.
+- Vérifier les onglets disponibles : Discover, Pipeline, Watchlist et, si le
+  flag est activé, Introductions.
 - Ouvrir les filtres, une fiche entreprise et la comparaison si les données existent.
 - Ouvrir directement `/investor/profile`, puis comparer au lien Profil de la sidebar.
 - Basculer FR/EN et noter les textes non traduits.

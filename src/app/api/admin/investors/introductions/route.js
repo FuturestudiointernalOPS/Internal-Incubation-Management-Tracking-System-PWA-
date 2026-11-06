@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 
 import { ensureInvestorExpansionSchema } from "@/models/investor/expansionSchema";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireInvestorStudioAuthorization as requireAuthorization } from "@/server/investor/studioAuthorization";
 import {
   decideIntroduction,
   listIntroductionsForStudio,
@@ -14,13 +14,16 @@ import {
 export async function GET(req) {
   try {
     await initDb();
-    await ensureInvestorExpansionSchema();
 
     const authError = await requireAuthorization("investor", "view");
     if (authError) return authError;
+    await ensureInvestorExpansionSchema();
 
     const status = new URL(req.url).searchParams.get("status") || undefined;
     const result = await listIntroductionsForStudio({ status });
+    if (!result.ok) {
+      return NextResponse.json({ success: false, error: result.error }, { status: result.status });
+    }
     return NextResponse.json({ success: true, requests: result.requests });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -36,8 +39,10 @@ export async function PUT(req) {
     const authError = await requireAuthorization("investor", "edit");
     if (authError) return authError;
 
-    const { id, action, reason, relationship_manager_id } = await req.json();
-    if (!id || !action) {
+    const body = await req.json();
+    const { id, action, reason, internal_note, relationship_manager_id } = body || {};
+    if (!/^[1-9]\d*$/.test(String(id || "")) || BigInt(id) > 9223372036854775807n
+      || !action || !["start_review", "approve", "decline"].includes(action)) {
       return NextResponse.json({ success: false, error: "id and action required" }, { status: 400 });
     }
 
@@ -56,6 +61,7 @@ export async function PUT(req) {
         id,
         decision: action === "approve" ? "approved" : "declined",
         reason: reason ?? null,
+        internalNote: internal_note ?? null,
         relationshipManagerId: relationship_manager_id ?? null,
         session,
       });

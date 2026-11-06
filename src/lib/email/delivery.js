@@ -43,6 +43,7 @@ export async function sendAndRecord({ to, cc, subject, html, fromName, provider,
  */
 export async function sendStandaloneEmail({
   to,
+  cc,
   subject,
   body,
   html,
@@ -56,7 +57,7 @@ export async function sendStandaloneEmail({
   replyTo,
 }) {
   const content = html != null ? html : isHtml ? (body || "") : textToHtml(body);
-  return sendAndRecord({ to, subject, html: content, fromName, provider, contact_cid, email_type, note, attachments, replyTo });
+  return sendAndRecord({ to, cc, subject, html: content, fromName, provider, contact_cid, email_type, note, attachments, replyTo });
 }
 
 /**

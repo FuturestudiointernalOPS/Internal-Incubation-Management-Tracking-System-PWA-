@@ -26,7 +26,7 @@ const ACTIONS = {
  * reason.
  */
 export default function IntroductionsAdminPage() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { confirm, prompt, alert } = useDialogs();
   const { data: requests, loading, refresh } = useApi("/api/admin/investors/introductions", {
     defaultValue: EMPTY,
@@ -36,6 +36,7 @@ export default function IntroductionsAdminPage() {
 
   const act = async (request, action) => {
     let reason = null;
+    let internalNote = null;
     if (action === "decline") {
       reason = await prompt({
         message: t("investorAdmin.introductions.declineReason"),
@@ -46,6 +47,14 @@ export default function IntroductionsAdminPage() {
       });
       if (!reason) return;
     }
+    if (action === "approve" || action === "decline") {
+      internalNote = await prompt({
+        message: t("investorAdmin.introductions.internalNote"),
+        inputLabel: t("investorAdmin.introductions.internalNoteLabel"),
+        placeholder: t("investorAdmin.introductions.internalNotePlaceholder"),
+      });
+      if (internalNote === null) return;
+    }
 
     const meta = ACTIONS[action];
     if (!(await confirm({ message: t(`investorAdmin.introductions.${meta.confirm}`) }))) return;
@@ -55,7 +64,7 @@ export default function IntroductionsAdminPage() {
       const response = await fetch("/api/admin/investors/introductions", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: request.id, action, reason }),
+        body: JSON.stringify({ id: request.id, action, reason, internal_note: internalNote || null }),
       });
       const json = await response.json();
       if (!json.success) throw new Error(json.error || "Failed");
@@ -94,14 +103,19 @@ export default function IntroductionsAdminPage() {
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
                 <div>
                   <b>
-                    {t("investorAdmin.introductions.investor")} {request.investor_id} → {request.venture_id}
+                    {request.organization_name || request.investor_email || t("investorAdmin.introductions.investor")}
+                    {" → "}
+                    {request.venture_name || request.venture_id}
                   </b>
-                  <div className="stf-small">{request.message || "—"}</div>
+                  {request.investor_email && request.organization_name && (
+                    <div className="stf-small">{request.investor_email}</div>
+                  )}
+                  <div className="stf-small">{request.message || t("investorAdmin.introductions.noMessage")}</div>
                   <div className="stf-small">
-                    {request.requested_at ? new Date(request.requested_at).toLocaleString() : "—"}
+                    {request.requested_at ? new Date(request.requested_at).toLocaleString(lang === "fr" ? "fr-FR" : "en-US") : t("investorAdmin.introductions.unknownDate")}
                   </div>
                 </div>
-                <span className="stf-tag">{request.status}</span>
+                <span className="stf-tag">{t(`dashboardV2.status.${request.status === "submitted" ? "requestSent" : request.status === "under_review" ? "underReview" : request.status}`)}</span>
               </div>
 
               {["submitted", "under_review"].includes(request.status) && (

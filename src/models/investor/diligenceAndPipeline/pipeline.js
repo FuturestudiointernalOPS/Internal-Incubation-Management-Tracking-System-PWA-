@@ -35,8 +35,15 @@ export async function upsertInvestmentPipeline({ investor_id, venture_id, stage,
             ON CONFLICT (investor_id, venture_id)
             DO UPDATE SET stage = EXCLUDED.stage, notes = EXCLUDED.notes,
                           stage_changed_at = NOW(), updated_at = NOW()
-            RETURNING *`,
+            RETURNING *, (xmax = 0) AS was_inserted`,
     args: [investor_id, venture_id, stage, notes || null],
+  });
+}
+
+export async function findInvestmentPipelineForInvestorVenture(investorId, ventureId) {
+  return db.execute({
+    sql: "SELECT id, stage FROM investment_pipeline WHERE investor_id = ? AND venture_id = ? LIMIT 1",
+    args: [investorId, ventureId],
   });
 }
 

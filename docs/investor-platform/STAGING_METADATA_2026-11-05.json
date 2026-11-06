@@ -2,7 +2,7 @@
   "date": "2026-11-05",
   "project_ref": "mbpaxrfhqqclzyiefuab",
   "branch": "venture-A",
-  "commit": "13a54d5fd",
+  "commit": "3708d517c",
   "read_only": [
     {
       "read_only": "on"
@@ -851,5 +851,6 @@
     "No authenticated HTTP or Supabase REST request executed",
     "No function-body or ownership audit; no immutability write probes",
     "Flag search limited to investor key substring plus investment_module and data_room"
-  ]
+  ],
+  "audit_revision": "after-interns-merge"
 }

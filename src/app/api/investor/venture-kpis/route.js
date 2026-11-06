@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
@@ -9,7 +10,7 @@ import {
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 
 /** GET /api/investor/venture-kpis?venture_id=X — KPIs derived from Venture OS */
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
@@ -38,3 +39,5 @@ export async function GET(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "kpis");

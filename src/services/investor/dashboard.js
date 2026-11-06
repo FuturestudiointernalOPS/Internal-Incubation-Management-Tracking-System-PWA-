@@ -28,7 +28,10 @@ import {
   investorPipelineRow,
   investorVentureCard,
   investorWatchlistRow,
+  investorCampaign,
+  investorRelationship,
 } from "@/services/investor/dto";
+import { listInvestorWeeklyActivity } from "@/models/investor/activityLog";
 
 /**
  * Score each active venture against the investor's preferences and return them
@@ -117,7 +120,7 @@ export function scoreVentures({ profile, ventures, mode = "deal_flow_only" }) {
  * empty payload. Recommendation, campaign and relationship blocks are each
  * best-effort: a failure there never fails the whole dashboard.
  */
-export async function buildInvestorDashboard({ session }) {
+export async function buildInvestorDashboard({ session, includeV2 = false }) {
   const profileResult = await getInvestorDashboardProfile(session.cid || session.id);
   const profile = profileResult.rows[0];
 
@@ -133,7 +136,7 @@ export async function buildInvestorDashboard({ session }) {
     };
   }
 
-  const mode = profile.visibility_mode || "deal_flow_only";
+  const mode = profile.visibility_mode === "full_pipeline" ? "full_pipeline" : "deal_flow_only";
 
   const pipelineResult = await listInvestorPipelineEntries(profile.id);
   const watchlistResult = await listInvestorWatchlist(profile.id);
@@ -147,7 +150,10 @@ export async function buildInvestorDashboard({ session }) {
         mode,
         ventures: (dealFlow.rows || []).map((row) => ({
           ...row,
+          deal_flow_id: row.id,
           raise_amount: row.target_amount,
+          deck_id: row.deck_id,
+          deck_version: row.deck_version,
         })),
       });
     } else {
@@ -184,13 +190,19 @@ export async function buildInvestorDashboard({ session }) {
     relationships = relationshipsResult.rows;
   } catch (_) {}
 
+  let weeklyActivity = null;
+  if (includeV2) {
+    try { weeklyActivity = (await listInvestorWeeklyActivity(profile.id)).rows; } catch (_) {}
+  }
+
   return {
+    ...(includeV2 ? { weeklyActivity } : {}),
     profile: { ...profile, visibility_mode: mode },
     pipeline: pipelineResult.rows.map((row) => investorPipelineRow(row, { mode })),
     watchlist: watchlistResult.rows.map((row) => investorWatchlistRow(row, { mode })),
     recommendations,
-    campaigns,
-    relationships,
+    campaigns: campaigns.map(investorCampaign),
+    relationships: relationships.map(investorRelationship),
     stats: {
       ...statsResult.rows[0],
       watchlist_count: parseInt(watchlistCount.rows[0]?.count || 0),

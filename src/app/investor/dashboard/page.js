@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowRight, BriefcaseBusiness, CalendarClock, Search, SlidersHorizontal, RotateCw, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AppButton from "@/components/ui/AppButton";
+import LinkCard from "@/components/ui/LinkCard";
+import PageHero from "@/components/ui/PageHero";
+import SectionHead from "@/components/ui/SectionHead";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import ParticipantDashboardHome from "@/components/dashboard/ParticipantDashboardHome";
 import DashboardStats from "@/components/investor/dashboard-page/DashboardStats";
 import DashboardTabs from "@/components/investor/dashboard-page/DashboardTabs";
-import CampaignsSection from "@/components/investor/dashboard-page/CampaignsSection";
+import InvestorDashboardCharts from "@/components/investor/dashboard-page/InvestorDashboardCharts";
+import IntroductionsTab from "@/components/investor/dashboard-page/IntroductionsTab";
+import MeetingsTab from "@/components/investor/dashboard-page/MeetingsTab";
 import UpcomingMeetingsSection from "@/components/investor/dashboard-page/UpcomingMeetingsSection";
 import VentureFilters from "@/components/investor/dashboard-page/VentureFilters";
 import VentureGrid from "@/components/investor/dashboard-page/VentureGrid";
@@ -21,7 +25,6 @@ import VentureDetailModal from "@/components/investor/dashboard-page/VentureDeta
 import ComparisonBar from "@/components/investor/dashboard-page/ComparisonBar";
 import ComparisonModal from "@/components/investor/dashboard-page/ComparisonModal";
 import ProfileGate from "@/components/investor/dashboard-page/ProfileGate";
-import { STAGE_LABELS } from "@/components/investor/dashboard-page/constants";
 
 // The shape the screen renders from, so a failed or malformed payload never
 // reaches a `.map` / `.total_*` read. Module scope keeps both values stable for
@@ -31,9 +34,10 @@ const EMPTY_INVESTOR_DASHBOARD = {
   pipeline: [],
   watchlist: [],
   recommendations: [],
-  campaigns: [],
   relationships: [],
   stats: {},
+  features: {},
+  weeklyActivity: null,
 };
 const pickInvestorDashboard = (response) =>
   response?.success
@@ -42,9 +46,10 @@ const pickInvestorDashboard = (response) =>
         pipeline: response.pipeline || [],
         watchlist: response.watchlist || [],
         recommendations: response.recommendations || [],
-        campaigns: response.campaigns || [],
         relationships: response.relationships || [],
         stats: response.stats || {},
+        features: response.features || {},
+        weeklyActivity: Array.isArray(response.weeklyActivity) ? response.weeklyActivity : null,
       }
     : EMPTY_INVESTOR_DASHBOARD;
 
@@ -65,9 +70,10 @@ export default function InvestorDashboard() {
     pipeline,
     watchlist,
     recommendations,
-    campaigns,
     relationships,
     stats,
+    features,
+    weeklyActivity,
   } = data;
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("discover");
@@ -83,6 +89,9 @@ export default function InvestorDashboard() {
   const [filterFundingMax, setFilterFundingMax] = useState("");
   const [ventures, setVentures] = useState([]);
   const [venturesTotal, setVenturesTotal] = useState(0);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState(false);
 
   // Detail modal
   const [detailVenture, setDetailVenture] = useState(null);
@@ -97,6 +106,13 @@ export default function InvestorDashboard() {
   const [introVenture, setIntroVenture] = useState(null);
   const [introMessage, setIntroMessage] = useState("");
   const [processingId, setProcessingId] = useState(null);
+  const { data: introductions, refresh: refreshIntroductions } = useApi(features.introductions ? "/api/investor/introductions" : null, {
+    defaultValue: [],
+    transform: (response) => response?.success && Array.isArray(response.requests) ? response.requests : [],
+  });
+  const activeIntroductionCount = introductions.filter((request) =>
+    ["submitted", "under_review", "approved"].includes(request.status),
+  ).length;
 
   const addToPipeline = async (ventureId, stage) => {
     setProcessingId(ventureId);
@@ -108,10 +124,16 @@ export default function InvestorDashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        setToast({ type: "success", message: `${t("venture")} ${t(STAGE_LABELS[stage] || "")}` });
+        setToast({ type: "success", message: stage === "interested"
+          ? t("dashboardV2.interestSaved")
+          : t("dashboardV2.pipelineUpdated") });
         refresh();
+      } else {
+        setToast({ type: "error", message: t(data.error || "errors.somethingWrong") });
       }
-    } catch (_) {} finally {
+    } catch (_) {
+      setToast({ type: "error", message: t("errors.somethingWrong") });
+    } finally {
       setProcessingId(null);
     }
   };
@@ -126,10 +148,16 @@ export default function InvestorDashboard() {
       });
       const data = await response.json();
       if (data.success) {
-        setToast({ type: "success", message: data.action === "added" ? "Added to watchlist" : "Removed from watchlist" });
+        setToast({ type: "success", message: t(data.action === "added"
+          ? "dashboardV2.watchlistAdded"
+          : "dashboardV2.watchlistRemoved") });
         refresh();
+      } else {
+        setToast({ type: "error", message: t(data.error || "errors.somethingWrong") });
       }
-    } catch (_) {} finally {
+    } catch (_) {
+      setToast({ type: "error", message: t("errors.somethingWrong") });
+    } finally {
       setProcessingId(null);
     }
   };
@@ -149,19 +177,60 @@ export default function InvestorDashboard() {
     if (stage.length) params.set("stage", stage.join(","));
     if (fundingMin) params.set("funding_min", fundingMin);
     if (fundingMax) params.set("funding_max", fundingMax);
+    setSearchLoading(true);
+    setSearchError(false);
     try {
       const response = await fetch(`/api/investor/ventures?${params}`);
       const data = await response.json();
-      if (data.success) {
-        setVentures(data.ventures || []);
-        setVenturesTotal(data.total || 0);
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "errors.somethingWrong");
       }
-    } catch (_) {}
+      setVentures(data.ventures || []);
+      setVenturesTotal(data.total || 0);
+      setHasSearched(true);
+    } catch (_) {
+      setSearchError(true);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
+
+  const requestIntroduction = async () => {
+    if (!introVenture) return;
+    setProcessingId(introVenture.id);
+    try {
+      const response = await fetch("/api/investor/introductions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          venture_id: String(introVenture.id),
+          deal_flow_entry_id: introVenture.deal_flow_id ?? null,
+          message: introMessage,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || "errors.somethingWrong");
+      }
+      setShowIntroModal(false);
+      setIntroVenture(null);
+      setIntroMessage("");
+      setToast({ type: "success", message: t("dashboardV2.requestSentToast") });
+      setActiveTab("introductions");
+      refreshIntroductions();
+      refresh();
+    } catch (requestError) {
+      setToast({ type: "error", message: t(requestError.message || "errors.somethingWrong") });
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   // Open venture detail
   const openVentureDetail = async (venture, bypassCache = false) => {
     setDetailVenture(venture);
+    void fetch("/api/investor/interactions", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "venture_viewed", venture_ids: [String(venture.id)] }) }).catch(() => {});
     const url = `/api/investor/pipeline?venture_id=${venture.id}`;
     let painted = false;
     const applyPipeline = (data) => {
@@ -202,11 +271,13 @@ export default function InvestorDashboard() {
 
   if (loading) {
     return (
-      <>
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
+      <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6" aria-busy="true" aria-label={t("common.loading")}>
+        <div className="stf-card h-24 animate-pulse" />
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((item) => <div key={item} className="stf-card h-20 animate-pulse" />)}
         </div>
-      </>
+        <div className="stf-card h-52 animate-pulse" />
+      </div>
     );
   }
 
@@ -222,37 +293,122 @@ export default function InvestorDashboard() {
     ? pipeline
     : pipeline.filter(item => item.stage === stageFilter);
 
-  const _filteredRecommendations = recommendations.filter(recommendation =>
-    !search || recommendation.name?.toLowerCase().includes(search.toLowerCase()) ||
-    recommendation.industry?.toLowerCase().includes(search.toLowerCase())
-  );
-
   return (
     <>
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:p-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
-        <ParticipantDashboardHome />
+        <h1 className="sr-only">{t("dashboardV2.dashboardTitle")}</h1>
+        <PageHero
+          kicker={t("dashboardV2.kicker")}
+          title={t("dashboardV2.welcome", { name: profile.organization_name || t("dashboardV2.investor") })}
+          subtitle={t("dashboardV2.welcomeHint")}
+          action={
+            <AppButton variant="secondary" icon={ArrowRight} onClick={() => router.push("/investor/deal-flow")}>
+              {t("dashboardV2.exploreDealFlow")}
+            </AppButton>
+          }
+        />
 
-        {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              Investor Dashboard
-            </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">
-              {profile.organization_name || "Individual Investor"}
-            </p>
+        <section className="order-2" aria-label={t("dashboardV2.summary")}>
+          <DashboardStats
+            stats={stats}
+            introductionCount={features.introductions ? activeIntroductionCount : 0}
+            introductions={features.introductions}
+            meetings={features.meetings}
+            loading={loading}
+            onNavigate={setActiveTab}
+          />
+        </section>
+
+        <section className="order-3 space-y-3" aria-labelledby="investor-actions-title">
+          <SectionHead
+            letter="A"
+            tone="o"
+            icon={Sparkles}
+            title={t("dashboardV2.actionNeeded")}
+            subtitle={t("dashboardV2.actionHint")}
+          />
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {features.introductions && activeIntroductionCount > 0 ? (
+              <LinkCard
+                icon={Sparkles}
+                tone="o"
+                title={t("dashboardV2.viewRequests")}
+                text={t("dashboardV2.introductionAction", { count: activeIntroductionCount })}
+                tag={<span className="stf-tag o">{activeIntroductionCount}</span>}
+                onClick={() => setActiveTab("introductions")}
+              />
+            ) : (
+              <LinkCard
+                icon={BriefcaseBusiness}
+                tone="o"
+                title={t("dashboardV2.exploreDealFlow")}
+                text={t("dashboardV2.dealFlowHint")}
+                onClick={() => router.push("/investor/deal-flow")}
+              />
+            )}
+            <LinkCard
+              icon={CalendarClock}
+              tone="b"
+              title={t("dashboardV2.upcomingMeetings")}
+              text={t("dashboardV2.meetingsHint")}
+              onClick={() => document.getElementById("upcoming-meetings")?.scrollIntoView({ behavior: "smooth" })}
+            />
+            <LinkCard
+              icon={BriefcaseBusiness}
+              tone="g"
+              title={t("dashboardV2.reviewPipeline")}
+              text={t("dashboardV2.pipelineHint")}
+              onClick={() => setActiveTab("pipeline")}
+            />
           </div>
-        </div>
+        </section>
 
-        {/* STATS */}
-        <DashboardStats stats={stats} />
+        <section id="upcoming-meetings" className="order-4" aria-label={t("dashboardV2.upcomingMeetings")}>
+          <UpcomingMeetingsSection relationships={relationships} />
+        </section>
 
-        {/* TABS */}
-        <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+        {recommendations.length > 0 && (
+          <section className="order-5 space-y-3" aria-labelledby="recommended-title">
+            <h2 id="recommended-title" className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
+              {t("dashboardV2.recommended")}
+            </h2>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {recommendations.slice(0, 6).map((venture) => (
+                <button
+                  type="button"
+                  key={venture.id}
+                  onClick={() => openVentureDetail(venture)}
+                  className="stf-card min-h-11 min-w-64 max-w-80 flex-1 text-left"
+                >
+                  <span className="block font-bold text-[var(--text-primary)]">{venture.name}</span>
+                  <span className="stf-small">{[venture.industry, venture.country].filter(Boolean).join(" · ")}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {features.dashboardV2 && <div className="order-6 space-y-4">
+          <InvestorDashboardCharts
+            pipeline={pipeline}
+            watchlist={watchlist}
+            weeklyActivity={weeklyActivity}
+          />
+        </div>}
 
         {/* DISCOVER TAB */}
+        <div className="order-7">
+          <DashboardTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            introductions={features.introductions}
+            introductionCount={activeIntroductionCount}
+          />
+        </div>
+
+        <section id="investor-tabpanel" role="tabpanel" aria-labelledby={`investor-tab-${activeTab}`} className="order-8">
         {activeTab === "discover" && (
           <div className="space-y-4">
             {/* Search + Filter bar */}
@@ -262,6 +418,7 @@ export default function InvestorDashboard() {
                 <input
                   type="text"
                   value={search}
+                  aria-label={t("dashboardV2.searchLabel")}
                   onChange={event => setSearch(event.target.value)}
                   onKeyDown={event => event.key === "Enter" && searchVentures()}
                   placeholder={t("searchVentures")}
@@ -269,6 +426,8 @@ export default function InvestorDashboard() {
                 />
               </div>
               <button
+                type="button"
+                aria-expanded={showFilters}
                 onClick={() => setShowFilters(!showFilters)}
                 className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
                   showFilters ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -276,14 +435,8 @@ export default function InvestorDashboard() {
               >
                 <SlidersHorizontal className="w-4 h-4" /> {t("filters")}
               </button>
-              <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures}>{t("search")}</AppButton>
+              <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures} loading={searchLoading}>{t("search")}</AppButton>
             </div>
-
-            {/* Active Fundraising Campaigns */}
-            <CampaignsSection campaigns={campaigns} onOpenVenture={openVentureDetail} />
-
-            {/* Upcoming Meetings */}
-            <UpcomingMeetingsSection relationships={relationships} />
 
             {/* Advanced filters */}
             {showFilters && (
@@ -303,10 +456,16 @@ export default function InvestorDashboard() {
             )}
 
             {/* Results */}
+            {searchError && (
+              <div className="stf-card flex flex-wrap items-center justify-between gap-3" role="alert">
+                <p className="stf-small">{t("dashboardV2.loadError")}</p>
+                <AppButton variant="secondary" size="sm" icon={RotateCw} onClick={searchVentures}>{t("dashboardV2.retry")}</AppButton>
+              </div>
+            )}
             <VentureGrid
-              items={ventures.length > 0 ? ventures : recommendations}
+              items={hasSearched ? ventures : recommendations}
+              hasSearched={hasSearched}
               venturesTotal={venturesTotal}
-              campaigns={campaigns}
               watchlist={watchlist}
               compareList={compareList}
               processingId={processingId}
@@ -315,6 +474,19 @@ export default function InvestorDashboard() {
               onToggleCompare={toggleCompare}
               onToggleWatchlist={toggleWatchlist}
               onRequestIntro={(venture) => { setIntroVenture(venture); setIntroMessage(""); setShowIntroModal(true); }}
+              onAddToPipeline={addToPipeline}
+              onClearSearch={() => {
+                setSearch("");
+                setFilterIndustry([]);
+                setFilterCountry([]);
+                setFilterStage([]);
+                setFilterFundingMin("");
+                setFilterFundingMax("");
+                setHasSearched(false);
+                setVentures([]);
+              }}
+              onOpenDealFlow={() => router.push("/investor/deal-flow")}
+              introductions={features.introductions}
             />
           </div>
         )}
@@ -341,7 +513,22 @@ export default function InvestorDashboard() {
             onToggleWatchlist={toggleWatchlist}
             onRequestIntro={(venture) => { setIntroVenture(venture); setIntroMessage(""); setShowIntroModal(true); }}
             onAddToPipeline={addToPipeline}
+            introductions={features.introductions}
           />
+        )}
+
+        {activeTab === "introductions" && features.introductions && (
+          <IntroductionsTab
+            onMessage={(request) => {
+              if (request.workspace_id) {
+                router.push(`/investor/messages/${encodeURIComponent(request.workspace_id)}`);
+              }
+            }}
+          />
+        )}
+
+        {activeTab === "meetings" && features.meetings && (
+          <MeetingsTab />
         )}
 
         {/* INTRODUCTION REQUEST MODAL */}
@@ -353,10 +540,7 @@ export default function InvestorDashboard() {
             processingId={processingId}
             onClose={() => setShowIntroModal(false)}
             onSubmit={async () => {
-              setProcessingId(introVenture.id);
-              await addToPipeline(introVenture.id, "meeting_requested");
-              setShowIntroModal(false);
-              setIntroVenture(null);
+              await requestIntroduction();
             }}
           />
         )}
@@ -366,27 +550,40 @@ export default function InvestorDashboard() {
           <VentureDetailModal
             detailVenture={detailVenture}
             detailPipeline={detailPipeline}
-            campaigns={campaigns}
             watchlist={watchlist}
             processingId={processingId}
+            privateNotesEnabled={features.dashboardV2}
             onClose={() => { setDetailVenture(null); setDetailPipeline(null); }}
             onToggleCompare={toggleCompare}
             onToggleWatchlist={toggleWatchlist}
             onDetailStageChange={(stage) => { addToPipeline(detailVenture.id, stage); setDetailPipeline(previous => ({ ...previous, stage })); }}
             onAddDetailToPipeline={() => { addToPipeline(detailVenture.id, "interested"); setDetailPipeline({ stage: "interested" }); }}
+            introductions={features.introductions}
+            onRequestIntro={(venture) => {
+              setDetailVenture(null);
+              setDetailPipeline(null);
+              setIntroVenture(venture);
+              setIntroMessage("");
+              setShowIntroModal(true);
+            }}
           />
         )}
 
         {/* COMPARISON BAR + MODAL */}
         <ComparisonBar
           compareList={compareList}
-          onCompare={() => setShowCompare(true)}
+          onCompare={() => {
+            setShowCompare(true);
+            void fetch("/api/investor/interactions", { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ kind: "compare_used", venture_ids: compareList.map(venture => String(venture.id)) }) }).catch(() => {});
+          }}
           onClear={() => setCompareList([])}
         />
 
         {showCompare && compareList.length >= 2 && (
           <ComparisonModal compareList={compareList} onClose={() => setShowCompare(false)} />
         )}
+        </section>
       </div>
     </>
   );

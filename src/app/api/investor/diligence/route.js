@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
@@ -5,7 +6,7 @@ import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/
 import { buildDiligenceForViewer, runDiligenceAction } from "@/services/investor";
 
 /** GET /api/investor/diligence?pipeline_id=X */
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
@@ -39,7 +40,7 @@ export async function GET(req) {
 }
 
 /** POST /api/investor/diligence — create/update workspace */
-export async function POST(req) {
+async function POSTWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("create");
@@ -72,3 +73,7 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "diligence");
+
+export const POST = withInvestorPrivacy(POSTWithOriginalGuards, "diligence");

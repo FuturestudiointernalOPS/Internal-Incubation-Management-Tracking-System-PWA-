@@ -28,7 +28,7 @@ import {
   markRelationshipWorkspaceActiveInvestment,
   upsertInvestmentPipeline,
 } from "@/models/investor";
-import { emitInvestorEvent } from "@/services/investor/activity";
+import { emitInvestorEvent, recordInvestorInteraction } from "@/services/investor/activity";
 
 // The internal roles that see every pipeline row.
 const MANAGEMENT_ROLES = ["super_admin", "staff", "program_manager"];
@@ -113,6 +113,11 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
     stage: newStage,
     notes,
   });
+
+  if (result.rows?.[0]?.was_inserted === true) {
+    await recordInvestorInteraction({ session, investorId, eventType: "pipeline_added",
+      ventureId: String(ventureId), relatedId: result.rows[0].id });
+  }
 
   // Every stage move is recorded for the metrics (E2/E3). `emitInvestorEvent`
   // never throws, so logging cannot break the pipeline write.
@@ -238,5 +243,6 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
     } catch (_) {}
   }
 
-  return { ok: true, pipeline: result.rows[0] };
+  const { was_inserted: _inserted, ...pipeline } = result.rows[0];
+  return { ok: true, pipeline };
 }

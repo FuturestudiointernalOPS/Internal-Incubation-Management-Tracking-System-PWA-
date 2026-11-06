@@ -12,10 +12,14 @@ export async function selectVisibilityMode(investorId) {
 
 /** Set the visibility mode (studio-controlled, never the investor). */
 export async function updateVisibilityMode(investorId, mode) {
-  return db.execute({
-    sql: `UPDATE investor_profiles
-             SET visibility_mode = ?, updated_at = NOW()
-           WHERE id = ? RETURNING id, visibility_mode`,
-    args: [mode, investorId],
+  return db.transaction(async query => {
+    await query("SET TRANSACTION ISOLATION LEVEL READ COMMITTED");
+    await query("SELECT id FROM investor_profiles WHERE id = ? FOR UPDATE", [investorId]);
+    const previous = await query("SELECT visibility_mode FROM investor_profiles WHERE id = ?", [investorId]);
+    const result = await query(
+      `UPDATE investor_profiles SET visibility_mode = ?, updated_at = NOW()
+       WHERE id = ? RETURNING id, visibility_mode`, [mode, investorId],
+    );
+    return { ...result, previousMode: previous.rows[0]?.visibility_mode ?? null };
   });
 }

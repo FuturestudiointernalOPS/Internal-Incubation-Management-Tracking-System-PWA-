@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
@@ -9,7 +10,7 @@ import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/
 import { isInvestorManagement } from "@/models/authorization/investorScope";
 import { getSession } from "@/server/auth/session";
 
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
@@ -50,3 +51,5 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "kpis");

@@ -24,6 +24,7 @@ import {
   recordContactLoginActivity,
 } from "@/models/authFlows";
 import { auditLoginAttempt } from "@/lib/loginAudit";
+import { recordInvestorInteraction } from "@/services/investor/activity";
 
 // AUTH-ENUM-SESSIONLOGIN-1 — this route is the sister of auth/login and must
 // hide account existence the same way: one generic message for every credential
@@ -368,6 +369,9 @@ export async function POST(req) {
       isSuccess: true,
     });
 
+    if (isInvestor && !isTeamLogin && !isFamilyLogin) {
+      await recordInvestorInteraction({ session: { cid: responseUser.cid, role: finalRole }, eventType: "login" });
+    }
     const response = NextResponse.json({
       success: true,
       user: responseUser,

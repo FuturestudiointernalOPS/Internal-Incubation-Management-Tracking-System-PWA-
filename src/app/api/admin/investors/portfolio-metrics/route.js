@@ -1,7 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireInvestorStudioAuthorization as requireAuthorization } from "@/server/investor/studioAuthorization";
 import { getStudioCapitalMetrics } from "@/services/investor/studioCapital";
 
 /**

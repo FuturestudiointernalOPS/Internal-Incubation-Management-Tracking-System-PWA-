@@ -279,11 +279,18 @@ describe("dashboard", () => {
       { id: "p1", venture_name: null, stage: null, stage_changed_at: null },
     ]);
     expect(result.watchlist).toEqual([
-      { id: "w1", venture_name: null, industry: null, country: null, description: null },
+      {
+        id: "w1",
+        venture_name: null,
+        industry: null,
+        country: null,
+        description: null,
+        founders: null,
+        founders_countries: [],
+      },
     ]);
     expect(result.campaigns).toEqual([{ id: "c1" }]);
     expect(result.relationships).toEqual([{ id: "rw1", next_meetings: [{ id: "m1" }] }]);
     expect(result.stats).toEqual({ total_capital: 10, watchlist_count: 2 });
   });
 });
-

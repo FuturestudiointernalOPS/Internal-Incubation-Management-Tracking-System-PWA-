@@ -1,5 +1,8 @@
 # Investor Platform — Phase 1 progress
 
+Historical first slice. The current replacement is
+[PHASE_1_REBASELINE.md](PHASE_1_REBASELINE.md), which accounts for `interns`.
+
 Owner: Christelle FAGBEHOURO. Branch: `venture-A`. Date: 5 November 2026.
 Status: **started — first implementation slice, not complete or released**.
 

@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { INVESTOR_FOUNDER_FACTS } from "./founderFacts";
 
 // ── Phase 3 — deal flow entries + fundraising decks ──────────────────────────
 
@@ -46,10 +47,21 @@ export async function listDealFlowEntries({ status = null } = {}) {
  */
 export async function listActiveDealFlowEntriesWithVenture() {
   return db.execute({
-    sql: `SELECT dfe.*, v.name, v.company_name, v.description, v.industry, v.country, v.business_stage
+    sql: `SELECT dfe.*, v.id AS venture_internal_id, v.name, v.company_name, v.logo_url, v.description, v.industry, v.country, v.business_stage,
+                 published_deck.id AS deck_id, published_deck.version AS deck_version, ${INVESTOR_FOUNDER_FACTS}
             FROM deal_flow_entries dfe
-            JOIN ventures v ON v.id::text = dfe.venture_id
+            JOIN ventures v ON v.id::text = dfe.venture_id OR v.venture_id = dfe.venture_id
+            JOIN LATERAL (
+              SELECT d.id, d.version
+                FROM deal_flow_decks d
+               WHERE d.deal_flow_entry_id = dfe.id AND d.status = 'published'
+               ORDER BY d.version DESC, d.published_at DESC
+               LIMIT 1
+            ) published_deck ON TRUE
            WHERE dfe.status = 'live'
+             AND dfe.target_amount > 0 AND dfe.currency IS NOT NULL
+             AND COALESCE(v.is_archived::text, '0') NOT IN ('1', 't', 'true')
+             AND LOWER(COALESCE(v.status, '')) <> 'archived'
            ORDER BY dfe.opened_at DESC NULLS LAST`,
     args: [],
   });
@@ -59,6 +71,29 @@ export async function getDealFlowEntryById(id) {
   return db.execute({
     sql: "SELECT * FROM deal_flow_entries WHERE id = ?",
     args: [id],
+  });
+}
+
+export async function findLiveDealFlowEntryForVenture(ventureId, dealFlowEntryId = null) {
+  const requestedEntry = dealFlowEntryId == null ? "" : "AND e.id = ?";
+  return db.execute({
+    sql: `SELECT e.id, e.venture_id
+            FROM deal_flow_entries e
+           WHERE (e.venture_id = ? OR EXISTS (
+                    SELECT 1 FROM ventures v
+                     WHERE v.id::text = ? AND e.venture_id IN (v.id::text, v.venture_id)
+                 ))
+             AND e.status = 'live' AND e.target_amount > 0 AND e.currency IS NOT NULL
+             ${requestedEntry}
+             AND EXISTS (SELECT 1 FROM deal_flow_decks d
+                          WHERE d.deal_flow_entry_id = e.id AND d.status = 'published')
+           ORDER BY e.opened_at DESC NULLS LAST, e.id DESC
+           LIMIT 1`,
+    args: [
+      String(ventureId),
+      String(ventureId),
+      ...(dealFlowEntryId == null ? [] : [dealFlowEntryId]),
+    ],
   });
 }
 

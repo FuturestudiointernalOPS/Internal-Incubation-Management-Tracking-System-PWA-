@@ -1,10 +1,10 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 
 import {
   countInvestorVentureSearch,
-  listActiveDealFlowEntriesWithVenture,
   searchInvestorVentures,
 } from "@/models/investor";
 import { ensureInvestorExpansionSchema } from "@/models/investor/expansionSchema";
@@ -20,27 +20,38 @@ import { investorVentureList } from "@/services/investor/dto";
  * mode. In `deal_flow_only` the directory result is intersected with live deal
  * flow, so no non-deal-flow venture leaks through the search endpoint.
  */
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
-    await ensureInvestorExpansionSchema();
-
     const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
+    await ensureInvestorExpansionSchema();
 
     const session = await getSession();
     const ctx = await resolveInvestorContext(session);
-    const mode = ctx.visibilityMode || "deal_flow_only";
+    const mode = ctx.visibilityMode === "full_pipeline" ? "full_pipeline" : "deal_flow_only";
 
     const { searchParams } = new URL(req.url);
     const search = searchParams.get("search") || "";
     const industry = searchParams.get("industry") || "";
     const country = searchParams.get("country") || "";
-    const stage = searchParams.get("stage") || "";
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const offset = parseInt(searchParams.get("offset") || "0");
+    const stage = mode === "full_pipeline" ? searchParams.get("stage") || "" : "";
+    const requestedLimit = Number(searchParams.get("limit") || 50);
+    const requestedOffset = Number(searchParams.get("offset") || 0);
+    if (!Number.isSafeInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 100
+      || !Number.isSafeInteger(requestedOffset) || requestedOffset < 0) {
+      return NextResponse.json({ success: false, error: "errors.invalidRequest" }, { status: 400 });
+    }
+    const limit = requestedLimit;
+    const offset = requestedOffset;
+    const fundingMin = mode === "full_pipeline" && searchParams.get("funding_min") ? Number(searchParams.get("funding_min")) : null;
+    const fundingMax = mode === "full_pipeline" && searchParams.get("funding_max") ? Number(searchParams.get("funding_max")) : null;
+    if ([fundingMin, fundingMax].some(value => value !== null && (!Number.isFinite(value) || value < 0))
+      || (fundingMin !== null && fundingMax !== null && fundingMin > fundingMax)) {
+      return NextResponse.json({ success: false, error: "errors.invalidRequest" }, { status: 400 });
+    }
 
-    const countResult = await countInvestorVentureSearch({ search, industry, country, stage });
+    const countResult = await countInvestorVentureSearch({ search, industry, country, stage, visibilityMode: mode, fundingMin, fundingMax });
     const directoryTotal = parseInt(countResult.rows[0]?.total || 0);
     const result = await searchInvestorVentures({
       search,
@@ -49,18 +60,12 @@ export async function GET(req) {
       stage,
       limit,
       offset,
+      visibilityMode: mode,
+      fundingMin, fundingMax,
     });
 
-    let rows = result.rows;
-
-    if (mode === "deal_flow_only") {
-      const live = await listActiveDealFlowEntriesWithVenture();
-      const allowed = new Set((live.rows || []).map((row) => String(row.venture_id)));
-      rows = rows.filter((row) => allowed.has(String(row.id)));
-    }
-
-    const ventures = investorVentureList(rows, { mode });
-    const total = mode === "deal_flow_only" ? rows.length : directoryTotal;
+    const ventures = investorVentureList(result.rows, { mode });
+    const total = directoryTotal;
 
     await emitInvestorEvent({
       session,
@@ -74,8 +79,10 @@ export async function GET(req) {
       total,
       page: Math.floor(offset / limit) + 1,
       totalPages: Math.ceil(total / limit),
-    });
-  } catch (error) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
+  } catch (_error) {
+    return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "ventures");

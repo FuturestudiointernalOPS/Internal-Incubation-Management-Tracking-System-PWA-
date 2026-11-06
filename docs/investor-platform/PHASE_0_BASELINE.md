@@ -1,5 +1,8 @@
 # Investor Platform — Phase 0 baseline
 
+Historical pre-integration report. The current replacement is
+[PHASE_0_REBASELINE.md](PHASE_0_REBASELINE.md), which accounts for `interns`.
+
 Owner: Christelle FAGBEHOURO (working solo). Date: 5 November 2026.
 Reference: *Investor Platform: Developer Handover and Build Guide*, Draft v2,
 5 November 2026, especially sections 7–13 and References A–E.

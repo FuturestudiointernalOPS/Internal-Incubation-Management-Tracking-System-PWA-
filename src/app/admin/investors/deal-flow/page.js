@@ -123,31 +123,21 @@ export default function DealFlowAdminPage() {
     }
   };
 
-  const addDeck = async (entry) => {
-    const fileRef = await prompt({
-      message: t("investorAdmin.dealFlow.deckRef"),
-      placeholder: "https://...",
-      required: true,
-      inputLabel: t("investorAdmin.dealFlow.deckRefLabel"),
-    });
-    if (!fileRef) return;
-
+  const addDeck = async (entry, file) => {
+    if (!file) return;
     const key = `add-${entry.id}`;
     setActionBusy(key);
     try {
-      await send(
-        {
-          action: "add_deck",
-          deal_flow_entry_id: entry.id,
-          file_ref: fileRef,
-          file_name: fileRef.split("/").pop(),
-        },
-        "PUT",
-      );
+      const body = new FormData();
+      body.append("deal_flow_entry_id", String(entry.id));
+      body.append("file", file);
+      const response = await fetch("/api/admin/investors/deal-flow", { method: "PUT", body });
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || "investorAdmin.dealFlow.uploadFailed");
       refresh();
       await alert({ message: t("investorAdmin.dealFlow.deckAdded") });
     } catch (error) {
-      await alert({ message: error.message });
+      await alert({ message: t(error.message) });
     } finally {
       setActionBusy(null);
     }
@@ -282,15 +272,44 @@ export default function DealFlowAdminPage() {
                 </div>
 
                 <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
-                  <AppButton
-                    variant="secondary"
-                    size="sm"
-                    icon={Upload}
-                    onClick={() => addDeck(entry)}
-                    disabled={actionBusy === `add-${entry.id}`}
+                  <label
+                    className="stf-btn"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      cursor: actionBusy === `add-${entry.id}` ? "wait" : "pointer",
+                      opacity: actionBusy === `add-${entry.id}` ? 0.6 : 1,
+                    }}
                   >
+                    {actionBusy === `add-${entry.id}` ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
                     {t("investorAdmin.dealFlow.addDeck")}
-                  </AppButton>
+                    <input
+                      type="file"
+                      accept="application/pdf,.pdf"
+                      aria-label={t("investorAdmin.dealFlow.addDeck")}
+                      disabled={actionBusy === `add-${entry.id}`}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        if (file) addDeck(entry, file);
+                      }}
+                      style={{
+                        position: "absolute",
+                        width: 1,
+                        height: 1,
+                        padding: 0,
+                        margin: -1,
+                        overflow: "hidden",
+                        clip: "rect(0, 0, 0, 0)",
+                        whiteSpace: "nowrap",
+                        border: 0,
+                      }}
+                    />
+                  </label>
+                  <span className="stf-small" style={{ alignSelf: "center" }}>
+                    {t("investorAdmin.dealFlow.deckUploadHelp")}
+                  </span>
                   {entry.status !== "live" && (
                     <AppButton
                       variant="primary"

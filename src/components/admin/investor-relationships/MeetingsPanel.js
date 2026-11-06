@@ -77,11 +77,11 @@ export default function MeetingsPanel({ meetings, timeline, onCreateMeeting, onC
                     </div>
                     <div className="flex flex-col items-end gap-2">
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
-                        meeting.status === "scheduled" ? "bg-amber-500/10 text-amber-400" :
-                        meeting.status === "completed" ? "bg-emerald-500/10 text-emerald-400" :
+                        ["scheduled", "confirmed"].includes(meeting.status) ? "bg-amber-500/10 text-amber-400" :
+                        ["completed", "held"].includes(meeting.status) ? "bg-emerald-500/10 text-emerald-400" :
                         "bg-rose-500/10 text-rose-400"
-                      }`}>{meeting.status}</span>
-                      {meeting.status === "scheduled" && (
+                      }`}>{t(`investorMisc.meetings.status.${meeting.status}`)}</span>
+                      {["scheduled", "confirmed"].includes(meeting.status) && (
                         <AppButton variant="secondary" size="sm" icon={CheckCircle2}
                           onClick={() => onCompleteMeeting(meeting)}>
                           {t("investorAdmin.relationships.complete")}

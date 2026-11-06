@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
@@ -13,7 +14,7 @@ import { listDecisionsForViewer, recordDecision } from "@/services/investor";
  * The profile resolution, the valid decision types and the stage mapping live
  * in `@/services/investor`.
  */
-export async function GET(_req) {
+async function GETWithOriginalGuards(_req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
@@ -59,3 +60,5 @@ export async function POST(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "decisions");

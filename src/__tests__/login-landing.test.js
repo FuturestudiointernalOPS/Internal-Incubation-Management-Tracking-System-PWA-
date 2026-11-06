@@ -69,19 +69,19 @@ describe("an entity login keeps its own space", () => {
 describe("the personal world follows what the person OWNS", () => {
   test("founding exactly one active Venture lands inside it", () => {
     expect(resolveLanding({ role: "member", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
+      "/founder/ventures/VNT-1",
     );
   });
 
   test("the same is true for a legacy founder badge", () => {
     expect(resolveLanding({ role: "founder", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
+      "/founder/ventures/VNT-1",
     );
   });
 
   test("an identity the map does not know still gets its Venture", () => {
     expect(resolveLanding({ role: "security_officer", ventures: [venture()] })).toBe(
-      "/participant/ventures/VNT-1",
+      "/founder/ventures/VNT-1",
     );
   });
 
@@ -99,18 +99,18 @@ describe("the personal world follows what the person OWNS", () => {
     expect(resolveLanding({ role: "participant", isProgramParticipant: false })).toBe("/workspaces");
   });
 
-  test("SEVERAL Ventures is not a decision the rule takes for the person", () => {
+  test("SEVERAL owned Ventures open the founder venture list", () => {
     expect(
       resolveLanding({ role: "member", ventures: [venture(), venture({ venture_id: "VNT-2" })] }),
-    ).toBe("/workspaces");
-    // …unless they are also participants of a program.
+    ).toBe("/founder/ventures");
+    // The founder landing takes precedence; the program remains another door.
     expect(
       resolveLanding({
         role: "member",
         ventures: [venture(), venture({ venture_id: "VNT-2" })],
         isProgramParticipant: true,
       }),
-    ).toBe("/participant");
+    ).toBe("/founder/ventures");
   });
 
   test("a dormant Venture is not the one to land in", () => {
@@ -133,7 +133,7 @@ describe("the personal world follows what the person OWNS", () => {
         role: "member",
         ventures: [venture(), venture({ venture_id: "VNT-2", status: "archived" })],
       }),
-    ).toBe("/participant/ventures/VNT-1");
+    ).toBe("/founder/ventures/VNT-1");
   });
 });
 
@@ -153,7 +153,7 @@ describe("an assigned investor context lands in the investor space", () => {
   test("an owned Venture keeps the Venture landing — the investor door remains in the sidebar", () => {
     expect(
       resolveLanding({ role: "member", ventures: [venture()], isInvestor: true }),
-    ).toBe("/participant/ventures/VNT-1");
+    ).toBe("/founder/ventures/VNT-1");
   });
 
   test("a global identity is never moved by an investor context", () => {

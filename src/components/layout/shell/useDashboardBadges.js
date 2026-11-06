@@ -56,6 +56,7 @@ export function useDashboardBadges({
   const [pendingAssignments, setPendingAssignments] = useState([]);
   const [pinnedAnnouncements, setPinnedAnnouncements] = useState([]);
   const [unreadMessageCount, setUnreadMessageCount] = useState(0);
+  const [unreadWorkspaceMessageCount, setUnreadWorkspaceMessageCount] = useState(0);
   const [pendingUsersCount, setPendingUsersCount] = useState(0);
 
   // The effective capability matrix is read ONCE by the shell (the server
@@ -163,7 +164,18 @@ export function useDashboardBadges({
       );
       setUnreadMessageCount(myMessages.length);
     });
+    fetchSwrJson("/api/investor/workspace-messages/unread", (data) => {
+      setUnreadWorkspaceMessageCount(
+        Number.isFinite(data.unread_count) ? data.unread_count : 0,
+      );
+    });
   }, [canReadMessages]);
+
+  useEffect(() => {
+    if (!canReadMessages) return undefined;
+    const poll = setInterval(fetchUnreadMessageCount, 30_000);
+    return () => clearInterval(poll);
+  }, [canReadMessages, fetchUnreadMessageCount]);
 
   // ── Fetch pending user approvals count ──
   const fetchPendingUsersCount = useCallback(async () => {
@@ -242,7 +254,10 @@ export function useDashboardBadges({
     const currentPath = pathname;
 
     const messagesPage =
-      currentPath === "/admin/internal-comms" || currentPath.endsWith("/messages");
+      currentPath === "/admin/internal-comms"
+      || currentPath.startsWith("/investor/messages")
+      || currentPath.startsWith("/founder/messages")
+      || currentPath.endsWith("/messages");
     if (messagesPage) {
       writeSeenWatermark(SEEN_KEYS.messages);
       fetchUnreadMessageCount();
@@ -346,7 +361,7 @@ export function useDashboardBadges({
   // Unread counts per nav type — messages from actual unread count, others from notifications
   const unreadByType = useMemo(() => {
     const counts = {
-      messages: unreadMessageCount,
+      messages: unreadMessageCount + unreadWorkspaceMessageCount,
       announcements: 0,
       forms: 0,
       all_contacts: 0,
@@ -369,7 +384,7 @@ export function useDashboardBadges({
       }
     }
     return counts;
-  }, [notifications, unreadMessageCount, pendingUsersCount]);
+  }, [notifications, unreadMessageCount, unreadWorkspaceMessageCount, pendingUsersCount]);
 
   // Whether the COMMUNICATION section has any activity in its sub-items
   const hasCommunicationActivity = useMemo(() => {

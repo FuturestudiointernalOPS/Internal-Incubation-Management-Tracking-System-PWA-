@@ -5,6 +5,7 @@ import { getSession } from "@/server/auth/session";
 import { ensureInvestorExpansionSchema } from "@/models/investor/expansionSchema";
 import { requireAuthorization } from "@/models/authorization/index";
 import { setInvestorVisibilityMode } from "@/services/investor/visibility";
+import { isInvestorManagement } from "@/models/authorization/investorScope";
 
 /**
  * PUT /api/investor/visibility  { investor_id, mode, old_mode? }
@@ -15,12 +16,15 @@ import { setInvestorVisibilityMode } from "@/services/investor/visibility";
 export async function PUT(req) {
   try {
     await initDb();
-    await ensureInvestorExpansionSchema();
-
     const authError = await requireAuthorization("investor", "edit");
     if (authError) return authError;
+    const session = await getSession();
+    if (!isInvestorManagement(session)) {
+      return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403 });
+    }
+    await ensureInvestorExpansionSchema();
 
-    const { investor_id, mode, old_mode } = await req.json();
+    const { investor_id, mode } = await req.json();
     if (!investor_id || !mode) {
       return NextResponse.json(
         { success: false, error: "investor_id and mode required" },
@@ -31,8 +35,7 @@ export async function PUT(req) {
     const result = await setInvestorVisibilityMode({
       investorId: investor_id,
       mode,
-      oldMode: old_mode ?? null,
-      session: await getSession(),
+      session,
     });
     if (!result.ok) {
       return NextResponse.json({ success: false, error: result.error }, { status: result.status });

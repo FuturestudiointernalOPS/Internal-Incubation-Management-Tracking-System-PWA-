@@ -118,7 +118,7 @@ export function ensureInvestorExpansionSchema() {
       await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_invitations_email ON investor_invitations (email)");
       await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_invitations_status ON investor_invitations (status)");
 
-      // ── Phase 5 — introduction requests ───────────────────────────────
+      // ── Legacy introduction request table (BIGINT references) ─────────
       await db.execute(`CREATE TABLE IF NOT EXISTS introduction_requests (
         id BIGSERIAL PRIMARY KEY,
         investor_id BIGINT NOT NULL,
@@ -138,6 +138,35 @@ export function ensureInvestorExpansionSchema() {
       await db.execute("CREATE INDEX IF NOT EXISTS idx_intro_requests_investor ON introduction_requests (investor_id)");
       await db.execute("CREATE INDEX IF NOT EXISTS idx_intro_requests_venture ON introduction_requests (venture_id)");
 
+      // UUID-compatible introduction workflow. The legacy table above remains
+      // untouched because its BIGINT references cannot address canonical
+      // investor profiles, pipeline rows, or relationship workspaces.
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_introduction_requests (
+        id BIGSERIAL PRIMARY KEY,
+        investor_profile_id UUID NOT NULL,
+        venture_id TEXT NOT NULL,
+        deal_flow_entry_id BIGINT NOT NULL,
+        pipeline_id UUID NOT NULL,
+        message TEXT,
+        status TEXT NOT NULL DEFAULT 'submitted',
+        requested_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        decided_by TEXT,
+        decided_at TIMESTAMPTZ,
+        decline_reason TEXT,
+        internal_note TEXT,
+        workspace_id UUID,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await db.execute("ALTER TABLE investor_introduction_requests ADD COLUMN IF NOT EXISTS internal_note TEXT");
+      await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_intro_requests_status ON investor_introduction_requests (status, requested_at DESC)");
+      await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_intro_requests_profile ON investor_introduction_requests (investor_profile_id, requested_at DESC)");
+      await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_intro_requests_venture ON investor_introduction_requests (venture_id)");
+      await db.execute(`CREATE UNIQUE INDEX IF NOT EXISTS idx_investor_intro_requests_active_unique
+        ON investor_introduction_requests (investor_profile_id, deal_flow_entry_id)
+        WHERE status IN ('submitted', 'under_review', 'approved')`);
+      await db.execute("REVOKE ALL ON TABLE investor_introduction_requests FROM PUBLIC, anon, authenticated");
+
       // ── Phase 6 — meeting slots + confirmed-meeting columns ───────────
       await db.execute(`CREATE TABLE IF NOT EXISTS meeting_slots (
         id BIGSERIAL PRIMARY KEY,
@@ -153,6 +182,35 @@ export function ensureInvestorExpansionSchema() {
       )`);
       await db.execute("CREATE INDEX IF NOT EXISTS idx_meeting_slots_workspace ON meeting_slots (workspace_id)");
 
+      // UUID-compatible slots for canonical relationship_workspaces. The
+      // legacy BIGINT table remains unchanged; no guessed ID conversion.
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_meeting_slots (
+        id BIGSERIAL PRIMARY KEY,
+        workspace_id UUID NOT NULL,
+        proposed_by TEXT NOT NULL,
+        proposed_by_type TEXT NOT NULL,
+        start_at TIMESTAMPTZ NOT NULL,
+        duration_minutes INTEGER NOT NULL DEFAULT 30,
+        proposer_timezone TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'proposed',
+        responded_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_meeting_slots_workspace ON investor_meeting_slots (workspace_id, start_at)");
+      await db.execute("REVOKE ALL ON TABLE investor_meeting_slots FROM PUBLIC, anon, authenticated");
+
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_message_reminder_claims (
+        id BIGSERIAL PRIMARY KEY,
+        workspace_id UUID NOT NULL,
+        window_start TIMESTAMPTZ NOT NULL,
+        recipient_cid TEXT NOT NULL,
+        claimed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        sent_at TIMESTAMPTZ,
+        UNIQUE (workspace_id, window_start)
+      )`);
+      await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_message_reminder_claims_window ON investor_message_reminder_claims (window_start)");
+      await db.execute("REVOKE ALL ON TABLE investor_message_reminder_claims FROM PUBLIC, anon, authenticated");
+
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS start_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS timezone TEXT");
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS video_link TEXT");
@@ -162,6 +220,17 @@ export function ensureInvestorExpansionSchema() {
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_1h_sent_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_6h_sent_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE relationship_meetings ADD COLUMN IF NOT EXISTS reminder_daily_sent_at TIMESTAMPTZ");
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_meeting_feedback (
+        id BIGSERIAL PRIMARY KEY,
+        meeting_id UUID NOT NULL REFERENCES relationship_meetings(id) ON DELETE CASCADE,
+        investor_profile_id UUID NOT NULL REFERENCES investor_profiles(id) ON DELETE CASCADE,
+        interest TEXT NOT NULL CHECK (interest IN ('interested', 'not_interested', 'need_more_information')),
+        note TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (meeting_id, investor_profile_id)
+      )`);
+      await db.execute("REVOKE ALL ON TABLE investor_meeting_feedback FROM PUBLIC, anon, authenticated");
 
       // ── Phase 7 — investment confirmation ─────────────────────────────
       await db.execute(`CREATE TABLE IF NOT EXISTS investor_investments (

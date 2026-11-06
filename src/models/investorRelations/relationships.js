@@ -6,6 +6,11 @@ import db from "@/lib/db";
 export async function getRelationshipWorkspaceDetail(workspaceId) {
   return db.execute({
     sql: `SELECT rw.*, ip.stage as pipeline_stage, ipr.organization_name, c.name as investor_name, c.email as investor_email,
+                       c.cid as investor_cid,
+                       CASE WHEN c.language IN ('en', 'fr') THEN c.language ELSE 'en' END AS investor_language,
+                       founder.cid AS founder_cid, founder.name AS founder_name,
+                       founder.email AS founder_email,
+                       CASE WHEN founder.language IN ('en', 'fr') THEN founder.language ELSE 'en' END AS founder_language,
                        p.name as venture_name, p.industry, p.country,
                        rm.name as relationship_manager_name, im.name as investment_manager_name
                 FROM relationship_workspaces rw
@@ -13,6 +18,17 @@ export async function getRelationshipWorkspaceDetail(workspaceId) {
                 LEFT JOIN investor_profiles ipr ON rw.investor_id = ipr.id
                 LEFT JOIN contacts c ON ipr.user_id = c.cid
                 LEFT JOIN v2_programs p ON rw.venture_id = p.id
+                LEFT JOIN LATERAL (
+                  SELECT founder_contact.cid, founder_contact.name, founder_contact.email, founder_contact.language
+                    FROM venture_members vm
+                    JOIN contacts founder_contact
+                      ON founder_contact.cid = COALESCE(NULLIF(vm.contact_id, ''), vm.user_cid)
+                   WHERE vm.removed_at IS NULL
+                     AND (vm.member_type = 'founder' OR vm.role IN ('founder', 'co-founder'))
+                     AND CAST(vm.venture_id AS TEXT) = CAST(rw.venture_id AS TEXT)
+                   ORDER BY founder_contact.cid
+                   LIMIT 1
+                ) founder ON TRUE
                 LEFT JOIN contacts rm ON rw.relationship_manager_id = rm.cid
                 LEFT JOIN contacts im ON rw.investment_manager_id = im.cid
                 WHERE rw.id = ?`,

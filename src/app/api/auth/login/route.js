@@ -21,6 +21,7 @@ import {
 import { auditLoginAttempt } from "@/lib/loginAudit";
 import { logger } from "@/lib/logger";
 import { withRequestContext } from "@/lib/request-context";
+import { recordInvestorInteraction } from "@/services/investor/activity";
 
 // AUTH-4 — one generic message for every credential failure, so a caller cannot
 // tell "no such account" from "wrong password". The unknown-account path also
@@ -349,6 +350,9 @@ export const POST = withRequestContext(async function POST(req) {
         isSuccess: true,
       });
       // Build response and set cookie directly on it
+      if (!isFamilyLogin && !isTeamLogin) {
+        await recordInvestorInteraction({ session: { cid: responseUser.cid || responseUser.id, role: finalRole }, eventType: "login" });
+      }
       const response = NextResponse.json({ success: true, user: responseUser });
       return setSessionCookieOnResponse(
         response,

@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
@@ -13,7 +14,7 @@ import {
  * GET /api/investor/campaigns
  * List fundraising campaigns. Optional query params: venture_id, status.
  */
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     // Phase 1.5: authentication only — scoping is derived in the service.
@@ -77,3 +78,5 @@ export async function PUT(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "campaigns");

@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
@@ -13,7 +14,7 @@ import { listDealFlowForInvestor } from "@/services/investor/dealFlow";
  * The live deal flow for the caller's visibility mode. DTO-shaped: no hidden
  * venture metrics and no unpublished deck leak through this endpoint.
  */
-export async function GET() {
+async function GETWithOriginalGuards() {
   try {
     await initDb();
     await ensureInvestorExpansionSchema();
@@ -29,3 +30,5 @@ export async function GET() {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "dealFlow");

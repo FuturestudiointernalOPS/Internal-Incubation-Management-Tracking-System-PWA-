@@ -1,5 +1,6 @@
 import db from "@/lib/db";
 import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
+import { INVESTOR_FOUNDER_FACTS } from "./founderFacts";
 
 // ── GET /api/investor/dashboard ─────────────────────────────────────────────
 
@@ -12,9 +13,11 @@ import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 export async function getInvestorDashboardProfile(userCid) {
   return db.execute({
     sql: `SELECT ip.*, ipr.industries, ipr.countries, ipr.startup_stages,
-                   ipr.ticket_size_min, ipr.ticket_size_max
+                   ipr.ticket_size_min, ipr.ticket_size_max,
+                   CASE WHEN c.language IN ('en', 'fr') THEN c.language ELSE NULL END AS preferred_language
             FROM investor_profiles ip
             LEFT JOIN investor_preferences ipr ON ipr.investor_id = ip.id
+            LEFT JOIN contacts c ON c.cid = ip.user_id
             WHERE ip.user_id = ?`,
     args: [userCid],
   });
@@ -24,7 +27,8 @@ export async function getInvestorDashboardProfile(userCid) {
 export async function listInvestorPipelineEntries(investorId) {
   return db.execute({
     sql: `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
-                    COALESCE(p.status, v.status) as venture_status
+                    COALESCE(p.status, v.status) as venture_status,
+                    v.industry
             FROM investment_pipeline ip
             LEFT JOIN v2_programs p ON ip.venture_id = p.id
             LEFT JOIN ventures v ON v.id = ip.venture_id
@@ -49,11 +53,28 @@ export async function listInvestorWatchlist(investorId) {
                     fc.id as campaign_id, fc.name as campaign_name, fc.status as campaign_status,
                     fc.target_raise, fc.current_raised, fc.min_investment,
                     fc.opening_date, fc.closing_date,
-                    (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = iw.venture_id AND stage NOT IN ('declined'))::int as investor_count
+                    ${INVESTOR_FOUNDER_FACTS},
+                    deal_flow.deal_flow_id, deal_flow.deck_id, deal_flow.deck_version
              FROM investor_watchlist iw
              LEFT JOIN v2_programs p ON iw.venture_id = p.id
              LEFT JOIN ventures v ON v.id = iw.venture_id
              LEFT JOIN fundraising_campaigns fc ON fc.venture_id = iw.venture_id AND fc.status = 'active'
+             LEFT JOIN LATERAL (
+               SELECT e.id AS deal_flow_id, published_deck.id AS deck_id,
+                      published_deck.version AS deck_version
+                 FROM deal_flow_entries e
+                 JOIN LATERAL (
+                   SELECT d.id, d.version
+                     FROM deal_flow_decks d
+                    WHERE d.deal_flow_entry_id = e.id AND d.status = 'published'
+                    ORDER BY d.version DESC, d.published_at DESC
+                    LIMIT 1
+                 ) published_deck ON TRUE
+                WHERE (e.venture_id = iw.venture_id::text OR e.venture_id = v.venture_id)
+                  AND e.status = 'live' AND e.target_amount > 0 AND e.currency IS NOT NULL
+                ORDER BY e.opened_at DESC NULLS LAST, e.id DESC
+                LIMIT 1
+             ) deal_flow ON TRUE
              WHERE iw.investor_id = ?
              ORDER BY iw.created_at DESC`,
     args: [investorId],
@@ -70,7 +91,7 @@ export async function listInvestorWatchlist(investorId) {
 export async function listActiveVenturesForRecommendations() {
   return db.execute({
     sql: `SELECT v.id, COALESCE(v.name, v.company_name) AS name, v.description,
-                     v.status, v.industry, v.country, v.business_stage, v.created_at,
+                     v.status, v.industry, v.country, v.business_stage, v.created_at, ${INVESTOR_FOUNDER_FACTS},
                      NULL::numeric AS completion_index,
                      NULL::text AS funding_requirement,
                      (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = v.id) as investor_interest_count
@@ -135,7 +156,7 @@ export async function listActiveInvestorRelationshipWorkspaces(investorId) {
 /** dashboard — next scheduled meetings of a relationship workspace. */
 export async function listUpcomingRelationshipMeetings(workspaceId) {
   return db.execute({
-    sql: `SELECT id, meeting_type, scheduled_date, scheduled_time, status, location
+    sql: `SELECT id, meeting_type, scheduled_date, scheduled_time, start_at, timezone, video_link, status, location
                 FROM relationship_meetings
                 WHERE workspace_id = ? AND status = 'scheduled'
                 ORDER BY scheduled_date ASC LIMIT 3`,
@@ -341,4 +362,3 @@ export async function upsertVentureKpi({ venture_id: ventureRef, kpi_key, kpi_la
     args: [venture_id, kpi_key, kpi_label, kpi_value, trend || "stable"],
   });
 }
-

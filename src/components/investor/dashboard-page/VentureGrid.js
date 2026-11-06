@@ -1,18 +1,15 @@
 "use client";
 
-import { Building2, ArrowRight, Loader2, Bookmark, BookmarkCheck, GitCompare } from "lucide-react";
+import { Building2, ArrowRight, Loader2, Bookmark, BookmarkCheck, GitCompare, FileText } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
+import AppButton from "@/components/ui/AppButton";
+import AppEmptyState from "@/components/ui/AppEmptyState";
 import { useI18n } from "@/lib/i18n";
 
-/**
- * The discovery results: the "N ventures found" line and the venture cards grid,
- * with the empty state.
- * Extracted verbatim from InvestorDashboard.
- */
 export default function VentureGrid({
   items,
+  hasSearched = false,
   venturesTotal,
-  campaigns,
   watchlist,
   compareList,
   processingId,
@@ -21,49 +18,63 @@ export default function VentureGrid({
   onToggleCompare,
   onToggleWatchlist,
   onRequestIntro,
+  onAddToPipeline,
+  onClearSearch,
+  onOpenDealFlow,
+  introductions = false,
 }) {
   const { t } = useI18n();
   return items.length === 0 ? (
-    <div className="text-center py-16">
-      <Building2 className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-      <p className="text-sm font-bold text-[var(--text-secondary)]">{t("noVentures")}</p>
-      <p className="text-xs text-[var(--text-tertiary)] mt-1">{t("noVentureDesc")}</p>
-    </div>
+    <AppEmptyState
+      title={t("noVentures")}
+      description={t(hasSearched ? "dashboardV2.noMatchingVentures" : "dashboardV2.noRecommendations")}
+      icon={Building2}
+      size="lg"
+      action={
+        hasSearched ? (
+          <AppButton variant="secondary" onClick={onClearSearch}>
+            {t("dashboardV2.clearSearch")}
+          </AppButton>
+        ) : (
+          <AppButton variant="secondary" onClick={onOpenDealFlow}>
+            {t("dashboardV2.exploreDealFlow")}
+          </AppButton>
+        )
+      }
+    />
   ) : (
     <>
-      {venturesTotal > 0 && <p className="text-[10px] text-[var(--text-tertiary)]">{venturesTotal} ventures found</p>}
+      <p className="text-[10px] text-[var(--text-tertiary)]">
+        {t("dashboardV2.venturesFound", { count: venturesTotal || items.length })}
+      </p>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map(venture => {
           const isWatching = watchlist.some(entry => entry.venture_id === venture.id);
           const isCompared = compareList.some(item => item.id === venture.id);
-          const activeCampaign = campaigns.find(candidate => candidate.venture_id === venture.id);
+          const pipelineEntry = pipeline.find(item => item.venture_id === venture.id);
           return (
             <AppCard key={venture.id} padding="md" hover>
               <div className="space-y-3">
                 <div className="flex items-start justify-between">
-                  <button onClick={() => onOpenDetail(venture)} className="text-left flex-1">
+                  <button type="button" onClick={() => onOpenDetail(venture)} className="text-left flex-1">
                     <h4 className="text-sm font-black text-[var(--text-primary)] hover:text-[var(--brand-orange)] transition-colors">{venture.name}</h4>
                     <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{venture.industry || "—"}{venture.country ? ` · ${venture.country}` : ""}</p>
-                    {activeCampaign && (
-                      <span className="inline-block mt-1 mr-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400">
-                        Campaign Active
-                      </span>
-                    )}
                     {venture.match_score > 0 && (
                       <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                        {venture.match_score}% match
+                        {t("dashboardV2.match", { score: venture.match_score })}
                       </span>
                     )}
                   </button>
                   <div className="flex items-center gap-1">
-                    <button onClick={() => onToggleCompare(venture)}
-                      className={`p-1 rounded transition-colors ${isCompared ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"}`}
-                      title={isCompared ? "Remove from compare" : "Add to compare"}>
+                    <button type="button" onClick={() => onToggleCompare(venture)}
+                      className={`flex min-h-11 min-w-11 items-center justify-center rounded transition-colors ${isCompared ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"}`}
+                      aria-label={t(isCompared ? "dashboardV2.removeCompare" : "dashboardV2.addCompare")}>
                       <GitCompare className="w-3.5 h-3.5" />
                     </button>
-                    <button onClick={() => onToggleWatchlist(venture.id)}
+                    <button type="button" onClick={() => onToggleWatchlist(venture.id)}
                       disabled={processingId !== null}
-                      className={`p-1 rounded transition-colors ${isWatching ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"} disabled:opacity-40 disabled:cursor-wait`}>
+                      className={`flex min-h-11 min-w-11 items-center justify-center rounded transition-colors ${isWatching ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"} disabled:opacity-40 disabled:cursor-wait`}
+                      aria-label={t(isWatching ? "removeFromWatchlist" : "addToWatchlist")}>
                       {processingId === venture.id ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
                       ) : isWatching ? <BookmarkCheck className="w-4 h-4 fill-current" /> : <Bookmark className="w-4 h-4" />}
@@ -73,16 +84,40 @@ export default function VentureGrid({
                 {venture.description && (
                   <p className="text-xs text-[var(--text-secondary)] line-clamp-2">{venture.description}</p>
                 )}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-[var(--text-tertiary)]">{venture.country || ""}{venture.completion_index ? ` · ${Number(venture.completion_index).toFixed(0)}%` : ""}</span>
-                  {!pipeline.some(item => item.venture_id === venture.id) && (
+                <p className="stf-small">
+                  {t("dashboardV2.founders", { count: venture.founders || 0 })}
+                  {venture.founders_countries?.length > 0 && ` · ${venture.founders_countries.join(", ")}`}
+                </p>
+                <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-primary)] pt-3">
+                  {pipelineEntry ? (
+                    <span className="stf-small">{t("dashboardV2.currentStage", {
+                      stage: t(`status.${pipelineEntry.stage}`),
+                    })}</span>
+                  ) : (
+                    <AppButton
+                      size="sm"
+                      variant="primary"
+                      disabled={processingId !== null}
+                      loading={processingId === venture.id}
+                      onClick={() => onAddToPipeline(venture.id, "interested")}
+                    >
+                      {t("dashboardV2.interested")}
+                    </AppButton>
+                  )}
+                  {introductions && venture.deal_flow_id && (
                     <button
+                      type="button"
                       onClick={() => onRequestIntro(venture)}
                       disabled={processingId !== null}
-                      className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline disabled:opacity-40 disabled:cursor-wait disabled:no-underline"
+                      className="flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline disabled:opacity-40"
                     >
-                      Request Introduction <ArrowRight className="w-3 h-3" />
+                      {t("requestIntroduction")} <ArrowRight className="w-3 h-3" />
                     </button>
+                  )}
+                  {venture.deck?.id && (
+                    <a className="stf-btn" href={`/investor/deck/${venture.deck.id}`}>
+                      <FileText size={14} /> {t("investorMisc.dealFlow.openDeck")}
+                    </a>
                   )}
                 </div>
               </div>

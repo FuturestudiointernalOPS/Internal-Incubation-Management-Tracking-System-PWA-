@@ -12,6 +12,7 @@ import {
 } from "@/models/investor/dealFlow";
 import { emitInvestorEvent, resolveInvestorContext } from "@/services/investor/activity";
 import { investorVentureCard } from "@/services/investor/dto";
+import { signInvestorDeckFile } from "@/lib/investorDeckStorage";
 
 /**
  * Create a deal-flow entry. An entry becomes visible to investors only once it
@@ -51,6 +52,10 @@ export async function createDealFlowEntry({
 }
 
 export async function addDeck({ dealFlowEntryId, fileRef, fileName, mimeType, session }) {
+  if (typeof fileRef !== "string" || !fileRef.startsWith("deal-flow/") || fileRef.includes("..")
+    || mimeType !== "application/pdf") {
+    return { ok: false, status: 400, error: "investorAdmin.dealFlow.uploadRequired" };
+  }
   const entry = await getDealFlowEntryById(dealFlowEntryId);
   if (entry.rows.length === 0) {
     return { ok: false, status: 404, error: "Deal flow entry not found." };
@@ -66,6 +71,11 @@ export async function addDeck({ dealFlowEntryId, fileRef, fileName, mimeType, se
 }
 
 export async function publishDeck({ deckId, session }) {
+  const existing = (await getDeckWithEntry(deckId)).rows?.[0];
+  if (!existing) return { ok: false, status: 404, error: "Deck not found." };
+  if (!existing.file_ref?.startsWith("deal-flow/") || existing.file_ref.includes("..")) {
+    return { ok: false, status: 400, error: "investorAdmin.dealFlow.deckMustBeReuploaded" };
+  }
   const result = await publishDealFlowDeck(deckId);
   const deck = result.rows?.[0];
   if (!deck) return { ok: false, status: 404, error: "Deck not found." };
@@ -160,6 +170,8 @@ export async function getDeckForViewer({ deckId, session }) {
   if (deck.status !== "published" || deck.entry_status !== "live") {
     return { ok: false, status: 404, error: "Deck not available." };
   }
+  const signedUrl = await signInvestorDeckFile(deck.file_ref);
+  if (!signedUrl) return { ok: false, status: 503, error: "investorAdmin.dealFlow.deckUnavailable" };
 
   await emitInvestorEvent({
     session,
@@ -171,7 +183,7 @@ export async function getDeckForViewer({ deckId, session }) {
 
   return {
     ok: true,
-    deck: { id: deck.id, file_ref: deck.file_ref, download_allowed: deck.download_allowed },
+    deck: { id: deck.id, file_ref: signedUrl, download_allowed: deck.download_allowed },
     watermark: { investor_id: ctx.investorId, at: new Date().toISOString() },
   };
 }

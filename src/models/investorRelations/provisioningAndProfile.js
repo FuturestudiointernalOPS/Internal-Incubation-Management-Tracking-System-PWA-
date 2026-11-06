@@ -327,9 +327,11 @@ export async function upsertOrganizationMember(organizationId, investorProfileId
 export async function getInvestorProfileWithPreferences(userId) {
   return db.execute({
     sql: `SELECT ip.*, ipr.industries, ipr.countries, ipr.startup_stages,
-                   ipr.ticket_size_min, ipr.ticket_size_max, ipr.investment_philosophy
+                   ipr.ticket_size_min, ipr.ticket_size_max, ipr.investment_philosophy,
+                   CASE WHEN c.language IN ('en', 'fr') THEN c.language ELSE NULL END AS preferred_language
             FROM investor_profiles ip
             LEFT JOIN investor_preferences ipr ON ipr.investor_id = ip.id
+            LEFT JOIN contacts c ON c.cid = ip.user_id
             WHERE ip.user_id = ?`,
     args: [userId],
   });
@@ -344,22 +346,25 @@ export async function getInvestorProfileIdForProfileUpsert(userId) {
 }
 
 /** Update an existing investor profile by user_id. */
-export async function updateInvestorProfileByUserId(organizationName, biography, website, linkedin, photoUrl, userId) {
+export async function updateInvestorProfileByUserId(organizationName, biography, website, linkedin, photoUrl, userId, extras = null) {
   return db.execute({
     sql: `UPDATE investor_profiles
               SET organization_name = ?, biography = ?, website = ?, linkedin = ?,
-                  photo_url = ?, updated_at = NOW()
+                  photo_url = ? ${extras ? ", logo_url = ?, past_investments = ?" : ""}, updated_at = NOW()
               WHERE user_id = ? RETURNING *`,
-    args: [organizationName, biography, website, linkedin, photoUrl, userId],
+    args: [organizationName, biography, website, linkedin, photoUrl,
+      ...(extras ? [extras.logoUrl, extras.pastInvestments] : []), userId],
   });
 }
 
 /** Create an investor profile (photo variant, self-service). */
-export async function insertInvestorProfileWithPhoto(userId, organizationName, biography, website, linkedin, photoUrl) {
+export async function insertInvestorProfileWithPhoto(userId, organizationName, biography, website, linkedin, photoUrl, extras = null) {
   return db.execute({
-    sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, photo_url, approval_status)
-              VALUES (?, ?, ?, ?, ?, ?, 'pending_review') RETURNING *`,
-    args: [userId, organizationName, biography, website, linkedin, photoUrl],
+    sql: `INSERT INTO investor_profiles (user_id, organization_name, biography, website, linkedin, photo_url, approval_status
+              ${extras ? ", logo_url, past_investments" : ""})
+              VALUES (?, ?, ?, ?, ?, ?, 'pending_review' ${extras ? ", ?, ?" : ""}) RETURNING *`,
+    args: [userId, organizationName, biography, website, linkedin, photoUrl,
+      ...(extras ? [extras.logoUrl, extras.pastInvestments] : [])],
   });
 }
 

@@ -1,17 +1,40 @@
 import { insertActivityEvent, selectInvestorContext } from "@/models/investor/activityLog";
 import { selectEuroRates, selectLatestEuroRateDate } from "@/models/fxRateStore";
+import { insertErrorLog } from "@/models/adminOps/reportsAndErrors";
+import { logger } from "@/lib/logger";
+import { readInvestorFlags } from "./featureFlags";
 
-const DEDUPE_WINDOW_MS = 30 * 60 * 1000;
-const DEDUPE_TYPES = new Set(["venture_viewed", "deck_opened", "list_viewed", "search_used"]);
+const DEDUPE_TYPES = new Set(["venture_viewed"]);
+
+/** New interaction hooks are opt-in and can never break their primary action. */
+export async function recordInvestorInteraction(event) {
+  try {
+    const flags = await readInvestorFlags();
+    if (!flags.activity) return null;
+    if (event.eventType === "login") {
+      const context = await resolveInvestorContext(event.session);
+      if (!context.investorId || context.approvalStatus !== "approved") return null;
+    }
+    return await emitInvestorEvent(event);
+  } catch (_error) {
+    try {
+      await insertErrorLog({ message: "Investor interaction hook failed", severity: "error",
+        action_attempted: "investor_interaction_hook" }, "investor", "investor_interaction_hook");
+    } catch (_registerError) {
+      logger.error("investor_interaction_hook_failed");
+    }
+    return null;
+  }
+}
 
 /**
- * A stable dedupe key for repeat views inside a 30-minute window. Only the
- * view-like events dedupe; a stage change or an intro must always be recorded.
+ * Stable lock identity; the model checks a rolling thirty-minute interval.
+ * Searches/deck opens and all mutations remain distinct recorded actions.
  */
 export function dedupeKeyFor({ eventType, actorId, target }) {
   if (!DEDUPE_TYPES.has(eventType)) return null;
-  const bucket = Math.floor(Date.now() / DEDUPE_WINDOW_MS);
-  return `${eventType}:${actorId || "anon"}:${target || "none"}:${bucket}`;
+  if (!actorId || !target) return null;
+  return JSON.stringify([eventType, String(actorId), String(target)]);
 }
 
 /**
@@ -44,7 +67,12 @@ export async function resolveInvestorContext(session) {
   try {
     const result = await selectInvestorContext(userId);
     const row = result.rows?.[0];
-    return { userId, investorId: row?.id ?? null, visibilityMode: row?.visibility_mode ?? null };
+    return {
+      userId, investorId: row?.id ?? null,
+      visibilityMode: row?.visibility_mode === "full_pipeline" ? "full_pipeline" : "deal_flow_only",
+      isTest: row?.is_test === true,
+      approvalStatus: row?.approval_status ?? null,
+    };
   } catch (_) {
     return { userId, investorId: null, visibilityMode: null };
   }
@@ -81,7 +109,7 @@ export async function emitInvestorEvent({
       investor_id: effectiveInvestorId,
       venture_id: ventureId,
       related_id: relatedId,
-      actor_type: actorType,
+      actor_type: ["super_admin", "staff", "program_manager"].includes(session?.role) ? "studio" : actorType,
       actor_id: ctx.userId,
       visibility_mode: ctx.visibilityMode,
       currency: fx.currency,
@@ -92,9 +120,20 @@ export async function emitInvestorEvent({
       metadata,
       dedupe_key,
       session_id: sessionId,
+      is_test: ctx.isTest,
     });
-  } catch (error) {
-    console.error("[investor activity] emit failed:", error?.message || error);
+  } catch (_error) {
+    // Diagnostic register is best-effort too. Never log arbitrary metadata,
+    // message contents, credentials or a raw SQL exception to a user response.
+    try {
+      await insertErrorLog({
+        message: "Investor activity write failed",
+        action_attempted: "investor_activity_append",
+        severity: "error",
+      }, "investor", "investor_activity_append");
+    } catch (_registerError) {
+      logger.error("investor_activity_register_failed", { eventType });
+    }
     return null;
   }
 }

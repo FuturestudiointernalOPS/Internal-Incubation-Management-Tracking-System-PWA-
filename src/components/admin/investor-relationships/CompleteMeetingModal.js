@@ -20,14 +20,27 @@ export default function CompleteMeetingModal({ completeForm, setCompleteForm, on
         </div>
         <div className="p-6 space-y-4">
           <div>
+            <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+              {t("investorAdmin.relationships.status")}
+            </label>
+            <select
+              value={completeForm.status}
+              onChange={(event) => setCompleteForm({ ...completeForm, status: event.target.value })}
+              className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60"
+            >
+              <option value="held">{t("investorMisc.meetings.status.held")}</option>
+              <option value="no_show">{t("investorMisc.meetings.status.no_show")}</option>
+            </select>
+          </div>
+          <div>
             <label className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">{t("investorAdmin.relationships.outcome")}</label>
-            <select value={completeForm.outcome} onChange={event => setCompleteForm({...completeForm, outcome: event.target.value})}
+            <select value={completeForm.outcome_code} onChange={event => setCompleteForm({...completeForm, outcome_code: event.target.value})}
               className="w-full mt-1 px-3 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-xs font-bold text-[var(--text-primary)] outline-none focus:border-brand-orange/60">
               <option value="">{t("investorAdmin.relationships.selectOutcome")}</option>
-              <option value="Positive">{t("investorAdmin.relationships.outcomePositive")}</option>
-              <option value="Neutral">{t("investorAdmin.relationships.outcomeNeutral")}</option>
-              <option value="Needs follow-up">{t("investorAdmin.relationships.outcomeFollowUp")}</option>
-              <option value="Not a fit">{t("investorAdmin.relationships.outcomeNotFit")}</option>
+              <option value="follow_up">{t("investorMisc.meetings.outcomeFollowUp")}</option>
+              <option value="not_a_fit">{t("investorMisc.meetings.outcomeNotFit")}</option>
+              <option value="more_information">{t("investorMisc.meetings.outcomeMoreInfo")}</option>
+              <option value="moving_to_diligence">{t("investorMisc.meetings.outcomeMovingToDiligence")}</option>
             </select>
           </div>
           <div>

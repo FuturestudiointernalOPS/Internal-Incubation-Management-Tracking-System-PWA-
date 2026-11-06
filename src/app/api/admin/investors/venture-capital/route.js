@@ -3,17 +3,17 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 
 import { ensureInvestorExpansionSchema } from "@/models/investor/expansionSchema";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireInvestorStudioAuthorization as requireAuthorization } from "@/server/investor/studioAuthorization";
 import { listCapitalInputs, saveCapitalInput } from "@/services/investor/studioCapital";
 
 /** GET /api/admin/investors/venture-capital — the studio's capital inputs. */
 export async function GET() {
   try {
     await initDb();
-    await ensureInvestorExpansionSchema();
 
     const authError = await requireAuthorization("investor", "view");
     if (authError) return authError;
+    await ensureInvestorExpansionSchema();
 
     const result = await listCapitalInputs();
     return NextResponse.json({ success: true, inputs: result.inputs });

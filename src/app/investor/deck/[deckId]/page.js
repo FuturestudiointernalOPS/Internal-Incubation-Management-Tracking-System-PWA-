@@ -53,7 +53,7 @@ export default function InvestorDeckPage() {
       >
         <iframe
           src={`${data.deck.file_ref}#toolbar=0&navpanes=0`}
-          title="deck"
+          title={t("investorMisc.deck.viewOnly")}
           style={{ width: "100%", height: "100%", border: 0 }}
         />
 

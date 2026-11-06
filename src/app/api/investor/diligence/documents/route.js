@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
@@ -15,7 +16,7 @@ import {
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 import { resolveInvestorScope, investorOwnsDdRequest, investorOwnsDdDocument } from "@/models/authorization/investorScope";
 
-export async function POST(req) {
+async function POSTWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("create");
@@ -60,7 +61,7 @@ export async function POST(req) {
   }
 }
 
-export async function GET(req) {
+async function GETWithOriginalGuards(req) {
   try {
     await initDb();
     const capError = await requireInvestorSelfServiceAuthorization("view");
@@ -100,3 +101,7 @@ export async function GET(req) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "documents");
+
+export const POST = withInvestorPrivacy(POSTWithOriginalGuards, "documents");

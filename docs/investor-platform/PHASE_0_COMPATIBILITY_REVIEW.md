@@ -1,5 +1,8 @@
 # Investor Platform — compatibility and access review
 
+Historical pre-integration source review. See `PHASE_0_REBASELINE.md` and
+`PHASE_1_REBASELINE.md` for current source availability and corrections.
+
 Date: 5 November 2026. Owner: Christelle FAGBEHOURO. Branch: `venture-A`.
 Status: investigated, changes not applied; Phase 0 remains open.
 

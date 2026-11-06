@@ -21,6 +21,10 @@ export async function sendInternalMessage({ session, payload }) {
     attachment_name,
   } = payload || {};
 
+  if (target_type === "investor_workspace") {
+    return { denied: { error: "errors.insufficientPermissions", status: 403 } };
+  }
+
   // SECURITY: Sender must match the authenticated user. Default to the
   // authenticated user when sender_id is missing/falsy — otherwise a null
   // sender_id reaches the INSERT and leaks a raw SQL error as a 500.
@@ -114,4 +118,3 @@ export async function sendInternalMessage({ session, payload }) {
 
   return { id: newMessageId };
 }
-

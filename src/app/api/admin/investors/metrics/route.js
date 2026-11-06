@@ -2,7 +2,7 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 import { ensureInvestorExpansionSchema } from "@/models/investor/expansionSchema";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireInvestorStudioAuthorization as requireAuthorization } from "@/server/investor/studioAuthorization";
 import { getInvestorMetrics } from "@/services/investor/metrics";
 
 /**
@@ -14,10 +14,10 @@ import { getInvestorMetrics } from "@/services/investor/metrics";
 export async function GET(req) {
   try {
     await initDb();
-    await ensureInvestorExpansionSchema();
 
     const authError = await requireAuthorization("investor", "view");
     if (authError) return authError;
+    await ensureInvestorExpansionSchema();
 
     const { searchParams } = new URL(req.url);
     const from = searchParams.get("from") || null;

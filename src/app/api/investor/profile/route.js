@@ -34,7 +34,7 @@ export async function GET(_req) {
     const result = await getInvestorProfileWithPreferences(user.cid || user.id);
 
     const profile = protectInvestorProfile(result.rows[0] || null, flags.profilePrivacy);
-    return NextResponse.json({ success: true, profile }, PRIVATE_RESPONSE);
+    return NextResponse.json({ success: true, profile, features: { dashboardV2: flags.dashboard } }, PRIVATE_RESPONSE);
   } catch (_error) {
     return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { ...PRIVATE_RESPONSE, status: 500 });
   }
@@ -54,6 +54,19 @@ export async function POST(req) {
     const flags = await readInvestorFlags();
     const body = await req.json();
     const { organization_name, biography, website, linkedin, photo_url } = body;
+    const extras = { logoUrl: body.logo_url ?? null, pastInvestments: body.past_investments ?? null };
+    if (flags.dashboard && ((extras.logoUrl !== null && (typeof extras.logoUrl !== "string" || extras.logoUrl.length > 2000))
+      || (extras.pastInvestments !== null && (typeof extras.pastInvestments !== "string" || extras.pastInvestments.length > 4000)))) {
+      return NextResponse.json({ success: false, error: "errors.invalidRequest" }, { status: 400 });
+    }
+    if (flags.dashboard && extras.logoUrl) {
+      try {
+        const url = new URL(extras.logoUrl, "https://impactos.invalid");
+        if (!["https:", "http:"].includes(url.protocol)) throw new Error("Invalid logo URL");
+      } catch (_error) {
+        return NextResponse.json({ success: false, error: "errors.invalidRequest" }, { status: 400 });
+      }
+    }
 
     // Upsert: check if profile exists
     const existing = await getInvestorProfileIdForProfileUpsert(user.cid || user.id);
@@ -67,6 +80,7 @@ export async function POST(req) {
         linkedin || null,
         photo_url || null,
         user.cid || user.id,
+        ...(flags.dashboard ? [extras] : []),
       );
       profile = result.rows[0];
     } else {
@@ -77,6 +91,7 @@ export async function POST(req) {
         website || null,
         linkedin || null,
         photo_url || null,
+        ...(flags.dashboard ? [extras] : []),
       );
       profile = result.rows[0];
     }
@@ -84,7 +99,8 @@ export async function POST(req) {
     // Also update contact record's role to investor if not already
     await upgradeContactRoleToInvestor(user.cid || user.id);
 
-    return NextResponse.json({ success: true, profile: protectInvestorProfile(profile, flags.profilePrivacy) }, PRIVATE_RESPONSE);
+    return NextResponse.json({ success: true, profile: protectInvestorProfile(profile, flags.profilePrivacy),
+      features: { dashboardV2: flags.dashboard } }, PRIVATE_RESPONSE);
   } catch (_error) {
     return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { ...PRIVATE_RESPONSE, status: 500 });
   }

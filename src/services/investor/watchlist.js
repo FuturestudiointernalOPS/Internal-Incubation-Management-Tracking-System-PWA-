@@ -14,6 +14,7 @@ import {
   getInvestorProfileIdForWatchlist,
   removeWatchlistEntry,
 } from "@/models/investorRelations";
+import { recordInvestorInteraction } from "./activity";
 
 /**
  * Toggle a venture on the caller's watchlist and report which way it went
@@ -32,9 +33,11 @@ export async function toggleWatchlist({ ventureId, personalNotes, session }) {
 
   if (existing.rows.length > 0) {
     await removeWatchlistEntry(investorId, ventureId);
+    await recordInvestorInteraction({ session, investorId, ventureId, eventType: "watchlist_removed" });
     return { ok: true, action: "removed" };
   }
 
   await addWatchlistEntry(investorId, ventureId, personalNotes || null);
+  await recordInvestorInteraction({ session, investorId, ventureId, eventType: "watchlist_added" });
   return { ok: true, action: "added" };
 }

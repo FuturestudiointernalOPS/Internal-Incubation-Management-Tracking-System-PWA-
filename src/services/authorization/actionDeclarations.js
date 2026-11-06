@@ -49,6 +49,12 @@ const SELF_SCOPED_ROUTES = [
       "Matrice de permissions effectives de l'appelant ; jamais une frontière de sécurité (chaque API reste autoritative).",
   },
   {
+    file: "src/app/api/me/preferences/route.js",
+    methods: ["GET", "PATCH"],
+    scope: "session.cid",
+    reason: "Préférence d'affichage personnelle de l'appelant ; la devise est stockée pour `session.cid` et jamais sur un autre identity key.",
+  },
+  {
     file: "src/app/api/me/relationships/route.js",
     methods: ["GET"],
     scope: "session.cid",
@@ -127,6 +133,7 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/invites/[token]/route.js", kind: "token", reason: "Validation d'un jeton d'invitation (unguessable)." },
   { file: "src/app/api/venture-member-invites/[token]/route.js", kind: "token", reason: "Invitation membre de venture par jeton." },
   { file: "src/app/api/verify/certificate/[token]/route.js", kind: "token", reason: "Vérification publique de certificat ; champs volontairement publics." },
+  { file: "src/app/api/public/data-room/[token]/route.js", kind: "token", reason: "Partage public d'un data-room à durée limitée par token ; le document n'est accessible qu'avec le token partagé." },
   { file: "src/app/api/public/checkout/route.js", kind: "public-intake", reason: "État / paiement de checkout public (rate-limit)." },
   { file: "src/app/api/public/course-match/route.js", kind: "public-intake", reason: "Catalogue public (rate-limit)." },
   { file: "src/app/api/public/group-info/route.js", kind: "public-intake", reason: "Info de groupe pour la page d'inscription (réserve : énumérable par identifiant)." },
@@ -141,6 +148,7 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/notifications/overdue/route.js", kind: "cron", reason: "Relances planifiées (secret)." },
   { file: "src/app/api/platform/scheduled-result-emails/route.js", kind: "cron", reason: "Envoi planifié des courriels de résultat (secret)." },
   { file: "src/app/api/reminders/sweep/route.js", kind: "cron", reason: "Balayage planifié des rappels (secret)." },
+  { file: "src/app/api/reporting/stage-sweep/route.js", kind: "cron", reason: "Sweep hebdomadaire de stage des ventures : validé par le secret planifié `x-cron-secret` ou le bearer de Vercel Cron, sans donnée d'appelant spécifique." },
   { file: "src/app/api/translations/sweep/route.js", kind: "cron", reason: "Préchauffage planifié de la mémoire de traduction des Ventures ; secret `x-cron-secret`, refus 503 si non configuré. Aucune donnée n'est lue pour un appelant anonyme." },
   { file: "src/app/api/tasks/notify-deadlines/route.js", kind: "cron", reason: "Notifications d'échéance planifiées (secret)." },
   { file: "src/app/api/webhooks/kkiapay/route.js", kind: "webhook", reason: "Webhook de paiement signé par le fournisseur ; 401 si la signature est invalide." },

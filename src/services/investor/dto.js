@@ -8,10 +8,12 @@
 
 export function investorVentureCard(venture, { mode = "deal_flow_only", dealFlow = null } = {}) {
   const card = {
-    id: venture.venture_id ?? venture.id ?? null,
+    id: venture.venture_internal_id ?? venture.venture_id ?? venture.id ?? null,
     name: venture.name ?? venture.company_name ?? null,
     logo: venture.logo_url ?? venture.logo ?? null,
     founders: venture.founders_count ?? venture.founder_count ?? null,
+    founders_countries: Array.isArray(venture.founders_countries)
+      ? venture.founders_countries.filter(country => typeof country === "string") : [],
     description: venture.description ?? null,
     industry: venture.industry ?? null,
     country: venture.country ?? null,
@@ -20,10 +22,15 @@ export function investorVentureCard(venture, { mode = "deal_flow_only", dealFlow
   // The stage field is exposed only in Full pipeline mode.
   if (mode === "full_pipeline") card.stage = venture.business_stage ?? null;
 
+  if (venture.deck_id != null) {
+    card.deck = { id: venture.deck_id, version: venture.deck_version ?? null };
+  }
+
   // A deal-flow card additionally shows the raise amount.
-  if (dealFlow) {
-    card.raise_amount = dealFlow.target_amount ?? null;
-    card.currency = dealFlow.currency ?? null;
+  if (dealFlow || venture.raise_amount != null) {
+    card.raise_amount = dealFlow?.target_amount ?? venture.raise_amount ?? null;
+    card.currency = dealFlow?.currency ?? venture.currency ?? null;
+    if (venture.deal_flow_id != null) card.deal_flow_id = venture.deal_flow_id;
   }
 
   return card;
@@ -39,6 +46,7 @@ export function investorPipelineRow(row, { mode = "deal_flow_only" } = {}) {
     id: row.id,
     venture_id: row.venture_id,
     venture_name: row.venture_name ?? null,
+    ...(typeof row.industry === "string" ? { industry: row.industry } : {}),
     stage: row.stage ?? null,
     stage_changed_at: row.stage_changed_at ?? null,
     ...(mode === "full_pipeline" ? { venture_status: row.venture_status ?? null } : {}),
@@ -49,11 +57,16 @@ export function investorPipelineRow(row, { mode = "deal_flow_only" } = {}) {
 export function investorWatchlistRow(row, { mode = "deal_flow_only" } = {}) {
   const item = {
     id: row.id,
-    venture_id: row.venture_id,
+    ...(row.venture_id != null ? { venture_id: row.venture_id } : {}),
     venture_name: row.venture_name ?? null,
     industry: row.industry ?? null,
     country: row.country ?? null,
     description: row.description ?? null,
+    founders: row.founders_count ?? row.founder_count ?? null,
+    founders_countries: Array.isArray(row.founders_countries)
+      ? row.founders_countries.filter(country => typeof country === "string") : [],
+    ...(row.deal_flow_id != null ? { deal_flow_id: row.deal_flow_id } : {}),
+    ...(row.deck_id != null ? { deck: { id: row.deck_id, version: row.deck_version ?? null } } : {}),
   };
 
   if (mode === "full_pipeline") item.stage = row.business_stage ?? null;
@@ -64,10 +77,27 @@ export function investorWatchlistRow(row, { mode = "deal_flow_only" } = {}) {
       name: row.campaign_name ?? null,
       status: row.campaign_status ?? null,
       target_raise: row.target_raise ?? null,
-      current_raised: row.current_raised ?? null,
-      min_investment: row.min_investment ?? null,
     };
   }
 
+  return item;
+}
+
+/** Campaign cards expose the raise target, not internal progress or interest. */
+export function investorCampaign(row) {
+  return Object.fromEntries(["id", "venture_id", "venture_name", "name", "industry",
+    "country", "target_raise", "currency", "closing_date"]
+    .filter(key => Object.hasOwn(row, key))
+    .map(key => [key, row[key]]));
+}
+
+/** Own relationship facts only; keep notes/assignees/internal timeline private. */
+export function investorRelationship(row) {
+  const item = Object.fromEntries(["id", "venture_id", "venture_name", "pipeline_id", "status"]
+    .filter(key => Object.hasOwn(row, key)).map(key => [key, row[key]]));
+  item.next_meetings = (row.next_meetings || []).map(meeting => Object.fromEntries(
+    ["id", "meeting_type", "scheduled_date", "scheduled_time", "start_at", "timezone", "video_link", "status", "location"]
+      .filter(key => Object.hasOwn(meeting, key)).map(key => [key, meeting[key]]),
+  ));
   return item;
 }

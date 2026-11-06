@@ -1,3 +1,4 @@
+import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
@@ -18,17 +19,16 @@ const PRIVATE_RESPONSE = { headers: { "Cache-Control": "private, no-store", Vary
  * `@/services/investor`. The response is DTO-shaped and mode-aware; the view is
  * recorded as `list_viewed` (deduped per 30-minute window).
  */
-export async function GET(_req) {
+async function GETWithOriginalGuards(_req) {
   try {
     await initDb();
-    await ensureInvestorExpansionSchema();
-
     const capError = await requireInvestorSelfServiceAuthorization("view");
     if (capError) return capError;
+    await ensureInvestorExpansionSchema();
 
     const flags = await readInvestorFlags();
     const session = await getSession();
-    const dashboard = await buildInvestorDashboard({ session });
+    const dashboard = await buildInvestorDashboard({ session, includeV2: flags.dashboard });
 
     await emitInvestorEvent({
       session,
@@ -40,8 +40,13 @@ export async function GET(_req) {
       success: true,
       ...dashboard,
       profile: protectInvestorProfile(dashboard.profile, flags.profilePrivacy),
+      features: { dashboardV2: flags.dashboard, introductions: flags.introductions,
+        messaging: flags.messaging, meetings: flags.meetings,
+        investmentConfirmation: flags.investmentConfirmation },
     }, PRIVATE_RESPONSE);
   } catch (_error) {
     return NextResponse.json({ success: false, error: "errors.somethingWrong" }, { ...PRIVATE_RESPONSE, status: 500 });
   }
 }
+
+export const GET = withInvestorPrivacy(GETWithOriginalGuards, "dashboard");

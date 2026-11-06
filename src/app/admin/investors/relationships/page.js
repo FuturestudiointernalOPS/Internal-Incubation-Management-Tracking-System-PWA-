@@ -78,7 +78,7 @@ export default function AdminRelationshipsPage() {
 
   // Complete form
   const [completeForm, setCompleteForm] = useState({
-    outcome: "", notes: "", action_items: "",
+    status: "held", outcome_code: "", notes: "", action_items: "",
   });
 
   const handleAssign = async (field, cid, name) => {
@@ -178,14 +178,16 @@ export default function AdminRelationshipsPage() {
 
   const handleCompleteMeeting = async () => {
     try {
-      const res = await fetch("/api/investor/relationships/meetings", {
+      const res = await fetch("/api/investor/meetings/slots", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          action: "outcome",
           id: showCompleteMeeting.id,
-          status: "completed",
-          outcome: completeForm.outcome,
-          notes: completeForm.notes,
+          meeting_id: showCompleteMeeting.id,
+          status: completeForm.status,
+          outcome_code: completeForm.outcome_code,
+          note: completeForm.notes,
           action_items: completeForm.action_items ? completeForm.action_items.split("\n").filter(Boolean) : [],
         }),
       });
@@ -193,7 +195,7 @@ export default function AdminRelationshipsPage() {
       if (data.success) {
         setToast({ type: "success", message: t("investorAdmin.relationships.meetingCompleted") });
         setShowCompleteMeeting(null);
-        setCompleteForm({ outcome: "", notes: "", action_items: "" });
+        setCompleteForm({ status: "held", outcome_code: "", notes: "", action_items: "" });
         reloadDetail();
       } else {
         setToast({ type: "error", message: t(data.error || "") || data.error });
@@ -349,7 +351,7 @@ export default function AdminRelationshipsPage() {
                 meetings={meetings}
                 timeline={timeline}
                 onCreateMeeting={() => setShowCreateMeeting(true)}
-                onCompleteMeeting={(meeting) => { setShowCompleteMeeting(meeting); setCompleteForm({ outcome: "", notes: "", action_items: "" }); }}
+                onCompleteMeeting={(meeting) => { setShowCompleteMeeting(meeting); setCompleteForm({ status: "held", outcome_code: "", notes: "", action_items: "" }); }}
               />
             )}
 

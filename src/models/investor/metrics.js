@@ -1,5 +1,14 @@
 import db from "@/lib/db";
 
+// Preserve historic numeric identities; new UUID identities live in the
+// immutable, server-owned event snapshot. Staff and test traffic never count.
+const METRIC_ACTIVITY_SOURCE = `(SELECT
+  COALESCE(metadata->>'investor_ref', investor_id::text) AS investor_id,
+  venture_id, event_type, occurred_at, metadata
+  FROM investor_activity_log
+  WHERE actor_type = 'investor'
+    AND COALESCE(metadata->>'is_test', 'false') <> 'true') AS metric_activity`;
+
 // ── Phase 8 — metrics projections (read-only) ────────────────────────────────
 
 export async function countActivityByType({ from = null, to = null } = {}) {
@@ -15,7 +24,7 @@ export async function countActivityByType({ from = null, to = null } = {}) {
   }
   return db.execute({
     sql: `SELECT event_type, COUNT(*)::int AS count
-            FROM investor_activity_log
+            FROM ${METRIC_ACTIVITY_SOURCE}
             ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
            GROUP BY event_type`,
     args,
@@ -31,7 +40,7 @@ export async function selectConversionPairs() {
               MIN(occurred_at) FILTER (WHERE event_type = 'application_approved') AS approved_at,
               MIN(occurred_at) FILTER (WHERE event_type = 'activation_email_sent') AS email_at,
               MIN(occurred_at) FILTER (WHERE event_type = 'account_activated') AS activated_at
-            FROM investor_activity_log
+            FROM ${METRIC_ACTIVITY_SOURCE}
            GROUP BY investor_id
          )
          SELECT
@@ -75,7 +84,7 @@ export async function countProfilesBySource() {
 export async function countActiveInvestors(days = 30) {
   return db.execute({
     sql: `SELECT COUNT(DISTINCT investor_id)::int AS count
-            FROM investor_activity_log
+            FROM ${METRIC_ACTIVITY_SOURCE}
            WHERE event_type = 'login' AND occurred_at >= NOW() - (? || ' days')::interval`,
     args: [String(days)],
   });
@@ -143,7 +152,7 @@ export async function getEngagementStats() {
                  COUNT(*) FILTER (WHERE event_type = 'interest_expressed')::int AS interests,
                  COUNT(*) FILTER (WHERE event_type = 'watchlist_added')::int AS watchlist_adds,
                  COUNT(*) FILTER (WHERE event_type = 'compare_used')::int AS compares
-            FROM investor_activity_log`,
+            FROM ${METRIC_ACTIVITY_SOURCE}`,
     args: [],
   });
 }
@@ -157,7 +166,7 @@ export async function getIntroStats() {
                  percentile_cont(0.5) WITHIN GROUP (
                    ORDER BY EXTRACT(EPOCH FROM (decided_at - requested_at)) / 3600
                  ) FILTER (WHERE decided_at IS NOT NULL) AS median_hours_to_decide
-            FROM introduction_requests`,
+            FROM investor_introduction_requests`,
     args: [],
   });
 }
@@ -165,7 +174,7 @@ export async function getIntroStats() {
 export async function getDeclineReasons() {
   return db.execute({
     sql: `SELECT COALESCE(decline_reason, 'unknown') AS reason, COUNT(*)::int AS count
-            FROM introduction_requests WHERE status = 'declined'
+            FROM investor_introduction_requests WHERE status = 'declined'
            GROUP BY 1 ORDER BY count DESC`,
     args: [],
   });
@@ -221,7 +230,7 @@ export async function getFinancingStats() {
 export async function getStageTransitions() {
   return db.execute({
     sql: `SELECT investor_id, venture_id, metadata->>'stage' AS stage, MIN(occurred_at) AS first_at
-            FROM investor_activity_log
+            FROM ${METRIC_ACTIVITY_SOURCE}
            WHERE event_type = 'pipeline_stage_changed' AND investor_id IS NOT NULL
            GROUP BY 1, 2, 3`,
     args: [],
@@ -232,7 +241,7 @@ export async function getStageTransitions() {
 export async function getInterestPairs() {
   return db.execute({
     sql: `SELECT COUNT(DISTINCT (investor_id, venture_id))::int AS count
-            FROM investor_activity_log
+            FROM ${METRIC_ACTIVITY_SOURCE}
            WHERE event_type = 'interest_expressed' AND investor_id IS NOT NULL`,
     args: [],
   });
@@ -242,20 +251,26 @@ export async function getInterestPairs() {
 export async function getTimeToClose() {
   return db.execute({
     sql: `WITH pairs AS (
-            SELECT investor_id, venture_id, MIN(requested_at) AS first_request
-              FROM introduction_requests
-             WHERE investor_id IS NOT NULL
-             GROUP BY 1, 2
+            SELECT investor_profile_id, venture_id, MIN(requested_at) AS first_request
+              FROM investor_introduction_requests
+             WHERE investor_profile_id IS NOT NULL
+             GROUP BY investor_profile_id, venture_id
+          ),
+          closed AS (
+            SELECT p.first_request, MIN(ip.stage_changed_at) AS closed_at
+              FROM pairs p
+              JOIN investment_pipeline ip
+                ON ip.investor_id = p.investor_profile_id
+               AND ip.venture_id::text = p.venture_id
+               AND ip.stage = 'invested'
+               AND ip.stage_changed_at >= p.first_request
+             GROUP BY p.investor_profile_id, p.venture_id, p.first_request
           )
           SELECT percentile_cont(0.5) WITHIN GROUP (
-                   ORDER BY EXTRACT(EPOCH FROM (ii.created_at - p.first_request)) / 86400
+                   ORDER BY EXTRACT(EPOCH FROM (closed_at - first_request)) / 86400
                  ) AS median_days,
                  COUNT(*)::int AS pairs
-            FROM investor_investments ii
-            JOIN pairs p
-              ON p.investor_id = ii.investor_id
-             AND CAST(p.venture_id AS TEXT) = CAST(ii.venture_id AS TEXT)
-           WHERE ii.created_at >= p.first_request`,
+            FROM closed`,
     args: [],
   });
 }
@@ -270,7 +285,7 @@ export async function getIntroMeetingTimings() {
             percentile_cont(0.5) WITHIN GROUP (
               ORDER BY EXTRACT(EPOCH FROM (m.start_at - ir.requested_at)) / 86400
             ) FILTER (WHERE m.start_at IS NOT NULL) AS median_days_request_to_meeting
-          FROM introduction_requests ir
+          FROM investor_introduction_requests ir
           JOIN relationship_meetings m ON m.workspace_id = ir.workspace_id
          WHERE ir.status = 'approved' AND ir.workspace_id IS NOT NULL`,
     args: [],
@@ -282,7 +297,7 @@ export async function getRescheduleStats() {
   return db.execute({
     sql: `SELECT COUNT(*) FILTER (WHERE event_type = 'meeting_confirmed')::int AS confirmed,
                  COUNT(*) FILTER (WHERE event_type = 'meeting_rescheduled')::int AS rescheduled
-            FROM investor_activity_log`,
+            FROM ${METRIC_ACTIVITY_SOURCE}`,
     args: [],
   });
 }
@@ -291,7 +306,7 @@ export async function getRescheduleStats() {
 export async function getLossReasons() {
   return db.execute({
     sql: `SELECT COALESCE(metadata->>'reason', 'unspecified') AS reason, COUNT(*)::int AS count
-            FROM investor_activity_log
+            FROM ${METRIC_ACTIVITY_SOURCE}
            WHERE event_type IN ('pipeline_declined', 'pipeline_withdrawn')
            GROUP BY 1 ORDER BY count DESC`,
     args: [],
@@ -302,9 +317,9 @@ export async function getLossReasons() {
 export async function getIntroToDiligence() {
   return db.execute({
     sql: `WITH approved AS (
-            SELECT investor_id, venture_id
-              FROM introduction_requests
-             WHERE status = 'approved' AND investor_id IS NOT NULL AND venture_id IS NOT NULL
+            SELECT investor_profile_id AS investor_id, venture_id
+              FROM investor_introduction_requests
+             WHERE status = 'approved' AND investor_profile_id IS NOT NULL AND venture_id IS NOT NULL
           ),
           reached AS (
             SELECT a.investor_id, a.venture_id
