@@ -38,7 +38,7 @@ export { computeCourseProgress, findContinueLesson } from "./learning/progress";
 export { learnerHasEnrollments, getLearnerCourses, getLearnerCourse } from "./learning/catalog";
 export { completeLesson } from "./learning/lessons";
 export { getAssessmentForTake, submitAssessment } from "./learning/assessments";
-export { enrollLearner, listEnrollments } from "./learning/enrollments";
+export { enrollLearner, listEnrollments, searchEnrollable, getEnrollmentDetail } from "./learning/enrollments";
 export {
   releaseProgramLearning,
   listOrphanProgramEnrollments,

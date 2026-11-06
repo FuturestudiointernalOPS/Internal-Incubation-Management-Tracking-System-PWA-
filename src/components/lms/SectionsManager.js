@@ -25,6 +25,8 @@ import AssessmentModal from "./AssessmentModal";
 import AssessmentViewModal from "./AssessmentViewModal";
 import SortableSection from "./sections-manager/SortableSection";
 import AssessmentCard from "./sections-manager/AssessmentCard";
+import LessonDrafts, { isDraftFilled } from "./sections-manager/LessonDrafts";
+import { extractYouTubeVideoId } from "@/models/lms/youtube";
 import { notify } from "./notify";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
@@ -154,15 +156,60 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
       notify("error", "lms.errors.sectionTitleRequired");
       return;
     }
-    const url =
-      sectionModal.mode === "edit"
-        ? `/api/lms/sections/${sectionModal.section.id}`
-        : `/api/lms/courses/${course.id}/sections`;
-    await mutate(url, sectionModal.mode === "edit" ? "PUT" : "POST", {
-      title: sectionModal.title,
-      description: sectionModal.description,
-    });
-    setSectionModal(null);
+    const isEdit = sectionModal.mode === "edit";
+    const drafts = isEdit ? [] : (sectionModal.lessons || []).filter(isDraftFilled);
+    // Validate every lesson row BEFORE the chapter is created, so nothing is
+    // left half-saved for a typo.
+    for (const draft of drafts) {
+      if (!draft.title.trim()) {
+        notify("error", "lms.errors.lessonTitleRequired");
+        return;
+      }
+      if (draft.video.trim() && !extractYouTubeVideoId(draft.video.trim())) {
+        notify("error", "lms.errors.invalidYouTubeUrl");
+        return;
+      }
+    }
+
+    if (isEdit) {
+      await mutate(`/api/lms/sections/${sectionModal.section.id}`, "PUT", {
+        title: sectionModal.title,
+        description: sectionModal.description,
+      });
+      setSectionModal(null);
+      return;
+    }
+
+    setSavingId("section-create");
+    try {
+      const created = await api(`/api/lms/courses/${course.id}/sections`, "POST", {
+        title: sectionModal.title,
+        description: sectionModal.description,
+      });
+      const sectionId = created.section?.id;
+      let failed = false;
+      for (const draft of drafts) {
+        try {
+          await api(`/api/lms/sections/${sectionId}/lessons`, "POST", {
+            title: draft.title,
+            description: draft.description,
+            youtubeVideoId: extractYouTubeVideoId(draft.video.trim()) || null,
+            durationMinutes: draft.duration || null,
+            isRequired: draft.isRequired,
+          });
+        } catch (error) {
+          failed = true;
+          notify("error", error.message || "lms.errors.saveFailed");
+        }
+      }
+      if (!failed) notify("success", "lms.courses.saved");
+      onChange();
+      setSectionModal(null);
+    } catch (error) {
+      notify("error", error.message || "lms.errors.saveFailed");
+    } finally {
+      setSavingId(null);
+    }
   };
 
   const deleteSection = async (section) => {
@@ -194,6 +241,16 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
 
   const courseAssessments = course.courseAssessments || [];
 
+  const addSectionButton = (
+    <AppButton
+      variant="secondary"
+      icon={Plus}
+      onClick={() => setSectionModal({ mode: "create", section: null, title: "", description: "", lessons: [] })}
+    >
+      {t("lms.sections.add")}
+    </AppButton>
+  );
+
   return (
     <div className="space-y-4">
       {/* Sections */}
@@ -209,6 +266,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
           <p className="text-[10px]" style={{ color: "var(--text-tertiary)" }}>
             {t("lms.sections.emptyHint")}
           </p>
+          {addSectionButton}
         </div>
       ) : (
         <DndContext
@@ -271,13 +329,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
         </DndContext>
       )}
 
-      <AppButton
-        variant="secondary"
-        icon={Plus}
-        onClick={() => setSectionModal({ mode: "create", section: null, title: "", description: "" })}
-      >
-        {t("lms.sections.add")}
-      </AppButton>
+      {course.sections.length > 0 && <div className="flex justify-center">{addSectionButton}</div>}
 
       {/* Course-level assessments */}
       <div className="pt-2 border-t" style={{ borderColor: "var(--border-primary)" }}>
@@ -325,7 +377,7 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
           isOpen
           onClose={() => setSectionModal(null)}
           title={sectionModal.mode === "edit" ? t("lms.sections.edit") : t("lms.sections.add")}
-          size="md"
+          size="lg"
         >
           <div className="space-y-4">
             <AppInput
@@ -347,11 +399,18 @@ export default function SectionsManager({ course, onChange, canEdit = true }) {
                 minHeight={96}
               />
             </div>
+            {sectionModal.mode !== "edit" && (
+              <LessonDrafts
+                drafts={sectionModal.lessons || []}
+                onChange={(lessons) => setSectionModal((prev) => ({ ...prev, lessons }))}
+                t={t}
+              />
+            )}
             <div className="flex justify-end gap-3 pt-2">
               <AppButton variant="ghost" onClick={() => setSectionModal(null)}>
                 {t("common.cancel")}
               </AppButton>
-              <AppButton variant="primary" onClick={saveSection}>
+              <AppButton variant="primary" onClick={saveSection} disabled={savingId === "section-create"}>
                 {t("common.save")}
               </AppButton>
             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown, HelpCircle } from "lucide-react";
 import AppModal from "@/components/ui/AppModal";
 import AppInput from "@/components/ui/AppInput";
@@ -41,6 +41,19 @@ export default function AssessmentModal({
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [questionModal, setQuestionModal] = useState(null);
+  // Creating: questions are kept here and written together with the assessment,
+  // so there is no "save first, add questions after" round trip.
+  const isDraft = mode !== "edit";
+  const draftCounter = useRef(0);
+
+  const saveDraftQuestion = (payload) => {
+    const editing = questionModal?.mode === "edit" ? questionModal.question : null;
+    setQuestions((prev) =>
+      editing
+        ? prev.map((item) => (item.id === editing.id ? { ...item, ...payload } : item))
+        : [...prev, { id: `draft-${++draftCounter.current}`, ...payload }],
+    );
+  };
 
   // Pass-mark feasibility (live): the modal shows whether the current question
   // set (count + points) can actually reach the configured pass mark — and
@@ -81,8 +94,20 @@ export default function AssessmentModal({
     }
   };
 
+  const moveDraftQuestion = (question, direction) =>
+    setQuestions((prev) => {
+      const index = prev.findIndex((item) => item.id === question.id);
+      const target = direction === "up" ? index - 1 : index + 1;
+      if (index < 0 || target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
+
   const moveQuestion = (question, direction) =>
-    runQuestionAction(
+    isDraft
+      ? moveDraftQuestion(question, direction)
+      : runQuestionAction(
       "move",
       `/api/lms/questions/${question.id}`,
       "PUT",
@@ -92,6 +117,10 @@ export default function AssessmentModal({
 
   const deleteQuestion = async (question) => {
     if (!(await confirm({ message: t("lms.confirm.deleteQuestion"), tone: "danger" }))) return;
+    if (isDraft) {
+      setQuestions((prev) => prev.filter((item) => item.id !== question.id));
+      return;
+    }
     runQuestionAction("delete", `/api/lms/questions/${question.id}`, "DELETE", null, "lms.courses.saved");
   };
 
@@ -126,6 +155,29 @@ export default function AssessmentModal({
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || "lms.errors.saveFailed");
+      if (isDraft && questions.length > 0) {
+        const newId = data.assessment?.id;
+        try {
+          for (const draft of questions) {
+            const qRes = await fetch(`/api/lms/assessments/${newId}/questions`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                question: draft.question,
+                options: draft.options,
+                correctAnswer: draft.correct_answer,
+                points: draft.points || 1,
+              }),
+            });
+            const qData = await qRes.json();
+            if (!qData.success) throw new Error(qData.error || "lms.errors.saveFailed");
+          }
+        } catch (questionError) {
+          // The assessment exists; keep what was written and report the failure.
+          onSaved();
+          throw questionError;
+        }
+      }
       notify("success", "lms.courses.saved");
       onSaved();
       onClose();
@@ -254,14 +306,14 @@ export default function AssessmentModal({
           </label>
           <AppSelect
             value={typeChoice}
-            disabled={mode === "edit" && questions.length > 0}
+            disabled={questions.length > 0}
             onChange={(event) => setTypeChoice(event.target.value)}
             options={[
               { value: "multiple_choice", label: t("lms.questions.typeMc") },
               { value: "true_false", label: t("lms.questions.typeTf") },
             ]}
           />
-          {mode === "edit" && questions.length > 0 && (
+          {questions.length > 0 && (
             <p
               className="text-[10px] font-bold uppercase tracking-wider ml-1"
               style={{ color: "var(--text-tertiary)" }}
@@ -283,7 +335,6 @@ export default function AssessmentModal({
               variant="secondary"
               size="sm"
               icon={Plus}
-              disabled={!assessment?.id}
               onClick={() => setQuestionModal({ mode: "create", question: null })}
             >
               {t("lms.assessments.addQuestion")}
@@ -292,7 +343,7 @@ export default function AssessmentModal({
 
           {questions.length === 0 ? (
             <p className="text-[10px] font-bold uppercase tracking-wider py-6 text-center" style={{ color: "var(--text-tertiary)" }}>
-              {assessment?.id ? t("lms.assessments.emptyHint") : t("lms.assessments.saveFirstHint")}
+              {t("lms.assessments.emptyHint")}
             </p>
           ) : (
             <div className="space-y-2">
@@ -373,7 +424,8 @@ export default function AssessmentModal({
           onSaved={refreshQuestions}
           mode={questionModal.mode}
           assessmentId={assessment?.id}
-          assessmentType={assessment?.question_type}
+          assessmentType={isDraft ? typeChoice : assessment?.question_type}
+          onDraftSave={isDraft ? saveDraftQuestion : undefined}
           question={questionModal.question}
         />
       )}

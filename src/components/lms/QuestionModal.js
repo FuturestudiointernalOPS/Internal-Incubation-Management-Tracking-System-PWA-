@@ -15,7 +15,7 @@ const letter = (index) => String.fromCharCode(65 + index);
  * at the assessment level: new questions inherit the assessment's type, and
  * editing an existing question keeps its stored type (legacy rows).
  */
-export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessmentId, assessmentType, question }) {
+export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessmentId, assessmentType, question, onDraftSave }) {
   const { t } = useI18n();
   const type = question?.question_type || assessmentType || "multiple_choice";
   const mcType = type === "multiple_choice";
@@ -70,6 +70,20 @@ export default function QuestionModal({ isOpen, onClose, onSaved, mode, assessme
 
   const persist = async (keepOpen) => {
     if (!validate()) return;
+    // Draft mode: the assessment does not exist yet, so the question is handed
+    // back to the parent and written together with the assessment.
+    if (onDraftSave) {
+      onDraftSave({
+        question: text,
+        question_type: type,
+        options: mcType ? options.map((option, optionIndex) => ({ key: letter(optionIndex), text: option.text })) : [],
+        correct_answer: correct ? [correct] : [],
+        points: points || 1,
+      });
+      if (mode !== "edit" && keepOpen) resetForNext();
+      else onClose();
+      return;
+    }
     if (mode !== "edit" && !assessmentId) {
       notify("error", "lms.errors.assessmentNotFound");
       return;

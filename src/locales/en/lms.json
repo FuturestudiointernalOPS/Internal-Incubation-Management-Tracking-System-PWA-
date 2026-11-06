@@ -27,6 +27,7 @@
       "deleted": "Course deleted",
       "noDescription": "No description yet",
       "videoPlay": "Play the first lesson video",
+      "imageEmpty": "No image for this course yet",
       "videoEmpty": "No video in this course yet",
       "videoLessonEmpty": "No video attached to this lesson yet"
     },
@@ -67,7 +68,7 @@
       "paid": "Paid"
     },
     "sessionResources": {
-      "title": "Section Resources",
+      "title": "Lesson Resources",
       "add": "Add resource",
       "addResource": "Add resource",
       "saveChanges": "Save changes",
@@ -77,14 +78,14 @@
       "edit": "Edit",
       "delete": "Delete",
       "confirmDelete": "Delete this resource?",
-      "empty": "No resources attached to this section yet",
+      "empty": "No resources attached to this lesson yet",
       "created": "Resource added",
       "updated": "Resource updated",
       "deleted": "Resource deleted",
       "recommended": "Recommended",
       "recommendedCount": "{n} recommended",
       "recommendationsTitle": "Recommended for you",
-      "learnerTitle": "Section resources",
+      "learnerTitle": "Lesson resources",
       "markRecommended": "Recommend this resource",
       "markRecommendedHint": "Learners see recommended material first, with your note.",
       "fieldTitle": "Title",
@@ -206,7 +207,30 @@
         "program": "Programme",
         "self": "Self-enrolled",
         "purchase": "Purchase"
-      }
+      },
+      "noMatch": "No learner found who can be added",
+      "progress": "Progress",
+      "lessonsDone": "{done}/{total} lessons",
+      "assessments": "Assessments",
+      "assessmentStates": {
+        "passed": "Passed",
+        "failed": "Failed",
+        "todo": "Not taken"
+      },
+      "attemptsCount": "{count} attempts",
+      "detail": {
+        "back": "Back to learners",
+        "since": "enrolled",
+        "lessons": "Lessons",
+        "finished": "Finished",
+        "notFinished": "Not finished",
+        "givenAnswer": "Answer given",
+        "expectedAnswer": "Correct answer",
+        "noAnswer": "No answer",
+        "attemptSummary": "{score}/{total} correct · {percent}%",
+        "viewProfile": "View details"
+      },
+      "assessmentsShort": "{passed}/{total} assessments passed"
     },
     "assessment": {
       "title": "Assessment",
@@ -232,7 +256,9 @@
       "unavailable": "This assessment is no longer available.",
       "submitFailed": "We couldn't submit your assessment. Please try again.",
       "noAccess": "You don't have access to this assessment.",
-      "bestScore": "Best score: {score}%"
+      "bestScore": "Best score: {score}%",
+      "locked": "Locked",
+      "lockedHint": "Finish all the lessons first (and pass the chapter assessments for the final one) to unlock this assessment."
     },
     "certificate": {
       "title": "Certificate of Completion",
@@ -308,26 +334,27 @@
       "redo": "Redo"
     },
     "sections": {
-      "title": "Sections",
-      "add": "Add Section",
-      "edit": "Edit Section",
-      "delete": "Delete Section",
-      "name": "Section title",
+      "title": "Chapters",
+      "add": "Add Chapter",
+      "edit": "Edit Chapter",
+      "delete": "Delete Chapter",
+      "name": "Chapter title",
       "namePlaceholder": "e.g. Introduction",
-      "description": "Section description",
-      "empty": "No sections yet",
-      "emptyHint": "Add a section to start structuring your course",
+      "description": "Chapter description",
+      "empty": "No chapters yet",
+      "emptyHint": "Add a chapter to start structuring your course, then add your videos inside it",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "collapse": "Collapse section",
-      "expand": "Expand section",
+      "collapse": "Collapse chapter",
+      "expand": "Expand chapter",
       "dragToReorder": "Drag to reorder",
       "lessons": "Lessons",
-      "addLesson": "Add Lesson",
+      "lessonsHeading": "Lessons of this chapter",
+      "addLesson": "Add a lesson or video",
       "assessment": "Assessment",
       "addAssessment": "Add Assessment",
       "courseAssessments": "Course-level assessments",
-      "courseLevelHint": "Assessments that apply to the whole course rather than one section."
+      "courseLevelHint": "Assessments that apply to the whole course rather than one chapter."
     },
     "lessons": {
       "title": "Lesson",
@@ -353,7 +380,7 @@
       "durationDetectFailed": "Could not detect the duration — enter it manually.",
       "duration": "Duration (minutes)",
       "empty": "No lessons yet",
-      "emptyHint": "Add a lesson to this section",
+      "emptyHint": "Add a lesson to this chapter",
       "moveUp": "Move up",
       "moveDown": "Move down"
     },
@@ -416,7 +443,7 @@
       "close": "Close",
       "courseDetails": "Course details",
       "content": "Content",
-      "sections": "sections",
+      "sections": "chapters",
       "lessons": "lessons",
       "assessments": "assessments",
       "noVideo": "No video",
@@ -435,7 +462,7 @@
       "unarchiveHint": "The course becomes published again and open to new enrollment. Learner records are unchanged.",
       "deleteCourse": "Delete this course?",
       "deleteCourseHint": "Only draft courses without enrollments can be deleted. This cannot be undone.",
-      "deleteSection": "Delete this section?",
+      "deleteSection": "Delete this chapter?",
       "deleteSectionHint": "All of its lessons will be removed.",
       "deleteLesson": "Delete this lesson?",
       "deleteAssessment": "Delete this assessment?",
@@ -534,14 +561,14 @@
       "questionTextRequired": "Question text is required.",
       "invalidQuestionType": "Unsupported question type.",
       "invalidDirection": "Invalid move direction.",
-      "reorderInvalid": "The section order is invalid.",
+      "reorderInvalid": "The chapter order is invalid.",
       "invalidPassMark": "Pass mark must be between 0 and 100.",
       "videoInfoUnavailable": "Video metadata lookup is not configured on this server.",
       "videoInfoFailed": "Could not fetch the video metadata. Please try again.",
       "videoInfoNotFound": "Video not found on YouTube.",
       "invalidPrice": "Please enter a valid price.",
       "courseNotFound": "Course not found.",
-      "sectionNotFound": "Section not found.",
+      "sectionNotFound": "Chapter not found.",
       "lessonNotFound": "Lesson not found.",
       "assessmentNotFound": "Assessment not found.",
       "assessmentTypeLocked": "The question type cannot be changed after questions are added.",
@@ -573,9 +600,9 @@
       "cannotDeleteCourse": "Only draft courses without enrollments can be deleted.",
       "cannotDeleteWithProgress": "This content has learner progress and cannot be deleted.",
       "cannotDeleteWithAttempts": "This assessment has learner attempts and cannot be deleted.",
-      "noSections": "Add at least one section before publishing.",
+      "noChapters": "Add at least one chapter before publishing.",
       "noLessons": "Add at least one lesson before publishing.",
-      "sectionTitleRequired": "Section title is required.",
+      "sectionTitleRequired": "Chapter title is required.",
       "lessonTitleRequired": "Lesson title is required.",
       "lessonVideoRequired": "Each video lesson needs a valid YouTube video.",
       "assessmentTitleRequired": "Assessment title is required.",
@@ -618,7 +645,8 @@
       "paymentVerificationFailed": "The payment could not be verified with the provider.",
       "paymentTransactionUnknown": "The payment transaction id is missing.",
       "invalidAction": "Unknown action.",
-      "invalidPayload": "The notification payload is invalid."
+      "invalidPayload": "The notification payload is invalid.",
+      "assessmentLocked": "Finish the required lessons first to unlock this assessment."
     }
   }
 }

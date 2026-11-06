@@ -43,6 +43,7 @@ const {
   completeLesson,
   enrollLearner,
   listEnrollments,
+  getEnrollmentDetail,
 } = require("@/services/lms/learning");
 
 const { GET: myLearningGET } = require("@/app/api/lms/my-learning/route");
@@ -378,6 +379,78 @@ describe("enrollLearner / listEnrollments", () => {
     const rows = await listEnrollments("C-1");
     expect(rows).toHaveLength(1);
     expect(rows[0].learner.name).toBe("Alice");
+  });
+
+  test("listEnrollments reports each learner's progress and assessment results", async () => {
+    mockFake.reset();
+    mockFake.seed("lms_courses", [PUBLISHED]);
+    mockFake.seed("lms_course_sections", [{ id: "S-1", course_id: "C-1", title: "Intro", position: 0 }]);
+    mockFake.seed("lms_lessons", [
+      { id: "L-1", section_id: "S-1", title: "One", is_required: true, position: 0 },
+      { id: "L-2", section_id: "S-1", title: "Two", is_required: true, position: 1 },
+    ]);
+    mockFake.seed("lms_assessments", [
+      { id: "A-1", course_id: "C-1", section_id: "S-1", title: "Check", is_required: true, position: 0 },
+    ]);
+    mockFake.seed("lms_enrollments", [
+      { id: "E-1", course_id: "C-1", user_cid: "U-ALICE", source: "admin", status: "active" },
+      { id: "E-2", course_id: "C-1", user_cid: "U-BOB", source: "admin", status: "active" },
+    ]);
+    mockFake.seed("lms_lesson_progress", [
+      { id: "P-1", enrollment_id: "E-1", lesson_id: "L-1", status: "completed" },
+    ]);
+    mockFake.seed("lms_assessment_attempts", [
+      { id: "T-1", user_cid: "U-ALICE", assessment_id: "A-1", attempt_number: 1, score: 1, total_points: 4, passed: false },
+      { id: "T-2", user_cid: "U-BOB", assessment_id: "A-1", attempt_number: 1, score: 4, total_points: 4, passed: true },
+    ]);
+    const rows = await listEnrollments("C-1");
+    const alice = rows.find((row) => row.user_cid === "U-ALICE");
+    const bob = rows.find((row) => row.user_cid === "U-BOB");
+    expect(alice.progress).toMatchObject({ completedLessons: 1, totalLessons: 2 });
+    expect(alice.assessments[0]).toMatchObject({ state: "failed", bestPercent: 25, attempts: 1 });
+    expect(bob.progress.completedLessons).toBe(0);
+    expect(bob.assessments[0]).toMatchObject({ state: "passed", bestPercent: 100 });
+  });
+});
+
+describe("getEnrollmentDetail", () => {
+  test("lists finished lessons and the questions a learner missed", async () => {
+    mockFake.reset();
+    mockFake.seed("lms_courses", [PUBLISHED]);
+    mockFake.seed("lms_course_sections", [{ id: "S-1", course_id: "C-1", title: "Intro", position: 0 }]);
+    mockFake.seed("lms_lessons", [
+      { id: "L-1", section_id: "S-1", title: "One", is_required: true, position: 0 },
+      { id: "L-2", section_id: "S-1", title: "Two", is_required: true, position: 1 },
+    ]);
+    mockFake.seed("lms_assessments", [
+      { id: "A-1", course_id: "C-1", section_id: "S-1", title: "Check", is_required: true, pass_mark: 60, position: 0 },
+    ]);
+    mockFake.seed("lms_assessment_questions", [
+      { id: "Q-1", assessment_id: "A-1", question: "Q one", question_type: "multiple_choice", options: [{ key: "A", text: "No" }, { key: "B", text: "Yes" }], correct_answer: ["B"], position: 0 },
+      { id: "Q-2", assessment_id: "A-1", question: "Q two", question_type: "true_false", options: [], correct_answer: ["true"], position: 1 },
+    ]);
+    mockFake.seed("lms_enrollments", [{ id: "E-1", course_id: "C-1", user_cid: "U-ALICE", source: "admin", status: "active" }]);
+    mockFake.seed("lms_lesson_progress", [
+      { id: "P-1", enrollment_id: "E-1", lesson_id: "L-1", status: "completed", completed_at: "2026-11-05T10:00:00Z" },
+    ]);
+    mockFake.seed("lms_assessment_attempts", [
+      {
+        id: "T-1", user_cid: "U-ALICE", assessment_id: "A-1", attempt_number: 1, score: 1, total_points: 2, passed: false,
+        answers: [{ questionId: "Q-1", answer: "B" }, { questionId: "Q-2", answer: "false" }],
+      },
+    ]);
+    const detail = await getEnrollmentDetail("C-1", "E-1");
+    expect(detail.chapters[0].lessons.map((lesson) => lesson.completed)).toEqual([true, false]);
+    const attempt = detail.assessments[0].attempts[0];
+    expect(attempt.questions.map((question) => question.correct)).toEqual([true, false]);
+    expect(attempt.questions[1].given.key).toBe("false");
+    expect(attempt.questions[1].expected.key).toBe("true");
+  });
+
+  test("an enrollment of another course is not found", async () => {
+    mockFake.reset();
+    mockFake.seed("lms_enrollments", [{ id: "E-9", course_id: "C-OTHER", user_cid: "U-X", source: "admin", status: "active" }]);
+    await expect(getEnrollmentDetail("C-1", "E-9")).rejects.toMatchObject({ status: 404 });
   });
 });
 

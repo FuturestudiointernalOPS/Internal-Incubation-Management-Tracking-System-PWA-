@@ -27,6 +27,7 @@
       "deleted": "Cours supprimé",
       "noDescription": "Aucune description pour l'instant",
       "videoPlay": "Lire la vidéo de la première leçon",
+      "imageEmpty": "Aucune image pour ce cours pour l'instant",
       "videoEmpty": "Aucune vidéo dans ce cours pour l'instant",
       "videoLessonEmpty": "Aucune vidéo n'est encore attachée à cette leçon"
     },
@@ -67,7 +68,7 @@
       "paid": "Payant"
     },
     "sessionResources": {
-      "title": "Ressources de la section",
+      "title": "Ressources de la leçon",
       "add": "Ajouter une ressource",
       "addResource": "Ajouter la ressource",
       "saveChanges": "Enregistrer les modifications",
@@ -77,14 +78,14 @@
       "edit": "Modifier",
       "delete": "Supprimer",
       "confirmDelete": "Supprimer cette ressource ?",
-      "empty": "Aucune ressource attachée à cette section",
+      "empty": "Aucune ressource attachée à cette leçon",
       "created": "Ressource ajoutée",
       "updated": "Ressource mise à jour",
       "deleted": "Ressource supprimée",
       "recommended": "Recommandée",
       "recommendedCount": "{n} recommandée(s)",
       "recommendationsTitle": "Recommandé pour vous",
-      "learnerTitle": "Ressources de la section",
+      "learnerTitle": "Ressources de la leçon",
       "markRecommended": "Recommander cette ressource",
       "markRecommendedHint": "Les apprenants voient d'abord les ressources recommandées, avec votre note.",
       "fieldTitle": "Titre",
@@ -206,7 +207,30 @@
         "program": "Programme",
         "self": "Inscription libre",
         "purchase": "Achat"
-      }
+      },
+      "noMatch": "Aucun apprenant ajoutable trouvé",
+      "progress": "Avancement",
+      "lessonsDone": "{done}/{total} leçons",
+      "assessments": "Évaluations",
+      "assessmentStates": {
+        "passed": "Validée",
+        "failed": "Ratée",
+        "todo": "Non passée"
+      },
+      "attemptsCount": "{count} essais",
+      "detail": {
+        "back": "Retour aux apprenants",
+        "since": "inscrit le",
+        "lessons": "Leçons",
+        "finished": "Terminée",
+        "notFinished": "Non terminée",
+        "givenAnswer": "Réponse donnée",
+        "expectedAnswer": "Bonne réponse",
+        "noAnswer": "Pas de réponse",
+        "attemptSummary": "{score}/{total} bonnes réponses · {percent}%",
+        "viewProfile": "Voir le détail"
+      },
+      "assessmentsShort": "{passed}/{total} évaluations validées"
     },
     "assessment": {
       "title": "Évaluation",
@@ -232,7 +256,9 @@
       "unavailable": "Cette évaluation n'est plus disponible.",
       "submitFailed": "Impossible de soumettre votre évaluation. Veuillez réessayer.",
       "noAccess": "Vous n'avez pas accès à cette évaluation.",
-      "bestScore": "Meilleur score : {score}%"
+      "bestScore": "Meilleur score : {score}%",
+      "locked": "Verrouillée",
+      "lockedHint": "Terminez d'abord toutes les leçons (et validez les évaluations de chapitre pour l'évaluation finale) pour débloquer cette évaluation."
     },
     "certificate": {
       "title": "Certificat d'achèvement",
@@ -308,26 +334,27 @@
       "redo": "Rétablir"
     },
     "sections": {
-      "title": "Sections",
-      "add": "Ajouter une section",
-      "edit": "Modifier la section",
-      "delete": "Supprimer la section",
-      "name": "Titre de la section",
+      "title": "Chapitres",
+      "add": "Ajouter un chapitre",
+      "edit": "Modifier le chapitre",
+      "delete": "Supprimer le chapitre",
+      "name": "Titre du chapitre",
       "namePlaceholder": "ex. Introduction",
-      "description": "Description de la section",
-      "empty": "Aucune section pour l'instant",
-      "emptyHint": "Ajoutez une section pour commencer à structurer votre cours",
+      "description": "Description du chapitre",
+      "empty": "Aucun chapitre pour l'instant",
+      "emptyHint": "Ajoutez un chapitre pour structurer votre cours, puis ajoutez-y vos vidéos",
       "moveUp": "Monter",
       "moveDown": "Descendre",
-      "collapse": "Replier la section",
-      "expand": "Déplier la section",
+      "collapse": "Replier le chapitre",
+      "expand": "Déplier le chapitre",
       "dragToReorder": "Glisser pour réordonner",
       "lessons": "Leçons",
-      "addLesson": "Ajouter une leçon",
+      "lessonsHeading": "Leçons de ce chapitre",
+      "addLesson": "Ajouter une leçon ou une vidéo",
       "assessment": "Évaluation",
       "addAssessment": "Ajouter une évaluation",
       "courseAssessments": "Évaluations au niveau du cours",
-      "courseLevelHint": "Des évaluations qui s'appliquent à l'ensemble du cours plutôt qu'à une section."
+      "courseLevelHint": "Des évaluations qui s'appliquent à l'ensemble du cours plutôt qu'à un chapitre."
     },
     "lessons": {
       "title": "Leçon",
@@ -353,7 +380,7 @@
       "durationDetectFailed": "Impossible de détecter la durée — saisissez-la manuellement.",
       "duration": "Durée (minutes)",
       "empty": "Aucune leçon pour l'instant",
-      "emptyHint": "Ajoutez une leçon à cette section",
+      "emptyHint": "Ajoutez une leçon à ce chapitre",
       "moveUp": "Monter",
       "moveDown": "Descendre"
     },
@@ -416,7 +443,7 @@
       "close": "Fermer",
       "courseDetails": "Détails du cours",
       "content": "Contenu",
-      "sections": "sections",
+      "sections": "chapitres",
       "lessons": "leçons",
       "assessments": "évaluations",
       "noVideo": "Aucune vidéo",
@@ -435,7 +462,7 @@
       "unarchiveHint": "Le cours redevient publié et ouvert aux nouvelles inscriptions. Le suivi des apprenants est conservé.",
       "deleteCourse": "Supprimer ce cours ?",
       "deleteCourseHint": "Seuls les brouillons sans inscriptions peuvent être supprimés. Cette action est irréversible.",
-      "deleteSection": "Supprimer cette section ?",
+      "deleteSection": "Supprimer ce chapitre ?",
       "deleteSectionHint": "Toutes ses leçons seront supprimées.",
       "deleteLesson": "Supprimer cette leçon ?",
       "deleteAssessment": "Supprimer cette évaluation ?",
@@ -534,14 +561,14 @@
       "questionTextRequired": "Le texte de la question est requis.",
       "invalidQuestionType": "Type de question non pris en charge.",
       "invalidDirection": "Direction de déplacement invalide.",
-      "reorderInvalid": "L'ordre des sections est invalide.",
+      "reorderInvalid": "L'ordre des chapitres est invalide.",
       "invalidPassMark": "La note de passage doit être comprise entre 0 et 100.",
       "videoInfoUnavailable": "La recherche de métadonnées vidéo n'est pas configurée sur ce serveur.",
       "videoInfoFailed": "Impossible de récupérer les métadonnées de la vidéo. Veuillez réessayer.",
       "videoInfoNotFound": "Vidéo introuvable sur YouTube.",
       "invalidPrice": "Veuillez saisir un prix valide.",
       "courseNotFound": "Cours introuvable.",
-      "sectionNotFound": "Section introuvable.",
+      "sectionNotFound": "Chapitre introuvable.",
       "lessonNotFound": "Leçon introuvable.",
       "assessmentNotFound": "Évaluation introuvable.",
       "assessmentTypeLocked": "Le type de questions ne peut plus être modifié après l'ajout de questions.",
@@ -573,9 +600,9 @@
       "cannotDeleteCourse": "Seuls les brouillons sans inscriptions peuvent être supprimés.",
       "cannotDeleteWithProgress": "Ce contenu possède de la progression d'apprenant et ne peut pas être supprimé.",
       "cannotDeleteWithAttempts": "Cette évaluation possède des tentatives d'apprenants et ne peut pas être supprimée.",
-      "noSections": "Ajoutez au moins une section avant de publier.",
+      "noChapitres": "Ajoutez au moins un chapitre avant de publier.",
       "noLessons": "Ajoutez au moins une leçon avant de publier.",
-      "sectionTitleRequired": "Le titre de la section est requis.",
+      "sectionTitleRequired": "Le titre du chapitre est requis.",
       "lessonTitleRequired": "Le titre de la leçon est requis.",
       "lessonVideoRequired": "Chaque leçon vidéo doit avoir une vidéo YouTube valide.",
       "assessmentTitleRequired": "Le titre de l'évaluation est requis.",
@@ -618,7 +645,8 @@
       "paymentVerificationFailed": "Le paiement n'a pas pu être vérifié auprès du prestataire.",
       "paymentTransactionUnknown": "L'identifiant de transaction est manquant.",
       "invalidAction": "Action inconnue.",
-      "invalidPayload": "La charge utile de la notification est invalide."
+      "invalidPayload": "La charge utile de la notification est invalide.",
+      "assessmentLocked": "Terminez d'abord les leçons requises pour débloquer cette évaluation."
     }
   }
 }

@@ -9,6 +9,7 @@ import { getProfileDefinition } from "@/models/authorization/profile-catalog";
 import {
   ensureProfileAssignmentsSchema,
   listProfileAssignments,
+  listAllActiveProfileAssignments,
   findActiveAssignment,
   getProfileAssignmentById,
   insertProfileAssignment,
@@ -55,6 +56,11 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const cid = searchParams.get("cid");
+    if (searchParams.get("active") === "all") {
+      await ensureProfileAssignmentsSchema();
+      const active = await listAllActiveProfileAssignments();
+      return NextResponse.json({ success: true, assignments: active.rows });
+    }
     if (!cid) {
       return NextResponse.json(
         { success: false, error: "cid is required" },

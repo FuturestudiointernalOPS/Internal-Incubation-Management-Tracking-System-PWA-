@@ -228,8 +228,95 @@ export function selectEnrollmentsByCourse(courseId) {
 /** Name + email for the given cids. */
 export function selectContactsByCids(cids) {
   return db.execute({
-    sql: `SELECT cid, name, email FROM contacts WHERE cid IN (${cids.map(() => "?").join(",")})`,
+    sql: `SELECT cid, name, email, image FROM contacts WHERE cid IN (${cids.map(() => "?").join(",")})`,
     args: cids,
+  });
+}
+
+/**
+ * Contacts matching a typed fragment (name, email or cid) who are not yet
+ * enrolled in the course. Prefix matches rank first, then name order.
+ */
+export function searchEnrollableContacts(courseId, term, limit = 8) {
+  const escaped = term.replace(/[\\%_]/g, (c) => "\\" + c);
+  const contains = `%${escaped}%`;
+  const prefix = `${escaped}%`;
+  return db.execute({
+    sql: `SELECT cid, name, email FROM contacts c
+          WHERE (c.name ILIKE ? OR c.email ILIKE ? OR c.cid ILIKE ?)
+            AND NOT EXISTS (
+              SELECT 1 FROM lms_enrollments e
+              WHERE e.course_id = ? AND e.user_cid = c.cid
+            )
+          ORDER BY (CASE WHEN c.name ILIKE ? OR c.email ILIKE ? THEN 0 ELSE 1 END), c.name
+          LIMIT ?`,
+    args: [contains, contains, contains, courseId, prefix, prefix, limit],
+  });
+}
+
+/** Lesson progress of several enrollments at once (admin roster). */
+export function selectLessonProgressByEnrollments(enrollmentIds) {
+  return db.execute({
+    sql: `SELECT enrollment_id, lesson_id, status FROM lms_lesson_progress
+            WHERE enrollment_id IN (${enrollmentIds.map(() => "?").join(",")})`,
+    args: enrollmentIds,
+  });
+}
+
+/** Attempts of several learners on the given assessments (admin roster). */
+export function selectAttemptsByLearners(userCids, assessmentIds) {
+  return db.execute({
+    sql: `SELECT user_cid, assessment_id, score, total_points, passed FROM lms_assessment_attempts
+            WHERE user_cid IN (${userCids.map(() => "?").join(",")})
+              AND assessment_id IN (${assessmentIds.map(() => "?").join(",")})`,
+    args: [...userCids, ...assessmentIds],
+  });
+}
+
+/** The course-level (final) assessments of a course. */
+export function selectCourseLevelAssessments(courseId) {
+  return db
+    .execute({
+      sql: "SELECT * FROM lms_assessments WHERE course_id = ? AND section_id IS NULL ORDER BY position, created_at",
+      args: [courseId],
+    })
+    .then((res) => res.rows);
+}
+
+/** One enrollment of a course. */
+export function selectEnrollmentOfCourse(courseId, enrollmentId) {
+  return db.execute({
+    sql: "SELECT * FROM lms_enrollments WHERE id = ? AND course_id = ? LIMIT 1",
+    args: [enrollmentId, courseId],
+  });
+}
+
+/** Full lesson-progress rows (with completion dates) of one enrollment. */
+export function selectLessonProgressDetail(enrollmentId) {
+  return db.execute({
+    sql: "SELECT lesson_id, status, completed_at FROM lms_lesson_progress WHERE enrollment_id = ?",
+    args: [enrollmentId],
+  });
+}
+
+/** Every attempt of one learner on the given assessments, with the answers given. */
+export function selectAttemptsDetail(userCid, assessmentIds) {
+  return db.execute({
+    sql: `SELECT assessment_id, attempt_number, score, total_points, passed, answers, completed_at
+            FROM lms_assessment_attempts
+            WHERE user_cid = ? AND assessment_id IN (${assessmentIds.map(() => "?").join(",")})
+            ORDER BY attempt_number ASC`,
+    args: [userCid, ...assessmentIds],
+  });
+}
+
+/** The questions of several assessments, in display order. */
+export function selectQuestionsByAssessments(assessmentIds) {
+  return db.execute({
+    sql: `SELECT * FROM lms_assessment_questions
+            WHERE assessment_id IN (${assessmentIds.map(() => "?").join(",")})
+            ORDER BY position, created_at`,
+    args: assessmentIds,
   });
 }
 

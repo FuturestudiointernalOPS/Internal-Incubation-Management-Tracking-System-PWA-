@@ -13,12 +13,13 @@ export const dynamic = "force-dynamic";
 /**
  * SECTION RESOURCES & RECOMMENDATIONS
  *
- * GET  /api/lms/section-resources?section_id=S
- *      Material attached to one course section (videos + documents), with the
- *      recommended flag. Requires lms.view.
+ * GET  /api/lms/section-resources?lesson_id=L   (or ?section_id=S)
+ *      Material attached to one LESSON (videos + documents), with the
+ *      recommended flag — or, with section_id, the older chapter-level rows.
+ *      Requires lms.view.
  *
  * POST /api/lms/section-resources
- *      Body: { section_id, kind, title, url, description?, source?,
+ *      Body: { lesson_id (or section_id), kind, title, url, description?, source?,
  *              storage_path?, file_name?, file_size?, mime_type?,
  *              is_recommended?, recommendation_note? }
  *      Attaches one resource to a section. Requires lms.edit — the canonical
@@ -35,14 +36,15 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const sectionId = searchParams.get("section_id");
-    if (!sectionId) {
+    const lessonId = searchParams.get("lesson_id");
+    if (!sectionId && !lessonId) {
       return NextResponse.json(
         { success: false, error: "lms.errors.sectionNotFound" },
         { status: 400 },
       );
     }
 
-    const resources = await listSectionResources({ sectionId });
+    const resources = await listSectionResources({ sectionId, lessonId });
     return NextResponse.json({ success: true, resources });
   } catch (error) {
     return lmsErrorResponse(error);
@@ -59,6 +61,7 @@ export async function POST(req) {
     const body = await req.json();
     const resource = await createSectionResource({
       sectionId: body.section_id,
+      lessonId: body.lesson_id,
       kind: body.kind,
       title: body.title,
       description: body.description,

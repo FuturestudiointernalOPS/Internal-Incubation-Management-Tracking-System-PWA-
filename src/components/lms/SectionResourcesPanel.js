@@ -24,14 +24,15 @@ const pickSectionResources = (data) =>
 /**
  * SECTION RESOURCES — panel of the course editor.
  *
- * Material (documents + videos) attached to one COURSE SECTION. It loads the
+ * Material (documents + videos) attached to one LESSON (or, for the older
+ * material, to a chapter). It loads the
  * section's resources and persists every change immediately. The form itself
  * (and the list) comes from SectionResourcesEditor, which is controlled.
  *
  * Authorization: mutations require `lms.edit` server-side; `canEdit` only
  * controls visibility.
  */
-export default function SectionResourcesPanel({ courseId, sectionId, canEdit = false }) {
+export default function SectionResourcesPanel({ courseId, sectionId, lessonId = null, canEdit = false }) {
   const { t } = useI18n();
   const [saving, setSaving] = useState(false);
 
@@ -39,11 +40,15 @@ export default function SectionResourcesPanel({ courseId, sectionId, canEdit = f
   // paint and the discarding of a stale answer, so the panel keeps no copy of
   // its own. Its address is built from the scope this panel edits.
   const { data, error: readError, refresh } = useApi(
-    sectionId ? `/api/lms/section-resources?section_id=${encodeURIComponent(sectionId)}` : null,
+    lessonId
+      ? `/api/lms/section-resources?lesson_id=${encodeURIComponent(lessonId)}`
+      : sectionId
+        ? `/api/lms/section-resources?section_id=${encodeURIComponent(sectionId)}`
+        : null,
     {
       defaultValue: EMPTY_SECTION_RESOURCES,
       transform: pickSectionResources,
-      deps: [sectionId],
+      deps: [sectionId, lessonId],
     },
   );
 
@@ -85,7 +90,9 @@ export default function SectionResourcesPanel({ courseId, sectionId, canEdit = f
     await write({
       url: "/api/lms/section-resources",
       method: "POST",
-      body: { ...values, section_id: sectionId },
+      body: lessonId
+        ? { ...values, lesson_id: lessonId, section_id: sectionId }
+        : { ...values, section_id: sectionId },
     });
     notify("success", "lms.sessionResources.created");
   };
