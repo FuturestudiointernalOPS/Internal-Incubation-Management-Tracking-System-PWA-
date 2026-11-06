@@ -114,8 +114,11 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* REGISTRATION - assigned Form link (Form is the participant intake point) */}
-      {families.length > 0 && families[0] && (
+      {/* REGISTRATION - assigned Form link (Form is the participant intake point).
+          Show whenever a live form was resolved OR the programme has a family
+          (legacy gate) — a program-targeted run must not stay hidden because
+          no student group row was loaded. */}
+      {(regForm || (families.length > 0 && families[0])) && (
         <div className="card mt-6 border-l-4 border-emerald-500">
           <div className="flex items-start justify-between gap-4">
             <div className="space-y-1 flex-1">

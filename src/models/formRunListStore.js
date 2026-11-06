@@ -32,13 +32,15 @@ function buildRunListFilter({ groupId, programId, formId, status }) {
   const conditions = [];
   const args = [];
 
+  // Assignment target_id is TEXT; program UUIDs often arrive uppercased from the
+  // URL/breadcrumb while rows are stored lowercased. Compare case-insensitively.
   if (groupId) {
-    conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments ga2 WHERE ga2.run_id = r.id AND ga2.target_type = 'group' AND ga2.target_id = ?)");
-    args.push(groupId);
+    conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments ga2 WHERE ga2.run_id = r.id AND ga2.target_type = 'group' AND LOWER(ga2.target_id) = LOWER(?))");
+    args.push(String(groupId));
   }
   if (programId) {
-    conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments pa WHERE pa.run_id = r.id AND pa.target_type = 'program' AND pa.target_id = ?)");
-    args.push(programId);
+    conditions.push("EXISTS (SELECT 1 FROM platform_form_run_assignments pa WHERE pa.run_id = r.id AND pa.target_type = 'program' AND LOWER(pa.target_id) = LOWER(?))");
+    args.push(String(programId));
   }
   if (formId) { conditions.push("r.form_id = ?"); args.push(parseInt(formId)); }
   if (status && status !== "all") {
