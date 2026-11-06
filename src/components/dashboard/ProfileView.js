@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n";
 import { getCountries, getLanguages, resolveCountryCode } from "@/lib/profile-options";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { updateDashboardSessionUser } from "@/lib/dashboardSession";
 import ProfileViewContent from "./profile-view/ProfileViewContent";
 
 // ─── Read shapers (module scope: built once, never per render) ──────
@@ -293,9 +294,7 @@ export default function ProfileView({ participant = false }) {
       setProfile((prev) => (prev ? { ...prev, image: uploadData.url } : prev));
       setPhotoMessage({ type: "success", text: t("adminMisc.profile.photoUploadSuccess") });
 
-      const stored = JSON.parse(localStorage.getItem("user") || "{}");
-      stored.image = uploadData.url;
-      localStorage.setItem("user", JSON.stringify(stored));
+      updateDashboardSessionUser({ image: uploadData.url });
       window.dispatchEvent(
         new CustomEvent("impactos:notify", {
           detail: { type: "success", message: t("adminMisc.profile.photoUploadSuccess") },

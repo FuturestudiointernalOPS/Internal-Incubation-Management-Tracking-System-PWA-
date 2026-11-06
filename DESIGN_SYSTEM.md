@@ -180,6 +180,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
 import AppImage from "@/components/ui/AppImage";     // EVERY image — the one place a plain <img> is allowed
+import UserAvatar from "@/components/ui/UserAvatar"; // a person's photo, or their initial when there is none
 import ResultDelayEditor from "@/components/ui/ResultDelayEditor"; // Scheduled send: a switch + hours and minutes
 
 // Feedback
@@ -401,6 +402,7 @@ src/
 │       ├── AppLinkCard.js       ← Card with a gated redirect (isDeveloped + redirectTo), nudge otherwise
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
+│       ├── UserAvatar.js        ← A person's photo, falling back to their initial
 │       ├── AppInput.js
 │       ├── AppTextarea.js       ← Multi-line field, same contract as AppInput
 │       ├── AppModal.js

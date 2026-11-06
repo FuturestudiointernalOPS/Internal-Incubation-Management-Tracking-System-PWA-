@@ -1,3 +1,28 @@
+import { holdsProfile, normalizeRole, PROGRAM_MANAGER_PROFILE } from "@/lib/identity";
+
+// The profile page lives in the person's own SECTION. This is a ROUTING table
+// (where the page is), never a permission decision: each section gates its own
+// profile page server-side. `program_manager` stays for the D-1 rollback.
+const PROFILE_SECTION = {
+  super_admin: "admin",
+  program_manager: "pm",
+  facilitator: "facilitator",
+  investor: "investor",
+};
+
+/**
+ * Where this person's profile page is. D-1 — a staff identity carrying the
+ * program-manager PROFILE belongs in the PM space; the role alone no longer says
+ * so. The legacy value stays in the table for the rollback.
+ */
+function profileHrefFor(role, profiles = []) {
+  const section =
+    holdsProfile(profiles, PROGRAM_MANAGER_PROFILE) && normalizeRole(role) === "staff"
+      ? "pm"
+      : PROFILE_SECTION[normalizeRole(role)] || "participant";
+  return `/${section}/profile`;
+}
+
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
   dashboard: "navigation.dashboard",
@@ -234,4 +259,4 @@ function getActivePathIds(navItems, pathname) {
  * Simplified, high-performance frame with i18n and theme support.
  */
 
-export { tnav, navCrumb, getActivePathIds };
+export { tnav, navCrumb, getActivePathIds, profileHrefFor };

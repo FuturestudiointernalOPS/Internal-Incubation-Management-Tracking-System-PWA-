@@ -22,7 +22,7 @@ jest.mock("@/lib/db", () => ({
 }));
 jest.mock("@/server/auth/password", () => ({ hashPassword: jest.fn(async () => "$2b$hash") }));
 jest.mock("@/lib/token-hashing", () => ({ hashToken: jest.fn(() => "hash") }));
-jest.mock("@/server/auth/session", () => ({ getSession: jest.fn() }));
+jest.mock("@/server/auth/session", () => ({ getSession: jest.fn(), forgetCachedSession: jest.fn() }));
 jest.mock("@/models/workspace", () => ({
   getContactProfileFields: jest.fn(async () => ({ rows: [] })),
   getContactSecondaryFields: jest.fn(async () => ({ rows: [] })),
