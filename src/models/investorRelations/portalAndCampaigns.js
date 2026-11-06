@@ -108,6 +108,18 @@ export async function setInvestorApprovalStatus(profileId, newStatus) {
   });
 }
 
+/** Stamp approval metadata when a profile is approved (Phase 6). */
+export async function markInvestorApprovedAt(profileId) {
+  return db.execute({
+    sql: `UPDATE investor_profiles
+             SET approved_at = COALESCE(approved_at, NOW()),
+                 visibility_mode = COALESCE(visibility_mode, 'deal_flow_only'),
+                 updated_at = NOW()
+           WHERE id = ?`,
+    args: [profileId],
+  });
+}
+
 /** Persist review notes on an investor profile. */
 export async function setInvestorReviewNotes(profileId, reason) {
   return db.execute({

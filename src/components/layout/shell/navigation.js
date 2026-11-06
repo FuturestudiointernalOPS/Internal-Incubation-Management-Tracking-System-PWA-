@@ -56,7 +56,11 @@ const NAV_KEY_MAP = {
   investors_relationships: "navigation.investorsRelationships",
   investors_portfolio: "navigation.investorsPortfolio",
   investors_deal_flow: "navigation.investorsDealFlow",
+  // Investor self-service sidebar door (member with approved investor profile).
+  investor_deal_flow: "navigation.investorsDealFlow",
   investors_introductions: "navigation.investorsIntroductions",
+  investors_investments: "navigation.investorsInvestments",
+  investors_decline_reasons: "navigation.investorsDeclineReasons",
   investors_metrics: "navigation.investorsMetrics",
   operations: "navigation.operations",
   standup: "navigation.standup",

@@ -28,10 +28,21 @@ export async function listInvestorPipelineEntries(investorId) {
   return db.execute({
     sql: `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
                     COALESCE(p.status, v.status) as venture_status,
-                    v.industry
+                    v.industry,
+                    iir.id AS investment_id,
+                    iir.confirmation_status,
+                    iir.amount AS investment_amount,
+                    iir.currency AS investment_currency,
+                    iir.instrument AS investment_instrument,
+                    iir.invested_on AS investment_date,
+                    iir.reject_reason AS investment_reject_reason,
+                    rw.id AS workspace_id
             FROM investment_pipeline ip
             LEFT JOIN v2_programs p ON ip.venture_id = p.id
             LEFT JOIN ventures v ON v.id = ip.venture_id
+            LEFT JOIN investor_investment_records iir ON iir.pipeline_id = ip.id
+            LEFT JOIN relationship_workspaces rw
+              ON rw.pipeline_id = ip.id AND rw.status IN ('active', 'open', 'connected')
             WHERE ip.investor_id = ?
             ORDER BY ip.stage_changed_at DESC`,
     args: [investorId],
@@ -107,10 +118,21 @@ export async function listActiveVenturesForRecommendations() {
 export async function getInvestorPipelineStats(investorId) {
   return db.execute({
     sql: `SELECT
-              COUNT(*) FILTER (WHERE stage = 'invested') as invested_count,
-              COUNT(*) FILTER (WHERE stage IN ('due_diligence','negotiation')) as active_evaluations,
+              COUNT(*) FILTER (
+                WHERE ip.stage = 'invested'
+                  AND (
+                    iir.id IS NULL
+                    OR iir.confirmation_status = 'confirmed'
+                  )
+              ) as invested_count,
+              COUNT(*) FILTER (
+                WHERE iir.confirmation_status = 'pending'
+              ) as pending_investment_count,
+              COUNT(*) FILTER (WHERE ip.stage IN ('due_diligence','negotiation')) as active_evaluations,
               COUNT(*) as total_pipeline
-            FROM investment_pipeline WHERE investor_id = ?`,
+            FROM investment_pipeline ip
+            LEFT JOIN investor_investment_records iir ON iir.pipeline_id = ip.id
+            WHERE ip.investor_id = ?`,
     args: [investorId],
   });
 }

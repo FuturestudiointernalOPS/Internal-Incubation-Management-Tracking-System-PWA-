@@ -37,17 +37,39 @@ export function projectInvestorResponse(payload, surface, mode) {
       ? { deck: pick(row.deck, ["id", "version"]) } : {}),
   });
   if (surface === "dashboard") {
-    result.features = Object.fromEntries(["dashboardV2", "introductions", "messaging", "meetings", "investmentConfirmation"]
-      .map(key => [key, payload.features?.[key] === true]));
+    result.features = Object.fromEntries([
+      "dashboardV2",
+      "introductions",
+      "messaging",
+      "meetings",
+      "investmentConfirmation",
+      "nda",
+      "onboarding",
+    ].map(key => [key, payload.features?.[key] === true]));
     if (Object.hasOwn(payload, "weeklyActivity")) result.weeklyActivity = payload.weeklyActivity === null
       ? null : many(payload.weeklyActivity, row => pick(row, ["week", "views", "interests", "introductions"]));
+    if (Object.hasOwn(payload, "charts") && payload.charts) {
+      result.charts = {
+        pipelineByStage: many(payload.charts.pipelineByStage, row => pick(row, ["stage", "count"])),
+        venturesByIndustry: many(payload.charts.venturesByIndustry, row => pick(row, ["industry", "count"])),
+      };
+    }
+    if (typeof payload.activeNdaVersion === "string" || payload.activeNdaVersion === null) {
+      result.activeNdaVersion = payload.activeNdaVersion;
+    }
     result.profile = toInvestorSelfProfile(payload.profile);
     result.pipeline = many(payload.pipeline, pipeline);
     result.watchlist = many(payload.watchlist, row => investorWatchlistRow(row, { mode }));
     result.recommendations = many(payload.recommendations, card);
     result.campaigns = many(payload.campaigns, investorCampaign);
     result.relationships = many(payload.relationships, investorRelationship);
-    result.stats = pick(payload.stats, ["total_pipeline", "invested_count", "active_evaluations", "watchlist_count"]);
+    result.stats = pick(payload.stats, [
+      "total_pipeline",
+      "invested_count",
+      "pending_investment_count",
+      "active_evaluations",
+      "watchlist_count",
+    ]);
   } else if (surface === "ventures" || surface === "dealFlow") {
     const key = surface === "ventures" ? "ventures" : "entries";
     result[key] = many(payload[key], row => {

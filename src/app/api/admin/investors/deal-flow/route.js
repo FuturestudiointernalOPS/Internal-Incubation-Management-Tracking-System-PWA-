@@ -10,6 +10,7 @@ import {
   addDeck,
   publishDeck,
   changeDealFlowStatus,
+  setShowFounderNames,
   listDealFlowForStudio,
 } from "@/services/investor/dealFlow";
 
@@ -98,6 +99,18 @@ export async function PUT(req) {
         return NextResponse.json({ success: false, error: result.error }, { status: result.status });
       }
       return NextResponse.json({ success: true, deck: result.deck });
+    }
+
+    if (body.action === "show_founder_names") {
+      const result = await setShowFounderNames({
+        id: body.id,
+        showFounderNames: body.show_founder_names,
+        session,
+      });
+      if (!result.ok) {
+        return NextResponse.json({ success: false, error: result.error }, { status: result.status });
+      }
+      return NextResponse.json({ success: true, entry: result.entry });
     }
 
     const result = await changeDealFlowStatus({

@@ -23,6 +23,36 @@ export function ensureInvestorExpansionSchema() {
       await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ");
       await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS is_test BOOLEAN DEFAULT false");
+      await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS logo_url TEXT");
+      await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS past_investments TEXT");
+      await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS nda_accepted_at TIMESTAMPTZ");
+      await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS nda_version TEXT");
+      await db.execute("ALTER TABLE investor_profiles ADD COLUMN IF NOT EXISTS onboarding_completed_at TIMESTAMPTZ");
+
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_decline_reasons (
+        id BIGSERIAL PRIMARY KEY,
+        applies_to TEXT NOT NULL,
+        name_en TEXT NOT NULL,
+        name_fr TEXT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT true,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_investor_decline_reasons_applies
+        ON investor_decline_reasons (applies_to, active, sort_order)`);
+
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_types (
+        id BIGSERIAL PRIMARY KEY,
+        name_en TEXT NOT NULL,
+        name_fr TEXT NOT NULL,
+        active BOOLEAN NOT NULL DEFAULT true,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+
+      await db.execute("ALTER TABLE deal_flow_entries ADD COLUMN IF NOT EXISTS show_founder_names BOOLEAN DEFAULT false");
 
       // investor_activity_log — append-only, enriched event store
       await db.execute(`CREATE TABLE IF NOT EXISTS investor_activity_log (
@@ -232,7 +262,7 @@ export function ensureInvestorExpansionSchema() {
       )`);
       await db.execute("REVOKE ALL ON TABLE investor_meeting_feedback FROM PUBLIC, anon, authenticated");
 
-      // ── Phase 7 — investment confirmation ─────────────────────────────
+      // ── Phase 5/7 — investment confirmation ───────────────────────────
       await db.execute(`CREATE TABLE IF NOT EXISTS investor_investments (
         id BIGSERIAL PRIMARY KEY,
         investor_id BIGINT,
@@ -248,6 +278,38 @@ export function ensureInvestorExpansionSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )`);
       await db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_investor_investments_pipeline ON investor_investments (pipeline_id)");
+
+      // UUID-aligned confirmation table (pipeline / profile ids are UUID).
+      await db.execute(`CREATE TABLE IF NOT EXISTS investor_investment_records (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        investor_profile_id UUID NOT NULL REFERENCES investor_profiles(id) ON DELETE CASCADE,
+        pipeline_id UUID NOT NULL UNIQUE,
+        venture_id TEXT,
+        amount NUMERIC NOT NULL,
+        currency TEXT NOT NULL,
+        instrument TEXT,
+        invested_on DATE,
+        confirmation_status TEXT NOT NULL DEFAULT 'pending'
+          CHECK (confirmation_status IN ('pending', 'confirmed', 'rejected')),
+        recorded_by TEXT,
+        financing_event_id UUID,
+        confirmed_by TEXT,
+        confirmed_at TIMESTAMPTZ,
+        reject_reason TEXT,
+        rejected_at TIMESTAMPTZ,
+        rejected_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )`);
+      await db.execute("ALTER TABLE investor_investment_records ADD COLUMN IF NOT EXISTS confirmed_by TEXT");
+      await db.execute("ALTER TABLE investor_investment_records ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ");
+      await db.execute("ALTER TABLE investor_investment_records ADD COLUMN IF NOT EXISTS reject_reason TEXT");
+      await db.execute("ALTER TABLE investor_investment_records ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ");
+      await db.execute("ALTER TABLE investor_investment_records ADD COLUMN IF NOT EXISTS rejected_by TEXT");
+      await db.execute(`CREATE INDEX IF NOT EXISTS idx_investor_investment_records_status
+        ON investor_investment_records (confirmation_status, created_at DESC)`);
+      await db.execute("CREATE INDEX IF NOT EXISTS idx_investor_investment_records_profile ON investor_investment_records (investor_profile_id)");
+      await db.execute("REVOKE ALL ON TABLE investor_investment_records FROM PUBLIC, anon, authenticated");
 
       // ── Studio capital inputs (valuation / ownership / exits) ──────────
       await db.execute(`CREATE TABLE IF NOT EXISTS studio_venture_capital (

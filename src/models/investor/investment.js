@@ -1,8 +1,9 @@
 import db from "@/lib/db";
 
-// ── Phase 7 — investment confirmation + financing outbox ─────────────────────
+// ── Phase 5 — investment confirmation + financing outbox ─────────────────────
 
-export async function upsertInvestorInvestment({
+/** Investor claim or studio rewrite of figures (pending or upsert). */
+export async function upsertInvestorInvestmentClaim({
   investorId,
   pipelineId,
   ventureId,
@@ -11,19 +12,26 @@ export async function upsertInvestorInvestment({
   instrument = null,
   investedOn = null,
   recordedBy = null,
+  confirmationStatus = "pending",
 }) {
   return db.execute({
-    sql: `INSERT INTO investor_investments
-            (investor_id, pipeline_id, venture_id, amount, currency, instrument, invested_on, recorded_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    sql: `INSERT INTO investor_investment_records
+            (investor_profile_id, pipeline_id, venture_id, amount, currency, instrument, invested_on, recorded_by, confirmation_status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
           ON CONFLICT (pipeline_id) DO UPDATE
-            SET investor_id = COALESCE(EXCLUDED.investor_id, investor_investments.investor_id),
-                venture_id = COALESCE(EXCLUDED.venture_id, investor_investments.venture_id),
+            SET investor_profile_id = COALESCE(EXCLUDED.investor_profile_id, investor_investment_records.investor_profile_id),
+                venture_id = COALESCE(EXCLUDED.venture_id, investor_investment_records.venture_id),
                 amount = EXCLUDED.amount,
                 currency = EXCLUDED.currency,
                 instrument = EXCLUDED.instrument,
                 invested_on = EXCLUDED.invested_on,
-                recorded_by = EXCLUDED.recorded_by,
+                recorded_by = COALESCE(EXCLUDED.recorded_by, investor_investment_records.recorded_by),
+                confirmation_status = EXCLUDED.confirmation_status,
+                reject_reason = NULL,
+                rejected_at = NULL,
+                rejected_by = NULL,
+                confirmed_by = CASE WHEN EXCLUDED.confirmation_status = 'confirmed' THEN investor_investment_records.confirmed_by ELSE NULL END,
+                confirmed_at = CASE WHEN EXCLUDED.confirmation_status = 'confirmed' THEN investor_investment_records.confirmed_at ELSE NULL END,
                 updated_at = NOW()
           RETURNING *`,
     args: [
@@ -35,14 +43,71 @@ export async function upsertInvestorInvestment({
       instrument,
       investedOn ?? null,
       recordedBy,
+      confirmationStatus,
     ],
+  });
+}
+
+/** Studio confirm — may correct amount/currency/instrument/date. */
+export async function confirmInvestorInvestmentRecord({
+  id,
+  amount,
+  currency,
+  instrument,
+  investedOn,
+  confirmedBy,
+}) {
+  return db.execute({
+    sql: `UPDATE investor_investment_records
+             SET amount = COALESCE(?, amount),
+                 currency = COALESCE(?, currency),
+                 instrument = COALESCE(?, instrument),
+                 invested_on = COALESCE(?, invested_on),
+                 confirmation_status = 'confirmed',
+                 confirmed_by = ?,
+                 confirmed_at = NOW(),
+                 reject_reason = NULL,
+                 rejected_at = NULL,
+                 rejected_by = NULL,
+                 updated_at = NOW()
+           WHERE id = ? AND confirmation_status = 'pending'
+           RETURNING *`,
+    args: [
+      amount ?? null,
+      currency ?? null,
+      instrument ?? null,
+      investedOn ?? null,
+      confirmedBy ?? null,
+      id,
+    ],
+  });
+}
+
+export async function rejectInvestorInvestmentRecord({ id, reason, rejectedBy }) {
+  return db.execute({
+    sql: `UPDATE investor_investment_records
+             SET confirmation_status = 'rejected',
+                 reject_reason = ?,
+                 rejected_at = NOW(),
+                 rejected_by = ?,
+                 updated_at = NOW()
+           WHERE id = ? AND confirmation_status = 'pending'
+           RETURNING *`,
+    args: [reason, rejectedBy ?? null, id],
+  });
+}
+
+export async function getInvestorInvestmentById(id) {
+  return db.execute({
+    sql: "SELECT * FROM investor_investment_records WHERE id = ?",
+    args: [id],
   });
 }
 
 export async function listInvestmentsForInvestor(investorId) {
   return db.execute({
-    sql: `SELECT * FROM investor_investments
-           WHERE investor_id = ?
+    sql: `SELECT * FROM investor_investment_records
+           WHERE investor_profile_id = ?
            ORDER BY invested_on DESC NULLS LAST, created_at DESC`,
     args: [investorId],
   });
@@ -50,8 +115,43 @@ export async function listInvestmentsForInvestor(investorId) {
 
 export async function getInvestorInvestmentByPipeline(pipelineId) {
   return db.execute({
-    sql: "SELECT * FROM investor_investments WHERE pipeline_id = ?",
+    sql: "SELECT * FROM investor_investment_records WHERE pipeline_id = ?",
     args: [pipelineId],
+  });
+}
+
+/** Studio confirmation queue. */
+export async function listInvestmentClaimsForStudio({ status = "pending" } = {}) {
+  const args = [];
+  let statusClause = "";
+  if (status && status !== "all") {
+    statusClause = "AND r.confirmation_status = ?";
+    args.push(status);
+  }
+  return db.execute({
+    sql: `SELECT r.*,
+                 ip.organization_name,
+                 c.name AS investor_name,
+                 c.email AS investor_email,
+                 COALESCE(p.name, v.name, v.company_name) AS venture_name
+            FROM investor_investment_records r
+            JOIN investor_profiles ip ON ip.id = r.investor_profile_id
+            LEFT JOIN contacts c ON c.cid = ip.user_id
+            LEFT JOIN v2_programs p ON p.id = r.venture_id
+            LEFT JOIN ventures v ON v.id::text = r.venture_id OR v.venture_id = r.venture_id
+           WHERE 1=1 ${statusClause}
+           ORDER BY r.created_at DESC
+           LIMIT 200`,
+    args,
+  });
+}
+
+export async function countPendingInvestmentsForInvestor(investorId) {
+  return db.execute({
+    sql: `SELECT COUNT(*)::int AS count
+            FROM investor_investment_records
+           WHERE investor_profile_id = ? AND confirmation_status = 'pending'`,
+    args: [investorId],
   });
 }
 
@@ -144,7 +244,27 @@ export async function markOutboxFailed({ id, error }) {
 
 export async function updateInvestmentFinancingEvent({ id, financingEventId }) {
   return db.execute({
-    sql: "UPDATE investor_investments SET financing_event_id = ?, updated_at = NOW() WHERE id = ?",
+    sql: `UPDATE investor_investment_records
+             SET financing_event_id = ?, updated_at = NOW()
+           WHERE id = ?`,
     args: [financingEventId, id],
+  });
+}
+
+export async function insertInvestmentRejectedInvestorNotification({
+  recipient_id,
+  venture_name,
+  reason,
+  link,
+}) {
+  return db.execute({
+    sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
+          VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
+    args: [
+      recipient_id,
+      `Investment not confirmed: ${venture_name || "Venture"}`,
+      `Future Studio could not confirm your investment${reason ? `: ${reason}` : "."}`,
+      link,
+    ],
   });
 }

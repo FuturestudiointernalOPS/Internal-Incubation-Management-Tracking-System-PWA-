@@ -203,9 +203,9 @@ export default function InvestorProfilePage() {
         {activeTab === "profile" && (
           <div className="space-y-4">
             {profile?.features?.dashboardV2 && <AppCard padding="lg">
-              <AppInput label={t("investorMisc.dashboardV2.logo")} value={field("logoUrl")}
+              <AppInput label={t("dashboardV2.logo")} value={field("logoUrl")}
                 onChange={event => setField("logoUrl", event.target.value)} maxLength={2000} />
-              <AppTextarea className="mt-4" label={t("investorMisc.dashboardV2.pastInvestments")}
+              <AppTextarea className="mt-4" label={t("dashboardV2.pastInvestments")}
                 value={field("pastInvestments")} onChange={event => setField("pastInvestments", event.target.value)} maxLength={4000} />
             </AppCard>}
             <AppCard padding="lg">

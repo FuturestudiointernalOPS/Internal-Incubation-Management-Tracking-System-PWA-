@@ -51,7 +51,10 @@ export default function VentureGrid({
         {items.map(venture => {
           const isWatching = watchlist.some(entry => entry.venture_id === venture.id);
           const isCompared = compareList.some(item => item.id === venture.id);
-          const pipelineEntry = pipeline.find(item => item.venture_id === venture.id);
+          const pipelineEntry = pipeline.find((item) =>
+            String(item.venture_id) === String(venture.id)
+            || String(item.venture_id) === String(venture.venture_id || ""),
+          );
           return (
             <AppCard key={venture.id} padding="md" hover>
               <div className="space-y-3">
@@ -88,7 +91,15 @@ export default function VentureGrid({
                   {t("dashboardV2.founders", { count: venture.founders || 0 })}
                   {venture.founders_countries?.length > 0 && ` · ${venture.founders_countries.join(", ")}`}
                 </p>
-                <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-primary)] pt-3">
+                <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border-primary)] pt-3 pb-2">
+                  {venture.deck?.id && (
+                    <a
+                      className="stf-btn relative z-10"
+                      href={`/investor/deck/${encodeURIComponent(venture.deck.id)}`}
+                    >
+                      <FileText size={14} /> {t("investorMisc.dealFlow.openDeck")}
+                    </a>
+                  )}
                   {pipelineEntry ? (
                     <span className="stf-small">{t("dashboardV2.currentStage", {
                       stage: t(`status.${pipelineEntry.stage}`),
@@ -101,7 +112,7 @@ export default function VentureGrid({
                       loading={processingId === venture.id}
                       onClick={() => onAddToPipeline(venture.id, "interested")}
                     >
-                      {t("dashboardV2.interested")}
+                      {t("dashboardV2.iAmInterested")}
                     </AppButton>
                   )}
                   {introductions && venture.deal_flow_id && (
@@ -109,15 +120,10 @@ export default function VentureGrid({
                       type="button"
                       onClick={() => onRequestIntro(venture)}
                       disabled={processingId !== null}
-                      className="flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline disabled:opacity-40"
+                      className="relative z-10 flex min-h-11 items-center gap-1 text-xs font-bold text-[var(--brand-orange)] uppercase tracking-wide hover:underline disabled:opacity-40"
                     >
                       {t("requestIntroduction")} <ArrowRight className="w-3 h-3" />
                     </button>
-                  )}
-                  {venture.deck?.id && (
-                    <a className="stf-btn" href={`/investor/deck/${venture.deck.id}`}>
-                      <FileText size={14} /> {t("investorMisc.dealFlow.openDeck")}
-                    </a>
                   )}
                 </div>
               </div>

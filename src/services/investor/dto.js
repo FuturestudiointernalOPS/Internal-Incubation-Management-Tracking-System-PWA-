@@ -46,9 +46,20 @@ export function investorPipelineRow(row, { mode = "deal_flow_only" } = {}) {
     id: row.id,
     venture_id: row.venture_id,
     venture_name: row.venture_name ?? null,
-    ...(typeof row.industry === "string" ? { industry: row.industry } : {}),
+    ...(typeof row.industry === "string" && row.industry ? { industry: row.industry } : {}),
     stage: row.stage ?? null,
     stage_changed_at: row.stage_changed_at ?? null,
+    ...(row.investment_id != null ? { investment_id: row.investment_id } : {}),
+    ...(row.confirmation_status != null
+      ? { confirmation_status: row.confirmation_status } : {}),
+    ...(row.investment_amount != null ? { investment_amount: row.investment_amount } : {}),
+    ...(row.investment_currency != null ? { investment_currency: row.investment_currency } : {}),
+    ...(row.investment_instrument != null
+      ? { investment_instrument: row.investment_instrument } : {}),
+    ...(row.investment_date != null ? { investment_date: row.investment_date } : {}),
+    ...(row.investment_reject_reason != null
+      ? { investment_reject_reason: row.investment_reject_reason } : {}),
+    ...(row.workspace_id != null ? { workspace_id: row.workspace_id } : {}),
     ...(mode === "full_pipeline" ? { venture_status: row.venture_status ?? null } : {}),
   };
 }

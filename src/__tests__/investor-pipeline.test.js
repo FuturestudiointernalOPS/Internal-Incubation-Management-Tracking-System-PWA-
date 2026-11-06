@@ -29,7 +29,23 @@ jest.mock("@/models/investor", () => ({
   upsertInvestmentPipeline: jest.fn(),
 }));
 
+jest.mock("@/services/investor/featureFlags", () => ({
+  readInvestorFlags: jest.fn(),
+}));
+
+jest.mock("@/services/investor/investment", () => ({
+  runInvestedSideEffects: jest.fn(),
+}));
+
+jest.mock("@/services/investor/activity", () => ({
+  emitInvestorEvent: jest.fn().mockResolvedValue(undefined),
+  recordInvestorInteraction: jest.fn().mockResolvedValue(undefined),
+}));
+
 const model = require("@/models/investor");
+const { readInvestorFlags } = require("@/services/investor/featureFlags");
+const { runInvestedSideEffects } = require("@/services/investor/investment");
+const { emitInvestorEvent } = require("@/services/investor/activity");
 const {
   normalizePipelineStage,
   parseInvestedAmount,
@@ -40,6 +56,7 @@ const {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  readInvestorFlags.mockResolvedValue({ investmentConfirmation: false });
 });
 
 describe("stage and amount helpers", () => {
@@ -144,13 +161,9 @@ describe("addOrUpdatePipeline", () => {
     expect(model.insertInvestorMeetingPlaceholderEvent).toHaveBeenCalled();
   });
 
-  it("records the decision and updates the campaign on an investment", async () => {
+  it("runs invested side effects immediately when confirmation is off", async () => {
     model.getInvestorProfileIdByUserId.mockResolvedValue({ rows: [{ id: "inv1" }] });
     model.upsertInvestmentPipeline.mockResolvedValue({ rows: [{ id: "pl1" }] });
-    model.getRelationshipWorkspaceIdForInvestment.mockResolvedValue({ rows: [] });
-    model.getInvestmentNotificationInfo.mockResolvedValue({ rows: [{}] });
-    model.listAdminAndStaffCids.mockResolvedValue({ rows: [] });
-    model.getRelationshipWorkspaceAssigneesForInvestment.mockResolvedValue({ rows: [] });
 
     const result = await addOrUpdatePipeline({
       ventureId: "v1",
@@ -160,14 +173,55 @@ describe("addOrUpdatePipeline", () => {
     });
 
     expect(result).toEqual({ ok: true, pipeline: { id: "pl1" } });
-    expect(model.createInvestmentDecision).toHaveBeenCalledWith({
-      pipeline_id: "pl1",
-      investment_amount: 1000,
-      notes: undefined,
+    expect(runInvestedSideEffects).toHaveBeenCalledWith(
+      expect.objectContaining({ pipelineId: "pl1", amount: 1000, ventureId: "v1" }),
+    );
+  });
+
+  it("blocks bare invested stage when confirmation is on", async () => {
+    readInvestorFlags.mockResolvedValue({ investmentConfirmation: true });
+    model.getInvestorProfileIdByUserId.mockResolvedValue({ rows: [{ id: "inv1" }] });
+
+    const result = await addOrUpdatePipeline({
+      ventureId: "v1",
+      stage: "invested",
+      amount: "1000",
+      session: { cid: "u1" },
     });
-    expect(model.addInvestmentToActiveCampaign).toHaveBeenCalledWith({
-      amount: 1000,
-      venture_id: "v1",
+
+    expect(result).toEqual({
+      ok: false,
+      status: 400,
+      error: "Use the investment claim form (amount and currency required).",
     });
+    expect(model.upsertInvestmentPipeline).not.toHaveBeenCalled();
+    expect(runInvestedSideEffects).not.toHaveBeenCalled();
+  });
+
+  it("requires a reason when declining with confirmation on", async () => {
+    readInvestorFlags.mockResolvedValue({ investmentConfirmation: true });
+    model.getInvestorProfileIdByUserId.mockResolvedValue({ rows: [{ id: "inv1" }] });
+
+    expect(await addOrUpdatePipeline({
+      ventureId: "v1",
+      stage: "declined",
+      session: { cid: "u1" },
+    })).toEqual({
+      ok: false,
+      status: 400,
+      error: "A reason is required when leaving without investment.",
+    });
+
+    model.upsertInvestmentPipeline.mockResolvedValue({ rows: [{ id: "pl1" }] });
+    const ok = await addOrUpdatePipeline({
+      ventureId: "v1",
+      stage: "declined",
+      declineReason: "Not a fit",
+      session: { cid: "u1" },
+    });
+    expect(ok.ok).toBe(true);
+    expect(emitInvestorEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ eventType: "pipeline_declined" }),
+    );
   });
 });

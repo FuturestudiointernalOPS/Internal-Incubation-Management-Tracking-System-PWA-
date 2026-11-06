@@ -30,11 +30,23 @@ const LIVE_DEAL = `SELECT 1 FROM deal_flow_entries e
 const liveField = field => `(${LIVE_DEAL.replace("SELECT 1", `SELECT e.${field}`)}
   ORDER BY e.opened_at DESC NULLS LAST, e.id DESC LIMIT 1)`;
 
+// Latest published deck on the venture's current live raise (Guide: deck stays
+// reachable after interest — search must expose the same deck as recommendations).
+const LIVE_DECK_SELECT = (field) => `(SELECT d.${field} FROM deal_flow_decks d
+  JOIN deal_flow_entries e ON e.id = d.deal_flow_entry_id
+ WHERE (e.venture_id = v.id::text OR e.venture_id = v.venture_id)
+   AND e.status = 'live' AND e.target_amount > 0 AND e.currency IS NOT NULL
+   AND d.status = 'published'
+ ORDER BY e.opened_at DESC NULLS LAST, d.version DESC, d.published_at DESC NULLS LAST
+ LIMIT 1)`;
+
 const DIRECTORY_SELECT = `SELECT v.id, COALESCE(v.name, v.company_name) AS name,
                       v.description, v.status, v.industry, v.country, v.logo_url,
                       v.business_stage, v.created_at, ${INVESTOR_FOUNDER_FACTS},
                       ${liveField("target_amount")} AS raise_amount, ${liveField("currency")} AS currency,
                       ${liveField("id")} AS deal_flow_id,
+                      ${LIVE_DECK_SELECT("id")} AS deck_id,
+                      ${LIVE_DECK_SELECT("version")} AS deck_version,
                       NULL::numeric AS completion_index,
                       NULL::text AS funding_requirement,
                       (SELECT COUNT(*) FROM investment_pipeline WHERE venture_id = v.id) AS investor_interest_count

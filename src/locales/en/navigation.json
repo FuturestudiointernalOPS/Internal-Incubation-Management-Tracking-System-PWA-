@@ -71,6 +71,8 @@
     "investorsPortfolio": "Studio Portfolio",
     "investorsDealFlow": "Deal flow",
     "investorsIntroductions": "Introductions",
+    "investorsInvestments": "Investment confirmations",
+    "investorsDeclineReasons": "Decline reasons",
     "investorsMetrics": "Metrics",
     "operations": "Operations",
     "standup": "Standup",

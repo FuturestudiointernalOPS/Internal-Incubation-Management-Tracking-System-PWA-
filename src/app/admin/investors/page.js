@@ -66,6 +66,7 @@ export default function AdminInvestorsPage() {
   // The "add an investor" link: its own small state, so opening it never touches
   // the list. `runId` is kept to rotate the link (regenerate).
   const [link, setLink] = useState({ open: false, url: "", runId: null, loading: false, error: "" });
+  const [invite, setInvite] = useState({ email: "", name: "" });
   const [copied, setCopied] = useState(false);
 
   // The loader's work — each filter/search combination caching under its own URL,
@@ -142,6 +143,29 @@ export default function AdminInvestorsPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 3000);
     } catch (_) {}
+  };
+
+  const sendInviteEmail = async () => {
+    if (!invite.email.trim()) return;
+    setLink((prev) => ({ ...prev, loading: true, error: "" }));
+    try {
+      const response = await fetch("/api/investor/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: invite.email.trim(),
+          name: invite.name.trim() || null,
+          application_url: link.url || undefined,
+        }),
+      });
+      const json = await response.json();
+      if (!json.success) throw new Error(json.error || t("investorAdmin.list.inviteFailed"));
+      notify("success", t("investorAdmin.list.inviteSent"));
+      setInvite({ email: "", name: "" });
+      setLink((prev) => ({ ...prev, loading: false }));
+    } catch (error) {
+      setLink((prev) => ({ ...prev, loading: false, error: error.message }));
+    }
   };
 
   const regenerateInvestorLink = async () => {
@@ -366,6 +390,38 @@ export default function AdminInvestorsPage() {
                 </div>
                 {detail.biography && <div><p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-1">{t("investorAdmin.list.biography")}</p><p className="text-xs text-[var(--text-primary)]">{detail.biography}</p></div>}
                 {detail.investment_experience && <div><p className="text-[11px] font-bold text-[var(--text-primary)] uppercase tracking-wide mb-1">{t("investorAdmin.list.experience")}</p><p className="text-xs text-[var(--text-primary)]">{detail.investment_experience}</p></div>}
+                {detail.approval_status === "approved" && (
+                  <div className="p-3 rounded-xl bg-[var(--surface-3)] space-y-2">
+                    <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+                      {t("investorAdmin.list.visibilityMode")}
+                    </p>
+                    <select
+                      className="w-full min-h-11 rounded-lg bg-[var(--surface-1)] border border-[var(--border-primary)] px-3 text-xs font-bold text-[var(--text-primary)]"
+                      value={detail.visibility_mode || "deal_flow_only"}
+                      onChange={async (event) => {
+                        const mode = event.target.value;
+                        try {
+                          const response = await fetch("/api/investor/visibility", {
+                            method: "PUT",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ investor_id: detail.id, mode }),
+                          });
+                          const json = await response.json();
+                          if (!json.success) throw new Error(json.error || "Failed");
+                          setDetail((previous) => ({ ...previous, visibility_mode: mode }));
+                          refresh();
+                          notify("success", t("investorAdmin.list.visibilityUpdated"));
+                        } catch (error) {
+                          notify("error", error.message);
+                        }
+                      }}
+                    >
+                      <option value="deal_flow_only">{t("investorAdmin.list.visibilityDealFlowOnly")}</option>
+                      <option value="full_pipeline">{t("investorAdmin.list.visibilityFullPipeline")}</option>
+                    </select>
+                    <p className="stf-small">{t("investorAdmin.list.visibilityHint")}</p>
+                  </div>
+                )}
                 {detail.review_notes ? (
                   <div className="p-4 rounded-xl bg-amber-500/5 border border-amber-500/10">
                     <p className="text-[11px] font-bold text-amber-400 uppercase tracking-wide mb-1">{t("investorAdmin.list.reviewNotes")}</p>
@@ -412,6 +468,28 @@ export default function AdminInvestorsPage() {
                       </AppButton>
                       <AppButton variant="secondary" size="sm" icon={RefreshCw} onClick={regenerateInvestorLink}>
                         {t("investorAdmin.list.regenerateLink")}
+                      </AppButton>
+                    </div>
+                    <div className="border-t border-[var(--border-primary)] pt-4 space-y-3">
+                      <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+                        {t("investorAdmin.list.inviteByEmail")}
+                      </p>
+                      <input
+                        type="email"
+                        value={invite.email}
+                        onChange={(event) => setInvite((previous) => ({ ...previous, email: event.target.value }))}
+                        placeholder={t("investorAdmin.list.inviteEmail")}
+                        className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--surface-3)] px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                      />
+                      <input
+                        type="text"
+                        value={invite.name}
+                        onChange={(event) => setInvite((previous) => ({ ...previous, name: event.target.value }))}
+                        placeholder={t("investorAdmin.list.inviteName")}
+                        className="w-full rounded-xl border border-[var(--border-primary)] bg-[var(--surface-3)] px-3 py-2 text-xs font-bold text-[var(--text-primary)]"
+                      />
+                      <AppButton variant="primary" size="sm" onClick={sendInviteEmail} disabled={!invite.email.trim()}>
+                        {t("investorAdmin.list.sendInvite")}
                       </AppButton>
                     </div>
                   </>

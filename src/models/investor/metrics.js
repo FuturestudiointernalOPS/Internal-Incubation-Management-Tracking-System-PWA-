@@ -180,9 +180,27 @@ export async function getDeclineReasons() {
   });
 }
 
+/** Confirmed (or legacy unclaimed) invested rows only — pending claims never count. */
+const CONFIRMED_INVESTED = `(
+  ip.stage = 'invested'
+  AND NOT EXISTS (
+    SELECT 1 FROM investor_investment_records r
+     WHERE r.pipeline_id = ip.id AND r.confirmation_status IN ('pending', 'rejected')
+  )
+)`;
+
 export async function getPipelineByStage() {
   return db.execute({
-    sql: "SELECT stage, COUNT(*)::int AS count FROM investment_pipeline GROUP BY stage",
+    sql: `SELECT ip.stage, COUNT(*)::int AS count
+            FROM investment_pipeline ip
+           WHERE NOT (
+             ip.stage = 'invested'
+             AND EXISTS (
+               SELECT 1 FROM investor_investment_records r
+                WHERE r.pipeline_id = ip.id AND r.confirmation_status IN ('pending', 'rejected')
+             )
+           )
+           GROUP BY ip.stage`,
     args: [],
   });
 }
@@ -190,8 +208,8 @@ export async function getPipelineByStage() {
 export async function getPipelineTotals() {
   return db.execute({
     sql: `SELECT COUNT(*)::int AS pairs,
-                 COUNT(*) FILTER (WHERE stage = 'invested')::int AS invested
-            FROM investment_pipeline`,
+                 COUNT(*) FILTER (WHERE ${CONFIRMED_INVESTED})::int AS invested
+            FROM investment_pipeline ip`,
     args: [],
   });
 }
@@ -209,7 +227,9 @@ export async function getMeetingStats() {
 
 export async function getInvestmentStats() {
   return db.execute({
-    sql: "SELECT COUNT(*)::int AS count, COALESCE(SUM(amount), 0)::float AS total FROM investor_investments",
+    sql: `SELECT COUNT(*)::int AS count, COALESCE(SUM(amount), 0)::float AS total
+            FROM investor_investment_records
+           WHERE confirmation_status = 'confirmed'`,
     args: [],
   });
 }
@@ -257,13 +277,18 @@ export async function getTimeToClose() {
              GROUP BY investor_profile_id, venture_id
           ),
           closed AS (
-            SELECT p.first_request, MIN(ip.stage_changed_at) AS closed_at
+            SELECT p.first_request, MIN(COALESCE(r.confirmed_at, ip.stage_changed_at)) AS closed_at
               FROM pairs p
               JOIN investment_pipeline ip
                 ON ip.investor_id = p.investor_profile_id
                AND ip.venture_id::text = p.venture_id
                AND ip.stage = 'invested'
-               AND ip.stage_changed_at >= p.first_request
+              LEFT JOIN investor_investment_records r
+                ON r.pipeline_id = ip.id AND r.confirmation_status = 'confirmed'
+             WHERE (r.id IS NOT NULL OR NOT EXISTS (
+                     SELECT 1 FROM investor_investment_records x WHERE x.pipeline_id = ip.id
+                   ))
+               AND COALESCE(r.confirmed_at, ip.stage_changed_at) >= p.first_request
              GROUP BY p.investor_profile_id, p.venture_id, p.first_request
           )
           SELECT percentile_cont(0.5) WITHIN GROUP (

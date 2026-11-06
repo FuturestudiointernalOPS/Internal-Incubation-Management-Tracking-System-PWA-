@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -14,15 +15,42 @@ const pickDeck = (payload) =>
  *
  * View-only deck with a per-viewer watermark (investor id + date). Downloads are
  * disabled unless the studio enabled them for this deck. The server records
- * `deck_opened`; this page only renders.
+ * `deck_opened` on load and `deck_closed` with seconds on leave.
  */
 export default function InvestorDeckPage() {
   const { t } = useI18n();
   const { deckId } = useParams();
+  const openedAt = useRef(Date.now());
   const { data, loading } = useApi(`/api/investor/deck/${deckId}`, {
     defaultValue: null,
     transform: pickDeck,
   });
+
+  useEffect(() => {
+    openedAt.current = Date.now();
+    const sendClosed = () => {
+      const seconds = Math.round((Date.now() - openedAt.current) / 1000);
+      const body = JSON.stringify({ seconds });
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(
+          `/api/investor/deck/${deckId}`,
+          new Blob([body], { type: "application/json" }),
+        );
+      } else {
+        void fetch(`/api/investor/deck/${deckId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener("pagehide", sendClosed);
+    return () => {
+      window.removeEventListener("pagehide", sendClosed);
+      sendClosed();
+    };
+  }, [deckId]);
 
   if (loading && !data) {
     return (
@@ -57,7 +85,6 @@ export default function InvestorDeckPage() {
           style={{ width: "100%", height: "100%", border: 0 }}
         />
 
-        {/* Repeated, non-interactive watermark. */}
         <div
           aria-hidden="true"
           style={{

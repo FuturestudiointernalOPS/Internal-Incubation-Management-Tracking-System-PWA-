@@ -1,96 +1,158 @@
 "use client";
 
 import { useMemo } from "react";
+import SectionHead from "@/components/ui/SectionHead";
+import AppEmptyState from "@/components/ui/AppEmptyState";
+import { BarChart3 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import { PIPELINE_STAGES, STAGE_LABELS } from "./constants";
+import { STAGE_LABELS } from "./constants";
 
-function BarList({ title, empty, rows }) {
-  const max = Math.max(1, ...rows.map((row) => row.value));
-
+function HorizontalBars({ rows, labelKey, valueKey, emptyTitle, emptyHint, ariaLabel }) {
+  const max = Math.max(1, ...rows.map((row) => Number(row[valueKey] || 0)));
+  if (rows.length === 0) {
+    return (
+      <AppEmptyState title={emptyTitle} description={emptyHint} icon={BarChart3} size="sm" />
+    );
+  }
   return (
-    <section className="stf-card" aria-label={title}>
-      <h2 className="stf-card-title">{title}</h2>
-      {rows.length === 0 ? (
-        <p className="stf-small mt-3">{empty}</p>
-      ) : (
-        <ol className="mt-4 space-y-3">
-          {rows.map((row) => (
-            <li key={row.label} className="grid grid-cols-[minmax(5rem,8rem)_1fr_auto] items-center gap-3">
-              <span className="stf-small truncate">{row.label}</span>
-              <span
-                className="h-2 rounded-full bg-[var(--surface-3)]"
-                role="img"
-                aria-label={`${row.label}: ${row.value}`}
-              >
-                <span
-                  className="block h-full rounded-full bg-[var(--brand-orange)]"
-                  style={{ width: `${row.value === 0 ? 0 : Math.max(4, (row.value / max) * 100)}%` }}
-                />
-              </span>
-              <span className="stf-small tabular-nums">{row.value}</span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
+    <div className="stf-card space-y-3 p-4">
+      <div className="space-y-2" role="img" aria-label={ariaLabel}>
+        {rows.map((row) => {
+          const value = Number(row[valueKey] || 0);
+          const width = `${Math.max(8, Math.round((value / max) * 100))}%`;
+          return (
+            <div key={String(row[labelKey])} className="space-y-1">
+              <div className="flex justify-between text-[10px] font-bold uppercase tracking-wide text-[var(--text-secondary)]">
+                <span>{row._label || row[labelKey]}</span>
+                <span>{value}</span>
+              </div>
+              <div className="h-2 rounded bg-[var(--surface-3)] overflow-hidden">
+                <div className="h-full rounded bg-[var(--brand-orange)]/80" style={{ width }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <ul className="stf-small space-y-1">
+        {rows.map((row) => (
+          <li key={`alt-${row[labelKey]}`}>
+            {row._label || row[labelKey]}: {Number(row[valueKey] || 0)}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-export default function InvestorDashboardCharts({ pipeline, watchlist, weeklyActivity }) {
-  const { t, lang } = useI18n();
-  const stages = useMemo(() => PIPELINE_STAGES
-    .filter((stage) => stage !== "declined")
-    .map((stage) => ({
-      label: t(STAGE_LABELS[stage]),
-      value: pipeline.filter((entry) => entry.stage === stage).length,
-    }))
-    .filter((row) => row.value > 0), [pipeline, t]);
-  const industries = useMemo(() => {
-    const counts = new Map();
-    const ventures = new Map([...pipeline, ...watchlist].map((entry) => [
-      String(entry.venture_id),
-      entry,
-    ]));
-    ventures.forEach((entry) => {
-      const label = entry.industry || t("dashboardV2.unknownIndustry");
-      counts.set(label, (counts.get(label) || 0) + 1);
-    });
-    return [...counts].map(([label, value]) => ({ label, value }))
-      .sort((left, right) => right.value - left.value).slice(0, 8);
-  }, [pipeline, watchlist, t]);
-  const activity = useMemo(() => {
-    const weeks = new Map((weeklyActivity || []).map((week) => [week.week, week]));
-    const rows = [];
-    for (let offset = 11; offset >= 0; offset -= 1) {
-      const date = new Date();
-      date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7) - offset * 7);
-      const key = date.toISOString().slice(0, 10);
-      const week = weeks.get(key);
-      rows.push({
-        label: date.toLocaleDateString(lang === "fr" ? "fr-FR" : "en-US", { month: "short", day: "numeric", timeZone: "UTC" }),
-        value: Number(week?.views || 0) + Number(week?.interests || 0) + Number(week?.introductions || 0),
-      });
+/**
+ * Guide §9.4 — pipeline by stage, ventures by industry, activity over time.
+ */
+export default function InvestorDashboardCharts({
+  weeklyActivity = [],
+  pipelineByStage = [],
+  venturesByIndustry = [],
+}) {
+  const { t } = useI18n();
+  const activityRows = Array.isArray(weeklyActivity) ? weeklyActivity : [];
+
+  const stageRows = useMemo(
+    () => (pipelineByStage || []).map((row) => ({
+      ...row,
+      _label: t(STAGE_LABELS[row.stage] || "") || row.stage,
+    })),
+    [pipelineByStage, t],
+  );
+
+  const maxActivity = useMemo(() => {
+    let peak = 1;
+    for (const row of activityRows) {
+      const total = Number(row.views || 0) + Number(row.interests || 0) + Number(row.introductions || 0);
+      if (total > peak) peak = total;
     }
-    return rows;
-  }, [weeklyActivity, lang]);
+    return peak;
+  }, [activityRows]);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-3">
-      <BarList
-        title={t("dashboardV2.pipelineByStage")}
-        empty={t("dashboardV2.chartEmpty")}
-        rows={stages}
+    <section className="space-y-6" aria-labelledby="investor-charts-title">
+      <SectionHead
+        letter="C"
+        tone="b"
+        icon={BarChart3}
+        title={t("dashboardV2.charts.sectionTitle")}
+        subtitle={t("dashboardV2.charts.sectionHint")}
       />
-      <BarList
-        title={t("dashboardV2.venturesByIndustry")}
-        empty={t("dashboardV2.chartEmpty")}
-        rows={industries}
-      />
-      <BarList
-        title={t("dashboardV2.activityOverTime")}
-        empty={t(weeklyActivity === null ? "dashboardV2.activityUnavailable" : "dashboardV2.chartEmpty")}
-        rows={weeklyActivity === null ? [] : activity}
-      />
-    </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div>
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-2">
+            {t("dashboardV2.charts.pipelineTitle")}
+          </h3>
+          <HorizontalBars
+            rows={stageRows}
+            labelKey="stage"
+            valueKey="count"
+            emptyTitle={t("dashboardV2.charts.pipelineEmpty")}
+            emptyHint={t("dashboardV2.charts.pipelineEmptyHint")}
+            ariaLabel={t("dashboardV2.charts.pipelineTitle")}
+          />
+        </div>
+        <div>
+          <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-2">
+            {t("dashboardV2.charts.industryTitle")}
+          </h3>
+          <HorizontalBars
+            rows={venturesByIndustry || []}
+            labelKey="industry"
+            valueKey="count"
+            emptyTitle={t("dashboardV2.charts.industryEmpty")}
+            emptyHint={t("dashboardV2.charts.industryEmptyHint")}
+            ariaLabel={t("dashboardV2.charts.industryTitle")}
+          />
+        </div>
+      </div>
+
+      <div>
+        <h3 className="text-[11px] font-black uppercase tracking-widest text-[var(--text-secondary)] mb-2">
+          {t("dashboardV2.charts.activityTitle")}
+        </h3>
+        {activityRows.length === 0 ? (
+          <AppEmptyState
+            title={t("dashboardV2.charts.empty")}
+            description={t("dashboardV2.charts.emptyHint")}
+            icon={BarChart3}
+            size="sm"
+          />
+        ) : (
+          <div className="stf-card space-y-4 p-4">
+            <div className="flex items-end gap-2 h-36" role="img" aria-label={t("dashboardV2.charts.activityTitle")}>
+              {activityRows.slice(-12).map((row) => {
+                const views = Number(row.views || 0);
+                const interests = Number(row.interests || 0);
+                const intros = Number(row.introductions || 0);
+                const total = views + interests + intros;
+                const height = `${Math.max(4, Math.round((total / maxActivity) * 100))}%`;
+                return (
+                  <div key={row.week || String(total)} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                    <div className="w-full rounded-t bg-[var(--brand-orange)]/80" style={{ height }} title={`${row.week}: ${total}`} />
+                    <span className="text-[9px] text-[var(--text-tertiary)] truncate w-full text-center">
+                      {String(row.week || "").slice(5)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+            <ul className="stf-small space-y-1" aria-label={t("dashboardV2.charts.textAlt")}>
+              {activityRows.slice(-12).map((row) => (
+                <li key={`alt-${row.week}`}>
+                  {row.week}: {t("dashboardV2.charts.views")} {Number(row.views || 0)},{" "}
+                  {t("dashboardV2.charts.interests")} {Number(row.interests || 0)},{" "}
+                  {t("dashboardV2.charts.introductions")} {Number(row.introductions || 0)}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

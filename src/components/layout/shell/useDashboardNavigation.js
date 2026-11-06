@@ -177,7 +177,11 @@ export function useDashboardNavigation({
         items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
         items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
       }
-      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
+      // Investor self-service uses /investor/messages (Phase 4 hub), not the
+      // participant inbox — otherwise the sidebar opens a different product.
+      if (canReadMessages && activeRole !== "team" && !investorAccount) {
+        items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
+      }
       if (rel.isVentureMember) {
         // A founder's venture door sits with their program doors (the founder
         // nav contract reads Dashboard → Programs → Ventures → Timeline),
@@ -198,9 +202,10 @@ export function useDashboardNavigation({
       // baseline badge cannot carry, so a "member" who was taken as an investor
       // gets their investor space here — exactly like the program and venture
       // doors, driven by what the server resolved for this person, never by the
-      // role string.
+      // role string. Wireframe order: Dashboard · Messages · (Deal flow).
       if (investorAccount) {
         items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
+        items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/investor/messages" });
         items.push({ id: "investor_deal_flow", name: "DEAL FLOW", icon: Briefcase, href: "/investor/deal-flow" });
       }
       return items;

@@ -1,7 +1,7 @@
 import { sendStandaloneEmail } from "@/lib/email";
 import { getIntroductionNotificationContext } from "@/models/investor/introductions";
 
-const EMAIL_COPY = {
+export const EMAIL_COPY = {
   en: {
     submittedSubject: "Future Studio — Introduction request received",
     submitted: (venture) =>
@@ -27,6 +27,22 @@ const EMAIL_COPY = {
     signoff: "Relations investisseurs — Future Studio",
   },
 };
+
+/** Pure EN/FR render for sandbox evidence (no transport). */
+export function buildIntroductionEmailCopy({ language = "en", status, ventureName, declineReason = null }) {
+  const copy = EMAIL_COPY[language] || EMAIL_COPY.en;
+  const content = status === "submitted"
+    ? { subject: copy.submittedSubject, body: copy.submitted(ventureName) }
+    : status === "approved"
+      ? { subject: copy.approvedSubject, body: copy.approved(ventureName) }
+      : { subject: copy.declinedSubject, body: copy.declined(ventureName, declineReason) };
+  return {
+    language: EMAIL_COPY[language] ? language : "en",
+    email_type: `investor_intro_${status}`,
+    subject: content.subject,
+    body: `${content.body}\n\n${copy.signoff}`,
+  };
+}
 
 export async function sendIntroductionEmail({ investorProfileId, ventureId, status, declineReason = null }) {
   const context = (await getIntroductionNotificationContext(investorProfileId, ventureId)).rows?.[0];

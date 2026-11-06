@@ -34,18 +34,39 @@ export default function IntroductionsAdminPage() {
   });
   const [busyId, setBusyId] = useState(null);
 
+  const { data: declineReasons } = useApi("/api/investor/decline-reasons?applies_to=intro", {
+    defaultValue: EMPTY,
+    transform: (payload) => (payload?.success ? payload.reasons || [] : []),
+  });
+
   const act = async (request, action) => {
     let reason = null;
     let internalNote = null;
     if (action === "decline") {
-      reason = await prompt({
-        message: t("investorAdmin.introductions.declineReason"),
-        required: true,
-        inputLabel: t("investorAdmin.introductions.declineReasonLabel"),
-        validate: (value) =>
-          String(value || "").trim() ? null : t("investorAdmin.introductions.declineRequired"),
-      });
-      if (!reason) return;
+      const labels = (declineReasons || []).map((row) =>
+        lang === "fr" ? row.name_fr : row.name_en,
+      );
+      const picked = labels.length
+        ? await prompt({
+            message: `${t("investorAdmin.introductions.declineReason")}\n${labels.map((label, index) => `${index + 1}. ${label}`).join("\n")}`,
+            required: true,
+            inputLabel: t("investorAdmin.introductions.declineReasonLabel"),
+            placeholder: labels[0] || "",
+            validate: (value) =>
+              String(value || "").trim() ? null : t("investorAdmin.introductions.declineRequired"),
+          })
+        : await prompt({
+            message: t("investorAdmin.introductions.declineReason"),
+            required: true,
+            inputLabel: t("investorAdmin.introductions.declineReasonLabel"),
+            validate: (value) =>
+              String(value || "").trim() ? null : t("investorAdmin.introductions.declineRequired"),
+          });
+      if (!picked) return;
+      const asIndex = Number(picked);
+      reason = Number.isInteger(asIndex) && asIndex >= 1 && asIndex <= labels.length
+        ? labels[asIndex - 1]
+        : picked;
     }
     if (action === "approve" || action === "decline") {
       internalNote = await prompt({

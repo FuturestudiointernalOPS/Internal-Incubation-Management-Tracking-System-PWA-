@@ -9,6 +9,7 @@ import {
 } from "@/components/layout/sidebarMenu";
 import { tnav } from "./navigation";
 import {
+  carriesContextualValue,
   holdsProfile,
   isMemberSurfaceRole,
   normalizeRole,
@@ -38,6 +39,7 @@ export const SidebarContent = ({
   setCollapsed,
   role,
   profiles = [],
+  relationships = null,
   navItems,
   openMenus,
   toggleMenu,
@@ -59,7 +61,16 @@ export const SidebarContent = ({
     normalizeRole(role) === "staff"
       ? "pm"
       : PROFILE_SECTION[normalizeRole(role)] || "participant";
-  const profileHref = `/${profileSection}/profile`;
+  // Approved investors are stored as `member` + relationship, so the role table
+  // alone would send Profil to /participant/profile (generic program view).
+  // Investor OS uses /investor/profile (org, preferences, NDA entry).
+  const investorAccount =
+    pathname?.startsWith("/investor") ||
+    carriesContextualValue(role, "investor") ||
+    Boolean(relationships?.isInvestor);
+  const profileHref = investorAccount
+    ? "/investor/profile"
+    : `/${profileSection}/profile`;
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);

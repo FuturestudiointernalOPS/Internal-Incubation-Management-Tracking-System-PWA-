@@ -195,11 +195,38 @@ export async function buildInvestorDashboard({ session, includeV2 = false }) {
     try { weeklyActivity = (await listInvestorWeeklyActivity(profile.id)).rows; } catch (_) {}
   }
 
+  const pipelineRows = pipelineResult.rows.map((row) => investorPipelineRow(row, { mode }));
+  const watchlistRows = watchlistResult.rows.map((row) => investorWatchlistRow(row, { mode }));
+
+  // Guide §9.4 — investor's own pipeline stages + industry mix (never studio stage).
+  const pipelineByStage = {};
+  for (const row of pipelineRows) {
+    if (!row.stage) continue;
+    if (row.stage === "invested" && ["pending", "rejected"].includes(row.confirmation_status)) continue;
+    pipelineByStage[row.stage] = (pipelineByStage[row.stage] || 0) + 1;
+  }
+  const industryCounts = {};
+  for (const row of [...pipelineRows, ...watchlistRows]) {
+    const industry = row.industry || null;
+    if (!industry) continue;
+    industryCounts[industry] = (industryCounts[industry] || 0) + 1;
+  }
+
   return {
-    ...(includeV2 ? { weeklyActivity } : {}),
+    ...(includeV2
+      ? {
+          weeklyActivity,
+          charts: {
+            pipelineByStage: Object.entries(pipelineByStage).map(([stage, count]) => ({ stage, count })),
+            venturesByIndustry: Object.entries(industryCounts)
+              .map(([industry, count]) => ({ industry, count }))
+              .sort((a, b) => b.count - a.count),
+          },
+        }
+      : {}),
     profile: { ...profile, visibility_mode: mode },
-    pipeline: pipelineResult.rows.map((row) => investorPipelineRow(row, { mode })),
-    watchlist: watchlistResult.rows.map((row) => investorWatchlistRow(row, { mode })),
+    pipeline: pipelineRows,
+    watchlist: watchlistRows,
     recommendations,
     campaigns: campaigns.map(investorCampaign),
     relationships: relationships.map(investorRelationship),

@@ -68,7 +68,7 @@ export default function WatchlistTab({
                     </button>}
                     <AppButton variant="secondary" size="sm" disabled={processingId !== null}
                       onClick={() => onAddToPipeline(item.venture_id, "interested")}>
-                      {t("dashboardV2.interested")}
+                      {t("dashboardV2.iAmInterested")}
                     </AppButton>
                   </div>
                 </div>

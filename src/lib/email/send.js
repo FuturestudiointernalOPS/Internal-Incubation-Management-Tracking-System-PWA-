@@ -12,6 +12,7 @@
 import { logger } from "@/lib/logger";
 import { isPlaceholderEmail, resolveReplyToAddress } from "./addresses";
 import { EMAIL_PRIMARY_DEFAULT } from "./config";
+import { sendViaFile } from "./fileTransport";
 import { sendViaGmail } from "./gmail";
 import { sendViaResend } from "./resend";
 
@@ -40,6 +41,14 @@ function transportReason(result) {
  * receives the notification — it remains a single tracked attempt.
  */
 export async function sendEmail({ to, cc, subject, html, provider, attachments, fromName, replyTo }) {
+  const chosen = provider || EMAIL_PRIMARY_DEFAULT;
+
+  // File sandbox captures EN/FR evidence without leaving the machine. Placeholder
+  // addresses are allowed only on this provider so gate proofs never hit Gmail/Resend.
+  if (chosen === "file") {
+    return sendViaFile({ to, cc, subject, html, fromName, replyTo });
+  }
+
   // HARD GUARD: an internal placeholder address (import-…@placeholder…,
   // .local, example.com…) must NEVER leave the system, no matter which
   // code path built the recipient. This is the final safety net before any
@@ -49,7 +58,6 @@ export async function sendEmail({ to, cc, subject, html, provider, attachments, 
     return { success: false, provider: "blocked", error: "Refused — placeholder address is not a real recipient" };
   }
 
-  const chosen = provider || EMAIL_PRIMARY_DEFAULT;
   const fallback = chosen === "gmail" ? "resend" : "gmail";
   // A Reply-To is placed INSIDE a raw MIME header by the Gmail transport, so it is
   // sanitized HERE — the single dispatch point every sender goes through — rather

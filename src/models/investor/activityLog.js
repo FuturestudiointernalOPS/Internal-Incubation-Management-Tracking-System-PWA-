@@ -80,7 +80,14 @@ export async function insertActivityEvent(event) {
 /** Profile id + visibility mode for a session's user (read-only). */
 export async function selectInvestorContext(userId) {
   return db.execute({
-    sql: "SELECT id, user_id, visibility_mode, is_test, approval_status FROM investor_profiles WHERE user_id = ? LIMIT 1",
+    sql: `SELECT ip.id, ip.user_id, ip.visibility_mode, ip.is_test, ip.approval_status,
+                 ip.nda_accepted_at, ip.nda_version,
+                 CASE WHEN c.language IN ('en', 'fr') THEN c.language ELSE NULL END AS preferred_language,
+                 CASE WHEN c.language IN ('en', 'fr') THEN c.language ELSE NULL END AS language
+            FROM investor_profiles ip
+            LEFT JOIN contacts c ON c.cid = ip.user_id
+           WHERE ip.user_id = ?
+           LIMIT 1`,
     args: [userId],
   });
 }

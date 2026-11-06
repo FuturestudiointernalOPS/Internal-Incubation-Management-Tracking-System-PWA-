@@ -1,0 +1,18 @@
+{
+  "tag": "GATE-E2E-2026-11-06",
+  "started_at": "2026-11-06T12:43:28.020Z",
+  "steps": [
+    { "name": "create_contact", "ok": true },
+    { "name": "create_investor_profile", "ok": true },
+    { "name": "create_venture", "ok": true },
+    { "name": "create_live_deal_flow", "ok": true },
+    { "name": "pipeline_interested", "ok": true },
+    { "name": "introduction_approved", "ok": true },
+    { "name": "workspace", "ok": true },
+    { "name": "meeting_confirmed", "ok": true },
+    { "name": "investment_confirmed", "ok": true },
+    { "name": "workspace_message", "ok": true }
+  ],
+  "ok": true,
+  "identifiers": "Omitted"
+}

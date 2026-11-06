@@ -345,6 +345,33 @@ export default function DealFlowAdminPage() {
                   )}
                 </div>
 
+                <label className="stf-small" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(entry.show_founder_names)}
+                    disabled={actionBusy === entry.id}
+                    onChange={async (event) => {
+                      setActionBusy(entry.id);
+                      try {
+                        await send(
+                          {
+                            action: "show_founder_names",
+                            id: entry.id,
+                            show_founder_names: event.target.checked,
+                          },
+                          "PUT",
+                        );
+                        refresh();
+                      } catch (error) {
+                        await alert({ message: error.message });
+                      } finally {
+                        setActionBusy(null);
+                      }
+                    }}
+                  />
+                  {t("investorAdmin.dealFlow.showFounderNames")}
+                </label>
+
                 {(entry.decks || []).length > 0 && (
                   <div style={{ marginTop: 12 }}>
                     <div className="stf-small" style={{ fontWeight: 700 }}>

@@ -4,6 +4,7 @@ import {
   listActiveDealFlowEntriesWithVenture,
   getDealFlowEntryById,
   updateDealFlowStatus,
+  updateDealFlowShowFounderNames,
   insertDealFlowDeck,
   publishDealFlowDeck,
   getLatestPublishedDeck,
@@ -89,6 +90,25 @@ export async function publishDeck({ deckId, session }) {
   });
 
   return { ok: true, deck };
+}
+
+export async function setShowFounderNames({ id, showFounderNames, session }) {
+  if (id == null) return { ok: false, status: 400, error: "id required" };
+  const result = await updateDealFlowShowFounderNames({
+    id,
+    showFounderNames: Boolean(showFounderNames),
+  });
+  const entry = result.rows?.[0];
+  if (!entry) return { ok: false, status: 404, error: "Entry not found." };
+  await emitInvestorEvent({
+    session,
+    eventType: "visibility_mode_changed",
+    ventureId: entry.venture_id ? String(entry.venture_id) : null,
+    relatedId: entry.id,
+    actorType: "studio",
+    metadata: { show_founder_names: Boolean(showFounderNames), scope: "deal_flow_entry" },
+  }).catch(() => {});
+  return { ok: true, entry };
 }
 
 export async function changeDealFlowStatus({ id, status, closeReason, session }) {
@@ -186,4 +206,27 @@ export async function getDeckForViewer({ deckId, session }) {
     deck: { id: deck.id, file_ref: signedUrl, download_allowed: deck.download_allowed },
     watermark: { investor_id: ctx.investorId, at: new Date().toISOString() },
   };
+}
+
+/** Record seconds spent on a published deck (Guide Reference B — deck_closed). */
+export async function recordDeckClosed({ deckId, seconds, session }) {
+  const ctx = await resolveInvestorContext(session);
+  if (!ctx.investorId) {
+    return { ok: false, status: 403, error: "An investor profile is required." };
+  }
+  const result = await getDeckWithEntry(deckId);
+  const deck = result.rows?.[0];
+  if (!deck || deck.status !== "published") {
+    return { ok: false, status: 404, error: "Deck not found." };
+  }
+  const spent = Math.max(0, Math.min(Number(seconds) || 0, 60 * 60 * 4));
+  await emitInvestorEvent({
+    session,
+    eventType: "deck_closed",
+    investorId: ctx.investorId,
+    ventureId: String(deck.venture_id),
+    relatedId: deck.id,
+    metadata: { deck_id: deck.id, seconds: spent },
+  });
+  return { ok: true };
 }

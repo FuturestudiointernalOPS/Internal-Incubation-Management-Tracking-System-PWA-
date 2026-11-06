@@ -13,7 +13,7 @@ async function POSTWithOriginalGuards(req) {
     const capError = await requireInvestorSelfServiceAuthorization("create");
     if (capError) return capError;
 
-    const { venture_id, stage, notes, amount } = await req.json();
+    const { venture_id, stage, notes, amount, currency, instrument, invested_on, decline_reason } = await req.json();
     if (!venture_id) {
       return NextResponse.json({ success: false, error: "venture_id required" }, { status: 400 });
     }
@@ -24,6 +24,10 @@ async function POSTWithOriginalGuards(req) {
       stage,
       notes,
       amount,
+      currency,
+      instrument,
+      investedOn: invested_on,
+      declineReason: decline_reason,
       session: await getSession(),
     });
     if (!result.ok) {

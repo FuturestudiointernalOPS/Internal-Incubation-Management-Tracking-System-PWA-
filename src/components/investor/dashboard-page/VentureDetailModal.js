@@ -80,7 +80,7 @@ export default function VentureDetailModal({
             <AppButton variant="primary" size="sm" icon={ArrowRight}
               loading={processingId !== null}
               onClick={onAddDetailToPipeline}>
-              {t("dashboardV2.interested")}
+              {t("dashboardV2.iAmInterested")}
             </AppButton>
           )}
           {detailVenture.deck?.id && (

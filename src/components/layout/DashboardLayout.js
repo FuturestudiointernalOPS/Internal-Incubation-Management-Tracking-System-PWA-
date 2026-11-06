@@ -423,6 +423,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     setCollapsed,
     role: activeRole,
     profiles: activeProfiles,
+    relationships,
     user,
     navItems,
     openMenus,
@@ -492,6 +493,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             NOTIFICATIONS_PREVIEW={NOTIFICATIONS_PREVIEW}
             router={router}
             user={user}
+            relationships={relationships}
             setPendingInvites={setPendingInvites}
             setPendingAssignments={setPendingAssignments}
             setMobileMenuOpen={setMobileMenuOpen}

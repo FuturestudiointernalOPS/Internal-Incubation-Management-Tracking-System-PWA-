@@ -8,27 +8,18 @@
  */
 
 import {
-  addInvestmentToActiveCampaign,
-  createInvestmentDecision,
-  getInvestmentNotificationInfo,
   getInvestorProfileIdByUserId,
   getInvestorProfileIdByUserIdForPipelineList,
   getMeetingRequestInfo,
-  getRelationshipWorkspaceAssigneesForInvestment,
-  getRelationshipWorkspaceIdForInvestment,
-  insertInvestmentCommittedTimeline,
-  insertInvestmentConfirmedAdminNotification,
-  insertInvestmentConfirmedInvestorNotification,
-  insertInvestmentConfirmedStaffNotification,
   insertInvestorMeetingPlaceholderEvent,
   insertInvestorMeetingRequestNotification,
-  listAdminAndStaffCids,
   listInvestmentPipeline,
   listSuperAdminCids,
-  markRelationshipWorkspaceActiveInvestment,
   upsertInvestmentPipeline,
 } from "@/models/investor";
 import { emitInvestorEvent, recordInvestorInteraction } from "@/services/investor/activity";
+import { readInvestorFlags } from "@/services/investor/featureFlags";
+import { runInvestedSideEffects } from "@/services/investor/investment";
 
 // The internal roles that see every pipeline row.
 const MANAGEMENT_ROLES = ["super_admin", "staff", "program_manager"];
@@ -92,10 +83,21 @@ export async function listPipelineForViewer({ ventureId, stage, session }) {
  * Add a venture to the caller's pipeline, or move its stage — then run the two
  * best-effort cascades: a meeting request notifies the super admins and drops a
  * calendar placeholder; "invested" records the decision, updates the campaign,
- * marks the relationship workspace and notifies everyone. A notification or
- * timeline failure never blocks the pipeline write.
+ * marks the relationship workspace and notifies everyone — UNLESS the Phase 5
+ * confirmation flag is on, in which case those side effects wait for studio
+ * confirmation via claimInvestment / confirmInvestment.
  */
-export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, session }) {
+export async function addOrUpdatePipeline({
+  ventureId,
+  stage,
+  notes,
+  amount,
+  currency,
+  instrument,
+  investedOn,
+  declineReason,
+  session,
+}) {
   const profileResult = await getInvestorProfileIdByUserId(session.cid || session.id);
   if (profileResult.rows.length === 0) {
     return { ok: false, status: 404, error: "Investor profile not found" };
@@ -105,6 +107,25 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
   const newStage = normalizePipelineStage(stage);
   if (!PIPELINE_STAGES.includes(newStage)) {
     return { ok: false, status: 400, error: "Invalid stage" };
+  }
+
+  const flags = await readInvestorFlags();
+
+  // Phase 5: when confirmation is on, Invested must go through claimInvestment
+  // (amount + currency). A bare stage flip must not fire side effects.
+  if (newStage === "invested" && flags.investmentConfirmation) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Use the investment claim form (amount and currency required).",
+    };
+  }
+
+  if ((newStage === "declined") && flags.investmentConfirmation) {
+    const reason = String(declineReason || notes || "").trim();
+    if (!reason) {
+      return { ok: false, status: 400, error: "A reason is required when leaving without investment." };
+    }
   }
 
   const result = await upsertInvestmentPipeline({
@@ -119,6 +140,17 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
       ventureId: String(ventureId), relatedId: result.rows[0].id });
   }
 
+  // Phase 2 interest button = pipeline add at Interested.
+  if (newStage === "interested") {
+    await emitInvestorEvent({
+      session,
+      eventType: "interest_expressed",
+      investorId,
+      ventureId: ventureId ? String(ventureId) : null,
+      relatedId: result.rows?.[0]?.id ?? null,
+    });
+  }
+
   // Every stage move is recorded for the metrics (E2/E3). `emitInvestorEvent`
   // never throws, so logging cannot break the pipeline write.
   await emitInvestorEvent({
@@ -128,6 +160,17 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
     relatedId: result.rows?.[0]?.id ?? null,
     metadata: { stage: newStage },
   });
+
+  if (newStage === "declined" && flags.investmentConfirmation) {
+    await emitInvestorEvent({
+      session,
+      eventType: "pipeline_declined",
+      investorId,
+      ventureId: ventureId ? String(ventureId) : null,
+      relatedId: result.rows?.[0]?.id ?? null,
+      metadata: { reason: String(declineReason || notes || "").trim().slice(0, 500) },
+    });
+  }
 
   // Meeting requested → notify super admins and drop a calendar placeholder.
   if (newStage === "meeting_requested") {
@@ -164,83 +207,21 @@ export async function addOrUpdatePipeline({ ventureId, stage, notes, amount, ses
     } catch (_) {}
   }
 
-  // Invested → record the decision, update the campaign, the workspace and notify.
-  if (newStage === "invested") {
+  // Invested (flag OFF) → legacy immediate side effects.
+  if (newStage === "invested" && !flags.investmentConfirmation) {
     const pipelineId = result.rows[0].id;
     const investedAmount = parseInvestedAmount({ amount, notes });
-
-    await createInvestmentDecision({
-      pipeline_id: pipelineId,
-      investment_amount: investedAmount,
+    await runInvestedSideEffects({
+      pipelineId,
+      ventureId,
+      investorId,
+      amount: investedAmount,
+      currency: currency || null,
+      instrument: instrument || null,
+      investedOn: investedOn || null,
       notes,
+      session,
     });
-
-    if (investedAmount > 0) {
-      try {
-        await addInvestmentToActiveCampaign({ amount: investedAmount, venture_id: ventureId });
-      } catch (_) {}
-    }
-
-    try {
-      const relationshipWorkspaceResult =
-        await getRelationshipWorkspaceIdForInvestment(pipelineId);
-      if (relationshipWorkspaceResult.rows.length > 0) {
-        await insertInvestmentCommittedTimeline({
-          workspace_id: relationshipWorkspaceResult.rows[0].id,
-          investment_amount: investedAmount,
-        });
-        await markRelationshipWorkspaceActiveInvestment(relationshipWorkspaceResult.rows[0].id);
-      }
-    } catch (_) {}
-
-    try {
-      const notificationInfo = await getInvestmentNotificationInfo({
-        venture_id: ventureId,
-        investor_id: investorId,
-      });
-      const investorInfo = notificationInfo.rows[0] || {};
-
-      const admins = await listAdminAndStaffCids();
-      for (const admin of admins.rows) {
-        await insertInvestmentConfirmedAdminNotification({
-          recipient_id: admin.cid,
-          investor_name: investorInfo.investor_name,
-          organization_name: investorInfo.organization_name,
-          venture_name: investorInfo.venture_name,
-          investment_amount: investedAmount,
-          link: "/admin/investors/dashboard",
-        });
-      }
-
-      if (investorInfo.user_id) {
-        await insertInvestmentConfirmedInvestorNotification({
-          recipient_id: investorInfo.user_id,
-          venture_name: investorInfo.venture_name,
-          investment_amount: investedAmount,
-          link: "/investor/portfolio",
-        });
-      }
-
-      const relationshipWorkspaceResult =
-        await getRelationshipWorkspaceAssigneesForInvestment(pipelineId);
-      if (relationshipWorkspaceResult.rows.length > 0) {
-        const relationshipWorkspace = relationshipWorkspaceResult.rows[0];
-        for (const cid of [
-          relationshipWorkspace.relationship_manager_id,
-          relationshipWorkspace.investment_manager_id,
-        ]) {
-          if (cid) {
-            await insertInvestmentConfirmedStaffNotification({
-              recipient_id: cid,
-              investor_name: investorInfo.investor_name,
-              venture_name: investorInfo.venture_name,
-              investment_amount: investedAmount,
-              link: "/admin/investors/relationships",
-            });
-          }
-        }
-      }
-    } catch (_) {}
   }
 
   const { was_inserted: _inserted, ...pipeline } = result.rows[0];

@@ -110,6 +110,16 @@ export async function updateDealFlowStatus({ id, status, closeReason = null }) {
   });
 }
 
+export async function updateDealFlowShowFounderNames({ id, showFounderNames }) {
+  return db.execute({
+    sql: `UPDATE deal_flow_entries
+             SET show_founder_names = ?, updated_at = NOW()
+           WHERE id = ?
+           RETURNING *`,
+    args: [Boolean(showFounderNames), id],
+  });
+}
+
 export async function insertDealFlowDeck({
   dealFlowEntryId,
   fileRef = null,

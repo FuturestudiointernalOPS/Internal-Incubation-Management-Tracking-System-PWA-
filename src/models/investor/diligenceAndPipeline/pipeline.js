@@ -233,47 +233,67 @@ export async function getInvestorProfileIdByUserIdForPipelineList(userCid) {
  * variants (by venture / admin stage filter / by investor) from the same
  * inputs and runs exactly one statement.
  */
+const INVESTMENT_CONFIRM_SELECT = `
+  iir.id AS investment_id,
+  iir.confirmation_status,
+  iir.amount AS investment_amount,
+  iir.currency AS investment_currency,
+  iir.instrument AS investment_instrument,
+  iir.invested_on AS investment_date,
+  iir.reject_reason AS investment_reject_reason`;
+
+const INVESTMENT_CONFIRM_JOIN = `
+  LEFT JOIN investor_investment_records iir ON iir.pipeline_id = ip.id`;
+
 export async function listInvestmentPipeline({ ventureId, stage, role, investorId }) {
   let sql, args;
 
   if (ventureId && !investorId) {
     // Management view: all pipeline rows for the venture.
-    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
+                  ${INVESTMENT_CONFIRM_SELECT}
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              LEFT JOIN ventures v ON v.id = ip.venture_id
+             ${INVESTMENT_CONFIRM_JOIN}
              WHERE ip.venture_id = ?`;
     args = [ventureId];
   } else if (ventureId && investorId) {
     // Phase 1.5: own-scoped venture view — a non-management session may only
     // read its OWN rows for the venture (the previous branch returned every
     // investor's rows to anyone with the venture id).
-    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
+                  ${INVESTMENT_CONFIRM_SELECT}
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              LEFT JOIN ventures v ON v.id = ip.venture_id
+             ${INVESTMENT_CONFIRM_JOIN}
              WHERE ip.venture_id = ? AND ip.investor_id = ?`;
     args = [ventureId, investorId];
   } else if (stage && (role === "super_admin" || role === "staff")) {
     // Admin filtering by stage (e.g., meeting_requested)
     sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name, ipr.organization_name, c.name as investor_name, c.email,
                      ipref.industries, ipref.countries, ipref.startup_stages,
-                     ipref.ticket_size_min, ipref.ticket_size_max
+                     ipref.ticket_size_min, ipref.ticket_size_max,
+                     ${INVESTMENT_CONFIRM_SELECT}
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              LEFT JOIN ventures v ON v.id = ip.venture_id
              LEFT JOIN investor_profiles ipr ON ip.investor_id = ipr.id
              LEFT JOIN contacts c ON ipr.user_id = c.cid
              LEFT JOIN investor_preferences ipref ON ipref.investor_id = ipr.id
+             ${INVESTMENT_CONFIRM_JOIN}
              WHERE ip.stage = ?
              ORDER BY ip.stage_changed_at DESC`;
     args = [stage];
   } else {
     // Own pipeline.
-    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name
+    sql = `SELECT ip.*, COALESCE(p.name, v.name, v.company_name) as venture_name,
+                  ${INVESTMENT_CONFIRM_SELECT}
              FROM investment_pipeline ip
              LEFT JOIN v2_programs p ON ip.venture_id = p.id
              LEFT JOIN ventures v ON v.id = ip.venture_id
+             ${INVESTMENT_CONFIRM_JOIN}
              WHERE ip.investor_id = ?
              ORDER BY ip.stage_changed_at DESC`;
     args = [investorId];

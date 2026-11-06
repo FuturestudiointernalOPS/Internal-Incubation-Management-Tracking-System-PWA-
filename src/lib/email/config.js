@@ -45,11 +45,13 @@ export const DECISION_EMAIL_DEFAULT =
 // credentials degrade to Resend automatically (never a broken default).
 // Set EMAIL_PRIMARY_PROVIDER=resend to force Resend-first globally.
 export const EMAIL_PRIMARY_DEFAULT =
-  process.env.EMAIL_PRIMARY_PROVIDER === "resend"
-    ? "resend"
-    : GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN
-      ? "gmail"
-      : "resend";
+  process.env.EMAIL_PRIMARY_PROVIDER === "file"
+    ? "file"
+    : process.env.EMAIL_PRIMARY_PROVIDER === "resend"
+      ? "resend"
+      : GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN
+        ? "gmail"
+        : "resend";
 
 export function gmailCredentialsAvailable() {
   return !!(GMAIL_CLIENT_ID && GMAIL_CLIENT_SECRET && GMAIL_REFRESH_TOKEN);

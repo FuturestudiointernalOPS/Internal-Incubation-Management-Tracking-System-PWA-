@@ -7,6 +7,8 @@ const PROFILE_FIELDS = Object.freeze([
   "ticket_size_max", "investment_philosophy", "investment_experience",
   "visibility_mode", "investor_type", "investor_type_other", "language",
   "preferred_language", "logo_url", "past_investments",
+  "nda_accepted_at", "nda_version", "terms_accepted_at", "terms_version",
+  "onboarding_completed_at",
 ]);
 const PROFILE_ARRAY_FIELDS = new Set(["industries", "countries", "startup_stages"]);
 

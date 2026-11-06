@@ -1,21 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowRight, BriefcaseBusiness, CalendarClock, Search, SlidersHorizontal, RotateCw, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowRight, Search, SlidersHorizontal, RotateCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AppButton from "@/components/ui/AppButton";
-import LinkCard from "@/components/ui/LinkCard";
 import PageHero from "@/components/ui/PageHero";
-import SectionHead from "@/components/ui/SectionHead";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import ActionNeededStrip from "@/components/investor/dashboard-page/ActionNeededStrip";
 import DashboardStats from "@/components/investor/dashboard-page/DashboardStats";
 import DashboardTabs from "@/components/investor/dashboard-page/DashboardTabs";
+import InvestorDashboardCalendar from "@/components/investor/dashboard-page/InvestorDashboardCalendar";
 import InvestorDashboardCharts from "@/components/investor/dashboard-page/InvestorDashboardCharts";
+import InvestorMobileNav from "@/components/investor/dashboard-page/InvestorMobileNav";
 import IntroductionsTab from "@/components/investor/dashboard-page/IntroductionsTab";
 import MeetingsTab from "@/components/investor/dashboard-page/MeetingsTab";
-import UpcomingMeetingsSection from "@/components/investor/dashboard-page/UpcomingMeetingsSection";
 import VentureFilters from "@/components/investor/dashboard-page/VentureFilters";
 import VentureGrid from "@/components/investor/dashboard-page/VentureGrid";
 import PipelineTab from "@/components/investor/dashboard-page/PipelineTab";
@@ -37,7 +37,9 @@ const EMPTY_INVESTOR_DASHBOARD = {
   relationships: [],
   stats: {},
   features: {},
-  weeklyActivity: null,
+  weeklyActivity: [],
+  charts: { pipelineByStage: [], venturesByIndustry: [] },
+  activeNdaVersion: null,
 };
 const pickInvestorDashboard = (response) =>
   response?.success
@@ -49,7 +51,9 @@ const pickInvestorDashboard = (response) =>
         relationships: response.relationships || [],
         stats: response.stats || {},
         features: response.features || {},
-        weeklyActivity: Array.isArray(response.weeklyActivity) ? response.weeklyActivity : null,
+        weeklyActivity: response.weeklyActivity || [],
+        charts: response.charts || { pipelineByStage: [], venturesByIndustry: [] },
+        activeNdaVersion: response.activeNdaVersion ?? null,
       }
     : EMPTY_INVESTOR_DASHBOARD;
 
@@ -74,11 +78,14 @@ export default function InvestorDashboard() {
     stats,
     features,
     weeklyActivity,
+    charts,
+    activeNdaVersion,
   } = data;
   const [toast, setToast] = useState(null);
   const [activeTab, setActiveTab] = useState("discover");
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("all");
+  const [offlineNote, setOfflineNote] = useState(false);
 
   // Advanced filters
   const [showFilters, setShowFilters] = useState(false);
@@ -113,14 +120,25 @@ export default function InvestorDashboard() {
   const activeIntroductionCount = introductions.filter((request) =>
     ["submitted", "under_review", "approved"].includes(request.status),
   ).length;
+  const upcomingMeetings = relationships.flatMap((relationship) =>
+    (Array.isArray(relationship.next_meetings) ? relationship.next_meetings : []).map(
+      (meeting) => ({ relationship, meeting }),
+    ),
+  );
+  const pendingInvestments = Number(stats.pending_investment_count || 0);
 
-  const addToPipeline = async (ventureId, stage) => {
+  const addToPipeline = async (ventureId, stage, extra = {}) => {
     setProcessingId(ventureId);
     try {
       const response = await fetch("/api/investor/pipeline", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ venture_id: ventureId, stage }),
+        body: JSON.stringify({
+          venture_id: ventureId,
+          stage,
+          notes: extra.notes,
+          decline_reason: extra.declineReason,
+        }),
       });
       const data = await response.json();
       if (data.success) {
@@ -133,6 +151,30 @@ export default function InvestorDashboard() {
       }
     } catch (_) {
       setToast({ type: "error", message: t("errors.somethingWrong") });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const claimInvestment = async (payload) => {
+    setProcessingId(payload.venture_id);
+    try {
+      const response = await fetch("/api/investor/investments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setToast({ type: "success", message: t("dashboardV2.investment.claimSubmitted") });
+        refresh();
+        return { ok: true };
+      }
+      setToast({ type: "error", message: t(data.error || "errors.somethingWrong") });
+      return { ok: false, error: data.error };
+    } catch (_) {
+      setToast({ type: "error", message: t("errors.somethingWrong") });
+      return { ok: false, error: t("errors.somethingWrong") };
     } finally {
       setProcessingId(null);
     }
@@ -226,11 +268,15 @@ export default function InvestorDashboard() {
     }
   };
 
-  // Open venture detail
+  // Open venture detail — pitch deck first when one is published (Guide T3 / §10).
   const openVentureDetail = async (venture, bypassCache = false) => {
-    setDetailVenture(venture);
     void fetch("/api/investor/interactions", { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ kind: "venture_viewed", venture_ids: [String(venture.id)] }) }).catch(() => {});
+    if (venture?.deck?.id) {
+      router.push(`/investor/deck/${encodeURIComponent(venture.deck.id)}`);
+      return;
+    }
+    setDetailVenture(venture);
     const url = `/api/investor/pipeline?venture_id=${venture.id}`;
     let painted = false;
     const applyPipeline = (data) => {
@@ -269,6 +315,17 @@ export default function InvestorDashboard() {
     );
   };
 
+  useEffect(() => {
+    const sync = () => setOfflineNote(!navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+  }, []);
+
   if (loading) {
     return (
       <div className="mx-auto max-w-7xl space-y-4 p-4 sm:p-6" aria-busy="true" aria-label={t("common.loading")}>
@@ -284,7 +341,7 @@ export default function InvestorDashboard() {
   if (!profile || profile.approval_status !== "approved") {
     return (
       <>
-        <ProfileGate profile={profile} onSetupProfile={() => router.push("/investor/onboarding")} />
+        <ProfileGate profile={profile} onSetupProfile={() => router.push("/investor/profile")} />
       </>
     );
   }
@@ -295,10 +352,16 @@ export default function InvestorDashboard() {
 
   return (
     <>
-      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 sm:p-6">
+      <div className="mx-auto flex max-w-7xl flex-col gap-6 p-4 pb-32 sm:p-6 md:pb-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
+        {offlineNote && (
+          <p className="stf-card stf-small" role="status">
+            {t("dashboardV2.offlineNote")}
+          </p>
+        )}
 
         <h1 className="sr-only">{t("dashboardV2.dashboardTitle")}</h1>
+        {/* 1. Welcome */}
         <PageHero
           kicker={t("dashboardV2.kicker")}
           title={t("dashboardV2.welcome", { name: profile.organization_name || t("dashboardV2.investor") })}
@@ -310,67 +373,38 @@ export default function InvestorDashboard() {
           }
         />
 
-        <section className="order-2" aria-label={t("dashboardV2.summary")}>
+        {/* 2. Action needed — only real pending items (Guide §9.1) */}
+        <ActionNeededStrip
+          features={features}
+          introductions={introductions}
+          upcomingMeetings={upcomingMeetings}
+          pendingInvestments={pendingInvestments}
+          ndaRequired={Boolean(
+            features.nda
+            && (!profile.nda_accepted_at
+              || (activeNdaVersion && profile.nda_version !== activeNdaVersion)),
+          )}
+          onNavigate={setActiveTab}
+          onSchedule={() => setActiveTab("meetings")}
+          onOpenMessages={() => router.push("/investor/messages")}
+          onOpenNda={() => router.push("/investor/nda")}
+        />
+
+        {/* 3. Number cards */}
+        <section aria-label={t("dashboardV2.summary")}>
           <DashboardStats
             stats={stats}
             introductionCount={features.introductions ? activeIntroductionCount : 0}
-            introductions={features.introductions}
-            meetings={features.meetings}
+            meetingCount={upcomingMeetings.length}
+            features={features}
             loading={loading}
             onNavigate={setActiveTab}
           />
         </section>
 
-        <section className="order-3 space-y-3" aria-labelledby="investor-actions-title">
-          <SectionHead
-            letter="A"
-            tone="o"
-            icon={Sparkles}
-            title={t("dashboardV2.actionNeeded")}
-            subtitle={t("dashboardV2.actionHint")}
-          />
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {features.introductions && activeIntroductionCount > 0 ? (
-              <LinkCard
-                icon={Sparkles}
-                tone="o"
-                title={t("dashboardV2.viewRequests")}
-                text={t("dashboardV2.introductionAction", { count: activeIntroductionCount })}
-                tag={<span className="stf-tag o">{activeIntroductionCount}</span>}
-                onClick={() => setActiveTab("introductions")}
-              />
-            ) : (
-              <LinkCard
-                icon={BriefcaseBusiness}
-                tone="o"
-                title={t("dashboardV2.exploreDealFlow")}
-                text={t("dashboardV2.dealFlowHint")}
-                onClick={() => router.push("/investor/deal-flow")}
-              />
-            )}
-            <LinkCard
-              icon={CalendarClock}
-              tone="b"
-              title={t("dashboardV2.upcomingMeetings")}
-              text={t("dashboardV2.meetingsHint")}
-              onClick={() => document.getElementById("upcoming-meetings")?.scrollIntoView({ behavior: "smooth" })}
-            />
-            <LinkCard
-              icon={BriefcaseBusiness}
-              tone="g"
-              title={t("dashboardV2.reviewPipeline")}
-              text={t("dashboardV2.pipelineHint")}
-              onClick={() => setActiveTab("pipeline")}
-            />
-          </div>
-        </section>
-
-        <section id="upcoming-meetings" className="order-4" aria-label={t("dashboardV2.upcomingMeetings")}>
-          <UpcomingMeetingsSection relationships={relationships} />
-        </section>
-
+        {/* 4. Recommended ventures (horizontal) */}
         {recommendations.length > 0 && (
-          <section className="order-5 space-y-3" aria-labelledby="recommended-title">
+          <section className="space-y-3" aria-labelledby="recommended-title">
             <h2 id="recommended-title" className="text-sm font-black uppercase tracking-tight text-[var(--text-primary)]">
               {t("dashboardV2.recommended")}
             </h2>
@@ -390,25 +424,34 @@ export default function InvestorDashboard() {
           </section>
         )}
 
-        {features.dashboardV2 && <div className="order-6 space-y-4">
-          <InvestorDashboardCharts
-            pipeline={pipeline}
-            watchlist={watchlist}
-            weeklyActivity={weeklyActivity}
+        {/* 5. Charts (§9.4) + calendar */}
+        <div className="order-last space-y-4 md:order-none">
+          {features.dashboardV2 && (
+            <InvestorDashboardCharts
+              weeklyActivity={weeklyActivity}
+              pipelineByStage={charts?.pipelineByStage}
+              venturesByIndustry={charts?.venturesByIndustry}
+            />
+          )}
+          <InvestorDashboardCalendar
+            seedMeetings={upcomingMeetings}
+            fetchSlots={Boolean(features.meetings)}
+            onOpenMeetings={features.meetings ? () => setActiveTab("meetings") : undefined}
           />
-        </div>}
+        </div>
 
-        {/* DISCOVER TAB */}
-        <div className="order-7">
+        {/* 6. Tabs */}
+        <div>
           <DashboardTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
             introductions={features.introductions}
             introductionCount={activeIntroductionCount}
+            meetings={features.meetings}
           />
         </div>
 
-        <section id="investor-tabpanel" role="tabpanel" aria-labelledby={`investor-tab-${activeTab}`} className="order-8">
+        <section id="investor-tabpanel" role="tabpanel" aria-labelledby={`investor-tab-${activeTab}`}>
         {activeTab === "discover" && (
           <div className="space-y-4">
             {/* Search + Filter bar */}
@@ -500,6 +543,12 @@ export default function InvestorDashboard() {
             onStageFilterChange={setStageFilter}
             processingId={processingId}
             onAddToPipeline={addToPipeline}
+            onClaimInvestment={claimInvestment}
+            investmentConfirmation={Boolean(features.investmentConfirmation)}
+            messaging={Boolean(features.messaging)}
+            meetings={Boolean(features.meetings)}
+            onMessage={(workspaceId) => router.push(`/investor/messages/${encodeURIComponent(workspaceId)}`)}
+            onSchedule={() => setActiveTab("meetings")}
             onOpenWorkspace={(pipelineId) => router.push(`/investor/diligence?pipeline_id=${pipelineId}`)}
           />
         )}
@@ -585,6 +634,7 @@ export default function InvestorDashboard() {
         )}
         </section>
       </div>
+      <InvestorMobileNav messagingEnabled={Boolean(features.messaging)} />
     </>
   );
 }

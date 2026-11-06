@@ -2,10 +2,13 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { isInvestorManagement } from "@/models/authorization/investorScope";
 import { selectInvestorContext } from "@/models/investor/activityLog";
+import { getActiveLegalDocument } from "@/models/investor/legalDocuments";
 import { readInvestorFlags } from "@/services/investor/featureFlags";
 import { projectInvestorResponse } from "@/services/investor/responsePrivacy";
 
 const PRIVATE = { "Cache-Control": "private, no-store", Vary: "Cookie" };
+
+const NDA_EXEMPT_SURFACES = new Set(["dashboard", "nda", "profile"]);
 
 /**
  * A gated response boundary for legacy self-service. Original authentication,
@@ -25,6 +28,21 @@ export function withInvestorPrivacy(handler, surface) {
       if (!profile || profile.approval_status !== "approved") {
         return NextResponse.json({ success: false, error: "errors.insufficientPermissions" }, { status: 403, headers: PRIVATE });
       }
+
+      // Guide §13.4 — no venture data until the current NDA version is accepted.
+      if (flags.nda && !NDA_EXEMPT_SURFACES.has(surface)) {
+        const lang = profile.preferred_language === "fr" || profile.language === "fr" ? "fr" : "en";
+        const active = (await getActiveLegalDocument({ docType: "nda", language: lang })).rows?.[0];
+        const needsNda = !profile.nda_accepted_at
+          || (active?.version && profile.nda_version !== active.version);
+        if (needsNda) {
+          return NextResponse.json(
+            { success: false, error: "errors.ndaRequired" },
+            { status: 403, headers: PRIVATE },
+          );
+        }
+      }
+
       const response = await handler(req, context);
       if (!response.ok) {
         // Never return a raw database error from the old catch blocks.

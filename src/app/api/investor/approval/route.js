@@ -9,7 +9,10 @@ import {
   notifyInvestorOfApprovalStatus,
   setInvestorApprovalStatus,
   setInvestorReviewNotes,
+  markInvestorApprovedAt,
 } from "@/models/investorRelations";
+import { emitInvestorEvent } from "@/services/investor/activity";
+import { getSession } from "@/server/auth/session";
 
 /** GET /api/investor/approval — list investors by status (admin only) */
 export async function GET(req) {
@@ -52,6 +55,9 @@ export async function POST(req) {
 
     // Update profile
     await setInvestorApprovalStatus(profile_id, newStatus);
+    if (action === "approve") {
+      await markInvestorApprovedAt(profile_id).catch(() => {});
+    }
 
     // Save review notes if provided
     if (reason) {
@@ -60,8 +66,24 @@ export async function POST(req) {
 
     // Get investor with contact info for notification
     const investorResult = await getInvestorWithContactByProfileId(profile_id);
+    const session = await getSession();
 
     const investorRow = investorResult.rows[0];
+    const eventType = action === "approve"
+      ? "application_approved"
+      : action === "reject"
+        ? "application_rejected"
+        : null;
+    if (eventType) {
+      await emitInvestorEvent({
+        session,
+        investorId: profile_id,
+        eventType,
+        actorType: "studio",
+        metadata: { reason: reason || null, status: newStatus },
+      }).catch(() => {});
+    }
+
     if (investorRow && investorRow.email) {
       const statusLabels = { approved: "approved", rejected: "rejected", suspended: "suspended" };
       try {
@@ -72,6 +94,15 @@ export async function POST(req) {
           contact_cid: investorRow.user_id,
           body: `Hello ${investorRow.name || ""},\n\nYour investor account has been ${statusLabels[newStatus]}${reason ? `.\n\nReason: ${reason}` : "."}\n\n${newStatus === "approved" ? "You can now access Investor OS at " + (await import("@/lib/appUrl")).resolveAppUrl() + "/login" : "Please contact Future Studio for more information."}\n\n— Future Studio Team`,
         });
+        if (action === "approve") {
+          await emitInvestorEvent({
+            session,
+            investorId: profile_id,
+            eventType: "activation_email_sent",
+            actorType: "system",
+            metadata: { email: investorRow.email },
+          }).catch(() => {});
+        }
       } catch (_) {}
 
       // Create notification

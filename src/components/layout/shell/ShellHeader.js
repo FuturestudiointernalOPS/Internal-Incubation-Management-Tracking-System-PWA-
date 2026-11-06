@@ -33,6 +33,7 @@ export default function ShellHeader({
   NOTIFICATIONS_PREVIEW,
   router,
   user,
+  relationships = null,
   setPendingInvites,
   setPendingAssignments,
   setMobileMenuOpen,
@@ -211,6 +212,12 @@ export default function ShellHeader({
                                   router.push("/pm/messages");
                                 else if (isInternalStaffRole(role))
                                   router.push("/staff/messages");
+                                else if (
+                                  pathname?.startsWith("/investor") ||
+                                  carriesContextualValue(role, "investor") ||
+                                  relationships?.isInvestor
+                                )
+                                  router.push("/investor/messages");
                                 else if (carriesContextualValue(role, "participant"))
                                   router.push("/participant/messages");
                                 setShowNotifications(false);

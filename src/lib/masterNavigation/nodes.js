@@ -84,6 +84,8 @@ export const MASTER_NAVIGATION = [
       { id: "investors_portfolio", name: "STUDIO PORTFOLIO", href: "/admin/investors/portfolio" },
       { id: "investors_deal_flow", name: "DEAL FLOW", href: "/admin/investors/deal-flow" },
       { id: "investors_introductions", name: "INTRODUCTIONS", href: "/admin/investors/introductions" },
+      { id: "investors_investments", name: "INVESTMENT CONFIRMATIONS", href: "/admin/investors/investments" },
+      { id: "investors_decline_reasons", name: "DECLINE REASONS", href: "/admin/investors/decline-reasons" },
       { id: "investors_metrics", name: "METRICS", href: "/admin/investors/metrics" },
     ],
   },
