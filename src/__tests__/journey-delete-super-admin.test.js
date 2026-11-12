@@ -95,8 +95,8 @@ describe("the gate", () => {
 
     expect(res.status).toBe(403);
     const body = await res.json();
-    expect(body.error).toMatch(/super admin/i);
-    expect(body.error).toMatch(/archive/i);
+    // The refusal is an `errors.*` key; its copy tells the manager to archive.
+    expect(body.error).toBe("errors.journeyDeletePlatformOwnerOnly");
     // Nothing was touched — not even the journey table self-heal.
     expect(mockJourney.ensureJourneyTable).not.toHaveBeenCalled();
     expect(mockJourney.deleteJourneyStages).not.toHaveBeenCalled();

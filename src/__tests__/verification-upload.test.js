@@ -35,9 +35,9 @@ jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn(),
 }));
 
-jest.mock("@/lib/ventureAuth", () => ({
+jest.mock("@/lib/ventureScopedAccess", () => ({
   __esModule: true,
-  requireVentureAccess: jest.fn(),
+  requireVentureScopedAccess: jest.fn(),
 }));
 
 jest.mock("@/lib/storage", () => ({
@@ -62,7 +62,7 @@ jest.mock("@/services/ventures/verification", () => ({
 }));
 
 const { getSession } = require("@/server/auth/session");
-const { requireVentureAccess } = require("@/lib/ventureAuth");
+const { requireVentureScopedAccess } = require("@/lib/ventureScopedAccess");
 const { uploadDeliverableEvidence } = require("@/lib/storage");
 const { signEvidencePath } = require("@/lib/ventureEvidence");
 const { getOrCreateVerification } = require("@/services/ventures/verification");
@@ -84,7 +84,7 @@ const multipartRequest = ({ file, fileType = "application/pdf", ...fields } = {}
 
 beforeEach(() => {
   jest.clearAllMocks();
-  requireVentureAccess.mockResolvedValue({ session: { cid: "F1", role: "founder" } });
+  requireVentureScopedAccess.mockResolvedValue({ session: { cid: "F1", role: "founder" } });
 });
 
 describe("POST /api/ventures/[id]/verification/upload", () => {
@@ -134,8 +134,13 @@ describe("POST /api/ventures/[id]/verification/upload", () => {
     });
   });
 
-  test("is gated by Venture access (founders upload), not the staff capability gate", async () => {
-    requireVentureAccess.mockResolvedValue({ session: null });
+  test("is gated by the canonical venture access gate (founders upload)", async () => {
+    requireVentureScopedAccess.mockResolvedValue({
+      error: new Response(JSON.stringify({ success: false, error: "errors.insufficientPermissions" }), {
+        status: 403,
+        headers: { "content-type": "application/json" },
+      }),
+    });
 
     const res = await uploadVerificationDocument(multipartRequest({ file: "id.pdf" }), ctx);
 

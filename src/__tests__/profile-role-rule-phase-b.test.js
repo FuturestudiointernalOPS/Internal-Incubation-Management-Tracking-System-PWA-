@@ -163,7 +163,13 @@ function mockExecute(query) {
   return { rows: [] };
 }
 
-const mockDb = { execute: jest.fn(async (query) => mockExecute(query)) };
+const mockDb = {
+  execute: jest.fn(async (query) => mockExecute(query)),
+  // Lot 6: the grant and its provenance row are written in ONE transaction.
+  // The double runs the callback against the same mock, with the `query(sql,
+  // args)` handle the real transaction hands over.
+  transaction: jest.fn(async (callback) => callback((sql, args) => mockExecute({ sql, args }))),
+};
 
 jest.mock("@/lib/db", () => ({
   __esModule: true,

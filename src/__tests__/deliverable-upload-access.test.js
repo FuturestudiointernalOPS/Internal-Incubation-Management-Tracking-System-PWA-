@@ -23,9 +23,9 @@ describe("deliverable evidence upload access", () => {
 
   test("the upload route is gated by Venture access (founders included)", () => {
     const src = read(UPLOAD);
-    expect(src).toContain("requireVentureAccess");
-    // The staff-only gate would 403 the Venture's own members.
-    expect(src).not.toContain("requireVentureScopedAccess");
+    // The canonical venture gate: capability AND the venture perimeter.
+    expect(src).toContain("requireVentureScopedAccess");
+    expect(src).toContain('module: "ventures"');
   });
 
   test("uploads are capped, private, and return a storage path — never a public URL", () => {
