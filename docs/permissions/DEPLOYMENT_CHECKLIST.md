@@ -97,6 +97,26 @@ Détail : `docs/permissions/ETAPE4-LANDING-FROM-RIGHTS.md`.
 
 ---
 
+## 2 quater. Portes — menu, espaces et plateforme
+
+Deux surfaces ne sont pas derrière un drapeau : elles suivent les droits dès le
+déploiement.
+
+1. **L'espace** est une propriété du rôle, qui est une donnée de la base. Le
+   tableau identité → espace vit dans `src/spaces/registry.js` et nulle part
+   ailleurs. Rien à configurer.
+2. **Les modules de la plateforme** (`/platform`) déclarent chacun le droit que
+   leur API exige ; une porte sans droit n'apparaît pas.
+
+Perte attendue, à ne pas « réparer » : le profil par défaut du personnel ne
+détient ni `runs.view` ni `forms.view`, donc **Dashboard et Forms disparaissent
+de `/platform` pour le personnel**. Les API de ces deux écrans refusaient déjà.
+Le propriétaire détient tout le catalogue : aucune perte pour lui.
+
+Détail : `docs/permissions/ETAPE5-SPACE-MEMBERSHIP.md`.
+
+---
+
 ## 3. Après le déploiement — parité
 
 ```bash
@@ -104,7 +124,9 @@ Détail : `docs/permissions/ETAPE4-LANDING-FROM-RIGHTS.md`.
 npm run authz:snapshot -- --compare scratch/authz-reference/<référence>.json
 ```
 
-- Cible : **0 régression** (aucun droit retiré, aucune porte de menu perdue).
+- Cible : **0 régression** (aucun droit retiré, aucune porte de menu perdue),
+  à l'exception des pertes décidées et listées ci-dessus (Forms à l'étape 3,
+  Dashboard et Forms de `/platform` à l'étape 5).
 - Les **ouvertures** doivent être exactement celles décidées à l'étape 2.
 - En production, ajouter `--env .env.prod-verify --allow-production`.
 

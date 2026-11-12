@@ -6,15 +6,20 @@ import React, { useEffect, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { getDashboardSessionUser, subscribeDashboardSession } from "@/lib/dashboardSession";
-import { isPlatformOwnerRole } from "@/lib/identity";
+import { spaceForRole, spaceHomeForRole } from "@/spaces/registry";
+import { roleHomeHref } from "@/models/platform/roles";
 
 // The role the BROWSER can already vouch for: the session the shell has published,
 // or the stored copy on a cold load. Read as a store snapshot, which is why the
 // guard needs no effect to copy it into state — and why entering /admin still
 // paints on the first frame. The check below remains the authority.
+//
+// Which identity belongs to the admin space is a REGISTRY question, not a list
+// kept here: `spaceForRole` is the one mapping, and the platform owner is simply
+// the identity that map sends to `admin`.
 const getRestoredAdminRole = () => {
   const role = getDashboardSessionUser()?.role;
-  return isPlatformOwnerRole(role) ? role : null;
+  return spaceForRole(role) === "admin" ? role : null;
 };
 
 const getRestoredRoleOnServer = () => null;
@@ -64,19 +69,16 @@ export default function AdminLayout({ children }) {
             }
           } catch (_) {}
           const role = data.user.role;
-          if (isPlatformOwnerRole(role)) {
+          if (spaceForRole(role) === "admin") {
             setServerRole(role);
             return;
           }
-          // Redirect non-admin users to their correct dashboard
-          const redirectMap = {
-            staff: "/staff",
-            program_manager: "/staff/program-manager",
-            participant: "/member/participant",
-          };
-          // A signed-in person with another role goes to their hub — sending them to the
-          // login form made a valid session look like a failed sign-in.
-          const dest = redirectMap[role] || (role ? "/member" : "/login");
+          // Redirect identities that do not belong to the admin space to their
+          // own home. The destination is the one the login already computed
+          // (role home, then the space home); the neutral hub is the last resort,
+          // so a signed-in person is never sent back to the login form.
+          const dest =
+            roleHomeHref(role) || spaceHomeForRole(role) || (role ? "/member" : "/login");
           router.replace(dest);
           return;
         }

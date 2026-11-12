@@ -160,7 +160,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/lib/api/createHandler.js#M2",
   "src/lib/featureAccess.js#M4",
   "src/lib/identity.js#M4",
-  "src/lib/masterNavigation/builders.js#M3",
   "src/lib/notificationLinks.js#M4",
 
   "src/lib/ventureDeliverables.js#M3",

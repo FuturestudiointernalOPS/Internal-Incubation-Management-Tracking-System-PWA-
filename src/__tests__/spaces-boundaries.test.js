@@ -225,4 +225,55 @@ describe("the entry guard reads the registry", () => {
     expect(guard).toContain("@/spaces/registry");
     expect(guard).not.toContain("PERSONAL_IDENTITIES");
   });
+
+  test("the admin entry guard reads the registry, not a role label", () => {
+    const layout = read(path.join(ROOT, "app", "admin", "layout.js"));
+    expect(layout).toContain("@/spaces/registry");
+    // No second identity → space table, and no owner test of its own.
+    expect(layout).not.toContain("redirectMap");
+    expect(layout).not.toContain("isPlatformOwnerRole");
+  });
+
+  test("the navigation admin gate asks the registry, not the role name", () => {
+    const builders = read(path.join(ROOT, "lib", "masterNavigation", "builders.js"));
+    expect(builders).toContain('spaceForRole(role) === "admin"');
+    expect(builders).not.toContain('role === "super_admin"');
+  });
+});
+
+describe("the platform space follows rights, not a role table", () => {
+  const { default: modules, getActiveModules } = require("@/models/platform/registry");
+
+  test("every module names the right its API enforces", () => {
+    for (const entry of modules) {
+      expect(entry.capability).toBeTruthy();
+      expect(typeof entry.capability.module).toBe("string");
+      expect(typeof entry.capability.capability).toBe("string");
+    }
+  });
+
+  test("a module appears only when its right is held", () => {
+    const holds = (...owned) => ({ module: moduleKey, capability }) =>
+      owned.includes(`${moduleKey}.${capability}`);
+    const ids = (list) => list.map((entry) => entry.id);
+
+    expect(ids(getActiveModules("super_admin", holds("runs.view")))).toEqual([
+      "platform-dashboard",
+      "platform-runs",
+      "platform-scores",
+    ]);
+    expect(ids(getActiveModules("staff", holds("forms.view")))).toEqual([
+      "platform-forms",
+    ]);
+    // The staff default profile holds none of the platform rights: no door.
+    expect(getActiveModules("staff", holds())).toEqual([]);
+    // A module without a right is never offered through the predicate path.
+    expect(getActiveModules("super_admin", () => false)).toEqual([]);
+  });
+
+  test("the role table survives only for the catalogue screens", () => {
+    const registry = read(path.join(ROOT, "models", "platform", "registry.js"));
+    expect(registry).toContain("module.permissions.includes(role)");
+    expect(registry).toContain("No predicate: a catalogue screen asks the legacy role table");
+  });
 });

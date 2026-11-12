@@ -231,7 +231,10 @@ export function buildAccessNav(role, effective) {
   }
 
   const access = accessForRole(role);
-  const canOpenAdmin = role === "super_admin";
+  // The admin surface is a SPACE, not a role label: the registry is the only
+  // mapping from an identity to its space, so the gate asks it instead of
+  // comparing the role string here.
+  const canOpenAdmin = spaceForRole(role) === "admin";
   const roleHrefs = access.hrefs || {};
 
   const passes = (id) => {
