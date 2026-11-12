@@ -338,6 +338,51 @@ function routeUrl(file) {
 }
 
 
+// =============================================================================
+// GARDE 2b — le moteur de décision ne lit aucune valeur d'accès fournie par le
+// code. Les seeds restent des migrations ; la décision finale vient de la base.
+// =============================================================================
+
+describe("Garde 2b — le moteur de décision ne lit aucun seed", () => {
+  const DECISION_ENGINE_FILES = [
+    "src/services/authorization/context.js",
+    "src/services/authorization/contextResolver.js",
+    "src/services/authorization/contextDecisions.js",
+    "src/services/authorization/contextAccess.js",
+    "src/services/authorization/contextGrants.js",
+    "src/services/authorization/contextCache.js",
+    "src/server/authz/responses.js",
+    "src/server/authz/capabilities.js",
+  ];
+
+  const SEED_DEFAULTS = [
+    "FEATURE_ELIGIBILITY_DEFAULTS",
+    "FEATURE_ELIGIBILITY_PROFILE_DEFAULTS",
+    "PROGRAM_ASSIGNMENT_ROWS",
+    "PROFILE_CATALOGUE_SEED",
+    "ROLE_PROFILE_DEFAULTS_SEED",
+    "RESPONSIBILITY_FEATURE_ROLES",
+  ];
+
+  test("aucun fichier de décision n'importe une valeur de seed", () => {
+    const offenders = [];
+    for (const rel of DECISION_ENGINE_FILES) {
+      const abs = path.join(ROOT, rel);
+      if (!fs.existsSync(abs)) continue;
+      const src = fs.readFileSync(abs, "utf8");
+      for (const token of SEED_DEFAULTS) {
+        if (src.includes(token)) offenders.push(`${rel}#${token}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("l'avertissement de responsabilité n'a plus de repli code", () => {
+    const featureAccess = require("@/lib/featureAccess");
+    expect(featureAccess.defaultAllowedRoles).toBeUndefined();
+  });
+});
+
 describe("Garde 2 — chaque route API a une décision ou une déclaration publique", () => {
   test("aucune route sans décision ni déclaration", () => {
     const uncovered = [];
