@@ -4,7 +4,7 @@
  * Several suites pin the TEXT of one module (a route, a service, a screen): the
  * order of two calls, a guard that must run before a side effect, a string that
  * must never reappear. When that module is split for size — a service into
- * `formRuns/*.js`, a page into `components/platform/runs/*.js` — a guard that
+ * `formRuns/*.js`, a page into `components/shared/platform/runs/*.js` — a guard that
  * still read only the shim would go vacuously green: the pinned code would move
  * into a sibling file and the assertion would pass because the shim no longer
  * contains it. A guard that quietly stops guarding is worse than no guard.
@@ -54,7 +54,7 @@ function readPath(rel) {
  * The base file plus its same-named folder, plus any extra paths.
  *
  * @param {...string} rels e.g. `readSurface("src/services/platform/formRuns.js")`
- *   or `readSurface("src/app/platform/runs/page.js", "src/components/platform/runs")`
+ *   or `readSurface("src/app/platform/runs/page.js", "src/components/shared/platform/runs")`
  * @returns {string}
  */
 function readSurface(...rels) {

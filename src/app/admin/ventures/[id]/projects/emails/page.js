@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useParams } from "next/navigation";
-import ProjectReminderEmailsView from "@/components/ventures/projects/ProjectReminderEmailsView";
+import ProjectReminderEmailsView from "@/components/shared/ventures/console/projects/ProjectReminderEmailsView";
 
 /**
  * Super Admin → Ventures → [Venture] → Projects → Sent emails.

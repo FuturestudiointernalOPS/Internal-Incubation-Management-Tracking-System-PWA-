@@ -17,7 +17,7 @@ jest.mock("@/lib/hooks/useSessionUser", () => ({
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const ProjectsView = require("@/components/staff/ProjectsView").default;
+const ProjectsView = require("@/spaces/staff/core/components/ProjectsView").default;
 const { __push: push } = require("next/navigation");
 
 let calls;

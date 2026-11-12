@@ -6,15 +6,15 @@ import { CheckCircle2, AlertCircle } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
-import { STATUS_ORDER } from "@/components/admin/ventures/tasks/taskConstants";
-import VentureTasksHeader from "@/components/admin/ventures/tasks/VentureTasksHeader";
-import VentureTasksArchiveBar from "@/components/admin/ventures/tasks/VentureTasksArchiveBar";
-import VentureTasksArchived from "@/components/admin/ventures/tasks/VentureTasksArchived";
-import VentureTasksKanban from "@/components/admin/ventures/tasks/VentureTasksKanban";
-import VentureTasksListView from "@/components/admin/ventures/tasks/VentureTasksListView";
-import VentureTaskDrawer from "@/components/admin/ventures/tasks/VentureTaskDrawer";
-import VentureTaskModal from "@/components/admin/ventures/tasks/VentureTaskModal";
-import VentureTasksLoading from "@/components/admin/ventures/tasks/VentureTasksLoading";
+import { STATUS_ORDER } from "@/spaces/admin/components/ventures/tasks/taskConstants";
+import VentureTasksHeader from "@/spaces/admin/components/ventures/tasks/VentureTasksHeader";
+import VentureTasksArchiveBar from "@/spaces/admin/components/ventures/tasks/VentureTasksArchiveBar";
+import VentureTasksArchived from "@/spaces/admin/components/ventures/tasks/VentureTasksArchived";
+import VentureTasksKanban from "@/spaces/admin/components/ventures/tasks/VentureTasksKanban";
+import VentureTasksListView from "@/spaces/admin/components/ventures/tasks/VentureTasksListView";
+import VentureTaskDrawer from "@/spaces/admin/components/ventures/tasks/VentureTaskDrawer";
+import VentureTaskModal from "@/spaces/admin/components/ventures/tasks/VentureTaskModal";
+import VentureTasksLoading from "@/spaces/admin/components/ventures/tasks/VentureTasksLoading";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

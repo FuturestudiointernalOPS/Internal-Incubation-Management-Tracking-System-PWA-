@@ -18,7 +18,7 @@ const {
   PERMISSION_BASE,
   PERMISSION_NAV,
   routeSegmentFor,
-} = require("@/components/permissions/permissionNav");
+} = require("@/spaces/admin/permissions/permissionNav");
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
 
@@ -116,12 +116,12 @@ describe("UI-5 — navigation model", () => {
 
   test("there is exactly one navigation: no legacy tab bar survives", () => {
     const surface = [
-      "src/components/permissions/PermissionCenter.js",
-      "src/components/permissions/center/centerNav.js",
+      "src/spaces/admin/permissions/PermissionCenter.js",
+      "src/spaces/admin/permissions/center/centerNav.js",
       ...fs
-        .readdirSync(path.join(process.cwd(), "src/components/permissions/center/sections"))
+        .readdirSync(path.join(process.cwd(), "src/spaces/admin/permissions/center/sections"))
         .filter((name) => name.endsWith(".js"))
-        .map((name) => `src/components/permissions/center/sections/${name}`),
+        .map((name) => `src/spaces/admin/permissions/center/sections/${name}`),
     ]
       .map((file) => read(file))
       .join("\n");

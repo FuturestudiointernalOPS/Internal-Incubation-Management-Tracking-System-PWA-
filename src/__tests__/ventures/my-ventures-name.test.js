@@ -22,7 +22,7 @@ const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relative
 
 describe("My Ventures shows the company name", () => {
   test("the card resolves the name company_name-first", () => {
-    const src = read("src/app/participant/ventures/page.js");
+    const src = read("src/app/member/(contexts)/participant/ventures/page.js");
     expect(src).toMatch(/\{venture\.company_name \|\| venture\.name\}/);
     // The bare legacy column is never the card's title on its own.
     expect(src).not.toMatch(/<h3[^>]*>\{venture\.name\}<\/h3>/);

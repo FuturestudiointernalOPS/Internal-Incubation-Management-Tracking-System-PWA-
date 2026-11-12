@@ -9,5 +9,5 @@ export const dynamic = "force-dynamic";
 export default async function LegacyTimelineRedirect({ searchParams }) {
   const query = await searchParams;
   const cid = query?.cid;
-  redirect(cid ? `/crm/timeline?cid=${encodeURIComponent(cid)}` : "/crm/timeline");
+  redirect(cid ? `/staff/crm/timeline?cid=${encodeURIComponent(cid)}` : "/staff/crm/timeline");
 }

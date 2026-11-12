@@ -1,6 +1,6 @@
 "use client";
 
-import VenturesDirectory from "@/components/staff/VenturesDirectory";
+import VenturesDirectory from "@/spaces/staff/core/components/VenturesDirectory";
 
 /**
  * Staff → Ventures → All Ventures.

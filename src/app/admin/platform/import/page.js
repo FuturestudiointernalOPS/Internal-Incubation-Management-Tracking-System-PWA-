@@ -6,7 +6,7 @@ import { readSheet } from "read-excel-file/browser";
 import { gridToRows } from "@/lib/spreadsheet";
 import { parseCSVRows } from "@/lib/csv";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
-import ImportView from "@/components/admin/platform/import/ImportView";
+import ImportView from "@/spaces/admin/components/platform/import/ImportView";
 
 
 // Chunk size for the execute endpoint. Vercel serverless functions reject

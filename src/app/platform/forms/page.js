@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useApi } from "@/lib/hooks/useApi";
-import { useFormBuilder } from "@/components/platform/forms/hooks/useFormBuilder";
-import PlatformFormsView from "@/components/platform/forms/PlatformFormsView";
+import { useFormBuilder } from "@/components/shared/platform/forms/hooks/useFormBuilder";
+import PlatformFormsView from "@/components/shared/platform/forms/PlatformFormsView";
 
 const FORMS_URL = "/api/platform/forms";
 const COLLECTIONS_URL = "/api/platform/collections";

@@ -1,3 +1,5 @@
+import { spaceRedirects } from "./src/spaces/redirects.js";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -35,20 +37,13 @@ const nextConfig = {
       },
     ];
   },
-  async rewrites() {
-    return [
-      {
-        source: "/founder/ventures/:path*",
-        destination: "/participant/ventures/:path*",
-      },
-      {
-        source: "/founder/ventures",
-        destination: "/participant/ventures",
-      },
-    ];
-  },
+
   async redirects() {
     return [
+      // Every legacy space address → its new home. The list lives in a plain
+      // module so it can be tested; SPACE_REDIRECTS_PERMANENT flips the whole
+      // set from temporary (307, reversible) to permanent (308, cached).
+      ...spaceRedirects(),
       {
         source: "/sa-hq-sp-2026-v1/:path*",
         destination: "/admin",

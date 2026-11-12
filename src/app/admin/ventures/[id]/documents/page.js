@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import VentureDataRoom from "@/components/ventures/data-room/VentureDataRoom";
+import VentureDataRoom from "@/components/shared/ventures/console/data-room/VentureDataRoom";
 
 /**
  * SUPER ADMIN → one Venture → Data Room.

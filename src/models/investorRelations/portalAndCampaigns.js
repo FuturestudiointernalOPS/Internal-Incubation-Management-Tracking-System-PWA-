@@ -313,7 +313,7 @@ export async function notifyInvestorOfNewCampaign(recipientId, title, message) {
   return db.execute({
     sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
                     VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
-    args: [recipientId, title, message, "/investor/dashboard?tab=discover"],
+    args: [recipientId, title, message, "/member/investor/dashboard?tab=discover"],
   });
 }
 
@@ -340,6 +340,6 @@ export async function notifyInvestorOfFundingMilestone(recipientId, title, messa
   return db.execute({
     sql: `INSERT INTO v2_notifications (recipient_id, title, message, type, is_read, created_at, link)
                     VALUES (?, ?, ?, 'investor', 0, NOW(), ?)`,
-    args: [recipientId, title, message, "/investor/dashboard?tab=watchlist"],
+    args: [recipientId, title, message, "/member/investor/dashboard?tab=watchlist"],
   });
 }

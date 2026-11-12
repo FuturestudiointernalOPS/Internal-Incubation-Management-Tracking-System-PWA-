@@ -69,7 +69,8 @@ const publicPaths = [
   "/join",
   "/open",
   "/verify",
-  "/investor/setup-password",
+  "/member/investor/setup-password",
+  "/investor/setup-password", // legacy address, kept for the redirect
   "/s",
   "/_next",
   "/brand",
@@ -139,14 +140,16 @@ const publicApiPaths = [
 // Includes /api/participant and /api/notifications so routes with their own
 // requireAuth() check can handle auth themselves instead of being blocked here.
 const softAuthPaths = [
-  "/participant",
+  "/member/participant",
+  "/participant", // legacy address, kept so its redirect is not masked by auth
   "/api/participant",
   "/api/notifications",
   "/api/dashboard",
   "/api/engineering",
   "/api/user-groups",
   "/api/migrate",
-  "/finance",
+  "/finance", // legacy address, kept for the redirect to the staff space
+  "/staff/finance",
   "/api/finance",
 ];
 

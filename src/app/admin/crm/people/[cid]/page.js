@@ -8,5 +8,5 @@ export const dynamic = "force-dynamic";
  */
 export default async function LegacyPersonRedirect({ params }) {
   const { cid } = await params;
-  redirect(`/crm/people/${encodeURIComponent(cid)}`);
+  redirect(`/staff/crm/people/${encodeURIComponent(cid)}`);
 }

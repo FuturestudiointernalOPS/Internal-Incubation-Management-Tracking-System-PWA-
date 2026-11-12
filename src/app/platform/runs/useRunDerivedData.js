@@ -6,8 +6,8 @@ import {
   EMAIL_PAGE_SIZE,
   RETRYABLE_EMAIL_STATUSES,
   TRACKING_FILTERS,
-} from "@/components/platform/runs/constants";
-import { accountStatusOf, fmtAnswer } from "@/components/platform/runs/helpers";
+} from "@/components/shared/platform/runs/constants";
+import { accountStatusOf, fmtAnswer } from "@/components/shared/platform/runs/helpers";
 
 /**
  * Everything the open Execution DERIVES from its own reads and filter state:

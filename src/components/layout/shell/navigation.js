@@ -5,9 +5,9 @@ import { holdsProfile, normalizeRole, PROGRAM_MANAGER_PROFILE } from "@/lib/iden
 // profile page server-side. `program_manager` stays for the D-1 rollback.
 const PROFILE_SECTION = {
   super_admin: "admin",
-  program_manager: "pm",
-  facilitator: "facilitator",
-  investor: "investor",
+  program_manager: "staff/program-manager",
+  facilitator: "member/facilitator",
+  investor: "member/investor",
 };
 
 /**
@@ -18,8 +18,8 @@ const PROFILE_SECTION = {
 function profileHrefFor(role, profiles = []) {
   const section =
     holdsProfile(profiles, PROGRAM_MANAGER_PROFILE) && normalizeRole(role) === "staff"
-      ? "pm"
-      : PROFILE_SECTION[normalizeRole(role)] || "participant";
+      ? "staff/program-manager"
+      : PROFILE_SECTION[normalizeRole(role)] || "member/participant";
   return `/${section}/profile`;
 }
 

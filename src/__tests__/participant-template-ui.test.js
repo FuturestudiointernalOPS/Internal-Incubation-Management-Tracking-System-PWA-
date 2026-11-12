@@ -27,7 +27,7 @@ jest.mock("@/lib/hooks/useApi", () => ({
   useApiMulti: () => ({ data: {}, loading: false, error: null }),
 }));
 const { default: ParticipantCommandCalendar, calendarRange, placeCalendarItems } = require("@/components/ui/ParticipantCommandCalendar");
-const ParticipantDashboardHome = require("@/components/dashboard/ParticipantDashboardHome").default;
+const ParticipantDashboardHome = require("@/components/shared/dashboard/ParticipantDashboardHome").default;
 
 beforeEach(() => { mockRole = "participant"; mockInvestor = false; jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-08T12:00:00Z")); });
 afterEach(() => { cleanup(); jest.useRealTimers(); });
@@ -49,7 +49,7 @@ test("official events remain read-only and keep their existing program route", (
   render(<ParticipantCommandCalendar events={[{ id: 1, date: "2026-10-08", title: "Official session", type: "session", programId: "p1" }]} />);
   fireEvent.click(screen.getByRole("button", { name: /Official session/ }));
   const dialog = within(screen.getByRole("dialog"));
-  expect(dialog.getByRole("link", { name: "Open details" }).getAttribute("href")).toBe("/participant/p1");
+  expect(dialog.getByRole("link", { name: "Open details" }).getAttribute("href")).toBe("/member/participant/p1");
   expect(dialog.queryByRole("button", { name: "Delete" })).toBeNull();
 });
 test("local reminder validates duration, can be added, and is found by search", () => {
@@ -72,7 +72,7 @@ test("local reminder validates duration, can be added, and is found by search", 
 test("dashboard keeps course links and omits the removed shortcut and ritual sections", () => {
   render(<ParticipantDashboardHome />);
   expect(screen.getByText("Welcome back, Amina")).toBeTruthy();
-  expect(screen.getByRole("link", { name: /Real course/ }).getAttribute("href")).toBe("/participant/learning/course1");
+  expect(screen.getByRole("link", { name: /Real course/ }).getAttribute("href")).toBe("/member/participant/learning/course1");
   expect(screen.queryByRole("link", { name: /Assignments/ })).toBeNull();
   expect(screen.queryByRole("heading", { name: /Shortcuts|My rituals/ })).toBeNull();
   expect(screen.queryByRole("link", { name: /Messages/ })).toBeNull();

@@ -1,0 +1,38 @@
+import { redirect } from "next/navigation";
+import { getSession } from "@/server/auth/session";
+import { hasAnyFacilitatorAssignment } from "@/models/authorization/accessQueries";
+import { roleHomeHref } from "@/models/platform/roles";
+import { isPlatformOwnerRole } from "@/lib/identity";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * Facilitator area gate (server-side).
+ *
+ * Access to /member/facilitator/* is granted only to:
+ *   - super admins (system-defined global access), or
+ *   - users who hold at least one v2_program_staff facilitator assignment.
+ *
+ * Anyone else is redirected to their own role home — typing/editing the URL
+ * does not grant access to this dashboard or its features.
+ */
+export default async function FacilitatorLayout({ children }) {
+  const session = await getSession();
+  if (!session) redirect("/login");
+
+  if (!isPlatformOwnerRole(session.role)) {
+    const assigned = await hasAnyFacilitatorAssignment(
+      session.cid,
+      session.email,
+    );
+    if (!assigned) {
+      const home = roleHomeHref(session.role) || "/member";
+      // A facilitator-role user WITHOUT an assignment must never be sent to
+      // their own role home (/facilitator) — that is an infinite redirect.
+      // Send them to the neutral workspace hub instead.
+      redirect(home === "/member/facilitator" ? "/member" : home);
+    }
+  }
+
+  return children;
+}

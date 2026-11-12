@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
-import ResponsesRetargetModal from "@/components/admin/communications/responses/ResponsesRetargetModal";
+import ResponsesRetargetModal from "@/spaces/admin/components/communications/responses/ResponsesRetargetModal";
 
 const RESPONSE_STATUS_LABELS = {
   pending_response: "crm.responses.statusPendingResponse",
@@ -43,7 +43,7 @@ const pickGlobalContacts = (payload) => (payload?.success ? payload.contacts || 
 export default function ResponsesPage() {
   const router = useRouter();
   const { t } = useI18n();
-  const goBack = useSafeBack("/crm");
+  const goBack = useSafeBack("/staff/crm");
 
   // Both reads' loaders — cache-first paint, discarding a stale response, the
   // background refresh — belong to the hook, so the screen keeps no data state
@@ -187,7 +187,7 @@ export default function ResponsesPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToPrevious")}
           </button>
-          <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <Link href="/staff/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t("crm.backToCrm")}
           </Link>

@@ -60,7 +60,7 @@ export default function HomePage() {
     if (storedSession === undefined || storedUser === undefined) return;
     if (storedSession === "prime-2026-active") { router.replace("/admin"); return; }
     const user = readUser(storedUser);
-    if (user) router.replace(user.home || roleHomeHref(user.role) || "/workspaces");
+    if (user) router.replace(user.home || roleHomeHref(user.role) || "/member");
   }, [storedUser, storedSession, router]);
 
   if (!resolved || user) {

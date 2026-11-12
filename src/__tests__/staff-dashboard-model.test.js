@@ -9,7 +9,7 @@ const {
   operationTotals,
   todayTasks,
   uniquePrograms,
-} = require("@/components/staff/dashboardModel");
+} = require("@/components/shared/dashboardModel");
 
 const monday = new Date(2026, 9, 5); // Mon 5 Oct 2026 — ISO week 41
 const friday = new Date(2026, 9, 9);

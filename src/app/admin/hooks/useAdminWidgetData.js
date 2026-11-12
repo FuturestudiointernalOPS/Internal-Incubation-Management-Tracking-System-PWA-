@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { isPlatformOwnerRole } from "@/lib/identity";
-import { formatDate, getCalendarDays } from "@/components/admin/dashboard-page/constants";
+import { formatDate, getCalendarDays } from "@/spaces/admin/components/dashboard-page/constants";
 
 // `externalItems`: extra read-only calendar entries (events from the user's
 // "Future Studio" Google Calendar), merged into the calendar only.

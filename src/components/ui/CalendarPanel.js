@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Calendar, X, Clock } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { cn } from "@/lib/cn";
 
 // ─── HELPERS ───────────────────────────────────────────────────────────────
 
@@ -61,9 +62,6 @@ const EVENT_DOTS = {
   event: "bg-sky-400",
 };
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
 
 /**
  * CalendarPanel — reusable compact calendar component.

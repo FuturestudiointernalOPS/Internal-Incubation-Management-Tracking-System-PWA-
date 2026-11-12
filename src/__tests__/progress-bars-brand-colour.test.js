@@ -9,7 +9,7 @@ test("the colour is one token, defined once, and it is the brand colour", () => 
 });
 
 test("the kit's progress bar (journeys, dashboards, projects, all roles) fills with it", () => {
-  const css = read("src/components/staff/staff.css");
+  const css = read("src/components/shared/kit/staff.css");
   expect(css).toMatch(/\.stf-bar-prog i \{[^}]*background: var\(--progress-fill\)/);
   expect(css).not.toMatch(/\.stf-bar-prog i \{[^}]*gradient/);
 });
@@ -19,8 +19,8 @@ test("the Super Admin venture screens use it too, whatever the percentage", () =
     "src/app/admin/ventures/[id]/knowledge/page.js",
     "src/app/admin/ventures/[id]/reports/page.js",
     "src/app/admin/ventures/[id]/fundraising/page.js",
-    "src/components/ventures/timeline/VentureTimelineView.js",
-    "src/components/ventures/workspace/tabs/GrowthTabs.js",
+    "src/components/shared/ventures/console/timeline/VentureTimelineView.js",
+    "src/components/shared/ventures/console/workspace/tabs/GrowthTabs.js",
   ]) {
     const source = read(file);
     expect(source).toContain("--progress-fill");

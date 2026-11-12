@@ -11,14 +11,14 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import { cn } from "@/components/platform/collections/helpers";
-import { STATUS_CONFIG } from "@/components/platform/collections/constants";
-import CollectionsHeader from "@/components/platform/collections/CollectionsHeader";
-import CollectionsToolbar from "@/components/platform/collections/CollectionsToolbar";
-import CollectionsTreeView from "@/components/platform/collections/CollectionsTreeView";
-import CollectionsGridView from "@/components/platform/collections/CollectionsGridView";
-import CollectionFormModal from "@/components/platform/collections/CollectionFormModal";
-import ArchiveConfirmModal from "@/components/platform/collections/ArchiveConfirmModal";
+import { cn } from "@/lib/cn";
+import { STATUS_CONFIG } from "@/components/shared/platform/collections/constants";
+import CollectionsHeader from "@/components/shared/platform/collections/CollectionsHeader";
+import CollectionsToolbar from "@/components/shared/platform/collections/CollectionsToolbar";
+import CollectionsTreeView from "@/components/shared/platform/collections/CollectionsTreeView";
+import CollectionsGridView from "@/components/shared/platform/collections/CollectionsGridView";
+import CollectionFormModal from "@/components/shared/platform/collections/CollectionFormModal";
+import ArchiveConfirmModal from "@/components/shared/platform/collections/ArchiveConfirmModal";
 
 /**
  * PLATFORM COLLECTIONS

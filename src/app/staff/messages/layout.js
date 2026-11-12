@@ -1,6 +1,6 @@
 import { getSession } from "@/server/auth/session";
 import { can } from "@/models/authorization/index";
-import MessagingAccessDenied from "@/components/messaging/MessagingAccessDenied";
+import MessagingAccessDenied from "@/components/shared/messaging/MessagingAccessDenied";
 
 export const dynamic = "force-dynamic";
 

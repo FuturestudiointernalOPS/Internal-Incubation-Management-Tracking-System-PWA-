@@ -15,11 +15,11 @@ const path = require("path");
 const {
   deriveUserCapState,
   deriveDenialReason,
-} = require("@/components/permissions/matrixHelpers/state");
+} = require("@/spaces/admin/permissions/matrixHelpers/state");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
-const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
+const { CENTER_TABS } = require("@/spaces/admin/permissions/center/centerNav");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
@@ -93,7 +93,7 @@ describe("UI-2b — screen wiring", () => {
   });
 
   test("the person detail reads the real decision endpoints", () => {
-    const src = read("src/components/permissions/center/sections/PersonDetail.js");
+    const src = read("src/spaces/admin/permissions/center/sections/PersonDetail.js");
     expect(src).toContain("/api/engineering/permissions/user-context?cid=");
     expect(src).toContain("/api/engineering/permissions/scope-check?policy=");
   });

@@ -13,7 +13,7 @@
  *
  * Rules:
  * - A node (concept) exists exactly once, identified by its stable `id`.
- * - Route differences between roles (e.g. /admin/programs vs /pm/programs)
+ * - Route differences between roles (e.g. /admin/programs vs /staff/program-manager/programs)
  *   are a ROUTING concern, resolved via ROLE_ACCESS.hrefs — never by
  *   duplicating the node.
  * - ROLE_ACCESS contains only pointers (ordered id arrays) and overrides —

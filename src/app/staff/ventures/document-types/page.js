@@ -2,7 +2,7 @@
 
 export const dynamic = "force-dynamic";
 
-import VentureDocumentTypePicker from "@/components/ventures/VentureDocumentTypePicker";
+import VentureDocumentTypePicker from "@/components/shared/ventures/console/VentureDocumentTypePicker";
 
 /**
  * LEAD MANAGER → VENTURES → DATA BANK DOCUMENTS

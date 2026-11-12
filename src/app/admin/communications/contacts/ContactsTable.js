@@ -13,7 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { TableSkeleton } from "@/components/ui/Skeleton";
-import WhatsAppAction from "@/components/crm/WhatsAppAction";
+import WhatsAppAction from "@/components/shared/crm/WhatsAppAction";
 import {
   CONTACT_STATUS_LABELS,
   INVITATION_STATUS_LABELS,

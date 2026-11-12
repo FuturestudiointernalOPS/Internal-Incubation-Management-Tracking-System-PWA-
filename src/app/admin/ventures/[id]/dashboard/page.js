@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useParams } from "next/navigation";
-import VentureDashboard from "@/components/ventures/VentureDashboard";
+import VentureDashboard from "@/components/shared/ventures/console/VentureDashboard";
 
 /**
  * /admin/ventures/[id]/dashboard — standalone full Venture dashboard.

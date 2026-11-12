@@ -7,7 +7,7 @@ import {
   ArrowRight,
   Activity,
 } from "lucide-react";
-import StandupRetroView from "@/components/dashboard/StandupRetroView";
+import StandupRetroView from "@/components/shared/dashboard/StandupRetroView";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";

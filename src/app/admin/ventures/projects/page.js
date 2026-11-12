@@ -10,7 +10,7 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import AppEmptyState from "@/components/ui/AppEmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import VentureStatusBadge from "@/components/ventures/VentureStatusBadge";
+import VentureStatusBadge from "@/components/shared/ventures/console/VentureStatusBadge";
 
 /**
  * Ventures -> Project Management : choose the Venture.

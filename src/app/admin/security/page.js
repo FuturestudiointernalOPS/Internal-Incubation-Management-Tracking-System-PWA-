@@ -12,13 +12,13 @@ import {
   Activity,
 } from "lucide-react";
 import { useApi } from "@/lib/hooks/useApi";
-import { formatDate } from "@/components/admin/security/constants";
-import SecurityHeader from "@/components/admin/security/SecurityHeader";
-import SecurityTabs from "@/components/admin/security/SecurityTabs";
-import SecurityOverviewTab from "@/components/admin/security/SecurityOverviewTab";
-import SecuritySessionsTab from "@/components/admin/security/SecuritySessionsTab";
-import SecurityEventsTab from "@/components/admin/security/SecurityEventsTab";
-import SecurityConfirmDialog from "@/components/admin/security/SecurityConfirmDialog";
+import { formatDate } from "@/spaces/admin/components/security/constants";
+import SecurityHeader from "@/spaces/admin/components/security/SecurityHeader";
+import SecurityTabs from "@/spaces/admin/components/security/SecurityTabs";
+import SecurityOverviewTab from "@/spaces/admin/components/security/SecurityOverviewTab";
+import SecuritySessionsTab from "@/spaces/admin/components/security/SecuritySessionsTab";
+import SecurityEventsTab from "@/spaces/admin/components/security/SecurityEventsTab";
+import SecurityConfirmDialog from "@/spaces/admin/components/security/SecurityConfirmDialog";
 
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and

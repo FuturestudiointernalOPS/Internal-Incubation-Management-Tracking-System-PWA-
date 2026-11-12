@@ -106,8 +106,8 @@ jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: jest.fn() }),
 }));
 
-const LearnerCourse = require("@/components/lms/LearnerCourse").default;
-const LearnerPlayer = require("@/components/lms/LearnerPlayer").default;
+const LearnerCourse = require("@/components/shared/lms/LearnerCourse").default;
+const LearnerPlayer = require("@/components/shared/lms/LearnerPlayer").default;
 
 describe("LearnerCourse — description, material and folded sections", () => {
   test("the course description and a section's description/material are always shown", () => {

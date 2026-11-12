@@ -31,12 +31,9 @@ import {
 } from "lucide-react";
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
-import {
-  carriesContextualValue,
-  isInternalStaffRole,
-  isLegacyProgramManagerRole,
-  isPlatformOwnerRole,
-} from "@/lib/identity";
+import { isPlatformOwnerRole } from "@/lib/identity";
+import { composeMemberNav } from "@/spaces/member/contexts";
+import { hasStaffContext } from "@/spaces/staff/contexts";
 import { useApi } from "@/lib/hooks/useApi";
 
 // Resolve icon names from the master navigation module into components.
@@ -147,63 +144,17 @@ export function useDashboardNavigation({
     // from an actual course enrollment, programs/certificates only for program
     // participants, ventures only for venture members.
     if (PERSONAL_ROLES.includes(activeRole)) {
-      const rel = relationships || {
-        isProgramParticipant: false,
-        isVentureMember: false,
-        isFounder: false,
-        isInvestor: false,
-        ventures: [],
-      };
-      // Investors use Investor Space as their home. Other personal accounts
-      // keep the common participant dashboard, and team accounts keep /team.
-      const dashboardHref = activeRole === "team" ? "/team" : (rel.isFounder ? "/founder" : "/participant");
-      const investorAccount =
-        carriesContextualValue(activeRole, "investor") || rel.isInvestor;
-      const items = investorAccount ? [] : [
-        { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
-      ];
-      // The learner door. It opens from an actual enrollment — the LMS decides
-      // access server-side — never from belonging to a program: someone who
-      // subscribed to a course on the website holds no program and no venture.
-      if (hasLmsEnrollments === true) {
-        items.push({
-          id: "learning",
-          name: "MY LEARNING",
-          icon: GraduationCap,
-          href: "/participant/learning",
-        });
-      }
-      if (rel.isProgramParticipant) {
-        items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
-        items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
-      }
-      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
-      if (rel.isVentureMember) {
-        // A founder's venture door sits with their program doors (the founder
-        // nav contract reads Dashboard → Programs → Ventures → Timeline),
-        // not buried after every participant item. Team members keep the
-        // additive arrangement: their venture door comes last.
-        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/founder/ventures" };
-        if (rel.isFounder) {
-          const progIndex = items.findIndex((navItem) => navItem.id === "programs");
-          items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);
-        } else {
-          items.push(ventureDoor);
-        }
-      }
-      if (rel.isFounder) {
-        items.push({ id: "founder_meetings", name: "MEETINGS", icon: Calendar, href: "/founder/meetings" });
-      }
-      // The investor context: an APPROVED investor profile is a relationship the
-      // baseline badge cannot carry, so a "member" who was taken as an investor
-      // gets their investor space here — exactly like the program and venture
-      // doors, driven by what the server resolved for this person, never by the
-      // role string.
-      if (investorAccount) {
-        items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
-        items.push({ id: "investor_deal_flow", name: "DEAL FLOW", icon: Briefcase, href: "/investor/deal-flow" });
-      }
-      return items;
+      // Every rule about WHAT a member context is, and which doors it opens,
+      // lives in the member space itself (src/spaces/member/contexts.js). This
+      // hook no longer carries a second copy of the product's rules.
+      return attachIcons(
+        composeMemberNav({
+          role: activeRole,
+          rel: relationships,
+          hasCourse: hasLmsEnrollments === true,
+          canReadMessages,
+        }),
+      );
     }
 
     // SIDEBAR ADDITION — the ventures console appears when this staff member
@@ -211,18 +162,13 @@ export function useDashboardNavigation({
     // they hold the portfolio right. Both are capability/relationship facts, so
     // the menu can never offer a door the API would refuse.
     const withVentureConsole = (list) => {
-      if (
-        !isInternalStaffRole(activeRole) &&
-        !isLegacyProgramManagerRole(activeRole)
-      ) {
-        return list;
-      }
+      const leadManager = hasStaffContext(
+        { role: activeRole, ventureAssignCount },
+        "lead-manager",
+      );
       const canViewAll = hasCapability(effectiveCaps, "ventures", "view_all");
       const canConfigure = hasCapability(effectiveCaps, "ventures", "setup", 3);
-      const hasAssignments =
-        typeof ventureAssignCount === "number" && ventureAssignCount > 0;
-      if (!hasAssignments && !canViewAll) return list;
-
+      if (!leadManager && !canViewAll) return list;
       const next = list.slice();
       const insertAfter = (afterId, item) => {
         if (next.some((navItem) => navItem.id === item.id)) return;
@@ -237,7 +183,7 @@ export function useDashboardNavigation({
         next.splice(insertAt, 0, item);
       };
 
-      if (hasAssignments) {
+      if (leadManager) {
         insertAfter("dashboard", {
           id: "ventures",
           name: "MY VENTURES",
@@ -277,7 +223,7 @@ export function useDashboardNavigation({
     // A non-empty manager list is what opens the manager sub-menu: the shell
     // only reads it for someone carrying the program-manager profile, and it
     // is empty for a manager who manages none.
-    if (pmPrograms.length > 0) {
+    if (hasStaffContext({ pmPrograms }, "program-manager")) {
       const progIndex = items.findIndex((navItem) => navItem.id === "programs");
       if (progIndex !== -1) {
         const baseSubItems =
@@ -295,11 +241,11 @@ export function useDashboardNavigation({
                 },
               ]
             : [
-                { id: "all_programs", name: "OVERVIEW", href: "/pm/programs" },
+                { id: "all_programs", name: "OVERVIEW", href: "/staff/program-manager/programs" },
                 {
                   id: "submissions",
                   name: "SUBMISSIONS",
-                  href: "/pm/submissions",
+                  href: "/staff/program-manager/submissions",
                 },
               ];
 

@@ -57,7 +57,7 @@ describe("resolveEffectiveRole — FUTURE STUDIO group = internal staff", () => 
   test("D-1 — a staff identity with the PM profile lands in the PM space", () => {
     expect(
       resolveLanding({ role: "staff", profiles: ["program_manager"] }),
-    ).toBe("/pm");
+    ).toBe("/staff/program-manager");
     expect(resolveLanding({ role: "staff", profiles: [] })).toBe("/staff");
   });
 

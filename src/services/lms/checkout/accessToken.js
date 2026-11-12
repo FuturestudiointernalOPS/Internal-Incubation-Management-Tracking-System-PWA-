@@ -57,7 +57,7 @@ export function accessWindowOpen(registration) {
 }
 
 function learningPath(courseId) {
-  return `/participant/learning/${courseId}`;
+  return `/member/participant/learning/${courseId}`;
 }
 
 export function loginUrl(courseId) {

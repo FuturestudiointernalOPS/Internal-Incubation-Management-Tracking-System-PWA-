@@ -129,12 +129,12 @@ export function resolveEffectiveRole({
  */
 export const ROLE_HOME = {
   super_admin: "/admin",
-  program_manager: "/pm",
+  program_manager: "/staff/program-manager",
   staff: "/staff",
-  facilitator: "/facilitator",
-  participant: "/participant",
-  finance: "/finance",
-  investor: "/investor/dashboard",
+  facilitator: "/member/facilitator",
+  participant: "/member/participant",
+  finance: "/staff/finance",
+  investor: "/member/investor/dashboard",
 };
 
 export function roleHomeHref(role) {
@@ -172,7 +172,7 @@ export function landingNeedsRelationships(role) {
   const home = roleHomeHref(normalizedRole);
   // No section of its own, or the Participant surface: both are decided by the
   // person's actual enrollments/memberships.
-  return !home || home === "/participant";
+  return !home || home === "/member/participant";
 }
 
 /**
@@ -187,8 +187,12 @@ export function landingNeedsRelationships(role) {
  *   2. Everyone else lives in the PERSONAL world, where the RELATIONSHIPS
  *      decide. Founding exactly one active Venture is the case the product
  *      wants to land directly inside it. That is a fact about what the person
- *      OWNS, and the baseline badge ("member") cannot express it — which is why
+ *      The baseline badge ("member") cannot express it — which is why
  *      the old badge-keyed shortcut only ever fired for legacy accounts.
+ *      Founding SEVERAL active Ventures is deliberately left unresolved: the
+ *      rule refuses to choose one of them for the person. They get the neutral
+ *      hub (which lists every context they hold), or the Participant page when
+ *      they are also enrolled in a programme.
  *      Being MADE an investor (an approved investor context) is the same kind
  *      of fact, so it lands in the investor space for the same reason.
  *
@@ -218,7 +222,7 @@ export function resolveLanding({
 
   // An entity login IS the account (a team, a family), not a person whose
   // relationships would be read — it keeps its own space.
-  if (normalizedRole === "team") return teamId ? `/team/${teamId}` : "/team";
+  if (normalizedRole === "team") return teamId ? `/member/team/${teamId}` : "/member/team";
 
   // D-1 — a staff identity carrying the program-manager PROFILE works in the
   // PM space. The hidden role default still lands there through ROLE_HOME.
@@ -230,11 +234,11 @@ export function resolveLanding({
   if (!landingNeedsRelationships(normalizedRole)) return home;
 
   const owned = (ventures || []).filter((venture) => isActiveVenture(venture) && isFounderMembership(venture));
+  // Exactly one active Venture: the product wants to land inside it. Several:
+  // the rule refuses to pick one, so it falls through to the hub below (or to
+  // the Participant page when the person is also enrolled in a programme).
   if (owned.length === 1 && owned[0].venture_id) {
-    return `/founder/ventures/${owned[0].venture_id}`;
-  }
-  if (owned.length > 1) {
-    return "/founder/ventures";
+    return `/member/participant/ventures/${owned[0].venture_id}`;
   }
 
   // An approved investor context is a relationship the badge cannot carry:
@@ -245,9 +249,9 @@ export function resolveLanding({
   // THE PARTICIPANT PAGE IS A PROGRAM SEAT. Only an actual enrollment hands
   // out that destination; without one the person is offered the neutral hub,
   // which lists the contexts they really hold and refuses nobody.
-  if (!isProgramParticipant) return "/workspaces";
+  if (!isProgramParticipant) return "/member";
 
-  return home || "/participant";
+  return home || "/member/participant";
 }
 
 /**

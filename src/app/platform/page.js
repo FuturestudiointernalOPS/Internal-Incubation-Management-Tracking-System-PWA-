@@ -3,8 +3,7 @@
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
 import { FileText, BarChart3, FolderKanban, CheckCircle2, Clock, Activity } from "lucide-react";
-
-function cn(...classes) { return classes.filter(Boolean).join(" "); }
+import { cn } from "@/lib/cn";
 
 // Module scope on purpose: the hook keys its internal callback on this array and
 // on the transforms it carries, so inline values would give them a new identity

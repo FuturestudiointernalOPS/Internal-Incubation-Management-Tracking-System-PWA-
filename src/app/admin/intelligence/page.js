@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import IntelligenceView from "@/components/admin/intelligence/IntelligenceView";
+import IntelligenceView from "@/spaces/admin/components/intelligence/IntelligenceView";
 
 export default function IntelligencePage() {
   const router = useRouter();

@@ -7,12 +7,12 @@ import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
 
-import ReviewHeader from "@/components/platform/runs/review/ReviewHeader";
-import ApplicantSection from "@/components/platform/runs/review/ApplicantSection";
-import ApplicationSection from "@/components/platform/runs/review/ApplicationSection";
-import AIEvaluationSection from "@/components/platform/runs/review/AIEvaluationSection";
-import DecisionSection from "@/components/platform/runs/review/DecisionSection";
-import HistorySection from "@/components/platform/runs/review/HistorySection";
+import ReviewHeader from "@/components/shared/platform/runs/review/ReviewHeader";
+import ApplicantSection from "@/components/shared/platform/runs/review/ApplicantSection";
+import ApplicationSection from "@/components/shared/platform/runs/review/ApplicationSection";
+import AIEvaluationSection from "@/components/shared/platform/runs/review/AIEvaluationSection";
+import DecisionSection from "@/components/shared/platform/runs/review/DecisionSection";
+import HistorySection from "@/components/shared/platform/runs/review/HistorySection";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -317,7 +317,7 @@ export default function ReviewPage() {
         />
 
         {(() => {
-          const AIEvaluationSection = require("@/components/platform/runs/review/AIEvaluationSection").default;
+          const AIEvaluationSection = require("@/components/shared/platform/runs/review/AIEvaluationSection").default;
           return (
             <AIEvaluationSection
               evaluation={evaluation}

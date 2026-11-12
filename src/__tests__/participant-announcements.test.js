@@ -1,7 +1,7 @@
 /** @jest-environment jsdom */
 import React from "react";
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
-import ParticipantAnnouncementsPage from "@/app/participant/announcements/page";
+import ParticipantAnnouncementsPage from "@/app/member/(contexts)/participant/announcements/page";
 const mockRefresh = jest.fn();
 const mockAlert = jest.fn();
 const mockData = { success: true, recipientId: "p1", announcements: [

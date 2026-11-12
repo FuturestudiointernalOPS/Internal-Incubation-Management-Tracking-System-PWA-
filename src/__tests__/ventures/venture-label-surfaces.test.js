@@ -53,7 +53,7 @@ describe("a Venture is named company_name-first everywhere", () => {
       "src/models/ventureMemberInvitations.js",
       "src/models/authorization/contactContexts.js",
       "src/services/ventures/reports.js",
-      "src/app/participant/ventures/page.js",
+      "src/app/member/(contexts)/participant/ventures/page.js",
     ]) {
       const src = read(file);
       expect(src).not.toMatch(/COALESCE\(NULLIF\(name, ''\), company_name/);

@@ -144,7 +144,7 @@ export default function ParticipantCommandCalendar({ events = [], addRequest }) 
       {selected && <div className="space-y-4"><p className="text-sm text-[var(--text-secondary)]">{selected.date} · {selected.time}{selected.end ? ` – ${selected.end}` : ""}</p><p className="text-sm text-[var(--text-secondary)]">{selected.description || selected.place}</p>{selected.local ? <>
         {selected.kind === "task" && <AppSelect label={t("participant.template.calendar.statusFilter")} value={selected.status} onChange={event => { const next = { ...selected, status: event.target.value }; setPersonal(previous => previous.map(item => item.id === next.id ? next : item)); setSelected(next); }} options={STATUSES.map(value => ({ value, label: t(`participant.template.calendar.statuses.${value}`) }))} />}
         <AppButton variant="danger" onClick={async () => { if (await confirm({ message: t("participant.template.calendar.deleteConfirm"), tone: "danger" })) { setPersonal(previous => previous.filter(item => item.id !== selected.id)); setSelected(null); } }}>{t("common.delete")}</AppButton>
-      </> : <Link className="text-sm font-bold text-[var(--brand-orange)]" href={selected.programId ? `/participant/${selected.programId}` : "/participant/assignments"}>{t("participant.template.calendar.openDetails")}</Link>}</div>}
+      </> : <Link className="text-sm font-bold text-[var(--brand-orange)]" href={selected.programId ? `/member/participant/${selected.programId}` : "/member/participant/assignments"}>{t("participant.template.calendar.openDetails")}</Link>}</div>}
     </AppModal>
   </AppCard>;
 }
