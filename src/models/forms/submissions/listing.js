@@ -25,12 +25,14 @@ export async function listSubmissions({
 }) {
   let sql = `
        SELECT s.*,
-              d.title as deliverable_title,
-              d.week_number as deliverable_week,
-              d.due_date as deliverable_due_date,
+              COALESCE(d.title, r.title) as deliverable_title,
+              COALESCE(d.week_number, r.week_number) as deliverable_week,
+              COALESCE(d.due_date::text, r.due_date) as deliverable_due_date,
               c.name as participant_name, g.name as group_name
        FROM v2_submissions s
        LEFT JOIN v2_deliverables d ON s.deliverable_id::text = d.id::text
+       -- Program deliverables live in v2_document_requirements (document_id).
+       LEFT JOIN v2_document_requirements r ON s.document_id IS NOT NULL AND r.id = s.document_id
        LEFT JOIN contacts c ON s.participant_id::text = c.cid
        LEFT JOIN v2_groups g ON s.group_id::text = g.id::text
        WHERE 1=1

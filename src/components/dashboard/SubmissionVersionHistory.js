@@ -285,8 +285,14 @@ export default function SubmissionVersionHistory({
   // refused with, and a request that never got an answer.
   let error = null;
   if (history.failed) {
-    const key = getServerErrorKey(history.failure);
-    error = key ? t(key) : history.failure || t("participant.failedToLoad");
+    // The server answers with a translation key ("errors.…") or, for older
+    // routes, an English sentence mapped to one; never show either raw.
+    const failure = history.failure;
+    const key =
+      typeof failure === "string" && failure.startsWith("errors.")
+        ? failure
+        : getServerErrorKey(failure);
+    error = key ? t(key) : t("participant.failedToLoad");
   } else if (readError) {
     error = t("errors.networkError");
   }
