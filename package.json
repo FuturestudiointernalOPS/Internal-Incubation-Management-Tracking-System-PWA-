@@ -22,6 +22,7 @@
     "authz:who-audit": "node scripts/authz-who-audit.mjs",
     "authz:snapshot": "node scripts/authz-reference-snapshot.mjs",
     "authz:doctor": "node scripts/authz-doctor.mjs",
+    "authz:apply-defaults": "node scripts/db-audit/apply-authorization-defaults.mjs",
     "i18n:parity": "node scripts/i18n-parity.mjs",
     "check:redirects": "node scripts/check-space-redirects.mjs",
     "db:align": "node scripts/db-audit/apply-align-migration.mjs",

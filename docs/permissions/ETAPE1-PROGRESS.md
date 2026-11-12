@@ -1,13 +1,13 @@
-# Étape 1 — premier lot (terminé)
+# Étape 1 — premier et deuxième lots (terminés)
 
-Statut : **premier lot terminé le 2026-11-12**. Aucune décision d'accès n'a
-changé.
+Statut : **les deux premiers lots sont terminés le 2026-11-12**. Aucune décision
+d'accès n'a changé.
 
 Objectif de l'étape : plus aucune valeur « qui a le droit » n'est lue à
-l'exécution depuis le code. Ce premier lot supprime le dernier repli runtime et
-ajoute les contrôles qui empêchent la régression. Les données de seed restent,
-pour l'instant, dans des modules de migration ; leur déplacement vers un
-fichier de données versionné est le lot suivant.
+l'exécution depuis le code. Le premier lot supprime le dernier repli runtime et
+ajoute les contrôles qui empêchent la régression. Le deuxième centralise toutes
+les données de seed dans un fichier inerte et fournit l'outil d'application
+idempotent.
 
 ---
 
@@ -57,6 +57,25 @@ valeur de seed (`FEATURE_ELIGIBILITY_DEFAULTS`,
 Ainsi, une future modification ne pourra pas réintroduire une décision d'accès
 lue dans le code sans faire échouer la suite de tests.
 
+### 4. Données de seed centralisées et inertes
+
+Toute la configuration initiale (éligibilités, profils, droits de profil,
+profils par défaut de rôle, catalogue des responsabilités) vit maintenant dans
+**un seul fichier de données** : `src/models/authorization/seedData.js`.
+
+Ce fichier ne contient ni import, ni accès base, ni fonction. Les anciens
+points d'entrée le ré-exportent, donc aucun écran ni test ne change de chemin.
+Un test vérifie qu'il reste inerte et qu'aucune copie ne réapparaît.
+
+### 5. Outil d'application idempotent
+
+Nouveau : `npm run authz:apply-defaults`.
+
+Il copie les données versionnées dans une base, **sans jamais écraser une ligne
+existante**. Il est en **simulation par défaut** : tout s'exécute dans une
+transaction annulée, et les compteurs affichent exactement ce qui serait écrit.
+`--apply` écrit réellement. `--details` liste chaque ligne concernée.
+
 ---
 
 ## Ce qui ne change pas
@@ -65,8 +84,8 @@ lue dans le code sans faire échouer la suite de tests.
   adresses d'arrivée sont identiques.
 - Le contournement du propriétaire est intact (étape 2, après la photographie
   de production).
-- Les valeurs de seed restent dans les modules de migration. Elles ne sont plus
-  lues à l'exécution.
+- Les valeurs de seed sont désormais centralisées dans un fichier inerte ; elles
+  ne sont toujours pas lues par le moteur de décision.
 
 ---
 
@@ -75,8 +94,8 @@ lue dans le code sans faire échouer la suite de tests.
 | Vérification | Résultat |
 |---|---|
 | `npm run authz:doctor` sur staging | AVERTISSEMENTS |
-| Suites ciblées (6) | 85 tests passés |
-| Garde statique + modèle | 22 tests passés |
+| Suites ciblées (7) | 59 tests passés |
+| Données de seed + garde statique | 31 tests passés |
 | Photographie avant / après | **0 changement, 0 régression, 0 ouverture** |
 
 ### Verdict du diagnostic sur staging
@@ -92,12 +111,32 @@ lue dans le code sans faire échouer la suite de tests.
 
 ---
 
-## Lot suivant (étape 1, suite)
+## Simulation d'application sur staging
 
-1. Déplacer les données de seed (profils, droits de profil, profil par défaut
-   de rôle, éligibilités, responsabilités) vers un **fichier de données
-   versionné** appliqué comme migration, puis supprimer les constantes lues par
-   les fonctions de seed.
-2. Faire du diagnostic `authz:doctor` une étape obligatoire du déploiement.
+`npm run authz:apply-defaults -- --details` (transaction annulée) annonce
+**33 écritures** :
+
+- 1 éligibilité manquante : `investors:member` ;
+- 15 droits du propriétaire (CRM, doublons, import en masse, collections,
+  groupes de programmes, portefeuille de rapports, gestion du schéma,
+  invitation de familles) ;
+- 5 droits de profils : `staff_default.ventures.view_all`,
+  `program_manager.programs.edit`, `program_manager.programs.publish`,
+  `course_manager.lms.view`, `course_manager.lms.edit` ;
+- 12 mises à jour de métadonnées des responsabilités (déjà identiques).
+
+Aucune de ces lignes n'est une perte d'accès : ce sont des compléments prévus
+par les données de seed, absents de la base. **Elles ne sont pas encore
+appliquées** : l'écriture réelle attend un accord explicite.
+
+## Décision attendue
+
+Appliquer ces 33 lignes maintenant (dont les 15 droits du propriétaire et les 6
+compléments non-propriétaire), ou attendre la photographie de production ?
+
+## Reste à faire
+
+1. Appliquer — ou non — les données de seed en staging.
+2. Faire de `authz:doctor` une étape obligatoire du déploiement.
 3. Après la photographie de production : accorder ou retirer explicitement les
    15 droits du propriétaire, puis seulement envisager l'étape 2.

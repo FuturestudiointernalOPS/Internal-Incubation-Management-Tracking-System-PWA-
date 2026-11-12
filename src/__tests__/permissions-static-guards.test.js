@@ -362,6 +362,7 @@ describe("Garde 2b — le moteur de décision ne lit aucun seed", () => {
     "PROFILE_CATALOGUE_SEED",
     "ROLE_PROFILE_DEFAULTS_SEED",
     "RESPONSIBILITY_FEATURE_ROLES",
+    "authorization/seedData",
   ];
 
   test("aucun fichier de décision n'importe une valeur de seed", () => {

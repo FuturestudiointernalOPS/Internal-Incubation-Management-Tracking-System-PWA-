@@ -22,6 +22,17 @@ import db from "@/lib/db";
 import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { ensureProfileCapabilitiesSchema } from "./profileCapabilitiesStore";
+import {
+  PROFILE_CATALOGUE_SEED,
+  ROLE_PROFILE_DEFAULTS_SEED,
+  DELEGATED_PROFILE_CAPABILITY_ROWS,
+  VENTURE_PORTFOLIO_CAPABILITY_ROWS,
+  VENTURE_MEMBER_EDIT_CAPABILITY,
+} from "./seedData";
+
+// The catalogue is data now (./seedData). Re-exported so the historic tests and
+// screens keep their import path.
+export { PROFILE_CATALOGUE_SEED, ROLE_PROFILE_DEFAULTS_SEED };
 
 /**
  * Every catalog capability at FULL — the platform-wide profile.
@@ -44,138 +55,6 @@ function fullMatrix() {
   return matrix;
 }
 
-/** key, label, context, allowed baseline roles, capabilities. */
-export const PROFILE_CATALOGUE_SEED = [
-  { key: "super_admin_default", label: "Super Admin Default", context: "global", allowedRoles: ["super_admin"], allCapabilities: true },
-  { key: "staff_default", label: "Staff Default", context: "global", allowedRoles: ["staff"], capabilities: {
-    projects: { view: 1, create: 2, edit: 3 },
-    programs: { view: 1, groups: 2 },
-    // `view_all` is the portfolio perimeter: the staff directory and the
-    // portfolio roll-up read every Venture. It is a RIGHT, so an administrator
-    // can remove it from this profile — or from a person — like any other.
-    ventures: { view: 1, view_all: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1, my_assignments: 1 },
-    reports: { view: 1, create: 2 },
-    messaging: { view: 1, send: 2 },
-    contacts: { view: 1, invite_families: 2 },
-    collections: { view: 1 },
-  } },
-  // D-7: a member of a Venture works IN it — writing stays bounded by the
-  // `venture_own` perimeter, so the capability grants nothing across Ventures.
-  { key: "venture_member", label: "Venture Member", context: "venture", allowedRoles: ["member"], capabilities: {
-    ventures: { view: 1, edit: 3 },
-  } },
-  { key: "participant", label: "Participant Default", context: "program", allowedRoles: ["member"], capabilities: {
-    projects: { view: 1 },
-    messaging: { view: 1, send: 2 },
-  } },
-  { key: "investor", label: "Mentor", context: "investor", allowedRoles: ["member"], capabilities: {
-    programs: { view: 1 },
-    projects: { view: 1 },
-    messaging: { view: 1, send: 2 },
-  } },
-  { key: "founder", label: "Founder", context: "venture", allowedRoles: ["member"], capabilities: {
-    ventures: { view: 1, edit: 3 },
-  } },
-  { key: "learner", label: "Learner", context: "lms", allowedRoles: ["member"], capabilities: {
-    lms: { view: 1 },
-  } },
-  { key: "venture_manager", label: "Venture Manager", context: "venture", allowedRoles: ["staff"], capabilities: {
-    ventures: { view: 1, edit: 3 },
-  } },
-  // PROGRAM-ONLY, by product decision: the role default and the assignment both
-  // resolve to this one profile.
-  { key: "program_manager", label: "Assigned Program Manager", context: "program", allowedRoles: ["staff"], capabilities: {
-    programs: { view: 1, edit: 3, publish: 4, groups: 2 },
-    ventures: { kpis: 3 },
-  } },
-  { key: "project_owner", label: "Project Owner", context: "staff", allowedRoles: ["staff"], capabilities: {
-    projects: { view: 1, create: 2, edit: 3, delete: 4 },
-    engineering: { view: 1, manage_tasks: 2 },
-    reports: { view: 1, create: 2 },
-    messaging: { view: 1, send: 2 },
-  } },
-  { key: "operations_manager", label: "Operations Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
-    programs: { view: 1, edit: 3 },
-    projects: { view: 1 },
-    finance: { view: 1, create: 2, edit: 3, export: 4 },
-    contacts: { view: 1, create: 2, edit: 3 },
-    reports: { view: 1, create: 2, export: 3 },
-    messaging: { view: 1, send: 2 },
-  } },
-  { key: "instructor", label: "Instructor", context: "staff", allowedRoles: ["staff"], capabilities: {
-    programs: { view: 1, edit: 3 },
-    projects: { view: 1 },
-    messaging: { view: 1, send: 2 },
-    contacts: { view: 1 },
-  } },
-  // Phase 7 (D6) — the DEDICATED course-management profile. Nobody holds it by
-  // default (only the Super Admin, by bypass). Assigning it to a staff member is
-  // the ONLY way to grant course management — publish/unpublish, enrol, create
-  // assessments, revoke certificates, attach resources — WITHOUT granting it to
-  // all staff. It carries the single course-management right (`lms.edit`, which
-  // also covers archive, assessment/thumbnail/resource deletion, assumed).
-  { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
-    lms: { view: 1, edit: 3 },
-  } },
-  // VENTURE OPS CONTRIBUTOR — a narrow, delegable bundle: create and edit in
-  // exactly three modules (LMS, Programs, Ventures), and nothing else.
-  //
-  // It exists so a staff member can do operational work "as the studio" in
-  // those three areas WITHOUT holding a super-admin identity: no delete, no
-  // security, no settings, no finance, no permission administration. Every
-  // route still re-checks on each request, so this is a real boundary rather
-  // than a disguise.
-  //
-  // Scope note: `ventures.*` is bounded by `venture_own` at the route, so the
-  // holder must ALSO be assigned to the venture (Venture Manager) before they
-  // can edit one. LMS is unscoped; programs are mixed.
-  { key: "venture_ops_contributor", label: "Venture Ops Contributor", context: "global", allowedRoles: ["staff"], capabilities: {
-    lms: { view: 1, create: 2, edit: 3 },
-    programs: { view: 1, create: 2, edit: 3 },
-    ventures: { view: 1, create: 2, edit: 3 },
-    // Day-to-day studio work the role needs to function at all. Read-only on
-    // reports; messaging may send. Neither widens the three authoring areas.
-    reports: { view: 1 },
-    messaging: { view: 1, send: 2 },
-  } },
-  // PROGRAM facilitator — the delivery rights, seeded so the PROFILE can become
-  // the single source of a facilitator's rights (Lot 3, D-5). The levels mirror
-  // the per-assignment checkboxes they will replace. Until an assignment carries
-  // the key, the checkboxes keep deciding, so seeding changes no answer.
-  { key: "facilitator", label: "Program Facilitator", context: "program", allowedRoles: ["staff", "member"], capabilities: {
-    facilitator: {
-      "participants.view": 2,
-      "attendance.view": 2,
-      "attendance.record": 2,
-      "assignments.view": 2,
-      "assignments.grade": 2,
-      "sessions.conduct": 2,
-      "reviews.submit": 2,
-    },
-  } },
-  { key: "finance_assistant", label: "Finance Assistant", context: "staff", allowedRoles: ["staff"], capabilities: {
-    finance: { view: 1, create: 2, edit: 3 },
-    reports: { view: 1 },
-  } },
-];
-
-/**
- * The baseline role → profile default, as it was seeded before the takeover
- * (`seedDefaultAccessProfiles`). Insert-only, so an administrator's later choice
- * wins. `program_manager` resolves to the program-only profile by decision;
- * `member` to the venture read profile; `participant`/`mentor` to their
- * contextual profiles.
- */
-export const ROLE_PROFILE_DEFAULTS_SEED = {
-  super_admin: "super_admin_default",
-  staff: "staff_default",
-  participant: "participant",
-  program_manager: "program_manager",
-  investor: "investor",
-  mentor: "investor",
-  founder: "founder",
-  member: "venture_member",
-};
 
 /** Insert-only catalogue rows for the supplied profile definitions. */
 async function seedProfileDefinitions(definitions) {
@@ -268,11 +147,12 @@ export async function ensureVentureOpsProfileSeed() {
  */
 export async function ensureVentureMemberEditBackfill() {
   await ensureProfileCapabilitiesSchema();
+  const [profileKey, module, capability, level] = VENTURE_MEMBER_EDIT_CAPABILITY;
   const inserted = await db.execute({
     sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
-          VALUES ('venture_member', 'ventures', 'edit', 3)
+          VALUES (?, ?, ?, ?)
           ON CONFLICT (profile_key, module, capability) DO NOTHING`,
-    args: [],
+    args: [profileKey, module, capability, level],
   });
   return { success: true, inserted: inserted?.rowsAffected ?? 0 };
 }
@@ -293,24 +173,8 @@ export async function ensureVentureMemberEditBackfill() {
 export async function ensureDelegatedCapabilityDefaults() {
   await ensureProfileCapabilitiesSchema();
 
-  const rows = [
-    // staff_default — the role list was ["super_admin", "staff"] (or included
-    // staff) on each of these routes.
-    ["staff_default", "ventures", "setup", 3],
-    ["staff_default", "ventures", "kpis", 3],
-    ["staff_default", "ventures", "permissions_view", 1],
-    ["staff_default", "programs", "groups", 2],
-    ["staff_default", "collections", "view", 1],
-    ["staff_default", "contacts", "invite_families", 2],
-    ["staff_default", "ventures", "my_assignments", 1],
-    // program_manager — admitted by the role list on the groups route and the
-    // KPI catalogue write.
-    ["program_manager", "programs", "groups", 2],
-    ["program_manager", "ventures", "kpis", 3],
-  ];
-
   let inserted = 0;
-  for (const [profileKey, module, capability, level] of rows) {
+  for (const [profileKey, module, capability, level] of DELEGATED_PROFILE_CAPABILITY_ROWS) {
     const result = await db.execute({
       sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
             VALUES (?, ?, ?, ?)
@@ -367,17 +231,8 @@ export async function ensureSuperAdminFullMatrix() {
 export async function ensureVenturePortfolioCapabilityDefaults() {
   await ensureProfileCapabilitiesSchema();
 
-  const rows = [
-    // The platform owner keeps the whole portfolio (read + write).
-    ["super_admin_default", "ventures", "view_all", ACCESS_LEVELS.FULL],
-    ["super_admin_default", "ventures", "edit_all", ACCESS_LEVELS.FULL],
-    // Staff keep the portfolio READ the feature gives them; writing any Venture
-    // stays an explicit grant (`edit_all` is deliberately absent here).
-    ["staff_default", "ventures", "view_all", 1],
-  ];
-
   let inserted = 0;
-  for (const [profileKey, module, capability, level] of rows) {
+  for (const [profileKey, module, capability, level] of VENTURE_PORTFOLIO_CAPABILITY_ROWS) {
     const result = await db.execute({
       sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
             VALUES (?, ?, ?, ?)

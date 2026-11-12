@@ -24,7 +24,7 @@
  * the server-side route allowlists.
  */
 
-import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/constants";
+import { RESPONSIBILITY_FEATURE_ROLES } from "@/models/authorization/seedData";
 import { BASELINE_IDENTITIES } from "@/lib/identity";
 import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 
@@ -32,10 +32,9 @@ import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 // into `responsibilities.allowed_roles`. NEVER read at runtime: the warning
 // helper below reads only the saved column, and stays silent when it is unset.
 //
-// SINGLE SOURCE: these ARE the canonical eligibility defaults, aliased (not
-// copied) so the two can never drift apart. `authorization-model.test.js`
-// still enforces the alignment.
-export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
+// SINGLE SOURCE: the value comes from the inert seed data module, aliased to
+// the eligibility defaults so the two can never drift apart.
+export { RESPONSIBILITY_FEATURE_ROLES };
 
 // Canonical identity vocabulary. The list is DERIVED, never hand-written:
 //   - a person's baseline role is one of the three identities;
