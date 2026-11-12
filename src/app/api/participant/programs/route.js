@@ -105,8 +105,12 @@ export async function GET(_req) {
         }
         return deliverable.week_number ?? 1;
       };
-      const unlockedDeliverables = deliverables.filter((deliverable) =>
-        unlockedSessionWeekNumbers.has(deliverableWeek(deliverable)),
+      // "Attendance" deliverables are recorded by the team, not submitted by
+      // the participant: they are left out, as every other participant read does.
+      const unlockedDeliverables = deliverables.filter(
+        (deliverable) =>
+          !deliverable.title?.toLowerCase().includes("attendance") &&
+          unlockedSessionWeekNumbers.has(deliverableWeek(deliverable)),
       );
 
       const currentWeek =
@@ -114,7 +118,7 @@ export async function GET(_req) {
           ? Math.max(...unlockedSessions.map((session) => session.week_number || 1))
           : 1;
 
-      const totalDeliverables = unlockedDeliverables.length || 1;
+      const totalDeliverables = unlockedDeliverables.length;
       const completedDeliverables = unlockedDeliverables.filter((deliverable) =>
         submissions.some(
           (submission) =>
@@ -122,9 +126,8 @@ export async function GET(_req) {
             submission.status === "approved",
         ),
       ).length;
-      let percentComplete = Math.round(
-        (completedDeliverables / totalDeliverables) * 100,
-      );
+      let percentComplete =
+        totalDeliverables > 0 ? Math.round((completedDeliverables / totalDeliverables) * 100) : 0;
 
       // Count distinct sessions with a "present" mark, restricted to unlocked
       // sessions, so duplicate attendance rows (same session recorded on
@@ -255,7 +258,9 @@ export async function GET(_req) {
           attendedSessions,
         },
         sessionCount: sessions.length,
-        deliverableCount: deliverables.length,
+        deliverableCount: deliverables.filter(
+          (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
+        ).length,
         unlockedSessionCount: unlockedSessions.length,
       });
     }

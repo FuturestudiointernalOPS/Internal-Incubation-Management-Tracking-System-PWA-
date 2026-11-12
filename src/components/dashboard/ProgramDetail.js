@@ -26,21 +26,25 @@ import DetailSkeleton from "./program-detail/DetailSkeleton";
 import ProgressTab from "./program-detail/ProgressTab";
 import AssignmentsTab from "./program-detail/AssignmentsTab";
 import DetailsTab from "./program-detail/DetailsTab";
+import { isProgramEnded, programDisplayStatus } from "@/lib/programState";
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
 
 // The curriculum as the screen shows it: the "attendance" deliverables are not
 // part of what a participant submits, so they come out of the answer here rather
-// than being filtered again on every render.
+// than being filtered again on every render. Once the program's end date is
+// over, no week is "current" any more.
 function shapeCurriculum(payload) {
   const weeks = payload.curriculum?.weeks;
   if (!weeks) return payload;
+  const ended = isProgramEnded(payload.program?.endDate);
   return {
     ...payload,
     curriculum: {
       ...payload.curriculum,
       weeks: weeks.map((week) => ({
         ...week,
+        isCurrent: ended ? false : week.isCurrent,
         deliverables: (week.deliverables || []).filter(
           (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
         ),
@@ -169,13 +173,13 @@ export default function ProgramDetail({ programId }) {
     (!!program?.status && String(program.status).toLowerCase() !== "active");
 
   // The displayed status reflects the deliverables' actual state: once every
-  // unlocked deliverable has an approved submission, show "Completed" rather
-  // than the raw program status.
+  // unlocked deliverable has an approved submission — or once the program's end
+  // date is over — show "Completed" rather than the raw program status.
   const displayStatus =
     metrics.totalDeliverables > 0 &&
     metrics.completedDeliverables >= metrics.totalDeliverables
       ? "completed"
-      : program.status || "active";
+      : programDisplayStatus(program.status, program.endDate);
 
   // Resources grouped by week for display
   const resourcesByWeek = resources?.byWeek || {};

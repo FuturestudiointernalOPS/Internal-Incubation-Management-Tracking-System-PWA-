@@ -206,13 +206,29 @@ const CRUMB_FULL_PATH_MAP = {
   "/platform/responses": "navigation.forms",
 };
 
+// A record id in the address (a UUID or a number) is never a label: the crumb
+// names the section it belongs to instead.
+const ID_SEGMENT = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
+
+// The crumb for "/<section>/<id>" when the section itself does not name the
+// record (e.g. /participant/<programId> is a program).
+const CRUMB_ID_PARENT_MAP = {
+  participant: "navigation.programs",
+};
+
 function navCrumb(pathname) {
   const clean = (pathname || "")
     .split("?")[0]
     .split("#")[0]
     .replace(/\/+$/, "");
   if (CRUMB_FULL_PATH_MAP[clean]) return CRUMB_FULL_PATH_MAP[clean];
-  const segment = clean.split("/").filter(Boolean).pop() || "";
+  const segments = clean.split("/").filter(Boolean);
+  while (segments.length > 1 && ID_SEGMENT.test(segments[segments.length - 1])) {
+    segments.pop();
+    const parent = segments[segments.length - 1];
+    if (CRUMB_ID_PARENT_MAP[parent]) return CRUMB_ID_PARENT_MAP[parent];
+  }
+  const segment = segments.pop() || "";
   return CRUMB_PATH_MAP[segment] || (NAV_KEY_MAP[segment] ? NAV_KEY_MAP[segment] : segment);
 }
 

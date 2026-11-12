@@ -81,6 +81,31 @@ describe("computeProgramProgress", () => {
     });
   });
 
+  it("gives each milestone its type, its item name and its session's week", () => {
+    const { milestones } = run({
+      deliverables: [{ id: "d9", title: "Pitch", session_id: "s2" }],
+      // s1 carries two marks (a later correction): any "present" counts.
+      attendance: [
+        { status: "absent", session_id: "s1", date: "2026-01-01" },
+        { status: "present", session_id: "s1", date: "2026-01-03" },
+      ],
+      submissions: [],
+    });
+    const attended = milestones.find((milestone) => milestone.id === "session-s1");
+    const pitch = milestones.find((milestone) => milestone.id === "deliverable-d9");
+
+    expect(attended).toMatchObject({ type: "attendance", name: "Kickoff", achieved: true, week: 1 });
+    expect(pitch).toMatchObject({ type: "deliverable", name: "Pitch", week: 2, achieved: false });
+  });
+
+  it("reports zero submissions as 0, not 1", () => {
+    const { stats, metrics } = run({ submissions: [] });
+
+    expect(stats.totalSubmissions).toBe(0);
+    expect(stats.approvedSubmissions).toBe(0);
+    expect(metrics.assignmentCompletion).toBe(0);
+  });
+
   it("builds the stats and the overall contribution", () => {
     const { stats, contribution } = run();
 
