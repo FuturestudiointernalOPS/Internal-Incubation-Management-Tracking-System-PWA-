@@ -6,6 +6,20 @@ données de seed, qui est explicite.
 
 ---
 
+## 0. Verrou du code (sans base de données)
+
+```bash
+npm run test:authz
+```
+
+- Attendu : **21 suites / 232 tests passés**.
+- Vérifie la frontière données / vocabulaire : rôles, profils, fonctionnalités,
+  capacités, adresses d'arrivée et portes de plateforme.
+- Exécuté par la CI à chaque pull request (`.github/workflows/authz-ratchet.yml`).
+- Détail : `docs/permissions/ETAPE6-LOCK.md`.
+
+---
+
 ## 1. Avant le déploiement — complétude de la base
 
 ```bash
