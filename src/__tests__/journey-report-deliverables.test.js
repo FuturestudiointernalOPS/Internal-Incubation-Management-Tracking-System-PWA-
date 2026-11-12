@@ -15,7 +15,9 @@ const mockDbId = "11111111-1111-4111-8111-111111111111";
 let mockDeliverables = [];
 
 const mockDb = {
-  execute: jest.fn(async ({ sql, args = [] }) => {
+  execute: jest.fn(async (statement) => {
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    const args = typeof statement === "string" ? [] : statement.args || [];
     executed.push({ sql, args });
     if (sql.includes("SELECT id FROM ventures")) return { rows: [{ id: mockDbId }] };
     if (sql.includes("FROM venture_task_submissions")) return { rows: [] };
@@ -45,6 +47,14 @@ jest.mock("@/lib/ventureAuth", () => ({
   requireVentureAccess: jest.fn().mockResolvedValue({ session: { cid: "sa-1", role: "super_admin" } }),
   roleIsPrivileged: jest.fn().mockReturnValue(true),
   isStaffActorForVenture: jest.fn().mockResolvedValue(true),
+}));
+
+// The report read sits behind the canonical venture gate (Lot 5).
+jest.mock("@/lib/ventureScopedAccess", () => ({
+  requireVentureScopedAccess: jest.fn().mockResolvedValue({
+    session: { cid: "sa-1", role: "super_admin" },
+    path: "staff",
+  }),
 }));
 
 const { GET } = require("@/app/api/ventures/[id]/journey-report/route");
@@ -89,11 +99,13 @@ describe("GET /api/ventures/[id]/journey-report — deliverables awaiting review
     const report = await fetchReport();
     expect(Object.keys(report)).toEqual([
       "journey_progression",
+      "milestone_progression",
       "stages",
       "milestones_by_status",
       "tasks_by_status",
       "task_completion",
       "overdue",
+      "overdue_total",
       "submissions",
       "deliverables_awaiting_review",
       "sessions",

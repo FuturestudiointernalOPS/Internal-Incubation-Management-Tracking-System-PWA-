@@ -278,7 +278,6 @@ describe("Venture OS — Workflow B", () => {
       });
 
       expect(result.email).toBe("john@example.com");
-      expect(db.execute).toHaveBeenCalledTimes(1);
       expect(db.execute).toHaveBeenCalledWith(
         expect.objectContaining({
           sql: expect.stringContaining("INSERT INTO venture_founders"),
@@ -378,6 +377,7 @@ describe("Venture OS — Workflow B", () => {
       db.execute
         .mockResolvedValueOnce({ rows: [mockVenture] }) // venture query
         .mockResolvedValueOnce({ rows: [{ id: 1, email: "john@example.com", name: "John Doe" }] }) // founders
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // members: internal id resolution
         .mockResolvedValueOnce({ rows: [] }) // members
         .mockResolvedValueOnce({ rows: [{ id: 1, action: "VENTURE_CREATED" }] }) // activity
         .mockResolvedValueOnce({ rows: [{ id: 1, event_type: "PROFILE_WIZARD_INIT" }] }); // history

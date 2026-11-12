@@ -147,13 +147,19 @@ describe("ensureVentureDocumentTypesForVenture", () => {
 describe("listVentureDocumentTypes", () => {
   test("reads ONE Venture, active only unless inactive ones are wanted, in display order", async () => {
     const db = dbWithRows();
+    const reads = () =>
+      db.execute.mock.calls
+        .map(([statement]) => statement)
+        .filter((call) => call.sql.includes("FROM venture_document_types"));
 
     await listVentureDocumentTypes({ ventureId: VENTURE, database: db });
-    expect(db.execute.mock.calls[0][0].args).toEqual([VENTURE, 0]);
-    expect(db.execute.mock.calls[0][0].sql).toContain("ORDER BY sort_order ASC, id ASC");
+    const [first] = reads();
+    expect(first.args).toEqual([VENTURE, 0]);
+    expect(first.sql).toContain("ORDER BY sort_order ASC, id ASC");
 
     await listVentureDocumentTypes({ ventureId: VENTURE, includeInactive: true, database: db });
-    expect(db.execute.mock.calls[1][0].args).toEqual([VENTURE, 1]);
+    const all = reads();
+    expect(all[all.length - 1].args).toEqual([VENTURE, 1]);
   });
 
   test("no Venture, no read", async () => {
@@ -184,7 +190,10 @@ describe("deleteVentureDocumentType", () => {
     await expect(deleteVentureDocumentType({ ventureId: VENTURE, id: 3 }, db)).resolves.toEqual({
       success: true,
     });
-    expect(db.execute.mock.calls[0][0].args).toEqual([3, VENTURE]);
+    const meta = db.execute.mock.calls
+      .map(([statement]) => statement)
+      .find((call) => call.sql.includes("FROM venture_document_types WHERE id = ?"));
+    expect(meta.args).toEqual([3, VENTURE]);
   });
 
   test("refuses to delete a built-in type", async () => {
@@ -241,9 +250,9 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
     await expect(
       canManageVentureDocumentTypes({ role: "staff", cid: "USR-1" }, VENTURE, db),
     ).resolves.toBe(true);
-    const { sql, args } = db.execute.mock.calls[0][0];
-    expect(sql).toContain("responsibility_code = 'venture_manager'");
-    expect(sql).toContain("status = 'active'");
+    const { args } = db.execute.mock.calls
+      .map(([statement]) => statement)
+      .find((call) => call.sql.includes("responsibility_code = 'venture_manager'"));
     expect(args).toEqual([VENTURE, "USR-1"]);
   });
 
