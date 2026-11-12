@@ -30,10 +30,13 @@ describe("staging impersonation is removed", () => {
 });
 
 describe("role changes are not capability grants", () => {
-  test("promote/remove super admin requires the super_admin role", () => {
+  test("promote/remove super admin is gated by its dedicated capability rights", () => {
     const src = read("src/app/api/engineering/permissions/route.js");
-    expect(src).toMatch(/promote_super_admin/);
-    expect(src).toMatch(/session\.role !== "super_admin"/);
+    expect(src).toMatch(/"promote_super_admin"/);
+    expect(src).toMatch(/"remove_super_admin"/);
+    expect(src).toMatch(/requireAuthorization\(\s*"permissions",\s*"promote_super_admin"/);
+    expect(src).toMatch(/requireAuthorization\(\s*"permissions",\s*"remove_super_admin"/);
+    expect(src).not.toMatch(/session\.role !== "super_admin"/);
   });
 
   test("the CSV import cannot assign privileged roles without the capability", () => {

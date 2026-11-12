@@ -294,15 +294,39 @@ describe("GET — the synthetic session is built from the contact row", () => {
 });
 
 describe("GET — the per-person gate probe fails closed", () => {
-  test("a super admin is allowed both keys WITHOUT consulting authorize()", async () => {
+  test("a super admin is probed through its rights matrix like anyone else", async () => {
     mockState.relationships = [{ cid: "SA", venture_id: "V1" }];
-    mockContextByCid["SA"] = { isSuperAdmin: true };
-    mockAuthorizeImpl = () => false;
+    mockContextByCid["SA"] = { isSuperAdmin: true, effective: { ventures: { view: 5, edit: 5 } } };
+    mockAuthorizeImpl = () => true;
 
     const body = await (await route.GET(getReq())).json();
     expect(body.rows[0]).toMatchObject({ viewAllowed: true, editAllowed: true, missing: [] });
-    // isSuperAdmin short-circuits: authorize() is never asked.
-    expect(authorize).not.toHaveBeenCalled();
+    // No role short-circuit: the owner's rights are in the matrix, so the same
+    // probe answers for them — and a revoked right is reported as missing.
+    expect(authorize).toHaveBeenCalledWith(
+      mockContextByCid["SA"],
+      "ventures",
+      "view",
+    );
+    expect(authorize).toHaveBeenCalledWith(
+      mockContextByCid["SA"],
+      "ventures",
+      "edit",
+    );
+  });
+
+  test("a super admin without the rights is reported as missing the read key", async () => {
+    mockState.relationships = [{ cid: "SA", venture_id: "V1" }];
+    mockContextByCid["SA"] = { isSuperAdmin: true, effective: {} };
+    mockAuthorizeImpl = () => false;
+
+    const body = await (await route.GET(getReq())).json();
+    // The audit reports the FIRST missing key only (reading is the prerequisite).
+    expect(body.rows[0]).toMatchObject({
+      viewAllowed: false,
+      editAllowed: false,
+      missing: ["ventures.view"],
+    });
   });
 
   test("view and edit are probed independently", async () => {

@@ -269,9 +269,10 @@ describe("the repair path has two ways in", () => {
     expect(getProgramManager).not.toHaveBeenCalled();
   });
 
-  test("Super Admin skips the scope check entirely", async () => {
+  test("Super Admin uses the same two ways in (no role bypass)", async () => {
     const { getSession } = require("@/server/auth/session");
     getSession.mockResolvedValue({ cid: "USR_SA", role: "super_admin" });
+    isWithinScope.mockResolvedValueOnce(false);
     getProgramManager.mockResolvedValue({
       rows: [{ id: "P1", name: "Cohort 1", assigned_pm_id: null }],
     });
@@ -279,6 +280,26 @@ describe("the repair path has two ways in", () => {
     const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
 
     expect(res.status).toBe(200);
-    expect(isWithinScope).not.toHaveBeenCalled();
+    // The scope IS consulted, and the owner proceeds through the explicit
+    // console authority (which its profile holds and which can be revoked).
+    expect(isWithinScope).toHaveBeenCalled();
+    expect(requireAuthorization).toHaveBeenCalledWith(
+      "permissions",
+      "assign_capabilities",
+    );
+  });
+
+  test("Super Admin without the console authority is refused, nothing recorded", async () => {
+    const { getSession } = require("@/server/auth/session");
+    getSession.mockResolvedValue({ cid: "USR_SA", role: "super_admin" });
+    isWithinScope.mockResolvedValueOnce(false);
+    requireAuthorization.mockImplementation(async (module) =>
+      module === "permissions" ? new Response("{}", { status: 403 }) : null,
+    );
+
+    const res = await PUT(req({ manager_cid: "USR_NEW" }), ctx());
+
+    expect(res.status).toBe(403);
+    expect(setProgramManager).not.toHaveBeenCalled();
   });
 });

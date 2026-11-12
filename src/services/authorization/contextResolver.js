@@ -28,7 +28,7 @@
  */
 
 import { initDb } from "@/lib/db";
-import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { explainEligibility } from "./eligibility";
@@ -68,12 +68,19 @@ async function safeActiveProfileKeys(cid) {
   }
 }
 
-/** Full capability matrix a Super Admin has by default (all modules, FULL). */
+/**
+ * Full capability matrix a Super Admin has by default (every module, FULL).
+ *
+ * Built from the WHOLE catalogue, not `PERMISSION_MODULES`: a `registryOnly`
+ * module (`duplicates`, `bulk_upload`) is enforced at the route layer and has no
+ * enumerable vocabulary for other profiles, but the platform owner holds it too
+ * — and must be able to have it revoked like any other right.
+ */
 function buildSuperAdminMatrix() {
   const matrix = {};
-  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+  for (const [module, definition] of Object.entries(CAPABILITY_CATALOG)) {
     matrix[module] = {};
-    for (const capability of definition.capabilities) {
+    for (const capability of Object.keys(definition.capabilities || {})) {
       matrix[module][capability] = ACCESS_LEVELS.FULL;
     }
   }

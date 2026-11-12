@@ -27,6 +27,7 @@ import {
   ensureVentureOpsProfileSeed,
   ensureDelegatedCapabilityDefaults,
   ensureVenturePortfolioCapabilityDefaults,
+  ensureSuperAdminFullMatrix,
 } from "./profileCatalogueSeed";
 import { backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
@@ -205,6 +206,15 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration(
             "venture-portfolio-capabilities-v1",
             ensureVenturePortfolioCapabilityDefaults,
+          ),
+          // The owner's rights are exhaustive: the decision layer no longer grants
+          // a capability by ROLE, so the Super Admin profile must carry the whole
+          // catalogue — including the registry-only modules (`duplicates`,
+          // `bulk_upload`) that `PERMISSION_MODULES` leaves out. Insert-only, so an
+          // administrator's revocation survives the next boot.
+          runAuthzMigration(
+            "super-admin-full-matrix-v1",
+            ensureSuperAdminFullMatrix,
           ),
           // The per-assignment profile override moved from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. That

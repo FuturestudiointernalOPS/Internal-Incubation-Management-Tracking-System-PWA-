@@ -13,6 +13,7 @@
  */
 
 import { attachInvitationStatus } from "@/models/invitations";
+import { getActivationEmailLogForContacts } from "@/models/contacts/registry";
 import {
   getContactByCid,
   getArchivedContacts,
@@ -70,6 +71,7 @@ async function enrichRegistryRows(rows) {
   const contactCids = rows.map((row) => row.cid).filter(Boolean);
   let participantCids = new Set();
   let assignmentCids = new Set();
+  let activationLogResult = { rows: [] };
   if (contactCids.length > 0) {
     // Best-effort: these tables may not exist in older schemas.
     try {
@@ -84,15 +86,38 @@ async function enrichRegistryRows(rows) {
         contactRoleAssignmentsResult.rows.map((row) => row.contact_cid),
       );
     } catch (_) {}
+    // Activation EMAIL delivery — independent of the token-derived invitation
+    // status. A token can exist before (or without) the email leaving, so the
+    // actions must read the real delivery history, not the token alone.
+    try {
+      activationLogResult = await getActivationEmailLogForContacts(contactCids);
+    } catch (_) {}
+  }
+
+  const activationByCid = {};
+  for (const logRow of activationLogResult.rows || []) {
+    const activation = activationByCid[logRow.contact_cid] || {
+      latest: null,
+      lastSentAt: null,
+    };
+    activation.latest = logRow;
+    if (logRow.status === "sent") activation.lastSentAt = logRow.sent_at || logRow.created_at;
+    activationByCid[logRow.contact_cid] = activation;
   }
 
   const enriched = (await attachInvitationStatus(rows)).map(
-    ({ password: _password, ...safeContact }) => ({
-      ...safeContact,
-      // Derived flag: an active participant enrollment.
-      is_participant: participantCids.has(safeContact.cid),
-      has_assignment: assignmentCids.has(safeContact.cid),
-    }),
+    ({ password: _password, ...safeContact }) => {
+      const activation = activationByCid[safeContact.cid] || null;
+      return {
+        ...safeContact,
+        // Derived flag: an active participant enrollment.
+        is_participant: participantCids.has(safeContact.cid),
+        has_assignment: assignmentCids.has(safeContact.cid),
+        activation_email_status: activation?.latest?.status || null,
+        activation_email_sent_at: activation?.lastSentAt || null,
+        activation_email_error: activation?.latest?.error || null,
+      };
+    },
   );
 
   // Consent + number validity travel with the row, so every screen reading the

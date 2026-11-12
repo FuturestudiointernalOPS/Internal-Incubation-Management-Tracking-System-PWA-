@@ -19,20 +19,25 @@
  */
 
 import db from "@/lib/db";
-import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { ensureProfileCapabilitiesSchema } from "./profileCapabilitiesStore";
 
 /**
- * Every module at FULL — the platform-wide profile. Built LAZILY (at seed time,
- * never at module load) so importing this module never reads the capability
- * registry before its consumer has set up.
+ * Every catalog capability at FULL — the platform-wide profile.
+ *
+ * The WHOLE catalogue is used (not `PERMISSION_MODULES`): a `registryOnly`
+ * module is not writable from other profiles but the Super Admin profile holds
+ * it, so the owner's rights and their revocation are expressed in the same
+ * matrix as every other right. Built LAZILY (at seed time, never at module
+ * load) so importing this module never reads the capability registry before its
+ * consumer has set up.
  */
 function fullMatrix() {
   const matrix = {};
-  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+  for (const [module, definition] of Object.entries(CAPABILITY_CATALOG)) {
     matrix[module] = {};
-    for (const capability of definition.capabilities) {
+    for (const capability of Object.keys(definition.capabilities || {})) {
       matrix[module][capability] = ACCESS_LEVELS.FULL;
     }
   }
@@ -315,6 +320,36 @@ export async function ensureDelegatedCapabilityDefaults() {
     inserted += result?.rowsAffected ?? 0;
   }
 
+  return { success: true, inserted };
+}
+
+/**
+ * The SUPER ADMIN full matrix, on databases seeded before the owner's rights
+ * were exhaustive.
+ *
+ * `fullMatrix()` now covers the whole catalogue, including the `registryOnly`
+ * modules (`duplicates`, `bulk_upload`) that are absent from
+ * `PERMISSION_MODULES`. On an existing database the catalogue seed is already
+ * recorded, so those rows would never arrive — and because the decision layer no
+ * longer grants them by role, the owner would lose the queues. This backfill
+ * adds only MISSING rows: an administrator's revocation is never re-added.
+ */
+export async function ensureSuperAdminFullMatrix() {
+  await ensureProfileCapabilitiesSchema();
+
+  const matrix = fullMatrix();
+  let inserted = 0;
+  for (const [module, capabilities] of Object.entries(matrix)) {
+    for (const [capability, level] of Object.entries(capabilities)) {
+      const result = await db.execute({
+        sql: `INSERT INTO profile_capabilities (profile_key, module, capability, access_level)
+              VALUES ('super_admin_default', ?, ?, ?)
+              ON CONFLICT (profile_key, module, capability) DO NOTHING`,
+        args: [module, capability, level],
+      });
+      inserted += result?.rowsAffected ?? 0;
+    }
+  }
   return { success: true, inserted };
 }
 

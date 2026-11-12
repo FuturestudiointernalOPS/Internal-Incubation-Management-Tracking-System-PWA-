@@ -341,6 +341,11 @@ export const FEATURE_MODULE_CAPABILITY = {
       capabilities: {
         view: { label: "View", risk: "medium", description: "See system settings" },
         edit: { label: "Edit", risk: "high", description: "Modify system settings" },
+        // Applying the platform's schema is a distinct, critical action: a
+        // delegated settings editor must not be able to write the database
+        // structure. It is a right like any other, so the platform owner can
+        // grant it to a chosen account — or have it revoked from their own.
+        manage_schema: { label: "Run Schema Migrations", risk: "critical", description: "Apply outstanding platform schema migrations" },
       },
     },
     engineering: {

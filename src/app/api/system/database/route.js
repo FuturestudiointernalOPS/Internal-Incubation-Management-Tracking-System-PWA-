@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getDatabaseInfo } from "@/services/ventures/monitoring";
 import { initDb } from "@/lib/db";
-import { requireAuth } from "@/server/auth/guards";
 import { requireAuthorization } from "@/models/authorization/index";
 import { serverError } from "@/lib/apiError";
 import {
@@ -27,9 +26,11 @@ export const GET = createHandler(async () => {
 export async function POST(_req) {
   try {
     await initDb();
-    // Running platform migrations is a Super Admin action: `settings.edit` is a
-    // delegated capability and must not be able to write the schema.
-    const authError = await requireAuth(["super_admin"]);
+    // Running platform migrations is its own right: `settings.edit` is a
+    // delegated capability and must not be able to write the schema. The owner
+    // keeps it through `super_admin_default`; an administrator can delegate it
+    // — or have it revoked from the owner — from the Permissions screen.
+    const authError = await requireAuthorization("settings", "manage_schema");
     if (authError) return authError;
 
     const results = [];

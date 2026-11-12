@@ -99,12 +99,12 @@ export default function PersonHeader({
                 disabled={inviting}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--brand-orange)] text-black text-[10px] font-bold uppercase tracking-widest hover:brightness-110 transition-all disabled:opacity-40"
               >
-                {inviting ? <Clock className="w-3.5 h-3.5 animate-spin" /> : invitationStatus === "not_invited" ? <Send className="w-3.5 h-3.5" /> : <Mail className="w-3.5 h-3.5" />}
+                {inviting ? <Clock className="w-3.5 h-3.5 animate-spin" /> : contact.activation_email_sent_at ? <Mail className="w-3.5 h-3.5" /> : <Send className="w-3.5 h-3.5" />}
                 {inviting
                   ? t("crm.contacts.sending")
-                  : invitationStatus === "not_invited"
-                    ? t("crm.contacts.inviteUser") || "Invite User"
-                    : t("crm.contacts.resendActivation") || "Resend Invitation"}
+                  : contact.activation_email_sent_at
+                    ? t("crm.contacts.resendActivation") || "Resend Invitation"
+                    : t("crm.contacts.inviteUser") || "Invite User"}
               </button>
             ))}
 

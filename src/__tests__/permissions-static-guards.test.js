@@ -102,7 +102,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/deliverables/route.js#M2",
 
   "src/app/api/engineering/permissions/profile-role-defaults/route.js#M4",
-  "src/app/api/engineering/permissions/route.js#M3",
 
   "src/app/api/facilitator-reviews/route.js#M1",
   "src/app/api/facilitators/invite-bulk/route.js#M1",
@@ -116,14 +115,11 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
 
   "src/app/api/investor/approval/route.js#M1",
   "src/app/api/investor/profile/route.js#M1",
-  "src/app/api/investor/relationships/meetings/route.js#M1",
-  "src/app/api/investor/relationships/route.js#M1",
   "src/app/api/invites/route.js#M2",
   "src/app/api/participant-programs/bulk/route.js#M1",
   "src/app/api/participants/route.js#M1",
   "src/app/api/platform/form-runs/handlers/get.js#M3",
 
-  "src/app/api/pm/programs/[id]/manager/route.js#M3",
   "src/app/api/pm/programs/[id]/route.js#M2",
   "src/app/api/program-staff/route.js#M3",
   "src/app/api/programs/route.js#M1",
@@ -131,25 +127,22 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/retros/submit/route.js#M3",
   "src/app/api/sessions/route.js#M2",
   "src/app/api/standups/submit/route.js#M3",
-  "src/app/api/system/database/route.js#M1",
   "src/app/api/teams/route.js#M1",
   "src/app/api/teams/route.js#M3",
 
-  "src/app/api/user-groups/route.js#M3",
-
   "src/app/api/v2/program-staff/route.js#M1",
   "src/app/api/ventures/[id]/blockers/route.js#M4",
-  "src/app/api/ventures/[id]/dashboard/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/transition/route.js#M4",
   "src/app/api/ventures/[id]/founders/[founderId]/route.js#M3",
   "src/app/api/ventures/[id]/founders/route.js#M4",
   "src/app/api/ventures/[id]/members/route.js#M3",
-  "src/app/api/ventures/[id]/notes/route.js#M4",
   "src/app/api/ventures/[id]/tasks/[taskId]/submissions/route.js#M4",
   "src/app/api/ventures/[id]/tasks/route.js#M4",
-  "src/app/api/ventures/[id]/verification/documents/[docId]/versions/route.js#M3",
   "src/app/api/ventures/[id]/verification/route.js#M4",
+  // createHandler's role list remains the admission gate; the capability
+  // (`ventures.setup`) decides the configuration action inside the handler.
+  "src/app/api/ventures/[id]/reporting/settings/route.js#M2",
   "src/app/api/ventures/assigned/route.js#M4",
   "src/app/api/ventures/lead-manager/home/route.js#M3",
   "src/app/api/ventures/route.js#M4",
@@ -222,7 +215,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/tasks/updateEffects.js#M3",
   "src/services/tasks/updateFields/assignment.js#M3",
   "src/services/tasks/updateGuards.js#M3",
-  "src/services/ventures/founders.js#M3",
   "src/services/ventures/founders.js#M4",
   "src/services/ventures/memberRoster.js#M3",
 
@@ -232,7 +224,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/ventures/submissions/createSubmission.js#M3",
   "src/services/ventures/submissions/review.js#M4",
   "src/services/ventures/submissions/scope.js#M3",
-  "src/services/ventures/ventureDocumentTypes.js#M3",
   "src/services/ventures/verification/categories.js#M3",
   "src/services/workspace/calendar.js#M4",
   "src/services/workspace/navigation.js#M3",

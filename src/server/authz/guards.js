@@ -38,14 +38,16 @@ function toResponse({ allowed, status, errorKey }) {
  *
  * Allows access if the user is:
  *   1. Authenticated AND
- *   2. A super_admin, OR the project owner, OR a project member
+ *   2. A SUPER ADMIN holding the action capability (`projects.view` by default,
+ *      `projects.edit` for a write) — the right is revocable, OR the project
+ *      owner, OR a project member
  *
  * Usage:
  *   const authError = await requireProjectAccess(projectId);
  *   if (authError) return authError;
  */
-export async function requireProjectAccess(projectId) {
-  return toResponse(await evaluateProjectAccess(projectId));
+export async function requireProjectAccess(projectId, capability = "view") {
+  return toResponse(await evaluateProjectAccess(projectId, capability));
 }
 
 /**

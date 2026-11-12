@@ -48,9 +48,9 @@ describe("session hardening", () => {
 });
 
 describe("privileged writes and secrets", () => {
-  test("running platform migrations requires the super_admin role", () => {
+  test("running platform migrations requires the dedicated settings.manage_schema right", () => {
     const src = read("src/app/api/system/database/route.js");
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    expect(src).toMatch(/requireAuthorization\("settings", "manage_schema"\)/);
   });
 
   test.each([
