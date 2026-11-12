@@ -28,9 +28,8 @@ const pickAttendance = pickList("attendance");
  * made of the browser's own origin, and a render also happens on the server,
  * where no origin exists. A transformation runs in the browser, after the answer.
  *
- * The rule is the one the loader had, not the one its comment described: when the
- * programme has an id, only the programme's own runs are consulted - there is no
- * fallback to a group's run.
+ * Prefer a run assigned to the programme; if none, the caller may also ask for
+ * the first assigned group's run (same fallback the edit modal uses).
  */
 const pickRegistrationLink = (payload) => {
   const run = (payload?.success ? payload.runs || [] : []).find(
@@ -110,17 +109,28 @@ export default function ProgramDetail({ params }) {
     refreshAttendance();
   }, [refreshFullState, refreshReports, refreshFollowups, refreshAttendance]);
 
-  // The public registration link. The programme's own runs are consulted when the
-  // programme is known; a programme without an id falls back to the run assigned
-  // to its first group, which is what the loader did.
-  const registrationSourceId = program?.id || program?.assigned_segments?.[0] || null;
-  const registrationQuery = program?.id
-    ? `program_id=${encodeURIComponent(String(program.id))}`
-    : `group_id=${encodeURIComponent(String(registrationSourceId))}`;
-  const { data: regForm } = useApi(
-    registrationSourceId ? `/api/platform/form-runs?${registrationQuery}` : null,
-    { defaultValue: null, transform: pickRegistrationLink, deps: [registrationSourceId] },
-  );
+  // Registration link: programme-targeted run first, then the first assigned
+  // group's run (edit-modal parity). Hooks stay unconditional; the second
+  // address is null while the programme run is still loading or already found.
+  const programRegUrl = program?.id
+    ? `/api/platform/form-runs?program_id=${encodeURIComponent(String(program.id))}`
+    : null;
+  const { data: programRegForm, loading: programRegLoading } = useApi(programRegUrl, {
+    defaultValue: null,
+    transform: pickRegistrationLink,
+    deps: [program?.id],
+  });
+  const groupRegId = program?.assigned_segments?.[0] || null;
+  const groupRegUrl =
+    !programRegLoading && !programRegForm && groupRegId
+      ? `/api/platform/form-runs?group_id=${encodeURIComponent(String(groupRegId))}`
+      : null;
+  const { data: groupRegForm } = useApi(groupRegUrl, {
+    defaultValue: null,
+    transform: pickRegistrationLink,
+    deps: [groupRegId, programRegForm, programRegLoading],
+  });
+  const regForm = programRegForm || groupRegForm;
 
   const handleAddFollowup = async (weekNumber, sessionId = null) => {
     if (!newFollowup.comment.trim()) return;

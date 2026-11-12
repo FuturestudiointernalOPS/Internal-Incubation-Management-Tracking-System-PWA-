@@ -18,6 +18,7 @@ import ProgramSuspenseFallback from "@/components/pm/programs/ProgramSuspenseFal
 import { INITIAL_WORKSPACE_FORMS } from "@/components/pm/programs/programWorkspaceInitialState";
 import {
   buildRegFormUrl,
+  buildRegFormGroupUrl,
   countPendingSubmissions,
   selectWorkspaceTabs,
 } from "@/components/pm/programs/programWorkspaceDerivations";
@@ -96,10 +97,19 @@ function ProgramWorkspace() {
   const [families, setFamilies] = useState([]);
   const regGroupId = families[0]?.registration_id || families[0]?.id;
   const regFormUrl = buildRegFormUrl(id, regGroupId);
-  const { data: regForm } = useApi(regFormUrl, {
+  const { data: programRegForm, loading: programRegLoading } = useApi(regFormUrl, {
     defaultValue: null,
     transform: pickRegForm,
   });
+  const groupRegFormUrl =
+    !programRegLoading && !programRegForm
+      ? buildRegFormGroupUrl(regGroupId)
+      : null;
+  const { data: groupRegForm } = useApi(groupRegFormUrl, {
+    defaultValue: null,
+    transform: pickRegForm,
+  });
+  const regForm = programRegForm || groupRegForm;
 
   // Compute program team members from Super Admin's approved list (assigned_assistant_id)
   const assignedAssistantId = program?.assigned_assistant_id;

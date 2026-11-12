@@ -103,7 +103,7 @@ export default function ProgramDetailView({ ctx }) {
           </div>
 
           <div className="flex items-center gap-6">
-             {program.assigned_segments?.length > 0 && program.assigned_segments[0] && (
+             {(regForm || (program.assigned_segments?.length > 0 && program.assigned_segments[0])) && (
                 <div className="flex flex-col items-end gap-2 px-6 py-2 bg-blue-500/5 border border-blue-500/10 rounded-2xl">
                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{t("adminMisc.programDetail.registrationNode")}</p>
                    {regForm ? (
