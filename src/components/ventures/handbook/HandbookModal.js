@@ -56,22 +56,23 @@ export default function HandbookButton({ className = "" }) {
 
   const title = (key) => t(`venture.handbook.page.${key}.title`);
 
-  const haystack = (key) =>
-    normalize(
-      [
-        t(`venture.handbook.page.${key}.title`),
-        t(`venture.handbook.page.${key}.summary`),
-        t(`venture.handbook.page.${key}.body`),
-        t(`venture.handbook.page.${key}.bullets`),
-      ].join(" "),
-    );
-
   const results = useMemo(() => {
+    // `t` is the only outside dependency on purpose: switching language
+    // rebuilds the index. The haystack is built here so listing it would be
+    // meaningless — it closes over `t`, not over the query.
+    const haystack = (key) =>
+      normalize(
+        [
+          t(`venture.handbook.page.${key}.title`),
+          t(`venture.handbook.page.${key}.summary`),
+          t(`venture.handbook.page.${key}.body`),
+          t(`venture.handbook.page.${key}.bullets`),
+        ].join(" "),
+      );
     const term = normalize(query.trim());
     if (!term) return PAGES;
-    // `t` is a dependency on purpose: switching language rebuilds the index.
     return PAGES.filter((key) => haystack(key).includes(term));
-  }, [query, t]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [query, t]);
 
   // The page on screen is derived, never stored: typing a word that filters the
   // open page out selects the first match, and clearing the search brings the
