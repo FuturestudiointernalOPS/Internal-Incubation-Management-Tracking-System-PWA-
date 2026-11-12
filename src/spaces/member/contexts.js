@@ -17,6 +17,10 @@
 
 import { normalizeRole } from "@/lib/identity";
 
+/** A context is open when the person HOLDS the corresponding profile. */
+const holdsProfile = (profiles, key) =>
+  Array.isArray(profiles) && profiles.includes(key);
+
 /** What a person with no relationship at all carries. */
 export const EMPTY_RELATIONSHIPS = {
   isProgramParticipant: false,
@@ -37,8 +41,10 @@ export const MEMBER_CONTEXTS = [
   {
     key: "investor",
     labelKey: "contexts.member.investor",
-    when: ({ role, rel }) =>
-      normalizeRole(role) === "investor" || rel?.isInvestor === true,
+    when: ({ role, rel, profiles }) =>
+      holdsProfile(profiles, "investor") ||
+      normalizeRole(role) === "investor" ||
+      rel?.isInvestor === true,
     replacesDashboard: true,
     doors: [
       {
@@ -58,7 +64,8 @@ export const MEMBER_CONTEXTS = [
   {
     key: "learner",
     labelKey: "contexts.member.learner",
-    when: ({ hasCourse }) => hasCourse === true,
+    when: ({ hasCourse, profiles }) =>
+      holdsProfile(profiles, "learner") || hasCourse === true,
     doors: [
       {
         id: "learning",
@@ -71,7 +78,8 @@ export const MEMBER_CONTEXTS = [
   {
     key: "program-participant",
     labelKey: "contexts.member.programParticipant",
-    when: ({ rel }) => rel?.isProgramParticipant === true,
+    when: ({ rel, profiles }) =>
+      holdsProfile(profiles, "participant") || rel?.isProgramParticipant === true,
     doors: [
       {
         id: "programs",
@@ -84,6 +92,25 @@ export const MEMBER_CONTEXTS = [
         name: "MY CERTIFICATES",
         icon: "fileText",
         href: "/member/participant/certificates",
+      },
+    ],
+  },
+  {
+    key: "facilitator",
+    labelKey: "contexts.member.facilitator",
+    when: ({ profiles }) => holdsProfile(profiles, "facilitator"),
+    doors: [
+      {
+        id: "my_programs",
+        name: "MY PROGRAMS",
+        icon: "briefcase",
+        href: "/member/facilitator/programs",
+      },
+      {
+        id: "reviews",
+        name: "MY REVIEWS",
+        icon: "clipboardList",
+        href: "/member/facilitator/reviews",
       },
     ],
   },
@@ -103,7 +130,8 @@ export const MEMBER_CONTEXTS = [
   {
     key: "founder",
     labelKey: "contexts.member.founder",
-    when: ({ rel }) => rel?.isFounder === true,
+    when: ({ rel, profiles }) =>
+      holdsProfile(profiles, "founder") || rel?.isFounder === true,
     doors: [
       {
         id: "founder_meetings",
@@ -116,8 +144,13 @@ export const MEMBER_CONTEXTS = [
 ];
 
 /** The contexts this person actually holds right now. */
-export function activeMemberContexts({ role, rel, hasCourse } = {}) {
-  const signals = { role, rel: rel || EMPTY_RELATIONSHIPS, hasCourse };
+export function activeMemberContexts({ role, rel, hasCourse, profiles = [] } = {}) {
+  const signals = {
+    role,
+    rel: rel || EMPTY_RELATIONSHIPS,
+    hasCourse,
+    profiles: Array.isArray(profiles) ? profiles : [],
+  };
   return MEMBER_CONTEXTS.filter((context) => context.when(signals));
 }
 
@@ -136,11 +169,11 @@ function doorsOf(contexts, key) {
  * The person's home: a team account keeps its own workspace, a founder lands in
  * their founder space, everyone else on the participant dashboard.
  */
-function dashboardDoor(role, rel) {
+function dashboardDoor(role, rel, founder = rel.isFounder) {
   const href =
     normalizeRole(role) === "team"
       ? "/member/team"
-      : rel.isFounder
+      : founder
         ? "/member/founder"
         : "/member/participant";
   return { id: "dashboard", name: "DASHBOARD", icon: "layoutDashboard", href };
@@ -163,15 +196,28 @@ const MESSAGES_DOOR = {
  *   - the investor space owns the home, so it opens first and the generic
  *     dashboard is not shown.
  */
-export function composeMemberNav({ role, rel, hasCourse, canReadMessages } = {}) {
+export function composeMemberNav({
+  role,
+  rel,
+  hasCourse,
+  canReadMessages,
+  profiles = [],
+} = {}) {
   const relationships = rel || EMPTY_RELATIONSHIPS;
-  const contexts = activeMemberContexts({ role, rel: relationships, hasCourse });
+  const contexts = activeMemberContexts({
+    role,
+    rel: relationships,
+    hasCourse,
+    profiles,
+  });
   const investor = hasMemberContext(contexts, "investor");
+  const founder = hasMemberContext(contexts, "founder");
 
-  const items = investor ? [] : [dashboardDoor(role, relationships)];
+  const items = investor ? [] : [dashboardDoor(role, relationships, founder)];
 
   items.push(...doorsOf(contexts, "learner"));
   items.push(...doorsOf(contexts, "program-participant"));
+  items.push(...doorsOf(contexts, "facilitator"));
 
   if (canReadMessages && normalizeRole(role) !== "team") {
     items.push(MESSAGES_DOOR);

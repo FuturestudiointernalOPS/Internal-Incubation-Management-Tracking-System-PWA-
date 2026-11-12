@@ -373,6 +373,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       pmPrograms,
       ventureAssignCount,
       relationships,
+      profiles: activeProfiles,
     });
 
   const handleLogout = async () => {

@@ -170,3 +170,56 @@ describe("the sidebar they compose", () => {
     expect(ids(items)).toEqual(["investor", "investor_deal_flow", "programs", "certificates"]);
   });
 });
+
+describe("active profiles open the member contexts", () => {
+  const contextKeys = (profiles) =>
+    activeMemberContexts({ role: "member", rel: rel(), profiles }).map((c) => c.key);
+
+  test("facilitator profile opens the facilitator context and its doors", () => {
+    expect(contextKeys(["facilitator"])).toEqual(["facilitator"]);
+    const items = composeMemberNav({
+      role: "member",
+      rel: rel(),
+      profiles: ["facilitator"],
+    });
+    expect(ids(items)).toEqual(["dashboard", "my_programs", "reviews"]);
+    expect(href(items, "my_programs")).toBe("/member/facilitator/programs");
+    expect(href(items, "reviews")).toBe("/member/facilitator/reviews");
+  });
+
+  test("investor profile replaces the dashboard with the investor space", () => {
+    expect(contextKeys(["investor"])).toEqual(["investor"]);
+    const items = composeMemberNav({ role: "member", rel: rel(), profiles: ["investor"] });
+    expect(ids(items)).toEqual(["investor", "investor_deal_flow"]);
+  });
+
+  test("learner profile opens learning without an enrollment flag", () => {
+    expect(contextKeys(["learner"])).toEqual(["learner"]);
+    expect(
+      ids(composeMemberNav({ role: "member", rel: rel(), profiles: ["learner"] })),
+    ).toEqual(["dashboard", "learning"]);
+  });
+
+  test("participant profile opens the programme doors", () => {
+    expect(contextKeys(["participant"])).toEqual(["program-participant"]);
+    expect(
+      ids(composeMemberNav({ role: "member", rel: rel(), profiles: ["participant"] })),
+    ).toEqual(["dashboard", "programs", "certificates"]);
+  });
+
+  test("founder profile lands on the founder home", () => {
+    expect(contextKeys(["founder"])).toEqual(["founder"]);
+    const items = composeMemberNav({ role: "member", rel: rel(), profiles: ["founder"] });
+    expect(href(items, "dashboard")).toBe("/member/founder");
+    expect(ids(items)).toContain("founder_meetings");
+  });
+
+  test("profiles and relationships compose without duplicates", () => {
+    const items = composeMemberNav({
+      role: "member",
+      rel: rel({ isProgramParticipant: true }),
+      profiles: ["participant", "learner"],
+    });
+    expect(ids(items)).toEqual(["dashboard", "learning", "programs", "certificates"]);
+  });
+});

@@ -105,6 +105,7 @@ export function useDashboardNavigation({
   pmPrograms,
   ventureAssignCount,
   relationships,
+  profiles = [],
 }) {
   // The sections the person opened or closed BY HAND, recorded together with the
   // route they were on. Nothing else about the accordion is state: the effective
@@ -153,6 +154,7 @@ export function useDashboardNavigation({
           rel: relationships,
           hasCourse: hasLmsEnrollments === true,
           canReadMessages,
+          profiles,
         }),
       );
     }
@@ -268,6 +270,7 @@ export function useDashboardNavigation({
     canReadMessages,
     ventureAssignCount,
     relationships,
+    profiles,
   ]);
 
   // Active navigation path — the current page plus every ancestor node id.
