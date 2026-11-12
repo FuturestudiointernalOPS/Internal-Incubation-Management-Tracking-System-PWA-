@@ -14,6 +14,8 @@ const path = require("node:path");
 const ROOT = path.join(__dirname, "..", "..");
 const SEED_FILE = path.join(ROOT, "src", "models", "authorization", "seedData.js");
 
+const { FEATURE_ORDER } = require("@/models/authorization/constants/features");
+
 describe("authorization seed data — inert and single-sourced", () => {
   test("the data file contains no imports, database access, or logic", () => {
     const source = fs.readFileSync(SEED_FILE, "utf8");
@@ -38,6 +40,25 @@ describe("authorization seed data — inert and single-sourced", () => {
   test("the responsibility defaults are the eligibility defaults", () => {
     const seed = require("@/models/authorization/seedData");
     expect(seed.RESPONSIBILITY_FEATURE_ROLES).toBe(seed.FEATURE_ELIGIBILITY_DEFAULTS);
+  });
+
+  test("the owner is eligible for every feature, and its profile is complete", () => {
+    const seed = require("@/models/authorization/seedData");
+    for (const feature of FEATURE_ORDER) {
+      expect(seed.FEATURE_ELIGIBILITY_DEFAULTS[feature]).toContain("super_admin");
+    }
+    const owner = seed.PROFILE_CATALOGUE_SEED.find(
+      (profile) => profile.key === "super_admin_default",
+    );
+    expect(owner).toBeDefined();
+    expect(owner.allCapabilities).toBe(true);
+  });
+
+  test("the responsibility catalogue covers every feature", () => {
+    const seed = require("@/models/authorization/seedData");
+    expect(seed.RESPONSIBILITY_DEFINITIONS.map((definition) => definition.key).sort()).toEqual(
+      [...FEATURE_ORDER].sort(),
+    );
   });
 
   test("the historic entry points re-export the same data (no copy)", () => {
