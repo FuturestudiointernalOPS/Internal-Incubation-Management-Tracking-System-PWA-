@@ -349,14 +349,38 @@ export default function useRunDerivedData({
     return activationRows.some((emailRow) => emailRow.status === "sent");
   }, [submissions, activationLogBySubmission]);
 
-  // FIRST send: approved + activation email never sent yet
+  // Recipient-level truth: the server sends at most ONE activation email per
+  // address per run (its duplicate-recipient guard). A submission whose address
+  // already received one through another submission can therefore never be
+  // sent a first activation, so it must not be offered as a first send — the
+  // action would report a send for nothing.
+  const activationRecipientsAlreadySent = useMemo(() => {
+    const sent = new Set();
+    for (const submission of submissions) {
+      if (!submission?.activation_history?.first_sent_at) continue;
+      const address = String(submission.email || "").trim().toLowerCase();
+      if (address) sent.add(address);
+    }
+    for (const emailRow of emailLog) {
+      if (emailRow.email_type !== "activation" || emailRow.status !== "sent") continue;
+      const submission = submissions.find((candidate) => candidate.id === emailRow.submission_id);
+      const address = String(emailRow.recipient || submission?.email || "").trim().toLowerCase();
+      if (address) sent.add(address);
+    }
+    return sent;
+  }, [submissions, emailLog]);
+
+  // FIRST send: approved + activation email never sent yet, and the address has
+  // not already received one through another submission of this run.
   const eligibleSendActivationIds = useMemo(() => {
     return selectedIds.filter((id) => {
       const submission = submissions.find((candidate) => candidate.id === id);
       if (!submission || String(submission.status || "").toLowerCase() !== "approved") return false;
-      return !hasActivationEmailSent(id);
+      if (hasActivationEmailSent(id)) return false;
+      const address = String(submission.email || "").trim().toLowerCase();
+      return !(address && activationRecipientsAlreadySent.has(address));
     });
-  }, [selectedIds, submissions, hasActivationEmailSent]);
+  }, [selectedIds, submissions, hasActivationEmailSent, activationRecipientsAlreadySent]);
 
   // RESEND: approved + activation email already sent at least once
   const eligibleResendActivationIds = useMemo(() => {

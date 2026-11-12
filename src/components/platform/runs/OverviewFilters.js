@@ -5,7 +5,38 @@ import { cn } from "./helpers";
 
 export default function OverviewFilters({ ctx }) {
   const { t } = useI18n();
-  const { activeFieldFilters, activeTrackingFilters, allFilteredSelected, availableParams, bulkMenuOpen, bulkProcessing, clearRunFilters, clearScoreFilter, duplicateGroups, fieldOptionsOf, filterPickerMode, filterPickerOpen, filterRowRef, filteredSubmissions, hasRunFilters, openActivationConfirm, openMessageComposer, openSendResultConfirm, perPage, pickFilterParam, removeFieldFilter, respSafePage, respSearch, scoreChipActive, scoreChipLabel, scoreOp, scoreValue, scoreValue2, selectedIds, setBulkConfirmOpen, setBulkIncludeResultPdf, setBulkMenuOpen, setExportScope, setFieldFilters, setFilterPickerMode, setFilterPickerOpen, setRespSearch, setScoreOp, setScoreValue, setScoreValue2, setShowDuplicates, setShowExportOptions, setTrackingFilter, showDuplicates, toggleSelectAllFiltered, trackingFilterOptionLabel, trackingFilterOptions, visibleSubmissions } = ctx;
+  const {
+    activeFieldFilters, activeTrackingFilters, allFilteredSelected, availableParams,
+    bulkMenuOpen, bulkProcessing, clearRunFilters, clearScoreFilter, duplicateGroups,
+    eligibleResendActivationIds, eligibleSendActivationIds, fieldOptionsOf,
+    filterPickerMode, filterPickerOpen, filterRowRef, filteredSubmissions, hasRunFilters,
+    openActivationConfirm, openMessageComposer, openSendResultConfirm, perPage,
+    pickFilterParam, removeFieldFilter, respSafePage, respSearch, scoreChipActive,
+    scoreChipLabel, scoreOp, scoreValue, scoreValue2, selectedIds, setBulkConfirmOpen,
+    setBulkIncludeResultPdf, setBulkMenuOpen, setExportScope, setFieldFilters,
+    setFilterPickerMode, setFilterPickerOpen, setRespSearch, setScoreOp, setScoreValue,
+    setScoreValue2, setShowDuplicates, setShowExportOptions, setTrackingFilter,
+    showDuplicates, toggleSelectAllFiltered, trackingFilterOptionLabel,
+    trackingFilterOptions, visibleSubmissions,
+  } = ctx;
+
+  // The two activation actions target disjoint sets: a FIRST send goes to
+  // approved respondents whose activation email was never sent; a RESEND only
+  // goes to those that already received one. Showing the counts makes that
+  // distinction visible instead of letting an operator pick "Resend" on a row
+  // that never received anything (which then does nothing).
+  const sendActivationCount = (eligibleSendActivationIds || []).length;
+  const resendActivationCount = (eligibleResendActivationIds || []).length;
+  const sendActivationHint = sendActivationCount === 0
+    ? t(resendActivationCount > 0
+        ? "platformMisc.runs.noEligibleSendAlreadySent"
+        : "platformMisc.runs.noEligibleSendNone")
+    : undefined;
+  const resendActivationHint = resendActivationCount === 0
+    ? t(sendActivationCount > 0
+        ? "platformMisc.runs.noEligibleResendNotSentYet"
+        : "platformMisc.runs.noEligibleResendNone")
+    : undefined;
   return (
     <>
               {/* Run-scoped search + filters */}
@@ -270,16 +301,28 @@ export default function OverviewFilters({ ctx }) {
                             <button
                               type="button"
                               onClick={() => openActivationConfirm(false)}
-                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-[var(--text-primary)] hover:bg-tertiary flex items-center gap-1.5"
+                              title={sendActivationHint}
+                              className={cn(
+                                "w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5",
+                                sendActivationCount === 0
+                                  ? "text-[var(--text-tertiary)] opacity-60"
+                                  : "text-[var(--text-primary)] hover:bg-tertiary",
+                              )}
                             >
-                              <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")}
+                              <Key className="w-3 h-3" /> {t("platformMisc.runs.sendActivationMessage")} ({sendActivationCount})
                             </button>
                             <button
                               type="button"
                               onClick={() => openActivationConfirm(true)}
-                              className="w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-amber-400 hover:bg-amber-500/10 flex items-center gap-1.5"
+                              title={resendActivationHint}
+                              className={cn(
+                                "w-full px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide flex items-center gap-1.5",
+                                resendActivationCount === 0
+                                  ? "text-[var(--text-tertiary)] opacity-60"
+                                  : "text-amber-400 hover:bg-amber-500/10",
+                              )}
                             >
-                              <RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.resendActivationMessage")}
+                              <RefreshCw className="w-3 h-3" /> {t("platformMisc.runs.resendActivationMessage")} ({resendActivationCount})
                             </button>
                             <button
                               type="button"
