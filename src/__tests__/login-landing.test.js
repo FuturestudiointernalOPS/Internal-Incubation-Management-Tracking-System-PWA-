@@ -195,13 +195,20 @@ describe("isFounderMembership — ONE definition of founding a Venture", () => {
 describe("every caller uses that one rule", () => {
   test("the login decides the destination and sends it with the identity", () => {
     const login = src("src/app/api/auth/session-login/route.js");
+    // Both paths are present while the step-4 flag is off by default: the
+    // current relationship rule, and the access rule that replaces it.
     expect(login).toContain("resolveLanding(");
+    expect(login).toContain("resolveLandingFromAccess(");
     expect(login).toContain("responseUser.home =");
   });
 
   test("the hub's home button is that rule, not the badge alone", () => {
     const hub = src("src/app/api/workspaces/route.js");
-    expect(hub).toContain("home: resolveLanding(");
+    // The same two paths as the login, chosen by the same flag, so the button
+    // cannot drift from the redirect.
+    expect(hub).toContain("home: landingFromRightsEnabled()");
+    expect(hub).toContain("resolveLandingFromAccess(");
+    expect(hub).toContain(": resolveLanding(");
     expect(hub).not.toContain("home: roleHomeHref(");
   });
 

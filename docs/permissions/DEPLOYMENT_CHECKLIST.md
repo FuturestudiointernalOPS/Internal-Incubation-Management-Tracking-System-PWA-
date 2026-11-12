@@ -79,6 +79,24 @@ Détail : `docs/permissions/ETAPE2-OWNER-THROUGH-ENGINE.md`.
 
 ---
 
+## 2 ter. Arrivée — « depuis les droits »
+
+Le drapeau est **désactivé par défaut**. Ne l'activer qu'après avoir relu la
+comparaison `AUTHZ_LANDING_FROM_RIGHTS=true` : les seuls changements attendus
+sont des **arrivées**, jamais des droits.
+
+```bash
+AUTHZ_LANDING_FROM_RIGHTS=true
+```
+
+- En staging, les 3 changements attendus sont `/member` → `/member/founder`
+  (fondateurs de plusieurs ventures) ; **0 régression**.
+- Retour arrière immédiat : retirer le drapeau.
+
+Détail : `docs/permissions/ETAPE4-LANDING-FROM-RIGHTS.md`.
+
+---
+
 ## 3. Après le déploiement — parité
 
 ```bash

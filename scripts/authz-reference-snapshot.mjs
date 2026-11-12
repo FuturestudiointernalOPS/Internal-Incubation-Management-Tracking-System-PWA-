@@ -46,6 +46,7 @@ const WITH_LANDING = !ARGS.has("--no-landing");
 // + account gate + profile rights) exactly as the application will after the
 // flag is enabled. Default OFF = today's bypass.
 const OWNER_THROUGH_ENGINE = process.env.AUTHZ_OWNER_THROUGH_ENGINE === "true";
+const LANDING_FROM_RIGHTS = process.env.AUTHZ_LANDING_FROM_RIGHTS === "true";
 const COMPARE_ARG_INDEX = process.argv.indexOf("--compare");
 const COMPARE_WITH =
   COMPARE_ARG_INDEX >= 0 ? process.argv[COMPARE_ARG_INDEX + 1] : null;
@@ -135,8 +136,10 @@ const { selectEffectiveGroups } =
 const { buildAccessNav } = await import("../src/lib/masterNavigation.js");
 const {
   resolveLanding,
+  resolveLandingFromAccess,
   resolveEffectiveRole,
   landingNeedsRelationships,
+  isFounderMembership,
 } = await import("../src/models/platform/roles.js");
 const { spaceForRole } = await import("../src/spaces/registry.js");
 const { resolveParticipantParticipation } =
@@ -483,14 +486,25 @@ for (const contact of contacts) {
       isInvestor,
       isProgramParticipant,
     };
-    landing = resolveLanding({
-      role,
-      teamId: null,
-      ventures,
-      isInvestor,
-      isProgramParticipant,
-      profiles: activeProfiles,
-    });
+    landing = LANDING_FROM_RIGHTS
+      ? resolveLandingFromAccess({
+          role,
+          teamId: null,
+          ventures,
+          isInvestor,
+          isProgramParticipant,
+          isFounder: ventures.some((venture) => isFounderMembership(venture)),
+          profiles: activeProfiles,
+          effective,
+        })
+      : resolveLanding({
+          role,
+          teamId: null,
+          ventures,
+          isInvestor,
+          isProgramParticipant,
+          profiles: activeProfiles,
+        });
   }
 
   const personKey = INCLUDE_IDENTIFIERS
@@ -555,6 +569,7 @@ const snapshot = {
     onlyCid: ONLY_CID,
     withLanding: WITH_LANDING,
     ownerThroughEngine: OWNER_THROUGH_ENGINE,
+    landingFromRights: LANDING_FROM_RIGHTS,
   },
   catalogue: {
     featureOrder: FEATURE_ORDER,
@@ -613,6 +628,9 @@ md.push(`- Fichier d'environnement : \`${sourceEnvFile}\``);
 md.push(`- Personnes photographiées : **${snapshot.summary.people}**`);
 md.push(
   `- Mode propriétaire : ${snapshot.mode.ownerThroughEngine ? "même chemin que tout le monde (étape 2)" : "contournement actuel"}`,
+);
+md.push(
+  `- Arrivée : ${snapshot.mode.landingFromRights ? "calculée depuis les droits et profils (étape 4)" : "table rôle → adresse actuelle"}`,
 );
 md.push("");
 md.push("> Le détail reste local, dans `scratch/authz-reference/`. Les identifiants y sont remplacés par une empreinte stable par défaut (option `--include-identifiers` pour les garder).");

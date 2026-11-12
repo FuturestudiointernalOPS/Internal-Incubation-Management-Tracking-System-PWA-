@@ -7,8 +7,12 @@ import { setSessionCookieOnResponse } from "@/server/auth/cookies";
 import {
   resolveEffectiveRole,
   resolveLanding,
+  resolveLandingFromAccess,
+  landingFromRightsEnabled,
   landingNeedsRelationships,
+  isFounderMembership,
 } from "@/models/platform/roles";
+import { getAuthorizationContext } from "@/models/authorization/index";
 import { getEffectiveGroupsForUser } from "@/services/authorization/membership";
 import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
@@ -288,6 +292,16 @@ export async function POST(req) {
       } catch (_) {}
     }
 
+    // Étape 4 — the landing needs the rights matrix. The authorization context
+    // is the same one the next request will resolve (and it is cached), so the
+    // login pays it once instead of deriving a destination from a role label.
+    let accessContext = null;
+    if (landingFromRightsEnabled() && !isTeamLogin && !isFamilyLogin) {
+      try {
+        accessContext = await getAuthorizationContext({ cid: userCid, role: finalRole });
+      } catch (_) {}
+    }
+
     // --- 7. BUILD RESPONSE USER ---
     let responseUser;
     if (isFamilyLogin) {
@@ -331,14 +345,21 @@ export async function POST(req) {
     // (the login redirect, the root bounce) then uses this same answer instead of
     // re-deriving a destination from a badge that cannot carry the context.
     // The rule itself lives in src/models/platform/roles.js.
-    responseUser.home = resolveLanding({
+    const landingContext = {
       role: responseUser.role,
       teamId: responseUser.team_id || null,
       ventures: ventureMemberships,
       isInvestor,
       isProgramParticipant,
-      profiles: activeProfiles,
-    });
+      isFounder: ventureMemberships.some((membership) =>
+        isFounderMembership(membership),
+      ),
+      profiles: accessContext?.profiles || activeProfiles,
+      effective: accessContext?.effective || null,
+    };
+    responseUser.home = landingFromRightsEnabled()
+      ? resolveLandingFromAccess(landingContext)
+      : resolveLanding(landingContext);
 
     // --- LOGIN ACTIVITY TRACKING (successful login only) ---
     if (!isTeamLogin && !isFamilyLogin && user.cid) {

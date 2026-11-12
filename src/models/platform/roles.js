@@ -14,6 +14,8 @@ import {
   RETIRED_CONTEXTUAL_LABELS,
   resolveProgramManagerIdentity,
 } from "@/lib/identity";
+import { spaceForRole } from "@/spaces/registry";
+import { LANDING_PRIORITY } from "@/models/authorization/landingData";
 
 export const DEFAULT_ROLE = "member";
 
@@ -139,6 +141,93 @@ export const ROLE_HOME = {
 
 export function roleHomeHref(role) {
   return ROLE_HOME[String(role || "").toLowerCase()] || null;
+}
+
+/** Étape 4 — landing from access. Default OFF while the production rule is reviewed. */
+export const landingFromRightsEnabled = () =>
+  process.env.AUTHZ_LANDING_FROM_RIGHTS === "true";
+
+/**
+ * A right is held when the matrix says so. `null` means the matrix is not
+ * loaded: a capability-only destination cannot be chosen, but a destination
+ * that a PROFILE or a RELATIONSHIP already opens still can.
+ */
+function holdsRight(effective, module, capability) {
+  if (!effective) return null;
+  return Number(effective?.[module]?.[capability] ?? 0) >= 1;
+}
+
+/**
+ * Étape 4 — where a person belongs, from their space, profiles, relationships
+ * and (when available) their effective rights. The priority list is data
+ * (`authorization/landingData.js`); this function only evaluates it.
+ */
+export function resolveLandingFromAccess({
+  role,
+  teamId = null,
+  profiles = [],
+  ventures = [],
+  isInvestor = false,
+  isProgramParticipant = false,
+  isFounder = false,
+  effective = null,
+} = {}) {
+  const space = spaceForRole(role) || "member";
+  const profileList = Array.isArray(profiles) ? profiles : [];
+  const owned = (ventures || []).filter(
+    (venture) => isActiveVenture(venture) && isFounderMembership(venture),
+  );
+  const signals = {
+    isInvestor: isInvestor === true,
+    isFounder:
+      isFounder === true || (ventures || []).some((venture) => isFounderMembership(venture)),
+    isProgramParticipant: isProgramParticipant === true,
+  };
+
+  for (const destination of LANDING_PRIORITY) {
+    if (destination.space && destination.space !== space) continue;
+    if (
+      destination.role &&
+      String(role || "").toLowerCase() !== destination.role
+    ) {
+      continue;
+    }
+
+    const hasSignal = Boolean(destination.profile || destination.relationship);
+    const profileOk = destination.profile
+      ? profileList.includes(destination.profile)
+      : false;
+    const relationshipOk = destination.relationship
+      ? signals[destination.relationship] === true
+      : false;
+    const signalOk = hasSignal ? profileOk || relationshipOk : true;
+    if (!signalOk) continue;
+
+    if (destination.capability) {
+      const { module, capability } = destination.capability;
+      const right = holdsRight(effective, module, capability);
+      if (right === false) continue;
+      // Unknown matrix: only a profile/relationship can still justify the
+      // destination. A capability-only entry waits for the real matrix.
+      if (right === null && !hasSignal) continue;
+    }
+
+    if (destination.kind === "team") {
+      return teamId ? `/member/team/${teamId}` : "/member/team";
+    }
+    if (destination.kind === "owned-venture") {
+      if (owned.length === 1 && owned[0].venture_id) {
+        return `/member/participant/ventures/${owned[0].venture_id}`;
+      }
+      continue;
+    }
+    if (destination.href) return destination.href;
+  }
+
+  // Space home: the structural fallback, never a role-label branch.
+  if (space === "admin") return "/admin";
+  if (space === "staff") return "/staff";
+  return "/member";
 }
 
 /**

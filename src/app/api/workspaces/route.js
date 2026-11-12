@@ -2,7 +2,14 @@ import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import { resolveLanding, landingNeedsRelationships } from "@/models/platform/roles";
+import {
+  resolveLanding,
+  resolveLandingFromAccess,
+  landingFromRightsEnabled,
+  landingNeedsRelationships,
+  isFounderMembership,
+} from "@/models/platform/roles";
+import { getAuthorizationContext } from "@/models/authorization/index";
 import { getContactStoredRole } from "@/models/workspace";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import { resolveParticipantParticipation } from "@/services/participant/participation";
@@ -123,6 +130,15 @@ export async function GET(request) {
       rowsOf(storedRoleSettled)[0]?.role,
     );
 
+    // Étape 4 — the home button asks the same access question the login asked.
+    let accessContext = null;
+    if (landingFromRightsEnabled()) {
+      try {
+        accessContext = await getAuthorizationContext(session);
+      } catch (_) {}
+    }
+    const ventures = navigation.contexts?.venture_memberships || [];
+
     return NextResponse.json({
       success: true,
       user: {
@@ -136,12 +152,22 @@ export async function GET(request) {
       // The home button must agree with where the login actually sent this
       // person: same rule, same data (the memberships just read above), so the
       // door and the button can never point at two different places.
-      home: resolveLanding({
-        role: session.role,
-        ventures: navigation.contexts?.venture_memberships || [],
-        isInvestor,
-        isProgramParticipant,
-      }),
+      home: landingFromRightsEnabled()
+        ? resolveLandingFromAccess({
+            role: session.role,
+            ventures,
+            isInvestor,
+            isProgramParticipant,
+            isFounder: ventures.some((membership) => isFounderMembership(membership)),
+            profiles: accessContext?.profiles || [],
+            effective: accessContext?.effective || null,
+          })
+        : resolveLanding({
+            role: session.role,
+            ventures,
+            isInvestor,
+            isProgramParticipant,
+          }),
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,
     });
