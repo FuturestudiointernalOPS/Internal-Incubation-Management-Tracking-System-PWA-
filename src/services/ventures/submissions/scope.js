@@ -44,16 +44,29 @@ export function applyOwnSubmissionScope({
   return participantId;
 }
 
-/** Whether a program-scoped read needs the facilitator scope filter. */
+/**
+ * Whether a program-scoped read needs the facilitator scope filter.
+ *
+ * A participant reading THEIR OWN submissions in a program (participant_id is
+ * the session's own cid) is not acting as a facilitator: the rows are already
+ * bound to them, so no facilitator assignment is asked for. Any other
+ * program-scoped read keeps the check.
+ */
 export function needsFacilitatorSubmissionScope(
   session,
   programId,
   canManage = false,
+  participantId = null,
 ) {
+  const readsOwnRows =
+    Boolean(session?.cid) &&
+    participantId != null &&
+    String(participantId) === String(session.cid);
   return Boolean(
     session &&
       programId &&
       !canManage &&
+      !readsOwnRows &&
       session.role !== "staff" &&
       session.role !== "team",
   );

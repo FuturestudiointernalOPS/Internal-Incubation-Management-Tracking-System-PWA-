@@ -180,7 +180,7 @@ export async function GET(req) {
 
     let facilitatorScopeFilter = null;
     let facilitatorScopeArgs = [];
-    if (needsFacilitatorSubmissionScope(session, program_id, canManageProgram)) {
+    if (needsFacilitatorSubmissionScope(session, program_id, canManageProgram, participant_id)) {
       const facError = await requireAssignmentAccess({
         resource: "program",
         contextId: program_id,

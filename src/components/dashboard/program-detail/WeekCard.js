@@ -13,10 +13,13 @@ import NextLink from "next/link";
 import CourseThumb from "@/components/lms/CourseThumb";
 import RichTextContent from "@/components/ui/RichTextContent";
 import StatusBadge from "./StatusBadge";
+import { useI18n } from "@/lib/i18n";
 
 /** One curriculum week: a collapsible card with its sessions, deliverables,
  *  learning and material. `t` is passed in by the page. */
 export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, readOnly = false }) {
+  // Dates and times follow the reader's language, not a fixed English locale.
+  const { lang } = useI18n();
   const completedCount = week.deliverables.filter(
     (deliverable) => deliverable.submission?.status === "approved",
   ).length;
@@ -150,7 +153,7 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, read
                       <span className="text-xs text-[var(--text-tertiary)]">
                         {session.start_at
                           ? new Date(session.start_at).toLocaleDateString(
-                              "en",
+                              lang,
                               {
                                 weekday: "short",
                                 month: "short",
@@ -159,7 +162,7 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, read
                             )
                           : ""}
                         {session.start_time
-                          ? ` ${new Date(`2000-01-01T${session.start_time}`).toLocaleTimeString("en", { hour: "numeric", minute: "2-digit" })}`
+                          ? ` ${new Date(`2000-01-01T${session.start_time}`).toLocaleTimeString(lang, { hour: "numeric", minute: "2-digit" })}`
                           : ""}
                       </span>
                     )}
@@ -197,7 +200,7 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, read
                       </div>
                       {!deliverable.submission && deliverable.dueDate && (
                         <p className="text-[10px] text-amber-500/80 font-medium mt-0.5 flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> {t("participant.due")} {new Date(deliverable.dueDate).toLocaleDateString()}
+                          <Clock className="w-3 h-3" /> {t("participant.due")} {new Date(deliverable.dueDate).toLocaleDateString(lang)}
                         </p>
                       )}
                     </div>
@@ -207,7 +210,7 @@ export default function WeekCard({ week, isExpanded, onToggle, onSubmit, t, read
                         {deliverable.submission.submittedAt
                           ? new Date(
                               deliverable.submission.submittedAt,
-                            ).toLocaleDateString()
+                            ).toLocaleDateString(lang)
                           : ""}
                         {deliverable.submission.score > 0 &&
                           ` · ${t("participant.score")}: ${deliverable.submission.score}`}

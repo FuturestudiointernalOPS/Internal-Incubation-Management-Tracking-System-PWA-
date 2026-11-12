@@ -88,6 +88,8 @@
       "ritualParticipation": "Ritual Participation",
       "submissionsCount": "{count} total submissions",
       "milestonesCount": "Milestones ({achieved}/{total})",
+      "milestoneAttended": "Session: {name}",
+      "milestoneCompleted": "Deliverable: {name}",
       "noMilestones": "No milestones yet",
       "weeklyBreakdown": "Weekly Breakdown",
       "summary": "Summary",

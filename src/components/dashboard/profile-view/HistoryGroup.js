@@ -1,7 +1,11 @@
 "use client";
 
-/** A titled list of programme-history rows. Renders nothing when empty. */
-export default function HistoryGroup({ title, rows, roleLabel, activeLabel, completedLabel }) {
+/**
+ * A titled list of programme-history rows. Renders nothing when empty.
+ * `current` says which group this is, so a row's badge follows its group (an
+ * enrolment still marked active on a finished program sits with the past ones).
+ */
+export default function HistoryGroup({ title, rows, current, roleLabel, activeLabel, completedLabel }) {
   if (!rows || rows.length === 0) return null;
   return (
     <div>
@@ -24,12 +28,12 @@ export default function HistoryGroup({ title, rows, roleLabel, activeLabel, comp
             </div>
             <span
               className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
-                row.status === "active"
+                current
                   ? "bg-emerald-500/10 text-emerald-400"
                   : "bg-white/5 text-[var(--text-tertiary)]"
               }`}
             >
-              {row.status === "active" ? activeLabel : completedLabel}
+              {current ? activeLabel : completedLabel}
             </span>
           </div>
         ))}

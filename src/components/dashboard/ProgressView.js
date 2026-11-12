@@ -58,7 +58,7 @@ function MetricCard({ label, value, icon: Icon, color, subtitle }) {
 
 // ─── Milestone Item ─────────────────────────────────────────────────
 function MilestoneItem({ milestone }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   return (
     <div
       className={`flex items-center gap-3 p-3 rounded-lg border ${
@@ -86,7 +86,14 @@ function MilestoneItem({ milestone }) {
               : "text-[var(--text-tertiary)]"
           }`}
         >
-          {milestone.title}
+          {milestone.name
+            ? t(
+                milestone.type === "attendance"
+                  ? "participantMisc.progress.milestoneAttended"
+                  : "participantMisc.progress.milestoneCompleted",
+                { name: milestone.name },
+              )
+            : milestone.title}
         </p>
         <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
           {t("participantMisc.progress.week", { week: milestone.week || "?" })}
@@ -96,7 +103,7 @@ function MilestoneItem({ milestone }) {
               })
             : ""}
           {milestone.date
-            ? ` · ${new Date(milestone.date).toLocaleDateString()}`
+            ? ` · ${new Date(milestone.date).toLocaleDateString(lang)}`
             : ""}
         </p>
       </div>

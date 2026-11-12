@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { BadgeCheck, BookOpen, Building2, Calendar, Camera, Clock, ExternalLink, FileText, Globe, Languages, Mail, Phone, Rocket, Shield, Target, User } from "lucide-react";
 import AppImage from "@/components/ui/AppImage";
 import HistoryGroup from "./HistoryGroup";
+import { isProgramActive, programStatusKey } from "@/lib/programState";
 import InfoRow from "./InfoRow";
 import ProfileSaveActions from "./ProfileSaveActions";
 import SearchableSelect from "@/components/ui/SearchableSelect";
@@ -11,6 +12,9 @@ import SectionCard from "./SectionCard";
 
 export default function ProfileViewContent({ ctx }) {
   const { addAltEmail, altBusy, altEmails, altNotice, contact, countryOptions, deriveCurrentRole, editedCountryCode, editedLanguage, editedPhone, editedWhatsappOptIn, formatDate, formatDateTime, groupInfo, handlePhotoUpload, handleSave, history, languageOptions, newAltEmail, photoMessage, programs, removeAltEmail, roleLabel, saveMessage, saving, setEditedAlternativePhone, setEditedCountryCode, setEditedLanguage, setEditedName, setEditedPhone, setEditedWhatsappOptIn, setNewAltEmail, statusLabel, storedCountryCode, submissions, t, timeline, uploadingPhoto, participant } = ctx;
+  // Programs the person is currently in: an active status (any case) whose end
+  // date has not passed.
+  const activePrograms = programs.filter((program) => isProgramActive(program.status, program.endDate));
   const whatsappConsent = editedWhatsappOptIn ?? contact.whatsapp_opt_in === true;
   const phoneReady = String(editedPhone ?? contact.phone ?? "").replace(/\D/g, "").length >= 8;
 return (
@@ -101,12 +105,14 @@ return (
                     </span>
                     <span
                       className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded ${
-                        program.status === "active"
+                        isProgramActive(program.status, program.endDate)
                           ? "bg-emerald-500/10 text-emerald-400"
                           : "bg-white/5 text-[var(--text-tertiary)]"
                       }`}
                     >
-                      {program.status || "active"}
+                      {programStatusKey(program.status, program.endDate)
+                        ? t(programStatusKey(program.status, program.endDate))
+                        : program.status}
                     </span>
                   </div>
                 ))}
@@ -289,14 +295,16 @@ return (
               <div className="space-y-5">
                 <HistoryGroup
                   title={t("adminMisc.profile.currentPrograms")}
-                  rows={history.filter((entry) => entry.status === "active")}
+                  rows={history.filter((entry) => isProgramActive(entry.status, entry.end_date))}
+                  current
                   roleLabel={roleLabel}
                   activeLabel={t("adminMisc.profile.activeStatus")}
                   completedLabel={t("adminMisc.profile.completedStatus")}
                 />
                 <HistoryGroup
                   title={t("adminMisc.profile.pastPrograms")}
-                  rows={history.filter((entry) => entry.status !== "active")}
+                  rows={history.filter((entry) => !isProgramActive(entry.status, entry.end_date))}
+                  current={false}
                   roleLabel={roleLabel}
                   activeLabel={t("adminMisc.profile.activeStatus")}
                   completedLabel={t("adminMisc.profile.completedStatus")}
@@ -392,14 +400,12 @@ return (
           <SectionCard title={t("adminMisc.profile.goalsObjectives")} icon={Target}>
             <div className="space-y-3">
               <p className="text-[10px] text-[var(--text-secondary)]">
-                {programs.length > 0
-                  ? t("adminMisc.profile.activelyEnrolled", { count: programs.length })
+                {activePrograms.length > 0
+                  ? t("adminMisc.profile.activelyEnrolled", { count: activePrograms.length })
                   : t("adminMisc.profile.noActivePrograms")}
               </p>
               <div className="flex flex-wrap gap-2">
-                {programs
-                  .filter((program) => program.status === "active" || !program.status)
-                  .map((program) => (
+                {activePrograms.map((program) => (
                     <div
                       key={program.id}
                       className="px-3 py-1.5 rounded-lg bg-brand-orange/10 border border-brand-orange/20"

@@ -16,6 +16,8 @@ import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { formatLocaleDate } from "@/lib/constants";
+import { programDisplayStatus } from "@/lib/programState";
+import { translateStatus } from "./program-detail/translateStatus";
 import { useApi } from "@/lib/hooks/useApi";
 
 // ─── Read shaping (module scope: built once, never per render) ───────
@@ -43,7 +45,7 @@ function StatusBadge({ status }) {
     <span
       className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${classes}`}
     >
-      {status || t("participantMisc.programListing.active")}
+      {status ? translateStatus(status, t) : t("participantMisc.programListing.active")}
     </span>
   );
 }
@@ -74,12 +76,12 @@ function ProgramCard({ program, onSelect }) {
   const { t, lang } = useI18n();
   const { metrics } = program;
   // Show "Completed" once every unlocked deliverable has an approved
-  // submission, so the badge reflects the deliverables' actual state.
+  // submission, or once the program's end date is over.
   const displayStatus =
     metrics.totalDeliverables > 0 &&
     metrics.completedDeliverables >= metrics.totalDeliverables
       ? "completed"
-      : program.status || "active";
+      : programDisplayStatus(program.status, program.endDate);
   const progressColor =
     metrics.percentComplete >= 80
       ? "bg-emerald-400"
