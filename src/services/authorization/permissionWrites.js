@@ -118,8 +118,8 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
     if (action === "grant") {
       const targetAuthorization = await getAuthorizationContext({ cid: userCid, role: targetRole });
       const targetEligible =
-        targetAuthorization?.isSuperAdmin ||
-        targetAuthorization?.eligibility?.[featureKey] === true;
+        targetAuthorization?.eligibility?.[featureKey] === true ||
+        (targetAuthorization?.isSuperAdmin && !targetAuthorization?.ownerThroughEngine);
       if (!targetEligible) {
         return {
           status: 403,

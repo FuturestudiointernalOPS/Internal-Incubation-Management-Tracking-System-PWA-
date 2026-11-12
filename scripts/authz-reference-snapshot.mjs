@@ -42,6 +42,10 @@ const ONLY_CID = (() => {
   return index >= 0 ? process.argv[index + 1] : null;
 })();
 const WITH_LANDING = !ARGS.has("--no-landing");
+// Étape 2 — when set, the owner is resolved through the normal path (eligibility
+// + account gate + profile rights) exactly as the application will after the
+// flag is enabled. Default OFF = today's bypass.
+const OWNER_THROUGH_ENGINE = process.env.AUTHZ_OWNER_THROUGH_ENGINE === "true";
 const COMPARE_ARG_INDEX = process.argv.indexOf("--compare");
 const COMPARE_WITH =
   COMPARE_ARG_INDEX >= 0 ? process.argv[COMPARE_ARG_INDEX + 1] : null;
@@ -398,7 +402,7 @@ for (const contact of contacts) {
   let eligibility = null;
   let accountStatus = null;
 
-  if (isSuperAdmin) {
+  if (isSuperAdmin && !OWNER_THROUGH_ENGINE) {
     // Comportement ACTUEL : le propriétaire contourne l'éligibilité. Ses droits
     // viennent du profil par défaut s'il existe, sinon de la matrice complète.
     const ownerBase = profileKey ? baseCaps : buildSuperAdminMatrix();
@@ -431,6 +435,7 @@ for (const contact of contacts) {
 
   const ctx = {
     isSuperAdmin,
+    ownerThroughEngine: isSuperAdmin && OWNER_THROUGH_ENGINE,
     role,
     effective,
     restrictions: personRestrictions,
@@ -546,7 +551,11 @@ const snapshot = {
   generatedAt: GENERATED_AT.toISOString(),
   sourceEnvFile,
   database: { name: databaseName, user: databaseUser, host, projectRef },
-  mode: { onlyCid: ONLY_CID, withLanding: WITH_LANDING },
+  mode: {
+    onlyCid: ONLY_CID,
+    withLanding: WITH_LANDING,
+    ownerThroughEngine: OWNER_THROUGH_ENGINE,
+  },
   catalogue: {
     featureOrder: FEATURE_ORDER,
     moduleToFeature: MODULE_TO_FEATURE,
@@ -602,6 +611,9 @@ md.push(`- Projet : \`${projectRef}\``);
 md.push(`- Rôle SQL : \`${databaseUser}\``);
 md.push(`- Fichier d'environnement : \`${sourceEnvFile}\``);
 md.push(`- Personnes photographiées : **${snapshot.summary.people}**`);
+md.push(
+  `- Mode propriétaire : ${snapshot.mode.ownerThroughEngine ? "même chemin que tout le monde (étape 2)" : "contournement actuel"}`,
+);
 md.push("");
 md.push("> Le détail reste local, dans `scratch/authz-reference/`. Les identifiants y sont remplacés par une empreinte stable par défaut (option `--include-identifiers` pour les garder).");
 md.push("");

@@ -62,7 +62,7 @@ export function explainAuthorization(ctx, module, capability, minLevel = 1) {
     return { allowed: false, reason: AUTHZ_REASONS.INVALID_INPUT, minLevel };
   }
 
-  if (ctx.isSuperAdmin) {
+  if (ctx.isSuperAdmin && !ctx.ownerThroughEngine) {
     // The owner's rights are DATA too. `effective` is the default profile's
     // rows + personal grants − personal restrictions, so a right removed from
     // the Permissions screen (or blocked for this person) denies the owner just
@@ -151,7 +151,7 @@ export function effectivePermissionsFromContext(ctx) {
 export function buildPermissionExplanation(ctx) {
   if (!ctx) return null;
 
-  if (ctx.isSuperAdmin) {
+  if (ctx.isSuperAdmin && !ctx.ownerThroughEngine) {
     const eligibility = {};
     for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
       eligibility[featureKey] = {

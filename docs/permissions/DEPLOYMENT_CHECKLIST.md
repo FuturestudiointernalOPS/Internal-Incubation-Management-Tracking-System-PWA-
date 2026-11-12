@@ -55,6 +55,30 @@ Règles :
 
 ---
 
+## 2 bis. Propriétaire — mode « même chemin »
+
+Le mode est **désactivé par défaut**. Ne l'activer qu'après les contrôles
+suivants :
+
+1. `authz:doctor --strict` sur la cible : **OK** ;
+2. photographie de production disponible ;
+3. compte du propriétaire **actif** ;
+4. profil par défaut du propriétaire complet (0 droit manquant).
+
+Activation :
+
+```bash
+AUTHZ_OWNER_THROUGH_ENGINE=true
+```
+
+Après activation, relancer la photographie et comparer. Attendu : **0
+régression**, et pour seuls changements les éligibilités du propriétaire qui
+passent de « contournée » à explicite. Retour arrière : retirer le drapeau.
+
+Détail : `docs/permissions/ETAPE2-OWNER-THROUGH-ENGINE.md`.
+
+---
+
 ## 3. Après le déploiement — parité
 
 ```bash
