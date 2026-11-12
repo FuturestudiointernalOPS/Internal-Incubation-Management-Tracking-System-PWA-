@@ -30,12 +30,16 @@ describe("the venture-detail screen wiring", () => {
   );
 
   const destructure = view.match(/const \{([^}]*)\} = ctx;/);
-  const viewKeys = destructure
+  const destructured = destructure
     ? destructure[1]
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
     : [];
+  // The view may also read a value directly (`ctx.errorTitle`), without
+  // destructuring it; both forms read `ctx` and count as a use.
+  const direct = [...view.matchAll(/ctx\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+  const viewKeys = [...new Set([...destructured, ...direct])];
 
   test("every name the view reads is a key of `ctx`", () => {
     expect(viewKeys.filter((key) => !ctxKeys.has(key))).toEqual([]);
