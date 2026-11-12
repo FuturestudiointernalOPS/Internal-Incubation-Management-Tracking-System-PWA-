@@ -84,7 +84,7 @@ export const NAV_CAPABILITY_PROPOSAL = {
 /** Why a proposal is uncertain — shown beside it in the review document. */
 export const NAV_CAPABILITY_NOTES = {
   announcements:
-    "Le GET n'exige qu'une session ; l'écran est sous /admin. Décision : qui doit voir ou gérer les annonces ? Lecture = internal_comms.view ; publication = create_announcements ; modération = moderate.",
+    "DÉCIDÉ : le propriétaire seul. L'écran d'administration reste réservé à internal_comms.view, détenu par le profil du propriétaire ; publication = create_announcements ; modération = moderate. Aucun autre profil ne reçoit ces droits.",
   groups:
     "Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups.",
   reviews:

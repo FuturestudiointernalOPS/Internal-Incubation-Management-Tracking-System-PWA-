@@ -26,7 +26,7 @@ droits séparés par ` OR ` (un seul suffit).
 | `bulk_upload` | BULK IMPORT | `crm` | `bulk_upload.execute` | — | super_admin | déjà déclaré |
 | `communication` | COMMUNICATION | — | `messaging.view OR internal_comms.view OR forms.view OR runs.view OR collections.view` | — | super_admin, staff, crm | déjà déclaré |
 | `messages` | MESSAGES | `communication` | `messaging.view` | — | super_admin, staff | déjà déclaré |
-| `announcements` | ANNOUNCEMENTS | `communication` | — | `internal_comms.view` | super_admin | Le GET n'exige qu'une session ; l'écran est sous /admin. Décision : qui doit voir ou gérer les annonces ? Lecture = internal_comms.view ; publication = create_announcements ; modération = moderate. |
+| `announcements` | ANNOUNCEMENTS | `communication` | — | `internal_comms.view` | super_admin | DÉCIDÉ : le propriétaire seul. L'écran d'administration reste réservé à internal_comms.view, détenu par le profil du propriétaire ; publication = create_announcements ; modération = moderate. Aucun autre profil ne reçoit ces droits. |
 | `forms` | FORMS | `communication` | — | `forms.view` | super_admin, staff, crm |  |
 | `groups` | GROUPS | `communication` | — | `programs.groups` | — | Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups. |
 | `programs` | PROGRAMS | — | `programs.view` | — | super_admin, staff, team | déjà déclaré |

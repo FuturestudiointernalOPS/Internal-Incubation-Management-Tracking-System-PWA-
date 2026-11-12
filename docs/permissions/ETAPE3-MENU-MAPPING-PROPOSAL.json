@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T13:46:51.116Z",
+  "generatedAt": "2026-11-12T14:58:32.983Z",
   "counts": {
     "total": 74,
     "existing": 31,
@@ -424,7 +424,7 @@
       ],
       "proposed": "internal_comms.view",
       "proposalSource": "proposal",
-      "proposalNote": "Le GET n'exige qu'une session ; l'écran est sous /admin. Décision : qui doit voir ou gérer les annonces ? Lecture = internal_comms.view ; publication = create_announcements ; modération = moderate.",
+      "proposalNote": "DÉCIDÉ : le propriétaire seul. L'écran d'administration reste réservé à internal_comms.view, détenu par le profil du propriétaire ; publication = create_announcements ; modération = moderate. Aucun autre profil ne reçoit ces droits.",
       "problems": []
     },
     {
