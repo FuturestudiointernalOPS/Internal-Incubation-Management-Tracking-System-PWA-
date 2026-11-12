@@ -128,6 +128,9 @@ const publicApiPaths = [
   "/api/s",
   "/api/investor/register",
   "/api/investor/setup-password",
+  // The invitation link's validation call. The token in the address is the
+  // credential and the response only carries the invited email/name.
+  "/api/investor/invitations",
   // Health probes: a load balancer / uptime monitor holds no session cookie.
   // They expose no data (see the routes), only liveness / readiness.
   "/api/health",
