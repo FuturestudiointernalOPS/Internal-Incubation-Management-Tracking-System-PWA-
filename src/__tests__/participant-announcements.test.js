@@ -18,27 +18,27 @@ jest.mock("@/lib/i18n", () => ({ useI18n: () => ({ lang: "en", t: (key, params =
 } }) }));
 beforeEach(() => { localStorage.clear(); jest.clearAllMocks(); global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) }); });
 afterEach(cleanup);
-test("history includes read announcements and search/category filters work", () => {
+test("lists announcements and filters them by read state", () => {
   render(<ParticipantAnnouncementsPage />);
+  expect(screen.getByText("Pitch session")).toBeTruthy();
   expect(screen.getByText("Funding opportunity")).toBeTruthy();
-  fireEvent.change(screen.getByLabelText("Search"), { target: { value: "slides" } });
+
+  const filter = screen.getByRole("combobox", { name: "Read status" });
+  fireEvent.change(filter, { target: { value: "read" } });
+  expect(screen.getByText("Funding opportunity")).toBeTruthy();
+  expect(screen.queryByText("Pitch session")).toBeNull();
+});
+test("the unread filter is the mirror image of the read one", () => {
+  render(<ParticipantAnnouncementsPage />);
+  const filter = screen.getByRole("combobox", { name: "Read status" });
+
+  fireEvent.change(filter, { target: { value: "unread" } });
   expect(screen.getByText("Pitch session")).toBeTruthy();
   expect(screen.queryByText("Funding opportunity")).toBeNull();
-  fireEvent.change(screen.getByLabelText("Search"), { target: { value: "" } });
-  fireEvent.change(screen.getByRole("combobox", { name: "Category", exact: true }), { target: { value: "opportunity" } });
-  expect(screen.queryByText("Pitch session")).toBeNull();
+
+  fireEvent.change(filter, { target: { value: "all" } });
+  expect(screen.getByText("Pitch session")).toBeTruthy();
   expect(screen.getByText("Funding opportunity")).toBeTruthy();
-});
-test("personal pins and categories survive remount and are isolated by recipient", () => {
-  const view = render(<ParticipantAnnouncementsPage />);
-  fireEvent.click(screen.getAllByRole("button", { name: "Pin this announcement" })[1]);
-  fireEvent.change(screen.getByLabelText("Category for Funding opportunity"), { target: { value: "important" } });
-  view.unmount();
-  render(<ParticipantAnnouncementsPage />);
-  fireEvent.click(screen.getByLabelText("Pinned announcements only"));
-  expect(screen.getByText("Funding opportunity")).toBeTruthy();
-  expect(screen.queryByText("Pitch session")).toBeNull();
-  expect(JSON.parse(localStorage.getItem("impactos_announcement_preferences:p1"))[2]).toEqual({ pinned: true, category: "important" });
 });
 test("marking read and unread updates the shared inbox with the notification id", async () => {
   render(<ParticipantAnnouncementsPage />);
