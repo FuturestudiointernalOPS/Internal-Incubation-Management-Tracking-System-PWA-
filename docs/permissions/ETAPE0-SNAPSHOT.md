@@ -1,6 +1,6 @@
 # Étape 0 — photographie de référence des décisions actuelles
 
-Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été modifié.**
+Générée le 2026-11-12T12:41:37.899Z. **Lecture seule : aucun accès n'a été modifié.**
 
 - Base : `postgres` (aws-0-eu-west-1.pooler.supabase.com:6543)
 - Projet : `postgres.mbpaxrfhqqclzyiefuab`
@@ -44,7 +44,7 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `communication` | 15 | 9 | 1 |
 | `programs` | 24 | 0 | 1 |
 | `ventures` | 24 | 0 | 1 |
-| `investors` | 7 | 17 | 1 |
+| `investors` | 24 | 0 | 1 |
 | `finance` | 6 | 18 | 1 |
 | `operations` | 12 | 12 | 1 |
 | `reports` | 6 | 18 | 1 |
@@ -61,16 +61,16 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `contacts` | `create` | 1 |
 | `contacts` | `edit` | 1 |
 | `contacts` | `delete` | 1 |
-| `contacts` | `invite_families` | 5 |
-| `duplicates` | `view` | 0 |
-| `duplicates` | `resolve` | 0 |
-| `bulk_upload` | `execute` | 0 |
-| `crm` | `view` | 0 |
-| `crm` | `create` | 0 |
-| `crm` | `edit` | 0 |
-| `crm` | `delete` | 0 |
-| `crm` | `assign` | 0 |
-| `crm` | `manage` | 0 |
+| `contacts` | `invite_families` | 6 |
+| `duplicates` | `view` | 1 |
+| `duplicates` | `resolve` | 1 |
+| `bulk_upload` | `execute` | 1 |
+| `crm` | `view` | 1 |
+| `crm` | `create` | 1 |
+| `crm` | `edit` | 1 |
+| `crm` | `delete` | 1 |
+| `crm` | `assign` | 1 |
+| `crm` | `manage` | 1 |
 | `org_membership` | `view` | 1 |
 | `org_membership` | `manage` | 1 |
 | `messaging` | `view` | 7 |
@@ -83,8 +83,8 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `forms` | `create` | 2 |
 | `forms` | `edit` | 1 |
 | `forms` | `delete` | 1 |
-| `collections` | `view` | 5 |
-| `collections` | `manage` | 0 |
+| `collections` | `view` | 6 |
+| `collections` | `manage` | 1 |
 | `runs` | `view` | 1 |
 | `runs` | `create` | 1 |
 | `runs` | `edit` | 1 |
@@ -95,7 +95,7 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `programs` | `edit` | 6 |
 | `programs` | `delete` | 1 |
 | `programs` | `publish` | 6 |
-| `programs` | `groups` | 5 |
+| `programs` | `groups` | 6 |
 | `facilitator` | `participants.view` | 1 |
 | `facilitator` | `attendance.view` | 1 |
 | `facilitator` | `attendance.record` | 1 |
@@ -107,7 +107,7 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `ventures` | `create` | 2 |
 | `ventures` | `edit` | 22 |
 | `ventures` | `delete` | 1 |
-| `ventures` | `view_all` | 2 |
+| `ventures` | `view_all` | 6 |
 | `ventures` | `edit_all` | 2 |
 | `ventures` | `setup` | 6 |
 | `ventures` | `kpis` | 6 |
@@ -136,7 +136,7 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `reports` | `create` | 6 |
 | `reports` | `export` | 1 |
 | `reports` | `delete` | 1 |
-| `reports` | `portfolio` | 0 |
+| `reports` | `portfolio` | 1 |
 | `knowledge` | `view` | 1 |
 | `knowledge` | `create` | 1 |
 | `knowledge` | `edit` | 1 |
@@ -162,7 +162,7 @@ Générée le 2026-11-12T11:31:33.719Z. **Lecture seule : aucun accès n'a été
 | `permissions` | `configure_eligibility` | 1 |
 | `settings` | `view` | 1 |
 | `settings` | `edit` | 1 |
-| `settings` | `manage_schema` | 0 |
+| `settings` | `manage_schema` | 1 |
 | `engineering` | `view` | 1 |
 | `engineering` | `manage_tasks` | 1 |
 | `engineering` | `manage_errors` | 1 |

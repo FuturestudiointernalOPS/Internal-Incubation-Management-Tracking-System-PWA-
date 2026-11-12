@@ -113,6 +113,7 @@ const client = new pg.Client({
 
 const warnings = [];
 const critical = [];
+const info = [];
 const facts = {};
 
 async function scalar(sql, fallback = null) {
@@ -203,7 +204,9 @@ const legacyRoles = roles
   .map((row) => row.role)
   .filter((role) => role && !BASELINE_IDENTITIES.includes(role));
 if (legacyRoles.length > 0) {
-  warnings.push(
+  // Informationnel : ces valeurs sont normalisées à la connexion et ne
+  // participent à aucune décision. Elles ne doivent pas faire échouer --strict.
+  info.push(
     `rôles stockés hors vocabulaire de base (normalisés à la connexion) : ${legacyRoles.join(", ")}`,
   );
 }
@@ -228,6 +231,7 @@ const report = {
   responsibilitiesNull,
   warnings,
   critical,
+  info,
   verdict,
 };
 
@@ -250,6 +254,10 @@ if (JSON_OUTPUT) {
   console.log(`Responsabilités non configurées  : ${responsibilitiesNull}`);
   console.log(`Rôles stockés hors base         : ${legacyRoles.length === 0 ? "aucun" : legacyRoles.join(", ")}`);
   console.log("");
+  if (info.length > 0) {
+    console.log(`Information (${info.length}) :`);
+    for (const entry of info) console.log(`  - ${entry}`);
+  }
   if (warnings.length > 0) {
     console.log(`Avertissements (${warnings.length}) :`);
     for (const warning of warnings) console.log(`  - ${warning}`);

@@ -76,9 +76,9 @@ Cible : `postgres.mbpaxrfhqqclzyiefuab` (staging), `.env.local`.
 Deux écarts importants apparaissent, et ils sont exactement ce que l'étape 0
 devait révéler :
 
-### 1. Le propriétaire n'a pas tous les droits dans sa matrice
+### 1. Le propriétaire n'a pas tous les droits dans sa matrice (constat initial)
 
-Son profil par défaut existe, mais il ne contient pas **15 droits** que
+Son profil par défaut existe, mais il ne contenait pas **15 droits** que
 l'application utilise aujourd'hui via des contrôles de rôle directs :
 
 - `crm.*` (view, create, edit, delete, assign, manage) ;
@@ -92,7 +92,12 @@ masqués. Dès qu'il est retiré (étape 2), le propriétaire les perdrait. Il f
 donc décider, droit par droit, s'ils sont **accordés** (probable) ou
 **volontairement retirés**.
 
-### 2. Le CRM n'est accordé à personne dans cette base
+**Mise à jour du 2026-11-12** — les 33 lignes de configuration prévues ont été
+appliquées en staging par `authz:apply-defaults --apply`. Le diagnostic
+`authz:doctor` annonce désormais **0 droit manquant** pour le propriétaire. Le
+constat ci-dessus reste la photographie de l'état initial.
+
+### 2. Le CRM n'est accordé à personne dans cette base (constat initial)
 
 Toujours en staging, **0 personne** ne détient `crm.view` / `crm.create` /
 `crm.edit` / `crm.delete` / `crm.assign` / `crm.manage`. Les routes CRM
@@ -102,12 +107,18 @@ encore piloté par la table de rôle. C'est un lien de menu qui mène à un refu
 La production peut différer : la photographie de production est donc
 indispensable avant toute suppression de logique.
 
+**Mise à jour du 2026-11-12** — le propriétaire détient maintenant les droits
+CRM (ils font partie des 15 droits complétés). Les profils non-propriétaires
+n'en détiennent toujours aucun : le CRM reste donc fermé pour eux tant qu'un
+profil ou une personne ne reçoit pas ces droits. C'est exactement la règle
+« éligible **et** détenteur ».
+
 ---
 
-## Préalable à l'étape 1
+## Préalable à l'étape 2
 
 Le fichier `.env.prod-verify` n'est pas présent sur ce poste. La photographie
-de production doit être produite avant de toucher aux valeurs d'accès :
+de production doit être produite avant de retirer le contournement :
 
 ```bash
 npm run authz:snapshot -- --env .env.prod-verify --allow-production
@@ -123,16 +134,16 @@ Attendu : **zéro régression** (aucun droit retiré, aucune porte de menu perdu
 
 ---
 
-## Premières tâches de l'étape 1
+## Tâches de l'étape 1 (faites)
 
-1. Recopier la configuration actuelle en base sous forme de **données de
-   migration** : éligibilités, profils par défaut, droits par profil.
-2. Supprimer les valeurs de repli lues à l'exécution dans le code
-   (`FEATURE_ELIGIBILITY_DEFAULTS`, `FEATURE_ELIGIBILITY_PROFILE_DEFAULTS`,
-   `PROGRAM_ASSIGNMENT_ROWS`, le repli de `defaultAllowedRoles`).
-3. Trancher le cas du propriétaire : accorder ou retirer explicitement chacun
-   des 15 droits manquants, **en base**, avant de retirer le contournement.
-4. Relancer la photographie et la comparaison : zéro différence attendue.
+1. **Fait** — la configuration initiale est centralisée dans un fichier de
+   données inerte (`src/models/authorization/seedData.js`).
+2. **Fait** — le repli runtime de l'avertissement de responsabilité est
+   supprimé ; le moteur de décision ne lit plus aucun seed (garde statique).
+3. **Fait** — les 33 lignes prévues ont été appliquées en staging, dont les 15
+   droits du propriétaire. Aucune perte d'accès.
+4. **Fait** — la comparaison montre uniquement des ouvertures, aucune
+   régression.
 
 ---
 
@@ -147,11 +158,14 @@ Attendu : **zéro régression** (aucun droit retiré, aucune porte de menu perdu
 2. **CRM** — ouvert à ceux qui sont éligibles **et** qui détiennent les droits.
    C'est déjà la règle du moteur. L'absence de droits CRM en staging est donc un
    écart de configuration à traiter en données, pas un changement de règle.
-3. **Ordre** — confirmé : l'étape 1 (déplacer les valeurs du code vers la base)
-   commence **après** la photographie de production.
+3. **Ordre** — révisé à la demande du propriétaire : l'étape 1 a été menée sur
+   staging **sans** attendre la photographie de production. L'étape 2 (retrait
+   du contournement) reste, elle, conditionnée à cette photographie.
 
 ## Statut courant
 
-**En attente de la photographie de production.** Le fichier de lecture seule
-(`.env.audit-readonly` ou `.env.prod-verify`) n'est pas présent sur ce poste.
-Aucune modification de logique ne doit commencer avant cette photographie.
+**Étape 1 terminée en staging.** La base de staging est complète et les 33
+lignes de configuration ont été appliquées (0 régression, ouvertures prévues).
+Le fichier de lecture seule de production (`env` dédié) n'est pas présent sur
+ce poste : la photographie de production et le retrait du contournement
+restent en attente.

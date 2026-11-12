@@ -93,28 +93,15 @@ transaction annulée, et les compteurs affichent exactement ce qui serait écrit
 
 | Vérification | Résultat |
 |---|---|
-| `npm run authz:doctor` sur staging | AVERTISSEMENTS |
-| Suites ciblées (7) | 59 tests passés |
-| Données de seed + garde statique | 31 tests passés |
-| Photographie avant / après | **0 changement, 0 régression, 0 ouverture** |
+| `npm run test:authz` | **14 suites, 101 tests passés** |
+| Données de seed + garde statique | **31 tests passés** |
+| `npm run authz:doctor` après application | AVERTISSEMENTS (1 : rôles stockés legacy) |
+| Photographie avant application | 0 changement |
+| Photographie après application | **0 régression, 19 ouvertures de droits, 17 ouvertures d'éligibilité, 9 entrées de menu ajoutées** |
 
-### Verdict du diagnostic sur staging
+### Application effectuée sur staging (2026-11-12)
 
-- 16 profils, 209 droits de profil, 8 profils par défaut, 56 lignes
-  d'éligibilité, 22 responsabilités.
-- **15 droits du catalogue manquent au profil du propriétaire** (CRM, doublons,
-  import en masse, collections, groupes de programmes, portefeuille de
-  rapports, gestion du schéma, invitation de familles).
-- Deux rôles stockés hors vocabulaire de base (`investor`, `applicant`) : ils
-  sont normalisés à la connexion, donc sans effet sur les décisions.
-- Aucune responsabilité non configurée.
-
----
-
-## Simulation d'application sur staging
-
-`npm run authz:apply-defaults -- --details` (transaction annulée) annonce
-**33 écritures** :
+`npm run authz:apply-defaults -- --apply` a écrit **33 lignes** :
 
 - 1 éligibilité manquante : `investors:member` ;
 - 15 droits du propriétaire (CRM, doublons, import en masse, collections,
@@ -123,20 +110,32 @@ transaction annulée, et les compteurs affichent exactement ce qui serait écrit
 - 5 droits de profils : `staff_default.ventures.view_all`,
   `program_manager.programs.edit`, `program_manager.programs.publish`,
   `course_manager.lms.view`, `course_manager.lms.edit` ;
-- 12 mises à jour de métadonnées des responsabilités (déjà identiques).
+- 12 mises à jour de métadonnées des responsabilités.
 
-Aucune de ces lignes n'est une perte d'accès : ce sont des compléments prévus
-par les données de seed, absents de la base. **Elles ne sont pas encore
-appliquées** : l'écriture réelle attend un accord explicite.
+Résultat du diagnostic :
 
-## Décision attendue
+- 16 profils, **229** droits de profil, 8 profils par défaut, **57** lignes
+  d'éligibilité, 22 responsabilités ;
+- **0 droit manquant** pour le propriétaire ;
+- aucune responsabilité non configurée ;
+- seuls les deux rôles stockés legacy (`investor`, `applicant`) restent
+  signalés : ils sont normalisés à la connexion.
 
-Appliquer ces 33 lignes maintenant (dont les 15 droits du propriétaire et les 6
-compléments non-propriétaire), ou attendre la photographie de production ?
+La comparaison ne montre **aucune régression** :
+
+- 4 membres du personnel gagnent `ventures.view_all` ;
+- le propriétaire gagne les 15 droits attendus et 9 entrées de menu CRM ;
+- 17 personnes deviennent éligibles à la fonctionnalité « investisseurs » ;
+- les droits ajoutés aux profils `program_manager` et `course_manager` ne
+  changent aucune décision aujourd'hui : aucun compte n'a encore ces profils
+  comme profil de base.
 
 ## Reste à faire
 
-1. Appliquer — ou non — les données de seed en staging.
-2. Faire de `authz:doctor` une étape obligatoire du déploiement.
-3. Après la photographie de production : accorder ou retirer explicitement les
-   15 droits du propriétaire, puis seulement envisager l'étape 2.
+1. **Photographie de production** (`--env .env.prod-verify --allow-production`).
+2. **Étape 2** : retirer le contournement du propriétaire, puis comparer.
+3. Traiter les deux rôles stockés legacy (`investor`, `applicant`) si l'on veut
+   un diagnostic sans avertissement.
+
+La checklist de déploiement (`docs/permissions/DEPLOYMENT_CHECKLIST.md`) rend
+`authz:doctor --strict` obligatoire avant et après chaque déploiement.
