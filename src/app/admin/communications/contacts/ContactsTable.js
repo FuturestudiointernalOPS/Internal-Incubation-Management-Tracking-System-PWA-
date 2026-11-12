@@ -170,16 +170,7 @@ export function ContactsTable({
                         )}
                       </button>
                       {contact.invitation_status !== "activated" &&
-                        (contact.invitation_status === "not_invited" ? (
-                          <button
-                            onClick={() => handleInviteContact(contact)}
-                            title={t("crm.contacts.inviteUser") || "Invite User"}
-                            disabled={isProcessing}
-                            className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-[var(--brand-orange)] transition-all"
-                          >
-                            <Send className="w-4 h-4" />
-                          </button>
-                        ) : (
+                        (contact.activation_email_sent_at ? (
                           <button
                             onClick={() => handleResendActivation(contact)}
                             title={t("crm.contacts.resendActivation") || "Resend Activation Email (48h link)"}
@@ -187,6 +178,15 @@ export function ContactsTable({
                             className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-blue-500 transition-all"
                           >
                             <Mail className="w-4 h-4" />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleInviteContact(contact)}
+                            title={t("crm.contacts.inviteUser") || "Send Activation Email"}
+                            disabled={isProcessing}
+                            className="p-2.5 rounded-lg border border-[var(--border-primary)] hover:text-[var(--brand-orange)] transition-all"
+                          >
+                            <Send className="w-4 h-4" />
                           </button>
                         ))}
                       <button
