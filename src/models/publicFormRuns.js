@@ -216,6 +216,22 @@ export async function getLatestDraftData(run_id, submitter_id) {
   });
 }
 
+/** Full run record resolved from its public slug (analytics resolution). */
+export async function getRunRecordByPublicSlug(slug) {
+  return db.execute({
+    sql: "SELECT * FROM platform_form_runs WHERE public_slug = ? LIMIT 1",
+    args: [slug],
+  });
+}
+
+/** Full run record by internal id (analytics resolution). */
+export async function getRunRecordById(run_id) {
+  return db.execute({
+    sql: "SELECT * FROM platform_form_runs WHERE id = ? LIMIT 1",
+    args: [parseInt(run_id)],
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Public run (api/s/public-run) — 4 queries
 // ---------------------------------------------------------------------------
