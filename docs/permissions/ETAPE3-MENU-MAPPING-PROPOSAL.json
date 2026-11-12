@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-11-12T13:10:01.784Z",
+  "generatedAt": "2026-11-12T13:46:51.116Z",
   "counts": {
     "total": 74,
     "existing": 31,
     "toDecide": 43,
-    "proposedPublic": 5,
+    "proposedPublic": 9,
     "invalid": 0
   },
   "rows": [
@@ -424,7 +424,7 @@
       ],
       "proposed": "internal_comms.view",
       "proposalSource": "proposal",
-      "proposalNote": "Le profil staff par défaut ne contient pas internal_comms.view : vérifier qui doit voir les annonces.",
+      "proposalNote": "Le GET n'exige qu'une session ; l'écran est sous /admin. Décision : qui doit voir ou gérer les annonces ? Lecture = internal_comms.view ; publication = create_announcements ; modération = moderate.",
       "problems": []
     },
     {
@@ -454,9 +454,9 @@
       "depth": 1,
       "requirement": null,
       "roles": [],
-      "proposed": "org_membership.view",
+      "proposed": "programs.groups",
       "proposalSource": "proposal",
-      "proposalNote": "Page de gestion des groupes : view ou manage ? Le droit de lecture suffit pour la porte ; les actions re-vérifient.",
+      "proposalNote": "Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups.",
       "problems": []
     },
     {
@@ -887,9 +887,9 @@
       "roles": [
         "super_admin"
       ],
-      "proposed": "reports.view",
+      "proposed": "knowledge.view",
       "proposalSource": "proposal",
-      "proposalNote": "Aucune capacité dédiée : reports.view proposé comme droit le plus proche.",
+      "proposalNote": "L'API /api/intelligence/metrics exige knowledge.view (section knowledge), pas reports.view.",
       "problems": []
     },
     {
@@ -1256,9 +1256,9 @@
       "depth": 0,
       "requirement": null,
       "roles": [],
-      "proposed": "facilitator.reviews.submit",
+      "proposed": "public",
       "proposalSource": "proposal",
-      "proposalNote": "Vérifier si la page lit les avis reçus ou permet d'en soumettre ; le droit est le même aujourd'hui.",
+      "proposalNote": "Page personnelle : /api/facilitator-reviews exige seulement une session et renvoie les avis du facilitateur.",
       "problems": []
     },
     {
@@ -1286,9 +1286,9 @@
       "depth": 0,
       "requirement": null,
       "roles": [],
-      "proposed": "lms.view",
+      "proposed": "public",
       "proposalSource": "proposal",
-      "proposalNote": "Vérifier que le profil learner est actif pour les participants ; sinon la porte disparaîtrait.",
+      "proposalNote": "Surface personnelle : /api/lms/my-learning exige seulement une session et scope au participant.",
       "problems": []
     },
     {
@@ -1300,9 +1300,9 @@
       "depth": 0,
       "requirement": null,
       "roles": [],
-      "proposed": "lms.view",
+      "proposed": "public",
       "proposalSource": "proposal",
-      "proposalNote": "Même question que learning : dépend du profil learner.",
+      "proposalNote": "Surface personnelle : /api/participant/certificates exige seulement une session.",
       "problems": []
     },
     {
@@ -1316,7 +1316,7 @@
       "roles": [],
       "proposed": "public",
       "proposalSource": "proposal",
-      "proposalNote": "Surface personnelle (profil) : public, le serveur vérifie la propriété.",
+      "proposalNote": "Surface personnelle : /api/participant/timeline exige seulement une session.",
       "problems": []
     },
     {
@@ -1328,9 +1328,9 @@
       "depth": 0,
       "requirement": null,
       "roles": [],
-      "proposed": "investor.view OR ventures.view",
+      "proposed": "public",
       "proposalSource": "proposal",
-      "proposalNote": "Le profil de base d'un investisseur est venture_member : investor.view peut ne pas être détenu.",
+      "proposalNote": "Surface personnelle investisseur : l'API self-service admet un membre avec un profil investisseur, même sans investor.view.",
       "problems": []
     },
     {
@@ -1344,7 +1344,7 @@
       "roles": [],
       "proposed": "public",
       "proposalSource": "proposal",
-      "proposalNote": "Surface personnelle : public, le serveur vérifie la propriété.",
+      "proposalNote": "Surface personnelle : /api/investor/decisions self-service, scopée à l'investisseur.",
       "problems": []
     }
   ]

@@ -21,7 +21,7 @@ export const NAV_CAPABILITY_PROPOSAL = {
   // Communication
   announcements: "internal_comms.view",
   forms: "forms.view",
-  groups: "org_membership.view",
+  groups: "programs.groups",
 
   // Programs
   all_programs: "programs.view",
@@ -52,7 +52,7 @@ export const NAV_CAPABILITY_PROPOSAL = {
   retro: "reports.create",
 
   // Intelligence / Reports
-  intelligence: "reports.view",
+  intelligence: "knowledge.view",
   program_reports: "reports.view",
   internal_reports: "reports.view",
   metrics: "reports.view",
@@ -75,32 +75,32 @@ export const NAV_CAPABILITY_PROPOSAL = {
   profile: "public",
   timeline: "public",
   activity: "public",
-  learning: "lms.view",
-  certificates: "lms.view",
-  reviews: "facilitator.reviews.submit",
-  portfolio: "investor.view OR ventures.view",
+  learning: "public",
+  certificates: "public",
+  reviews: "public",
+  portfolio: "public",
 };
 
 /** Why a proposal is uncertain — shown beside it in the review document. */
 export const NAV_CAPABILITY_NOTES = {
   announcements:
-    "Le profil staff par défaut ne contient pas internal_comms.view : vérifier qui doit voir les annonces.",
+    "Le GET n'exige qu'une session ; l'écran est sous /admin. Décision : qui doit voir ou gérer les annonces ? Lecture = internal_comms.view ; publication = create_announcements ; modération = moderate.",
   groups:
-    "Page de gestion des groupes : view ou manage ? Le droit de lecture suffit pour la porte ; les actions re-vérifient.",
+    "Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups.",
   reviews:
-    "Vérifier si la page lit les avis reçus ou permet d'en soumettre ; le droit est le même aujourd'hui.",
+    "Page personnelle : /api/facilitator-reviews exige seulement une session et renvoie les avis du facilitateur.",
   learning:
-    "Vérifier que le profil learner est actif pour les participants ; sinon la porte disparaîtrait.",
+    "Surface personnelle : /api/lms/my-learning exige seulement une session et scope au participant.",
   certificates:
-    "Même question que learning : dépend du profil learner.",
+    "Surface personnelle : /api/participant/certificates exige seulement une session.",
   portfolio:
-    "Le profil de base d'un investisseur est venture_member : investor.view peut ne pas être détenu.",
+    "Surface personnelle investisseur : l'API self-service admet un membre avec un profil investisseur, même sans investor.view.",
   timeline:
-    "Surface personnelle (profil) : public, le serveur vérifie la propriété.",
+    "Surface personnelle : /api/participant/timeline exige seulement une session.",
   activity:
-    "Surface personnelle : public, le serveur vérifie la propriété.",
+    "Surface personnelle : /api/investor/decisions self-service, scopée à l'investisseur.",
   intelligence:
-    "Aucune capacité dédiée : reports.view proposé comme droit le plus proche.",
+    "L'API /api/intelligence/metrics exige knowledge.view (section knowledge), pas reports.view.",
   internal_ops_board:
     "Board ops : tasks.view ou projects.view, selon le contenu réel du board.",
 };

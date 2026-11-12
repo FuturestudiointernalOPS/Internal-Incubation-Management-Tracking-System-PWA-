@@ -26,9 +26,9 @@ droits séparés par ` OR ` (un seul suffit).
 | `bulk_upload` | BULK IMPORT | `crm` | `bulk_upload.execute` | — | super_admin | déjà déclaré |
 | `communication` | COMMUNICATION | — | `messaging.view OR internal_comms.view OR forms.view OR runs.view OR collections.view` | — | super_admin, staff, crm | déjà déclaré |
 | `messages` | MESSAGES | `communication` | `messaging.view` | — | super_admin, staff | déjà déclaré |
-| `announcements` | ANNOUNCEMENTS | `communication` | — | `internal_comms.view` | super_admin | Le profil staff par défaut ne contient pas internal_comms.view : vérifier qui doit voir les annonces. |
+| `announcements` | ANNOUNCEMENTS | `communication` | — | `internal_comms.view` | super_admin | Le GET n'exige qu'une session ; l'écran est sous /admin. Décision : qui doit voir ou gérer les annonces ? Lecture = internal_comms.view ; publication = create_announcements ; modération = moderate. |
 | `forms` | FORMS | `communication` | — | `forms.view` | super_admin, staff, crm |  |
-| `groups` | GROUPS | `communication` | — | `org_membership.view` | — | Page de gestion des groupes : view ou manage ? Le droit de lecture suffit pour la porte ; les actions re-vérifient. |
+| `groups` | GROUPS | `communication` | — | `programs.groups` | — | Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups. |
 | `programs` | PROGRAMS | — | `programs.view` | — | super_admin, staff, team | déjà déclaré |
 | `all_programs` | ALL PROGRAMS | `programs` | — | `programs.view` | super_admin |  |
 | `create_program` | CREATE PROGRAM | `programs` | — | `programs.create` | super_admin |  |
@@ -54,7 +54,7 @@ droits séparés par ` OR ` (un seul suffit).
 | `blockers` | BLOCKERS | `operations` | — | `tasks.view` | super_admin |  |
 | `standup` | STANDUP | `operations` | — | `reports.create` | super_admin |  |
 | `retro` | RETRO | `operations` | — | `reports.create` | super_admin |  |
-| `intelligence` | INTELLIGENCE | — | — | `reports.view` | super_admin | Aucune capacité dédiée : reports.view proposé comme droit le plus proche. |
+| `intelligence` | INTELLIGENCE | — | — | `knowledge.view` | super_admin | L'API /api/intelligence/metrics exige knowledge.view (section knowledge), pas reports.view. |
 | `reports` | REPORTS | — | `reports.view` | — | super_admin | déjà déclaré |
 | `program_reports` | PROGRAM REPORTS | `reports` | — | `reports.view` | super_admin |  |
 | `internal_reports` | OP REPORTS | `reports` | — | `reports.view` | super_admin |  |
@@ -75,13 +75,13 @@ droits séparés par ` OR ` (un seul suffit).
 | `weekly_ops` | WEEKLY OPS | — | `reports.create` | — | staff | déjà déclaré |
 | `my_projects` | MY PROJECTS | — | `projects.view` | — | staff | déjà déclaré |
 | `my_programs` | MY PROGRAMS | — | — | `public` | — |  |
-| `reviews` | MY REVIEWS | — | — | `facilitator.reviews.submit` | — | Vérifier si la page lit les avis reçus ou permet d'en soumettre ; le droit est le même aujourd'hui. |
+| `reviews` | MY REVIEWS | — | — | `public` | — | Page personnelle : /api/facilitator-reviews exige seulement une session et renvoie les avis du facilitateur. |
 | `profile` | PROFILE | — | — | `public` | finance |  |
-| `learning` | MY LEARNING | — | — | `lms.view` | — | Vérifier que le profil learner est actif pour les participants ; sinon la porte disparaîtrait. |
-| `certificates` | MY CERTIFICATES | — | — | `lms.view` | — | Même question que learning : dépend du profil learner. |
-| `timeline` | MY TIMELINE | — | — | `public` | — | Surface personnelle (profil) : public, le serveur vérifie la propriété. |
-| `portfolio` | PORTFOLIO | — | — | `investor.view OR ventures.view` | — | Le profil de base d'un investisseur est venture_member : investor.view peut ne pas être détenu. |
-| `activity` | ACTIVITY | — | — | `public` | — | Surface personnelle : public, le serveur vérifie la propriété. |
+| `learning` | MY LEARNING | — | — | `public` | — | Surface personnelle : /api/lms/my-learning exige seulement une session et scope au participant. |
+| `certificates` | MY CERTIFICATES | — | — | `public` | — | Surface personnelle : /api/participant/certificates exige seulement une session. |
+| `timeline` | MY TIMELINE | — | — | `public` | — | Surface personnelle : /api/participant/timeline exige seulement une session. |
+| `portfolio` | PORTFOLIO | — | — | `public` | — | Surface personnelle investisseur : l'API self-service admet un membre avec un profil investisseur, même sans investor.view. |
+| `activity` | ACTIVITY | — | — | `public` | — | Surface personnelle : /api/investor/decisions self-service, scopée à l'investisseur. |
 
 ## Constats
 
