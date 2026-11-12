@@ -129,7 +129,12 @@ export default function ShellHeader({
 
               <div className="relative">
                 <button
-                  onClick={() => setShowNotifications((prev) => !prev)}
+                  onClick={() => {
+                    // Opening the panel re-asks, so the list it shows agrees with
+                    // the badge the bell displayed a moment ago.
+                    if (!showNotifications) fetchNotifications();
+                    setShowNotifications((prev) => !prev);
+                  }}
                   aria-label={
                     unreadCount > 0
                       ? `${t("navigation.notifications")} (${unreadCount})`
