@@ -58,22 +58,18 @@ Comparaison avec la photographie post-application de l'étape 1 :
   table de rôle ne les affichait pas.
 - Le propriétaire gagne **Groups**.
 
-### La seule perte : Forms
+### La seule perte : Forms — décision
+
+**Décidé : sans le droit, la porte n'apparaît pas.**
 
 La page Forms interroge une API qui exige le droit **voir les formulaires**. Le
-profil par défaut du personnel ne le contient pas. La porte actuelle est donc
-déjà morte : elle s'affiche, mais l'API refuse. Le mode droits la retire.
+profil par défaut du personnel ne le contient pas. La porte actuelle était donc
+déjà morte : elle s'affichait, mais l'API refusait. Le mode droits la retire.
 
-Deux issues possibles, à trancher :
-
-1. **Accorder les droits Forms au personnel** (voir, créer, modifier, supprimer,
-   selon l'usage) : la porte est conservée et devient réellement utilisable.
-2. **Accepter le retrait** : la porte disparaît tant que le droit n'est pas
-   donné.
-
-Le commentaire du code affirme que le profil du personnel détient déjà le droit
-de créer des formulaires ; la base montre le contraire. C'est un écart de
-données à corriger dans un sens ou dans l'autre.
+Aucun droit n'est accordé au personnel dans cette étape. Si un administrateur
+accorde plus tard le droit de voir les formulaires, la porte réapparaît
+automatiquement, sans changement de code. Les 5 pertes sont donc le
+comportement voulu, pas une régression.
 
 ---
 
@@ -87,8 +83,7 @@ données à corriger dans un sens ou dans l'autre.
 
 ## Reste à faire
 
-1. Trancher Forms (accorder ou accepter le retrait).
-2. Étendre le mode aux contextes membres avec un filtre fondé sur les profils
+1. Étendre le mode aux contextes membres avec un filtre fondé sur les profils
    actifs (facilitateur, investisseur, participant).
-3. Supprimer progressivement les tables de rôle une fois le mode activé et
+2. Supprimer progressivement les tables de rôle une fois le mode activé et
    vérifié en production.

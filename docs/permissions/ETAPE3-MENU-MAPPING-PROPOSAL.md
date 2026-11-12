@@ -27,7 +27,7 @@ droits séparés par ` OR ` (un seul suffit).
 | `communication` | COMMUNICATION | — | `messaging.view OR internal_comms.view OR forms.view OR runs.view OR collections.view` | — | super_admin, staff, crm | déjà déclaré |
 | `messages` | MESSAGES | `communication` | `messaging.view` | — | super_admin, staff | déjà déclaré |
 | `announcements` | ANNOUNCEMENTS | `communication` | — | `internal_comms.view` | super_admin | DÉCIDÉ : le propriétaire seul. L'écran d'administration reste réservé à internal_comms.view, détenu par le profil du propriétaire ; publication = create_announcements ; modération = moderate. Aucun autre profil ne reçoit ces droits. |
-| `forms` | FORMS | `communication` | — | `forms.view` | super_admin, staff, crm |  |
+| `forms` | FORMS | `communication` | — | `forms.view` | super_admin, staff, crm | DÉCIDÉ : sans forms.view, la porte n'apparaît pas. Aucun droit n'est accordé au personnel ; un futur octroi fait réapparaître la porte automatiquement. |
 | `groups` | GROUPS | `communication` | — | `programs.groups` | — | Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups. |
 | `programs` | PROGRAMS | — | `programs.view` | — | super_admin, staff, team | déjà déclaré |
 | `all_programs` | ALL PROGRAMS | `programs` | — | `programs.view` | super_admin |  |

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-12T14:58:32.983Z",
+  "generatedAt": "2026-11-12T15:23:46.714Z",
   "counts": {
     "total": 74,
     "existing": 31,
@@ -442,7 +442,7 @@
       ],
       "proposed": "forms.view",
       "proposalSource": "proposal",
-      "proposalNote": "",
+      "proposalNote": "DÉCIDÉ : sans forms.view, la porte n'apparaît pas. Aucun droit n'est accordé au personnel ; un futur octroi fait réapparaître la porte automatiquement.",
       "problems": []
     },
     {

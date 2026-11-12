@@ -83,6 +83,8 @@ export const NAV_CAPABILITY_PROPOSAL = {
 
 /** Why a proposal is uncertain — shown beside it in the review document. */
 export const NAV_CAPABILITY_NOTES = {
+  forms:
+    "DÉCIDÉ : sans forms.view, la porte n'apparaît pas. Aucun droit n'est accordé au personnel ; un futur octroi fait réapparaître la porte automatiquement.",
   announcements:
     "DÉCIDÉ : le propriétaire seul. L'écran d'administration reste réservé à internal_comms.view, détenu par le profil du propriétaire ; publication = create_announcements ; modération = moderate. Aucun autre profil ne reçoit ces droits.",
   groups:
