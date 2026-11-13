@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { requireAuthorization } from "@/models/authorization/index";
 import { getAuthorizationContext } from "@/models/authorization/index";
+import { authorize } from "@/models/authorization/index";
 import { isInternalVentureIdentity } from "@/services/ventures/portfolioAccess";
 import { getReportingSettings, updateReportingSettings, updateGlossary } from "@/services/ventures/reporting/settings";
 import { dueDateFor } from "@/services/ventures/reporting/schedule";
@@ -14,7 +15,9 @@ import { currentQuarter } from "@/services/ventures/reporting/quarterlyRules";
  * The studio's reporting configuration: stage thresholds, the traffic-light
  * bands of spec §11, and WHEN a report is due. Gated on `ventures.setup`
  * (level 3) — the existing configuration right, so it can be delegated without
- * granting `ventures.edit` on any Venture. Super admins always pass.
+ * granting `ventures.edit` on any Venture. The glossary is the shared
+ * vocabulary, so it additionally requires the portfolio-write right
+ * (`ventures.edit_all`), which the owner holds by default and can have revoked.
  *
  * These are GLOBAL settings, which is why the path is not under /ventures/[id].
  */
@@ -33,11 +36,13 @@ export const GET = createHandler(async (req) => {
   const { settings, defaults, overrides, businessModels, bands, glossary, definitions, groups } =
     await getReportingSettings({});
 
-  // The glossary is READABLE by the studio; only a Super Admin may change it.
-  // The flag lets the screen render it read-only rather than offering a form
-  // that would be refused.
+  // The glossary is READABLE by the studio; changing it needs the portfolio
+  // write right (the owner's default, revocable). The flag lets the screen
+  // render it read-only rather than offering a form that would be refused.
   const authContext = await getAuthorizationContext(req.session).catch(() => null);
-  const canEditGlossary = Boolean(authContext?.isSuperAdmin);
+  const canEditGlossary = Boolean(
+    authContext && authorize(authContext, "ventures", "edit_all"),
+  );
 
   // The next due dates, computed from the same numbers the screen edits — so
   // changing the day visibly moves the deadline before saving.
@@ -76,13 +81,14 @@ export const PUT = createHandler(async (req) => {
   const businessModel = body.businessModel || "default";
   const actorCid = req.session?.cid || null;
 
-  // THE GLOSSARY IS SUPER-ADMIN ONLY. Thresholds are delegable (`ventures.setup`),
-  // but the shared vocabulary changes what every number MEANS, so it is reserved
-  // for the platform owner. Everyone else reads it.
+  // THE GLOSSARY IS THE SHARED VOCABULARY. Thresholds are delegable
+  // (`ventures.setup`), but the vocabulary changes what every number MEANS, so
+  // it needs the portfolio-write right (`ventures.edit_all`) — held by the
+  // platform owner's profile and revocable like any other right.
   let glossaryUpdated = [];
   if (Array.isArray(body.glossary) && body.glossary.length) {
     const authContext = await getAuthorizationContext(req.session).catch(() => null);
-    if (!authContext?.isSuperAdmin) {
+    if (!authContext || !authorize(authContext, "ventures", "edit_all")) {
       return NextResponse.json(
         { success: false, error: "errors.insufficientPermissions" },
         { status: 403 },

@@ -48,32 +48,32 @@ describe("the page language follows the chosen language", () => {
 
 describe("source pins", () => {
   test("the founder journey offers no Report button (the notes API refuses founders)", () => {
-    const source = read("src/components/ventures/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables.js");
+    const source = read("src/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables.js");
     expect(source).not.toContain("<ActivityReport");
-    expect(source).not.toContain("components/ventures/journey/ActivityReport");
+    expect(source).not.toContain("components/shared/ventures/console/journey/ActivityReport");
   });
 
   test("the founder venture tab lives in the address", () => {
-    const page = read("src/app/participant/ventures/[id]/page.js");
+    const page = read("src/app/member/(contexts)/participant/ventures/[id]/page.js");
     expect(page).toContain('searchParams?.get("tab")');
     expect(page).toContain("?tab=${section}");
     expect(page).not.toContain("setActiveTab");
   });
 
   test("an unknown or forbidden venture says so", () => {
-    const screenSource = read("src/components/participant/ventures/VentureWorkspaceScreen.js");
+    const screenSource = read("src/components/shared/ventures/workspace/VentureWorkspaceScreen.js");
     expect(screenSource).toContain('t("venture.notFound")');
     expect(read("src/locales/en/venture.json")).toContain('"notFound"');
     expect(read("src/locales/fr/venture.json")).toContain('"notFound"');
   });
 
   test("the roster is not 'empty' until it has answered", () => {
-    const tabs = read("src/components/ventures/workspace/tabs/MembersTabs.js");
+    const tabs = read("src/components/shared/ventures/console/workspace/tabs/MembersTabs.js");
     expect(tabs).toContain("!membersLoading && members.length === 0");
   });
 
   test("a search that matches nothing does not claim the category is empty", () => {
-    const room = read("src/components/ventures/data-room/VentureDataRoom.js");
+    const room = read("src/components/shared/ventures/console/data-room/VentureDataRoom.js");
     expect(room).toContain('t("dataRoom.noMatch")');
   });
 
@@ -89,8 +89,11 @@ describe("source pins", () => {
   });
 
   test("the operating sections are behind the role guard", () => {
-    for (const section of ["staff", "pm", "finance", "crm"]) {
-      expect(read(`src/app/${section}/layout.js`)).toContain("SectionRoleGuard");
-    }
+    // Every staff surface is entered through the staff layout, which carries
+    // the guard once for the whole space. A section that moves under it must
+    // NOT re-wrap itself (a second shell would mount twice).
+    expect(read("src/app/staff/layout.js")).toContain("SectionRoleGuard");
+    // The delegated creation surface keeps its own capability gate instead.
+    expect(read("src/app/staff/create/layout.js")).toContain("CreationAccessGuard");
   });
 });

@@ -69,7 +69,8 @@ const publicPaths = [
   "/join",
   "/open",
   "/verify",
-  "/investor/setup-password",
+  "/member/investor/setup-password",
+  "/investor/setup-password", // legacy address, kept for the redirect
   "/s",
   "/_next",
   "/brand",
@@ -127,6 +128,9 @@ const publicApiPaths = [
   "/api/s",
   "/api/investor/register",
   "/api/investor/setup-password",
+  // The invitation link's validation call. The token in the address is the
+  // credential and the response only carries the invited email/name.
+  "/api/investor/invitations",
   // Health probes: a load balancer / uptime monitor holds no session cookie.
   // They expose no data (see the routes), only liveness / readiness.
   "/api/health",
@@ -139,14 +143,16 @@ const publicApiPaths = [
 // Includes /api/participant and /api/notifications so routes with their own
 // requireAuth() check can handle auth themselves instead of being blocked here.
 const softAuthPaths = [
-  "/participant",
+  "/member/participant",
+  "/participant", // legacy address, kept so its redirect is not masked by auth
   "/api/participant",
   "/api/notifications",
   "/api/dashboard",
   "/api/engineering",
   "/api/user-groups",
   "/api/migrate",
-  "/finance",
+  "/finance", // legacy address, kept for the redirect to the staff space
+  "/staff/finance",
   "/api/finance",
 ];
 

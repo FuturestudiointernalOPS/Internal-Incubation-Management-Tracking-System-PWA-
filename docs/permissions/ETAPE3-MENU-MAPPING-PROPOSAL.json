@@ -1,0 +1,1351 @@
+{
+  "generatedAt": "2026-11-12T15:23:46.714Z",
+  "counts": {
+    "total": 74,
+    "existing": 31,
+    "toDecide": 43,
+    "proposedPublic": 9,
+    "invalid": 0
+  },
+  "rows": [
+    {
+      "id": "dashboard",
+      "name": "DASHBOARD",
+      "href": "/admin",
+      "icon": "layoutDashboard",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [
+        "super_admin",
+        "staff",
+        "member",
+        "team",
+        "finance"
+      ],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "crm",
+      "name": "CRM",
+      "href": null,
+      "icon": "users",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "anyOf": [
+          {
+            "module": "crm",
+            "capability": "view"
+          },
+          {
+            "module": "contacts",
+            "capability": "view"
+          },
+          {
+            "module": "org_membership",
+            "capability": "view"
+          },
+          {
+            "module": "duplicates",
+            "capability": "view"
+          }
+        ]
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_dashboard",
+      "name": "DASHBOARD",
+      "href": "/staff/crm",
+      "icon": "users",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "anyOf": [
+          {
+            "module": "crm",
+            "capability": "view"
+          },
+          {
+            "module": "contacts",
+            "capability": "view"
+          }
+        ]
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "all_contacts",
+      "name": "PEOPLE",
+      "href": "/staff/crm/contacts",
+      "icon": null,
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "contacts",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_organizations",
+      "name": "ORGANIZATIONS",
+      "href": "/staff/crm/organizations",
+      "icon": "building",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_leads",
+      "name": "LEADS",
+      "href": "/staff/crm/leads",
+      "icon": "target",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_opportunities",
+      "name": "OPPORTUNITIES",
+      "href": "/staff/crm/opportunities",
+      "icon": "trendingUp",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_pipelines",
+      "name": "PIPELINES",
+      "href": "/staff/crm/pipelines",
+      "icon": "gitBranch",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_activities",
+      "name": "ACTIVITIES",
+      "href": "/staff/crm/activities",
+      "icon": "activity",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_segments",
+      "name": "SEGMENTS",
+      "href": "/staff/crm/segments",
+      "icon": "filter",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_automations",
+      "name": "AUTOMATIONS",
+      "href": "/staff/crm/automations",
+      "icon": "zap",
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "crm",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_timeline",
+      "name": "TIMELINE",
+      "href": "/staff/crm/timeline",
+      "icon": null,
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "contacts",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_membership",
+      "name": "MEMBERSHIP",
+      "href": "/staff/crm/membership",
+      "icon": null,
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "org_membership",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "crm_duplicates",
+      "name": "DUPLICATES",
+      "href": "/staff/crm/duplicates",
+      "icon": null,
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "duplicates",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "pending_users",
+      "name": "PENDING APPROVALS",
+      "href": "/admin/pending-users",
+      "icon": null,
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "permissions",
+        "capability": "view_matrix"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "bulk_upload",
+      "name": "BULK IMPORT",
+      "href": "/admin/bulk-upload",
+      "icon": null,
+      "parent": "crm",
+      "depth": 1,
+      "requirement": {
+        "module": "bulk_upload",
+        "capability": "execute"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "communication",
+      "name": "COMMUNICATION",
+      "href": null,
+      "icon": "messageSquare",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "anyOf": [
+          {
+            "module": "messaging",
+            "capability": "view"
+          },
+          {
+            "module": "internal_comms",
+            "capability": "view"
+          },
+          {
+            "module": "forms",
+            "capability": "view"
+          },
+          {
+            "module": "runs",
+            "capability": "view"
+          },
+          {
+            "module": "collections",
+            "capability": "view"
+          }
+        ]
+      },
+      "roles": [
+        "super_admin",
+        "staff",
+        "crm"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "messages",
+      "name": "MESSAGES",
+      "href": "/admin/internal-comms",
+      "icon": "send",
+      "parent": "communication",
+      "depth": 1,
+      "requirement": {
+        "module": "messaging",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "staff"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "announcements",
+      "name": "ANNOUNCEMENTS",
+      "href": "/admin/announcements",
+      "icon": null,
+      "parent": "communication",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "internal_comms.view",
+      "proposalSource": "proposal",
+      "proposalNote": "DÉCIDÉ : le propriétaire seul. L'écran d'administration reste réservé à internal_comms.view, détenu par le profil du propriétaire ; publication = create_announcements ; modération = moderate. Aucun autre profil ne reçoit ces droits.",
+      "problems": []
+    },
+    {
+      "id": "forms",
+      "name": "FORMS",
+      "href": "/platform",
+      "icon": "fileText",
+      "parent": "communication",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin",
+        "staff",
+        "crm"
+      ],
+      "proposed": "forms.view",
+      "proposalSource": "proposal",
+      "proposalNote": "DÉCIDÉ : sans forms.view, la porte n'apparaît pas. Aucun droit n'est accordé au personnel ; un futur octroi fait réapparaître la porte automatiquement.",
+      "problems": []
+    },
+    {
+      "id": "groups",
+      "name": "GROUPS",
+      "href": "/staff/program-manager/communications/contacts",
+      "icon": null,
+      "parent": "communication",
+      "depth": 1,
+      "requirement": null,
+      "roles": [],
+      "proposed": "programs.groups",
+      "proposalSource": "proposal",
+      "proposalNote": "Page PM en LECTURE (groupes, équipes, staff du programme) ; les API /api/pm/* scopent au PM. Le droit de porte est programs.groups.",
+      "problems": []
+    },
+    {
+      "id": "programs",
+      "name": "PROGRAMS",
+      "href": null,
+      "icon": "briefcase",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "programs",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin",
+        "staff",
+        "team"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "all_programs",
+      "name": "ALL PROGRAMS",
+      "href": "/admin/programs",
+      "icon": null,
+      "parent": "programs",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "programs.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "create_program",
+      "name": "CREATE PROGRAM",
+      "href": "/admin/programs/new",
+      "icon": null,
+      "parent": "programs",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "programs.create",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "progress",
+      "name": "PROGRESS",
+      "href": "/admin/progress",
+      "icon": null,
+      "parent": "programs",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "programs.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "ventures",
+      "name": "VENTURES",
+      "href": null,
+      "icon": "rocket",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "ventures",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "all_ventures",
+      "name": "ALL VENTURES",
+      "href": "/admin/ventures",
+      "icon": null,
+      "parent": "ventures",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "ventures.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors",
+      "name": "INVESTORS",
+      "href": null,
+      "icon": "briefcase",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "investor",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "investors_manage",
+      "name": "INVESTOR MANAGEMENT",
+      "href": "/admin/investors",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_dashboard",
+      "name": "DASHBOARD",
+      "href": "/admin/investors/dashboard",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_review",
+      "name": "REVIEW",
+      "href": "/admin/investors/review",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_campaigns",
+      "name": "CAMPAIGNS",
+      "href": "/admin/investors/campaigns",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_relationships",
+      "name": "RELATIONSHIPS",
+      "href": "/admin/investors/relationships",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_portfolio",
+      "name": "STUDIO PORTFOLIO",
+      "href": "/admin/investors/portfolio",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_deal_flow",
+      "name": "DEAL FLOW",
+      "href": "/admin/investors/deal-flow",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_introductions",
+      "name": "INTRODUCTIONS",
+      "href": "/admin/investors/introductions",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "investors_metrics",
+      "name": "METRICS",
+      "href": "/admin/investors/metrics",
+      "icon": null,
+      "parent": "investors",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "investor.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "finance",
+      "name": "FINANCE",
+      "href": "/admin/finance",
+      "icon": "barChart3",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "finance",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "operations",
+      "name": "OPERATIONS",
+      "href": null,
+      "icon": "listTodo",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "tasks",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "internal_ops_board",
+      "name": "OPS BOARD",
+      "href": "/admin/work",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "tasks.view OR projects.view",
+      "proposalSource": "proposal",
+      "proposalNote": "Board ops : tasks.view ou projects.view, selon le contenu réel du board.",
+      "problems": []
+    },
+    {
+      "id": "all_projects",
+      "name": "PROJECTS",
+      "href": "/admin/projects",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "projects.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "create_project",
+      "name": "CREATE PROJECT",
+      "href": "/admin/projects?action=create",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "projects.create",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "tasks",
+      "name": "TASKS",
+      "href": "/admin/tasks",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "tasks.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "blockers",
+      "name": "BLOCKERS",
+      "href": "/admin/blockers",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "tasks.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "standup",
+      "name": "STANDUP",
+      "href": "/staff/op-report?tab=standup",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "reports.create",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "retro",
+      "name": "RETRO",
+      "href": "/staff/op-report?tab=retro",
+      "icon": null,
+      "parent": "operations",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "reports.create",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "intelligence",
+      "name": "INTELLIGENCE",
+      "href": "/admin/intelligence",
+      "icon": "trendingUp",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "knowledge.view",
+      "proposalSource": "proposal",
+      "proposalNote": "L'API /api/intelligence/metrics exige knowledge.view (section knowledge), pas reports.view.",
+      "problems": []
+    },
+    {
+      "id": "reports",
+      "name": "REPORTS",
+      "href": null,
+      "icon": "fileText",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "reports",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "program_reports",
+      "name": "PROGRAM REPORTS",
+      "href": "/admin/reports/responses",
+      "icon": null,
+      "parent": "reports",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "reports.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "internal_reports",
+      "name": "OP REPORTS",
+      "href": "/admin/op-reports",
+      "icon": null,
+      "parent": "reports",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "reports.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "metrics",
+      "name": "PROGRAM HEALTH",
+      "href": "/admin/metrics",
+      "icon": null,
+      "parent": "reports",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "reports.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "my_projects",
+      "name": "MY PROJECTS",
+      "href": "/staff/projects",
+      "icon": "briefcase",
+      "parent": "reports",
+      "depth": 1,
+      "requirement": {
+        "module": "projects",
+        "capability": "view"
+      },
+      "roles": [
+        "staff"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "knowledge",
+      "name": "KNOWLEDGE",
+      "href": null,
+      "icon": "library",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "knowledge",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "knowledge_base",
+      "name": "KNOWLEDGE BASE",
+      "href": "/admin/knowledge",
+      "icon": null,
+      "parent": "knowledge",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "knowledge.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "lms",
+      "name": "LMS",
+      "href": null,
+      "icon": "graduationCap",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "anyOf": [
+          {
+            "module": "lms",
+            "capability": "view"
+          },
+          {
+            "module": "lms",
+            "capability": "create"
+          },
+          {
+            "module": "lms",
+            "capability": "edit"
+          }
+        ]
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "lms_courses",
+      "name": "COURSES",
+      "href": "/admin/lms/courses",
+      "icon": null,
+      "parent": "lms",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "lms.view OR lms.create OR lms.edit",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "lms_registrations",
+      "name": "REGISTRATIONS",
+      "href": "/admin/lms/registrations",
+      "icon": null,
+      "parent": "lms",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "lms.edit",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "settings",
+      "name": "SETTINGS",
+      "href": null,
+      "icon": "wrench",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "settings",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "system",
+      "name": "SYSTEM MONITORING",
+      "href": "/admin/system",
+      "icon": null,
+      "parent": "settings",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "settings.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "security",
+      "name": "SECURITY",
+      "href": "/admin/security",
+      "icon": null,
+      "parent": "settings",
+      "depth": 1,
+      "requirement": {
+        "module": "settings",
+        "capability": "view"
+      },
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "audit_logs",
+      "name": "AUDIT LOGS",
+      "href": "/admin/audit-logs",
+      "icon": null,
+      "parent": "settings",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "settings.view",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "access_summary",
+      "name": "USER ACCESS",
+      "href": "/admin/access",
+      "icon": null,
+      "parent": "settings",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "permissions.view_matrix",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "permissions",
+      "name": "PERMISSIONS",
+      "href": "/admin/security/permissions",
+      "icon": null,
+      "parent": "settings",
+      "depth": 1,
+      "requirement": null,
+      "roles": [
+        "super_admin"
+      ],
+      "proposed": "permissions.view_matrix",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "projects",
+      "name": "PROJECTS",
+      "href": "/admin/projects",
+      "icon": "rocket",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "projects",
+        "capability": "view"
+      },
+      "roles": [],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "weekly_ops",
+      "name": "WEEKLY OPS",
+      "href": "/staff/op-report",
+      "icon": "calendar",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "reports",
+        "capability": "create"
+      },
+      "roles": [
+        "staff"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "my_projects",
+      "name": "MY PROJECTS",
+      "href": "/staff/projects",
+      "icon": "briefcase",
+      "parent": null,
+      "depth": 0,
+      "requirement": {
+        "module": "projects",
+        "capability": "view"
+      },
+      "roles": [
+        "staff"
+      ],
+      "proposed": null,
+      "proposalSource": "existing",
+      "proposalNote": "déjà déclaré",
+      "problems": []
+    },
+    {
+      "id": "my_programs",
+      "name": "MY PROGRAMS",
+      "href": "/member/facilitator/programs",
+      "icon": "briefcase",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "reviews",
+      "name": "MY REVIEWS",
+      "href": "/member/facilitator/reviews",
+      "icon": "clipboardList",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "Page personnelle : /api/facilitator-reviews exige seulement une session et renvoie les avis du facilitateur.",
+      "problems": []
+    },
+    {
+      "id": "profile",
+      "name": "PROFILE",
+      "href": "/member/facilitator/profile",
+      "icon": "user",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [
+        "finance"
+      ],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "",
+      "problems": []
+    },
+    {
+      "id": "learning",
+      "name": "MY LEARNING",
+      "href": "/member/participant/learning",
+      "icon": "graduationCap",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "Surface personnelle : /api/lms/my-learning exige seulement une session et scope au participant.",
+      "problems": []
+    },
+    {
+      "id": "certificates",
+      "name": "MY CERTIFICATES",
+      "href": "/member/participant/certificates",
+      "icon": "fileText",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "Surface personnelle : /api/participant/certificates exige seulement une session.",
+      "problems": []
+    },
+    {
+      "id": "timeline",
+      "name": "MY TIMELINE",
+      "href": "/member/participant/profile#timeline",
+      "icon": "clock",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "Surface personnelle : /api/participant/timeline exige seulement une session.",
+      "problems": []
+    },
+    {
+      "id": "portfolio",
+      "name": "PORTFOLIO",
+      "href": "/member/investor/portfolio",
+      "icon": "trendingUp",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "Surface personnelle investisseur : l'API self-service admet un membre avec un profil investisseur, même sans investor.view.",
+      "problems": []
+    },
+    {
+      "id": "activity",
+      "name": "ACTIVITY",
+      "href": "/member/investor/history",
+      "icon": "clock",
+      "parent": null,
+      "depth": 0,
+      "requirement": null,
+      "roles": [],
+      "proposed": "public",
+      "proposalSource": "proposal",
+      "proposalNote": "Surface personnelle : /api/investor/decisions self-service, scopée à l'investisseur.",
+      "problems": []
+    }
+  ]
+}

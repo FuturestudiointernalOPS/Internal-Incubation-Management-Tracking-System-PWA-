@@ -16,7 +16,9 @@ const MILESTONE_1 = "33333333-3333-4333-8333-333333333333";
 
 function makeFakeDb() {
   const flags = { stageStatus: "active", assignment: "none", stageCloses: false };
-  const execute = jest.fn(async ({ sql, args = [] }) => {
+  const execute = jest.fn(async (statement) => {
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    const args = typeof statement === "string" ? [] : statement.args || [];
     executed.push({ sql, args });
     // The stage that a completed milestone might CLOSE (the closing report is
     // asked for at exactly this moment).

@@ -98,7 +98,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
-  const participantSurface = pathname?.startsWith("/participant") || pathname?.startsWith("/founder");
+  const participantSurface = pathname?.startsWith("/member/participant") || pathname?.startsWith("/member/founder");
   const participantCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readParticipantCollapse, expandedServerSnapshot);
   const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
   const setCollapsed = participantSurface ? writeParticipantCollapse : setLegacyCollapsed;
@@ -373,6 +373,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       pmPrograms,
       ventureAssignCount,
       relationships,
+      profiles: activeProfiles,
     });
 
   const handleLogout = async () => {
@@ -444,7 +445,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
     fullWidth ||
     (typeof pathname === "string" &&
       (pathname.startsWith("/admin/communications/contacts") ||
-        pathname.startsWith("/crm/contacts")));
+        pathname.startsWith("/staff/crm/contacts")));
 
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;

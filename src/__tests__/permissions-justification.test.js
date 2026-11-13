@@ -31,13 +31,22 @@ describe("explainAuthorization — la justification (spec §11 / §12.4)", () =>
     expect(explainAuthorization(ctx(), "crm", "").reason).toBe(AUTHZ_REASONS.INVALID_INPUT);
   });
 
-  test("super admin sans restriction → super_admin (autorisé)", () => {
+  test("super admin avec le droit dans sa matrice → granted", () => {
+    const d = explainAuthorization(
+      ctx({ isSuperAdmin: true, eligibility: null, effective: { crm: { view: 2 } } }),
+      "crm",
+      "view",
+    );
+    expect(d).toMatchObject({ allowed: true, reason: AUTHZ_REASONS.GRANTED });
+  });
+
+  test("super admin sans le droit → missing_permission (le rôle n'est plus un allow-all)", () => {
     const d = explainAuthorization(
       ctx({ isSuperAdmin: true, eligibility: null, effective: {} }),
       "crm",
       "view",
     );
-    expect(d).toMatchObject({ allowed: true, reason: AUTHZ_REASONS.SUPER_ADMIN });
+    expect(d).toMatchObject({ allowed: false, reason: AUTHZ_REASONS.MISSING_PERMISSION });
   });
 
   test("compte non actif → account_not_active", () => {
@@ -76,9 +85,9 @@ describe("explainAuthorization — la justification (spec §11 / §12.4)", () =>
     });
   });
 
-  test("super admin : octroi explicite sous le niveau → insufficient_level", () => {
+  test("super admin : niveau insuffisant dans sa matrice → insufficient_level", () => {
     const d = explainAuthorization(
-      ctx({ isSuperAdmin: true, grants: { crm: { view: 1 } } }),
+      ctx({ isSuperAdmin: true, effective: { crm: { view: 1 } } }),
       "crm",
       "view",
       3,

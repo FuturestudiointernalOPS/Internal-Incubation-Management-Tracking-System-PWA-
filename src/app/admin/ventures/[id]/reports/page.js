@@ -10,15 +10,15 @@ import {
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { stageStatusWord, statusLabel, statusChipClass } from "@/lib/ventureStatuses";
-import { useReportsBusiness } from "@/components/admin/ventures/reports/useReportsBusiness";
-import { complianceFrom } from "@/components/admin/ventures/reports/analysisModel";
-import BusinessSnapshot from "@/components/admin/ventures/reports/BusinessSnapshot";
-import VerdictPanel from "@/components/admin/ventures/reports/VerdictPanel";
-import RiskPanel from "@/components/admin/ventures/reports/RiskPanel";
-import FundingPanel from "@/components/admin/ventures/reports/FundingPanel";
-import ImpactPanel from "@/components/admin/ventures/reports/ImpactPanel";
-import ReportingPanel from "@/components/admin/ventures/reports/ReportingPanel";
-import ExecutionOutcomeChart from "@/components/admin/ventures/reports/ExecutionOutcomeChart";
+import { useReportsBusiness } from "@/spaces/admin/components/ventures/reports/useReportsBusiness";
+import { complianceFrom } from "@/spaces/admin/components/ventures/reports/analysisModel";
+import BusinessSnapshot from "@/spaces/admin/components/ventures/reports/BusinessSnapshot";
+import VerdictPanel from "@/spaces/admin/components/ventures/reports/VerdictPanel";
+import RiskPanel from "@/spaces/admin/components/ventures/reports/RiskPanel";
+import FundingPanel from "@/spaces/admin/components/ventures/reports/FundingPanel";
+import ImpactPanel from "@/spaces/admin/components/ventures/reports/ImpactPanel";
+import ReportingPanel from "@/spaces/admin/components/ventures/reports/ReportingPanel";
+import ExecutionOutcomeChart from "@/spaces/admin/components/ventures/reports/ExecutionOutcomeChart";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

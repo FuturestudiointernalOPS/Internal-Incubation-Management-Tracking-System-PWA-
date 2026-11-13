@@ -17,6 +17,10 @@ const REGISTERED_MODULES = [
     href: "/platform",
     enabled: true,
     visible: true,
+    // Mirrors the API the screen calls (`form-runs?dashboard=true`, which
+    // requires runs.view). The role list below is the legacy fallback for
+    // role-only catalogue screens, never the visibility rule.
+    capability: { module: "runs", capability: "view" },
     permissions: ["super_admin", "staff"],
     order: 0,
   },
@@ -30,6 +34,7 @@ const REGISTERED_MODULES = [
     visible: true,
     // Mirrors the backing API: /api/platform/forms + /api/platform/collections
     // read allow super_admin, admin and staff (writes stay admin-only).
+    capability: { module: "forms", capability: "view" },
     permissions: ["super_admin", "staff"],
     order: 1,
     future: false,
@@ -58,6 +63,8 @@ const REGISTERED_MODULES = [
     href: "/admin/platform/import",
     enabled: true,
     visible: true,
+    // The import endpoints require settings.edit.
+    capability: { module: "settings", capability: "edit" },
     permissions: ["super_admin"],
     order: 3,
     future: false,
@@ -70,6 +77,8 @@ const REGISTERED_MODULES = [
     href: "/admin/platform/import/review",
     enabled: true,
     visible: true,
+    // The review-flags endpoints require settings.edit.
+    capability: { module: "settings", capability: "edit" },
     permissions: ["super_admin"],
     order: 4,
     future: false,
@@ -82,6 +91,8 @@ const REGISTERED_MODULES = [
     href: "/admin/platform/scores",
     enabled: true,
     visible: true,
+    // The scores screen reads evaluations through the runs API.
+    capability: { module: "runs", capability: "view" },
     permissions: ["super_admin"],
     order: 5,
     future: false,
@@ -89,13 +100,18 @@ const REGISTERED_MODULES = [
 ];
 
 /**
- * Returns all registered modules, optionally filtered by role and/or by a
- * capability predicate.
+ * Returns all registered modules, optionally filtered by a capability
+ * predicate.
  *
- * A module may declare `capability` ({ module, capability }) to be governed by
- * the resolver instead of a role allowlist. When `hasCapability` is supplied,
- * that predicate decides; otherwise the module falls back to its legacy
- * `permissions` role list so role-only consumers keep working.
+ * Every module declares `capability` ({ module, capability }) — the right its
+ * ONE API enforces. When `hasCapability` is supplied (the sidebar, and any
+ * screen that gates what it offers), that predicate decides who sees the
+ * module: a right is the only grant.
+ *
+ * `permissions` is kept ONLY for the role-only catalogue screens (the module
+ * list and the settings table). It is stale metadata there, never a door: a
+ * module is meant to be opened through its address and that address's API,
+ * which reads the right.
  */
 export function getRegisteredModules(role, hasCapability = null) {
   // Fail CLOSED on an unknown role: a caller that has not resolved the session
@@ -104,9 +120,11 @@ export function getRegisteredModules(role, hasCapability = null) {
   if (!role) return [];
   return REGISTERED_MODULES.filter((module) => {
     if (!module.enabled) return false;
-    if (module.capability && typeof hasCapability === "function") {
-      return hasCapability(module.capability);
+    if (typeof hasCapability === "function") {
+      return module.capability ? hasCapability(module.capability) : false;
     }
+    // No predicate: a catalogue screen asks the legacy role table. This is the
+    // only remaining consumer of `permissions`, and it renders no door.
     if (!module.permissions || module.permissions.length === 0) return true;
     return module.permissions.includes(role);
   });

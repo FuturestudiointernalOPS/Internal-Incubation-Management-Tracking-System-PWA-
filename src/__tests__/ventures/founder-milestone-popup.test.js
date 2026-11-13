@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const source = fs.readFileSync(
-  path.join(process.cwd(), "src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js"),
+  path.join(process.cwd(), "src/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs.js"),
   "utf8",
 );
 

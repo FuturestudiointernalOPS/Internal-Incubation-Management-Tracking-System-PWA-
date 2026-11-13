@@ -14,7 +14,7 @@ jest.mock("@/components/ui/DialogProvider", () => ({
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const CollaboratorsModal = require("@/components/ventures/venture-dashboard/CollaboratorsModal").default;
+const CollaboratorsModal = require("@/components/shared/ventures/console/venture-dashboard/CollaboratorsModal").default;
 const en = require("@/locales/en/vadmin.json");
 
 const people = [

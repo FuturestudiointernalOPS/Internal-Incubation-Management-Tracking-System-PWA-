@@ -1,6 +1,6 @@
 "use client";
 
-import CourseCreateScreen from "@/components/lms/CourseCreateScreen";
+import CourseCreateScreen from "@/components/shared/lms/CourseCreateScreen";
 
 /**
  * ADMIN — CREATE COURSE

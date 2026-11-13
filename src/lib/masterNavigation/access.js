@@ -58,7 +58,7 @@ export const ROLE_ACCESS = {
     },
     hrefs: {
       dashboard: "/staff",
-      programs: "/pm/programs",
+      programs: "/staff/program-manager/programs",
       messages: "/staff/messages",
     },
     icons: {},
@@ -70,14 +70,14 @@ export const ROLE_ACCESS = {
     // The dashboard is the page that owns the calendar. A member has no
     // program context yet, so it is the participant dashboard's empty state —
     // NOT the /workspaces hub, which made "the workspace show first".
-    hrefs: { dashboard: "/participant" },
+    hrefs: { dashboard: "/member/participant" },
     icons: {},
   },
 
   team: {
     top: ["dashboard", "programs"],
     children: {},
-    hrefs: { dashboard: "/team", programs: "/team" },
+    hrefs: { dashboard: "/member/team", programs: "/member/team" },
     icons: {},
   },
 
@@ -85,8 +85,8 @@ export const ROLE_ACCESS = {
     top: ["dashboard", "profile"],
     children: {},
     hrefs: {
-      dashboard: "/finance",
-      profile: "/participant/profile",
+      dashboard: "/staff/finance",
+      profile: "/member/participant/profile",
     },
     icons: { dashboard: "barChart3" },
   },
@@ -110,11 +110,11 @@ export const ROLE_ACCESS = {
       communication: ["forms"],
     },
     hrefs: {
-      crm_dashboard: "/crm",
-      all_contacts: "/crm/contacts",
-      crm_timeline: "/crm/timeline",
-      crm_membership: "/crm/membership",
-      crm_duplicates: "/crm/duplicates",
+      crm_dashboard: "/staff/crm",
+      all_contacts: "/staff/crm/contacts",
+      crm_timeline: "/staff/crm/timeline",
+      crm_membership: "/staff/crm/membership",
+      crm_duplicates: "/staff/crm/duplicates",
     },
     icons: {},
   },
@@ -228,19 +228,19 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
 // OTHER /admin node is dropped for a non-admin role: the sidebar never renders
 // a link the role would be redirected away from.
 export const NON_ADMIN_HREF_FALLBACKS = {
-  finance: "/finance",
-  crm_dashboard: "/crm",
-  all_contacts: "/crm/contacts",
-  crm_organizations: "/crm/organizations",
-  crm_leads: "/crm/leads",
-  crm_opportunities: "/crm/opportunities",
-  crm_pipelines: "/crm/pipelines",
-  crm_activities: "/crm/activities",
-  crm_segments: "/crm/segments",
-  crm_automations: "/crm/automations",
-  crm_membership: "/crm/membership",
-  crm_duplicates: "/crm/duplicates",
-  crm_timeline: "/crm/timeline",
+  finance: "/staff/finance",
+  crm_dashboard: "/staff/crm",
+  all_contacts: "/staff/crm/contacts",
+  crm_organizations: "/staff/crm/organizations",
+  crm_leads: "/staff/crm/leads",
+  crm_opportunities: "/staff/crm/opportunities",
+  crm_pipelines: "/staff/crm/pipelines",
+  crm_activities: "/staff/crm/activities",
+  crm_segments: "/staff/crm/segments",
+  crm_automations: "/staff/crm/automations",
+  crm_membership: "/staff/crm/membership",
+  crm_duplicates: "/staff/crm/duplicates",
+  crm_timeline: "/staff/crm/timeline",
   forms: "/platform",
-  lms_courses: "/pm/lms/courses",
+  lms_courses: "/staff/program-manager/lms/courses",
 };

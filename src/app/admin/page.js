@@ -14,41 +14,41 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import DashboardHeader from "@/components/admin/dashboard-page/DashboardHeader";
-import StatCard from "@/components/admin/dashboard-page/StatCard";
-import SectionHeader from "@/components/admin/dashboard-page/SectionHeader";
-import StaffCalendar from "@/components/staff/StaffCalendar";
-import UpcomingWidget from "@/components/admin/dashboard-page/UpcomingWidget";
+import DashboardHeader from "@/spaces/admin/components/dashboard-page/DashboardHeader";
+import StatCard from "@/spaces/admin/components/dashboard-page/StatCard";
+import SectionHeader from "@/spaces/admin/components/dashboard-page/SectionHeader";
+import StaffCalendar from "@/components/shared/calendar/StaffCalendar";
+import UpcomingWidget from "@/spaces/admin/components/dashboard-page/UpcomingWidget";
 import {
   TasksSummaryWidget,
   BlockersSummaryWidget,
-} from "@/components/admin/dashboard-page/SummaryWidgets";
-import AssignmentsPanel from "@/components/admin/dashboard-page/AssignmentsPanel";
+} from "@/spaces/admin/components/dashboard-page/SummaryWidgets";
+import AssignmentsPanel from "@/spaces/admin/components/dashboard-page/AssignmentsPanel";
 import {
   ActivityFeed,
   ActiveProgramsCard,
-} from "@/components/admin/dashboard-page/ProgramActivity";
-import KpiProgressSection from "@/components/admin/dashboard-page/KpiProgressSection";
+} from "@/spaces/admin/components/dashboard-page/ProgramActivity";
+import KpiProgressSection from "@/spaces/admin/components/dashboard-page/KpiProgressSection";
 import {
   BlockerRateCard,
   InternalOpsNavCards,
-} from "@/components/admin/dashboard-page/NavCards";
+} from "@/spaces/admin/components/dashboard-page/NavCards";
 import {
   TeamSummaryStats,
   StaffReportTable,
   CollapseTableButton,
-} from "@/components/admin/dashboard-page/TeamAccountability";
+} from "@/spaces/admin/components/dashboard-page/TeamAccountability";
 import {
   LatestBlockersCard,
   QuickActionsCard,
-} from "@/components/admin/dashboard-page/RisksSection";
-import TaskDetailDrawer from "@/components/admin/dashboard-page/TaskDetailDrawer";
+} from "@/spaces/admin/components/dashboard-page/RisksSection";
+import TaskDetailDrawer from "@/spaces/admin/components/dashboard-page/TaskDetailDrawer";
 import { useAdminDashboardData } from "./hooks/useAdminDashboardData";
 import { useAdminWidgetData } from "./hooks/useAdminWidgetData";
 import { useAdminSections } from "./hooks/useAdminSections";
 import { useAdminActions } from "./hooks/useAdminActions";
 import { useAdminCalendar } from "./hooks/useAdminCalendar";
-import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
+import { useGoogleCalendar } from "@/components/shared/integrations/useGoogleCalendar";
 
 const ASSIGNMENTS_PER_PAGE = 5;
 
@@ -163,7 +163,7 @@ export default function AdminDashboard() {
               value={dashboardData.stats.participants}
               icon={Users}
               color="text-blue-500"
-              onClick={() => router.push("/crm/contacts")}
+              onClick={() => router.push("/staff/crm/contacts")}
               loading={dashboardData.loading}
             />
             <StatCard
@@ -172,7 +172,7 @@ export default function AdminDashboard() {
               icon={Rocket}
               color="text-emerald-500"
               subtitle={t("admin.sectionSubtitles.adminsAndStaff")}
-              onClick={() => router.push("/crm/contacts")}
+              onClick={() => router.push("/staff/crm/contacts")}
               loading={dashboardData.loading}
             />
             <StatCard

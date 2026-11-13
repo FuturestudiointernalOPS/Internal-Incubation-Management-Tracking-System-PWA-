@@ -1,6 +1,6 @@
 "use client";
 
-import VentureReportingSettings from "@/components/ventures/reporting/VentureReportingSettings";
+import VentureReportingSettings from "@/components/shared/ventures/console/reporting/VentureReportingSettings";
 
 /**
  * Staff → Ventures → Reporting settings.

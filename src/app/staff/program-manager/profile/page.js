@@ -1,0 +1,18 @@
+"use client";
+
+import ProfileView from "@/components/shared/dashboard/ProfileView";
+
+/**
+ * PM PROFILE — Unified Profile Page
+ *
+ * All roles share the same ProfileView component.
+ */
+export default function PMProfilePage() {
+  return (
+    <>
+      <div className="p-6 max-w-5xl mx-auto">
+        <ProfileView />
+      </div>
+    </>
+  );
+}

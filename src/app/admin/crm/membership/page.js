@@ -8,5 +8,5 @@ export const dynamic = "force-dynamic";
  * Kept as a server redirect for one release so old links keep working.
  */
 export default function LegacyMembershipRedirect() {
-  redirect("/crm/membership");
+  redirect("/staff/crm/membership");
 }

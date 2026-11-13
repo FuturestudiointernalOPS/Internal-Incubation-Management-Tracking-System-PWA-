@@ -1,5 +1,5 @@
 /** A document's badge says whether it has been validated: green, awaiting, or red. */
-const { STATUS_CLASS, STATUS_ACCENT } = require("@/components/ventures/data-room/dataRoomUi");
+const { STATUS_CLASS, STATUS_ACCENT } = require("@/components/shared/ventures/console/data-room/dataRoomUi");
 const en = require("@/locales/en/dataRoom.json");
 
 test("approved is green, rejected is red, everything not yet validated is awaiting", () => {

@@ -167,6 +167,13 @@ jest.mock("@/services/ventures/operatingPlans", () => ({
   allowsPlanAction: jest.fn().mockResolvedValue(true),
 }));
 
+// Creating a milestone is authorized by the milestone engine; these tests cover
+// the duplication itself, so the authority check is allowed here.
+jest.mock("@/services/ventures/milestoneEngine", () => ({
+  ...jest.requireActual("@/services/ventures/milestoneEngine"),
+  canManageMilestones: jest.fn().mockResolvedValue(true),
+}));
+
 jest.mock("@/services/ventures/activity", () => ({
   addVentureHistory: jest.fn().mockResolvedValue(true),
 }));

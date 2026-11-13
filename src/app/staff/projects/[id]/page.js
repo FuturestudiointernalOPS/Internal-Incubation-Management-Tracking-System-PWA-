@@ -6,16 +6,16 @@ import { useRouter, useParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import TaskManager from "@/components/tasks/TaskManager";
-import ProjectHeader from "@/components/staff/project-detail/ProjectHeader";
-import ProjectStats from "@/components/staff/project-detail/ProjectStats";
-import ProjectTabs from "@/components/staff/project-detail/ProjectTabs";
-import OverviewTab from "@/components/staff/project-detail/OverviewTab";
-import BlockersTab from "@/components/staff/project-detail/BlockersTab";
-import TeamTab from "@/components/staff/project-detail/TeamTab";
-import UpdatesTab from "@/components/staff/project-detail/UpdatesTab";
-import DiscussionsTab from "@/components/staff/project-detail/DiscussionsTab";
-import TimelineTab from "@/components/staff/project-detail/TimelineTab";
+import TaskManager from "@/components/shared/tasks/TaskManager";
+import ProjectHeader from "@/spaces/staff/core/components/project-detail/ProjectHeader";
+import ProjectStats from "@/spaces/staff/core/components/project-detail/ProjectStats";
+import ProjectTabs from "@/spaces/staff/core/components/project-detail/ProjectTabs";
+import OverviewTab from "@/spaces/staff/core/components/project-detail/OverviewTab";
+import BlockersTab from "@/spaces/staff/core/components/project-detail/BlockersTab";
+import TeamTab from "@/spaces/staff/core/components/project-detail/TeamTab";
+import UpdatesTab from "@/spaces/staff/core/components/project-detail/UpdatesTab";
+import DiscussionsTab from "@/spaces/staff/core/components/project-detail/DiscussionsTab";
+import TimelineTab from "@/spaces/staff/core/components/project-detail/TimelineTab";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

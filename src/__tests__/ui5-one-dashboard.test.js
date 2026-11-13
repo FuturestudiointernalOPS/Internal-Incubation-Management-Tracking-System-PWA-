@@ -27,13 +27,15 @@ const exists = (rel) => fs.existsSync(path.join(process.cwd(), rel));
 
 const DASHBOARD = "src/components/layout/DashboardLayout.js";
 const NAV_HOOK = "src/components/layout/shell/useDashboardNavigation.js";
+const MEMBER_CONTEXTS = "src/spaces/member/contexts.js";
+const STAFF_CONTEXTS = "src/spaces/staff/contexts.js";
 
 describe("one dashboard — the calendar page is the only dashboard", () => {
   test("the staff dashboard renders the calendar dashboard, with no cards", () => {
     // The page renders the staff dashboard, whose centrepiece is the calendar;
     // contexts stay out of it (they are doors in the sidebar).
     const page = read("src/app/staff/page.js");
-    const dashboard = read("src/components/staff/StaffDashboard.js");
+    const dashboard = read("src/spaces/staff/core/components/StaffDashboard.js");
     expect(page).toContain("StaffDashboard");
     expect(dashboard).toContain("StaffCalendar");
     expect(page).not.toContain("ContextCards");
@@ -41,8 +43,8 @@ describe("one dashboard — the calendar page is the only dashboard", () => {
   });
 
   test("the retired context-card row is deleted, not kept around", () => {
-    expect(exists("src/components/dashboard/ContextCardsPanel.js")).toBe(false);
-    expect(exists("src/components/dashboard/contextCards.js")).toBe(false);
+    expect(exists("src/components/shared/dashboard/ContextCardsPanel.js")).toBe(false);
+    expect(exists("src/components/shared/dashboard/contextCards.js")).toBe(false);
   });
 
   test("the retired second dashboard forwards to the real one", () => {
@@ -51,14 +53,18 @@ describe("one dashboard — the calendar page is the only dashboard", () => {
 });
 
 describe("sidebar additions — the doors live in the sidebar", () => {
-  const src = read(DASHBOARD) + read(NAV_HOOK);
+  // The rules of each context live in its space; the hook composes them. Both
+  // sides are read so the contract still covers the door the person sees.
+  const src =
+    read(DASHBOARD) + read(NAV_HOOK) + read(MEMBER_CONTEXTS) + read(STAFF_CONTEXTS);
 
   test("assigned staff get the ventures door, opening ALL ventures", () => {
     expect(src).toContain("withVentureConsole");
     expect(src).toContain('name: "MY VENTURES"');
     expect(src).toContain('href: "/staff/ventures"');
-    // …and it is conditional: no assignment, no door.
-    expect(src).toContain("ventureAssignCount <= 0");
+    // …and it is conditional: no assignment, no door. The condition lives in
+    // the staff context that owns it.
+    expect(read(STAFF_CONTEXTS)).toContain("ventureAssignCount > 0");
   });
 
   test("the doubled-up entries stay deleted", () => {
@@ -70,9 +76,10 @@ describe("sidebar additions — the doors live in the sidebar", () => {
     // The participant surface is relationship-driven: the doors live in the
     // personal sidebar branch, not in a role mask (Phase H removed the mask).
     expect(src).toContain('name: "MY PROGRAMS"');
-    expect(src).toContain('href: "/participant/dashboard"');
+    expect(src).toContain('href: "/member/participant/dashboard"');
     // …and a venture member gets the ventures door (opens their ventures).
-    expect(src).toContain('name: "MY VENTURES", icon: Rocket, href: "/participant/ventures"');
+    expect(src).toContain('name: "MY VENTURES"');
+    expect(src).toContain('href: "/member/participant/ventures"');
   });
 
   test("the learning door opens for anyone who actually holds a course", () => {
@@ -82,7 +89,7 @@ describe("sidebar additions — the doors live in the sidebar", () => {
     // learner is never left with a dashboard-only sidebar.
     expect(src).toContain("hasLmsEnrollments === true");
     expect(src).toContain('id: "learning"');
-    expect(src).toContain('href: "/participant/learning"');
+    expect(src).toContain('href: "/member/participant/learning"');
     // The enrollment check runs on every PERSONAL surface — keying it off one
     // role label is what hid the door from every learner.
     expect(src).toContain("PERSONAL_ROLES.includes(sessionRole)");
@@ -96,9 +103,11 @@ describe("sidebar additions — the doors live in the sidebar", () => {
     // source of that ordering.
     expect(ROLE_ACCESS.founder).toBeUndefined();
     expect(src).toContain("rel.isFounder");
-    expect(src).toContain('items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor)');
+    expect(src).toContain(
+      "items.splice(programIndex === -1 ? 1 : programIndex + 2, 0, ...ventureDoors)",
+    );
     // Non-founders keep the additive arrangement (door last, never removed).
-    expect(src).toContain("items.push(ventureDoor)");
+    expect(src).toContain("items.push(...ventureDoors)");
   });
 });
 
@@ -133,30 +142,34 @@ describe("landing — the participant page follows a program, not the bare badge
     // hand out the Participant page as a default. The enrollment does.
     expect(ROLE_HOME.member).toBeUndefined();
     expect(roleHomeHref("member")).toBeNull();
-    expect(resolveLanding({ role: "member" })).toBe("/workspaces");
-    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/participant");
+    expect(resolveLanding({ role: "member" })).toBe("/member");
+    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/member/participant");
   });
 
   test("the member sidebar Dashboard door points at the dashboard once they have one", () => {
     // nav contract: buildRoleNav("member") resolves dashboard → /participant.
     // (The per-page sidebar is built from /api/me/relationships; this locks
     // the fallback contract so the two can never disagree.)
-    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/participant");
+    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/member/participant");
   });
 
   test("the sidebar never keys the dashboard href off sessionRole", () => {
     // Regression: a member on /participant has activeRole "participant" but
     // sessionRole "member"; keying off sessionRole sent Dashboard back to
     // /workspaces. The personal branch must resolve the href from activeRole.
-    const src = read(DASHBOARD) + read(NAV_HOOK);
+    const src = read(DASHBOARD) + read(NAV_HOOK) + read(MEMBER_CONTEXTS);
     expect(src).not.toMatch(/homeRole\s*=\s*sessionRole/);
-    expect(src).toContain('activeRole === "team" ? "/team" : "/participant"');
+    // The home is resolved from the CONNECTED role (activeRole), never from the
+    // session badge; the branches live in the member context module.
+    expect(src).toContain('normalizeRole(role) === "team"');
+    expect(src).toContain('"/member/team"');
+    expect(src).toContain('"/member/participant"');
   });
 
   test("the other surfaces are unchanged", () => {
     expect(roleHomeHref("staff")).toBe("/staff");
     expect(roleHomeHref("super_admin")).toBe("/admin");
-    expect(roleHomeHref("participant")).toBe("/participant");
+    expect(roleHomeHref("participant")).toBe("/member/participant");
   });
 });
 

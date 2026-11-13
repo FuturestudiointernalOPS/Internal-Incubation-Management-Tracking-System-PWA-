@@ -240,11 +240,12 @@ describe("superadmin — full-state, group assignment and standard types are sup
   });
 });
 
-describe("platform — collections and import pipelines are super_admin gated", () => {
-  test("GET /api/platform/collections — super_admin ou staff ; POST/PUT/DELETE — super_admin (comportement actuel figé)", () => {
+describe("platform — collections and import pipelines are capability gated", () => {
+  test("GET /api/platform/collections — collections.view ; POST/PUT/DELETE — collections.manage (comportement actuel figé)", () => {
     const src = read("src/app/api/platform/collections/route.js");
-    expect(src).toMatch(/requireAuth\(\["super_admin", "staff"\]\)/);
-    expect(count(src, /requireAuth\(\["super_admin"\]\)/g)).toBe(3);
+    expect(src).toMatch(/requireAuthorization\("collections", "view"\)/);
+    expect(count(src, /requireAuthorization\("collections", "manage"\)/g)).toBe(3);
+    expect(src).not.toMatch(/requireAuth\(\[/);
   });
 
   test.each([
@@ -275,25 +276,27 @@ describe("crm / ventures — destructive and lifecycle endpoints pin their role 
     }
   });
 
-  test("POST /api/ventures/[id]/lifecycle — super_admin only (comportement actuel figé)", () => {
+  test("POST /api/ventures/[id]/lifecycle — ventures.edit via le gate venture (comportement actuel figé)", () => {
     const src = read("src/app/api/ventures/[id]/lifecycle/route.js");
     expect(src).toMatch(/export async function POST/);
-    expect(src).toMatch(/if \(!\["super_admin"\]\.includes\(session\.role\)\)/);
+    expect(src).toMatch(/requireVentureScopedAccess\(\{ ventureId, module: "ventures", capability: "edit" \}\)/);
+    expect(src).not.toMatch(/session\.role === "super_admin"/);
   });
 
-  test("POST /api/ventures/[id]/verification — super_admin only (comportement actuel figé)", () => {
+  test("POST /api/ventures/[id]/verification — the portfolio right / membership / assignment (comportement actuel figé)", () => {
     const src = read("src/app/api/ventures/[id]/verification/route.js");
-    expect(src).toMatch(/if \(!\["super_admin"\]\.includes\(session\.role\)\)/);
-    expect(src).toMatch(/if \(\["super_admin"\]\.includes\(session\.role\)\) return true;/);
+    expect(src).toMatch(/resolveVenturePortfolioAccess\(\{ session, action \}\)/);
+    expect(src).toMatch(/canAccessVerification\(id, session, "edit"\)/);
+    expect(src).not.toMatch(/!\["super_admin"\]\.includes\(session\.role\)/);
   });
 });
 
-describe("engineering/permissions — role changes are not capability grants", () => {
-  test("POST /api/engineering/permissions — promouvoir/rétrograder super_admin exige le rôle super_admin (comportement actuel figé)", () => {
+describe("engineering/permissions — role changes are capability rights", () => {
+  test("POST /api/engineering/permissions — promouvoir/rétrograder super_admin exige les droits dédiés (comportement actuel figé)", () => {
     const src = read("src/app/api/engineering/permissions/route.js");
-    expect(src).toMatch(/promote_super_admin/);
-    expect(src).toMatch(/remove_super_admin/);
-    expect(src).toMatch(/session\.role !== "super_admin"/);
+    expect(src).toMatch(/requireAuthorization\(\s*"permissions",\s*"promote_super_admin"/);
+    expect(src).toMatch(/requireAuthorization\(\s*"permissions",\s*"remove_super_admin"/);
+    expect(src).not.toMatch(/session\.role !== "super_admin"/);
   });
 
   test("POST /api/engineering/permissions/profile-role-defaults — borne PROFILE_BASELINE_ROLES (comportement actuel figé)", () => {

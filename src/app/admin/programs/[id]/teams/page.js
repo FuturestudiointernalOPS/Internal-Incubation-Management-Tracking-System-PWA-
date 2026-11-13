@@ -6,10 +6,10 @@ import { Users, Plus, ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { isInternalStaffFamilyRole } from "@/lib/identity";
-import TeamFormModal from "@/components/admin/programs/teams/TeamFormModal";
-import TeamsTable from "@/components/admin/programs/teams/TeamsTable";
-import DeleteTeamModal from "@/components/admin/programs/teams/DeleteTeamModal";
-import TeamsLoadingState from "@/components/admin/programs/teams/TeamsLoadingState";
+import TeamFormModal from "@/spaces/admin/components/programs/teams/TeamFormModal";
+import TeamsTable from "@/spaces/admin/components/programs/teams/TeamsTable";
+import DeleteTeamModal from "@/spaces/admin/components/programs/teams/DeleteTeamModal";
+import TeamsLoadingState from "@/spaces/admin/components/programs/teams/TeamsLoadingState";
 
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and

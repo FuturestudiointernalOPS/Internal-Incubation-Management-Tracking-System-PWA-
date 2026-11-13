@@ -11,9 +11,9 @@ import {
   pickActiveStaff,
   pickAnalytics,
   pickProjects,
-} from "@/components/admin/projects/list/constants";
-import ProjectsContent from "@/components/admin/projects/list/ProjectsContent";
-import ProjectsModals from "@/components/admin/projects/list/ProjectsModals";
+} from "@/spaces/admin/components/projects/list/constants";
+import ProjectsContent from "@/spaces/admin/components/projects/list/ProjectsContent";
+import ProjectsModals from "@/spaces/admin/components/projects/list/ProjectsModals";
 
 /**
  * SUPER ADMIN PROJECTS DASHBOARD
@@ -322,8 +322,8 @@ export default function AdminProjects() {
     const destMap = {
       super_admin: "/admin",
       staff: "/staff",
-      program_manager: "/pm",
-      participant: "/participant",
+      program_manager: "/staff/program-manager",
+      participant: "/member/participant",
     };
     router.push(destMap[role] || "/admin");
   };

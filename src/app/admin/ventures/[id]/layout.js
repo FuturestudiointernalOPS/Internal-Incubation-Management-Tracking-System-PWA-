@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import VentureHubNav from "@/components/admin/ventures/VentureHubNav";
+import VentureHubNav from "@/spaces/admin/components/ventures/VentureHubNav";
 
 /**
  * Every page of a Venture in the Super Admin area shares ONE navigation bar —

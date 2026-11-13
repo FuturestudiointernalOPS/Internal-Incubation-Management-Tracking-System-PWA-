@@ -96,10 +96,17 @@ describe("final eligibility policy (#3)", () => {
     expect(authorize(participant, "contacts", "view")).toBe(false);
   });
 
-  test("super_admin is unaffected by the policy (bypass preserved)", () => {
-    expect(authorize(saCtx(), "internal_comms", "create_announcements")).toBe(true);
-    expect(authorize(saCtx(), "reports", "export")).toBe(true);
-    expect(authorize(saCtx(), "contacts", "view")).toBe(true);
+  test("super_admin is unaffected by the eligibility policy (its rights matrix decides)", () => {
+    const sa = saCtx({
+      effective: {
+        internal_comms: { view: 5, create_announcements: 5, moderate: 5 },
+        reports: { view: 5, create: 5, export: 5 },
+        contacts: { view: 5 },
+      },
+    });
+    expect(authorize(sa, "internal_comms", "create_announcements")).toBe(true);
+    expect(authorize(sa, "reports", "export")).toBe(true);
+    expect(authorize(sa, "contacts", "view")).toBe(true);
   });
 
   test("ensureFinalPolicyBackfill deletes ONLY the retired role rows (group rows sacred)", async () => {
@@ -122,14 +129,15 @@ describe("final eligibility policy (#3)", () => {
 
 
 describe("org_membership capability (Phase 1 — protected groups)", () => {
-  test("is part of the module set; SA bypasses", () => {
+  test("is part of the module set; the owner holds it through its matrix", () => {
     const { PERMISSION_MODULES } = require("@/models/authorization/constants/feature-module-capability");
     expect(PERMISSION_MODULES.org_membership.capabilities).toEqual([
       "view",
       "manage",
     ]);
-    expect(authorize(saCtx(), "org_membership", "manage")).toBe(true);
-    expect(authorize(saCtx(), "org_membership", "view")).toBe(true);
+    const sa = saCtx({ effective: { org_membership: { view: 5, manage: 5 } } });
+    expect(authorize(sa, "org_membership", "manage")).toBe(true);
+    expect(authorize(sa, "org_membership", "view")).toBe(true);
   });
 
   test("holders may manage membership; assign_capabilities does NOT imply it", () => {
@@ -158,7 +166,7 @@ describe("org_membership capability (Phase 1 — protected groups)", () => {
  */
 describe("restrictionsToJson (server → client wire format)", () => {
   const { restrictionsToJson } = require("@/services/authorization/context");
-  const { deriveUserCapState } = require("@/components/permissions/matrixHelpers/state");
+  const { deriveUserCapState } = require("@/spaces/admin/permissions/matrixHelpers/state");
 
   test("projects Set-based restrictions into the JSON object shape", () => {
     expect(

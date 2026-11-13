@@ -28,7 +28,7 @@
  */
 
 import { initDb } from "@/lib/db";
-import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
+import { CAPABILITY_CATALOG } from "@/models/authorization/constants/feature-module-capability";
 import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { MODULE_TO_FEATURE } from "@/models/authorization/eligibility";
 import { explainEligibility } from "./eligibility";
@@ -53,6 +53,16 @@ import { ensureEligibilitySeeded } from "./contextBootstrap";
 import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 
 /**
+ * Étape 2 — the owner through the SAME decision path. Default OFF: the
+ * historical bypass stays until the production reference is verified. When the
+ * flag is on, the owner is subject to feature eligibility and the account gate
+ * like everyone else; its rights still come from the `super_admin_default`
+ * profile, so a revoked right denies the owner exactly as it denies anyone else.
+ */
+export const ownerThroughEngineEnabled = () =>
+  process.env.AUTHZ_OWNER_THROUGH_ENGINE === "true";
+
+/**
  * The person's ACTIVE profile keys, fail-soft. A missing registry table reads
  * as "no profile" rather than failing every authorization decision — the table
  * is created by its own screen/route, and until then eligibility behaves as if
@@ -68,12 +78,19 @@ async function safeActiveProfileKeys(cid) {
   }
 }
 
-/** Full capability matrix a Super Admin has by default (all modules, FULL). */
+/**
+ * Full capability matrix a Super Admin has by default (every module, FULL).
+ *
+ * Built from the WHOLE catalogue, not `PERMISSION_MODULES`: a `registryOnly`
+ * module (`duplicates`, `bulk_upload`) is enforced at the route layer and has no
+ * enumerable vocabulary for other profiles, but the platform owner holds it too
+ * — and must be able to have it revoked like any other right.
+ */
 function buildSuperAdminMatrix() {
   const matrix = {};
-  for (const [module, definition] of Object.entries(PERMISSION_MODULES)) {
+  for (const [module, definition] of Object.entries(CAPABILITY_CATALOG)) {
     matrix[module] = {};
-    for (const capability of definition.capabilities) {
+    for (const capability of Object.keys(definition.capabilities || {})) {
       matrix[module][capability] = ACCESS_LEVELS.FULL;
     }
   }
@@ -123,7 +140,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   // The role is known before any query, so this branch pays only the
   // grants/restrictions read plus the default profile's capability rows — never
   // the group or eligibility lookups.
-  if (role === "super_admin") {
+  if (role === "super_admin" && !ownerThroughEngineEnabled()) {
     const [grantRows, restrictRows, baseProfileRes] = await Promise.all([
       getUserCapabilityGrants(cid),
       getUserCapabilityRestrictions(cid),
@@ -144,6 +161,7 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
       cid,
       role,
       isSuperAdmin: true,
+      ownerThroughEngine: false,
       // Super Admin bypasses the account gate as well (spec §11 is enforced by
       // the sign-in route for this identity; see BACKLOG for the open point).
       accountStatus: null,
@@ -241,7 +259,9 @@ export async function resolveAuthorizationContext({ cid, role, profiles }) {
   return {
     cid,
     role,
-    isSuperAdmin: false,
+    isSuperAdmin: role === "super_admin",
+    ownerThroughEngine:
+      role === "super_admin" && ownerThroughEngineEnabled(),
     // Spec §11 — the account gate: `contacts.status`, read in the same wave as
     // the profile override. `null` when no contact row exists (behaviour kept).
     accountStatus: contact.status ?? null,

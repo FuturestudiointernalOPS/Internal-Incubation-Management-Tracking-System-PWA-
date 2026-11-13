@@ -4,9 +4,9 @@
  * The domain work behind `/api/blockers` and `/api/blockers/discuss`. A blocker
  * is always tied to a task, so it lives with the tasks domain. What lives here:
  *
- *   - the READ scope: a Super Admin sees everything; everyone else sees only the
- *     blockers of the tasks they own, are assigned to, or supervise, and a
- *     supervisor may additionally read a supervisee's blockers;
+ *   - the READ scope: a caller holding `tasks.view_all` sees everything; everyone
+ *     else sees only the blockers of the tasks they own, are assigned to, or
+ *     supervise, and a supervisor may additionally read a supervisee's blockers;
  *   - the CREATE rules: the task must exist and not be closed, and only the task
  *     owner, its assignee, its supervisor or a Super Admin may raise one; the
  *     same person raising the same open blocker again gets the existing one; the
@@ -54,14 +54,17 @@ const CLOSED_STATUSES = ["completed", "archived", "carried_over"];
 /**
  * List blockers, scoped to what the caller may see.
  *
- * @param {{session: Object, filters: {id?: string, task_id?: string, user_id?: string, status?: string}}} args
+ * `canSeeAll` is the caller's `tasks.view_all` verdict, resolved by the route
+ * through the authorization engine.
+ *
+ * @param {{session: Object, filters: {id?: string, task_id?: string, user_id?: string, status?: string}, canSeeAll?: boolean}} args
  * @returns {Promise<{status: number, body?: Object, error?: string}>}
  */
-export async function listBlockers({ session, filters }) {
-  if (session.role !== "super_admin") {
-    // SECURITY (Phase 0): Non-SA users can only see blockers on their own tasks
-    // or tasks assigned to them. (Phase 3B): a supervisor may also read their
-    // supervisee's blockers.
+export async function listBlockers({ session, filters, canSeeAll = false }) {
+  if (!canSeeAll) {
+    // SECURITY (Phase 0): callers without `tasks.view_all` can only see blockers
+    // on their own tasks or tasks assigned to them. (Phase 3B): a supervisor may
+    // also read their supervisee's blockers.
     const viewingOther =
       filters.user_id && String(filters.user_id) !== String(session.cid);
     const isSupervisor = viewingOther
@@ -77,7 +80,7 @@ export async function listBlockers({ session, filters }) {
     return { status: 200, body: { success: true, blockers: result.rows } };
   }
 
-  // SA: unrestricted access with optional filters
+  // The caller may see every person's blockers: optional filters only.
   const result = await getAllBlockers(filters);
   return { status: 200, body: { success: true, blockers: result.rows } };
 }

@@ -5,12 +5,12 @@ import { useI18n } from "@/lib/i18n";
 import { useRouter } from "next/navigation";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
-import { isPlatformOwnerRole } from "@/lib/identity";
-import BlockersHeader from "@/components/admin/blockers/BlockersHeader";
-import BlockersStats from "@/components/admin/blockers/BlockersStats";
-import BlockersFilters from "@/components/admin/blockers/BlockersFilters";
-import BlockersTable from "@/components/admin/blockers/BlockersTable";
-import BlockerDetailModal from "@/components/admin/blockers/BlockerDetailModal";
+import { usePermissions } from "@/lib/PermissionProvider";
+import BlockersHeader from "@/spaces/admin/components/blockers/BlockersHeader";
+import BlockersStats from "@/spaces/admin/components/blockers/BlockersStats";
+import BlockersFilters from "@/spaces/admin/components/blockers/BlockersFilters";
+import BlockersTable from "@/spaces/admin/components/blockers/BlockersTable";
+import BlockerDetailModal from "@/spaces/admin/components/blockers/BlockerDetailModal";
 
 // Module scope on purpose: the hook keys its internal callback on these functions,
 // so inline arrows would give them a new identity on every render and refetch in
@@ -40,18 +40,19 @@ export default function AdminBlockers() {
 
   // The identity comes from the shell's session cache instead of the browser's
   // stored copy, which is what allows the request addresses themselves to be a
-  // plain result of it. Phase 6: anyone but a super admin sees only their own
-  // blockers and tasks, so those reads wait for the identity.
-  const { cid, role } = useSessionUser();
-  const isSuperAdmin = isPlatformOwnerRole(role);
-  const ready = isSuperAdmin || !!cid;
+  // plain result of it. Phase 6: a caller without `tasks.view_all` sees only
+  // their own blockers and tasks, so those reads wait for the identity.
+  const { cid } = useSessionUser();
+  const { can } = usePermissions();
+  const seesAll = can("tasks", "view_all");
+  const ready = seesAll || !!cid;
   const { data: blockers, loading: blockersLoading } = useApi(
-    isSuperAdmin ? "/api/blockers" : cid ? `/api/blockers?user_id=${cid}` : null,
-    { defaultValue: [], transform: pickBlockers, deps: [isSuperAdmin, cid] },
+    seesAll ? "/api/blockers" : cid ? `/api/blockers?user_id=${cid}` : null,
+    { defaultValue: [], transform: pickBlockers, deps: [seesAll, cid] },
   );
   const { data: tasks, loading: tasksLoading } = useApi(
-    isSuperAdmin ? "/api/tasks" : cid ? `/api/tasks?user_id=${cid}` : null,
-    { defaultValue: [], transform: pickBlockerTasks, deps: [isSuperAdmin, cid] },
+    seesAll ? "/api/tasks" : cid ? `/api/tasks?user_id=${cid}` : null,
+    { defaultValue: [], transform: pickBlockerTasks, deps: [seesAll, cid] },
   );
   const loading = !ready || blockersLoading || tasksLoading;
 

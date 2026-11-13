@@ -72,18 +72,21 @@ describe("authorize — la porte du compte (spec §11)", () => {
     expect(authorize(base({ accountStatus: null }), "crm", "view")).toBe(true);
   });
 
-  test("super admin : la porte du compte ne s'applique pas (bypass préservé)", () => {
+  test("super admin : la porte du compte ne s'applique pas, la matrice décide", () => {
     const sa = {
       cid: "SA",
       role: "super_admin",
       isSuperAdmin: true,
       accountStatus: "suspended",
       eligibility: null,
-      effective: {},
+      effective: { crm: { view: 5 } },
       grants: {},
       restrictions: {},
     };
     expect(authorize(sa, "crm", "view")).toBe(true);
+    // A right absent from the owner's matrix is denied: the role is not an
+    // implicit allow-all any more.
+    expect(authorize(sa, "crm", "delete")).toBe(false);
   });
 });
 

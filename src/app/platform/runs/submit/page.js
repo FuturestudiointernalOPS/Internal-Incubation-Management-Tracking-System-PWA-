@@ -7,8 +7,7 @@ import {
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-
-const cn = (...classes) => classes.filter(Boolean).join(" ");
+import { cn } from "@/lib/cn";
 
 const SUB_STATUS = {
   draft: { color: "text-slate-500", bg: "bg-slate-500/10", label: "Draft" },

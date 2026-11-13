@@ -24,7 +24,7 @@ export function useContactsState() {
   const roleParam = searchParams.get("role");
   const { t } = useI18n();
   const { confirm } = useDialogs();
-  const goBack = useSafeBack("/crm");
+  const goBack = useSafeBack("/staff/crm");
 
   const [search, setSearch] = useState("");
   // The group and the team tab are DERIVED, so what is stored here is only the

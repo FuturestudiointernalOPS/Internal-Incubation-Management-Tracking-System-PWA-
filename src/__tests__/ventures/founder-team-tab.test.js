@@ -23,11 +23,11 @@ const mockCtx = {
   handleRevokeInvitation: jest.fn(),
   params: null,
 };
-jest.mock("@/components/ventures/workspace/VentureContext", () => ({ useVenture: () => mockCtx }), { virtual: true });
-jest.mock("../../components/ventures/workspace/VentureContext", () => ({ useVenture: () => mockCtx }));
+jest.mock("@/components/shared/ventures/console/workspace/VentureContext", () => ({ useVenture: () => mockCtx }), { virtual: true });
+jest.mock("../../components/shared/ventures/console/workspace/VentureContext", () => ({ useVenture: () => mockCtx }));
 
 const { I18nProvider } = require("@/lib/i18n");
-const { TeamTab } = require("@/components/ventures/workspace/tabs/MembersTabs");
+const { TeamTab } = require("@/components/shared/ventures/console/workspace/tabs/MembersTabs");
 
 const view = () => render(<I18nProvider><TeamTab /></I18nProvider>);
 

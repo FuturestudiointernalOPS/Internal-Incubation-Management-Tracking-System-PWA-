@@ -28,7 +28,10 @@ import {
   dropWorkspaceContext,
   dropAllWorkspaceContexts,
 } from "@/lib/workspaceContextCache";
-import { resolveAuthorizationContext } from "./contextResolver";
+import {
+  resolveAuthorizationContext,
+  ownerThroughEngineEnabled,
+} from "./contextResolver";
 import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 
 const AUTHZ_CONTEXT_TTL_MS = 60000; // 60s context cache (egress-neutral; invalidated immediately on permission writes)
@@ -84,7 +87,14 @@ export async function getAuthorizationContext(user) {
   // Phase D — the active profiles are part of the identity: a rule may differ
   // for "Member" and "Member with the Founder profile", so the key must too.
   const profiles = await readActiveProfileKeys(user.cid);
-  const key = `${user.cid}|${user.role || ""}|${profiles.join(",")}`;
+  // Étape 2 — the owner-through-engine mode changes the resolved context for the
+  // same identity, so it is part of the key. Leaving it out would serve the
+  // bypass context (or its reverse) after a flag change within one process.
+  const ownerMode =
+    user.role === "super_admin" && ownerThroughEngineEnabled()
+      ? "|owner-engine"
+      : "";
+  const key = `${user.cid}|${user.role || ""}|${profiles.join(",")}${ownerMode}`;
   const cached = _authzContextCache.get(key);
   if (cached && cached.expires > Date.now()) return cached.ctx;
 

@@ -123,7 +123,7 @@ export async function notifyIntroductionApproved(recipientId) {
       recipientId,
       "Introduction Approved",
       "Your introduction request has been approved. A Relationship Manager will coordinate your first meeting.",
-      "/investor/dashboard?tab=discover",
+      "/member/investor/dashboard?tab=discover",
     ],
   });
 }

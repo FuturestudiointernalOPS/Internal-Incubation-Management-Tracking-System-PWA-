@@ -7,7 +7,7 @@
  * runFilterActions().
  */
 
-import { ACCOUNT_STATUS_OPTIONS, ACCOUNT_STATUS_STYLES, EMAIL_FILTER_OPTIONS, EMAIL_STATUS_CONFIG, REVIEW_FILTER_OPTIONS, STATUS_FILTER_OPTIONS, SUB_STATUS } from "@/components/platform/runs/constants";
+import { ACCOUNT_STATUS_OPTIONS, ACCOUNT_STATUS_STYLES, EMAIL_FILTER_OPTIONS, EMAIL_STATUS_CONFIG, REVIEW_FILTER_OPTIONS, STATUS_FILTER_OPTIONS, SUB_STATUS } from "@/components/shared/platform/runs/constants";
 
 export function runFilterActions({
   accountStatusFilter,

@@ -35,7 +35,7 @@ export const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
-  const participant = pathname?.startsWith("/participant") || pathname?.startsWith("/founder");
+  const participant = pathname?.startsWith("/member/participant") || pathname?.startsWith("/member/founder");
   const profileHref = profileHrefFor(role, profiles);
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout

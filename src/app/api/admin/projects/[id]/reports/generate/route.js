@@ -22,7 +22,7 @@ export async function POST(req, { params }) {
     // Object-level scope: the project id comes from the URL, and the sibling
     // admin project surfaces all require membership. Without this, any staff or
     // PM could write a weekly report onto a project they do not belong to.
-    const accessError = await requireProjectAccess(id);
+    const accessError = await requireProjectAccess(id, "edit");
     if (accessError) return accessError;
 
     const { status, body } = await generateProjectReport(id);

@@ -304,7 +304,7 @@ describe("The broken Profile Completion surface is retired", () => {
   });
 
   test("the admin dashboard no longer links to the non-existent wizard route", () => {
-    const source = read("src/components/ventures/venture-dashboard/MetricsColumn.js");
+    const source = read("src/components/shared/ventures/console/venture-dashboard/MetricsColumn.js");
     expect(source).not.toContain("/wizard");
     expect(source).not.toContain("profile_completion");
   });
@@ -323,7 +323,7 @@ describe("The broken Profile Completion surface is retired", () => {
   });
 
   test("the founder dashboard distinguishes Venture setup from profile completion", () => {
-    const source = read("src/components/ventures/workspace/tabs/DashboardHistoryTabs.js");
+    const source = read("src/components/shared/ventures/console/workspace/tabs/DashboardHistoryTabs.js");
     expect(source).toContain("venture_setup");
     expect(source).not.toContain("profile_completion");
   });

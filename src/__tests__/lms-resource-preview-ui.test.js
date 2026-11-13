@@ -4,7 +4,7 @@
  * LEARNER RESOURCE PREVIEW — component tests
  *
  * Covers what the learner actually gets from a section's material
- * (src/components/lms/SectionResourcesList.js + ResourcePreview.js):
+ * (src/components/shared/lms/SectionResourcesList.js + ResourcePreview.js):
  *   - an uploaded image shows up directly;
  *   - a PDF or a video is only revealed on request — nothing loads by itself;
  *   - external links and non-renderable documents (Office) show a plain link.
@@ -15,8 +15,8 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-const SectionResourcesList = require("@/components/lms/SectionResourcesList").default;
-const ResourcePreview = require("@/components/lms/ResourcePreview").default;
+const SectionResourcesList = require("@/components/shared/lms/SectionResourcesList").default;
+const ResourcePreview = require("@/components/shared/lms/ResourcePreview").default;
 
 const url = (path) => `https://cdn.impactos.test/lms-session-resources/${path}`;
 

@@ -81,18 +81,18 @@ describe("creation is an action, not a sidebar section", () => {
 
   test("the actions are rendered on the dashboards and the list views", () => {
     // Dashboards (the person's own landing) …
-    expect(read("src/components/staff/StaffDashboard.js")).toContain("CreateActions");
-    expect(read("src/components/dashboard/ParticipantDashboardHome.js")).toContain("CreateActions");
+    expect(read("src/spaces/staff/core/components/StaffDashboard.js")).toContain("CreateActions");
+    expect(read("src/components/shared/dashboard/ParticipantDashboardHome.js")).toContain("CreateActions");
     // … the neutral hub a personal account lands on without a program …
-    expect(read("src/app/workspaces/page.js")).toContain("CreateActions");
+    expect(read("src/app/member/page.js")).toContain("CreateActions");
     // … and the views the records live in.
-    expect(read("src/app/pm/programs/page.js")).toContain('only={["program"]}');
-    expect(read("src/components/staff/VenturesView.js")).toContain('only={["venture"]}');
-    expect(read("src/app/participant/ventures/page.js")).toContain('only={["venture"]}');
+    expect(read("src/app/staff/program-manager/programs/page.js")).toContain('only={["program"]}');
+    expect(read("src/spaces/staff/core/components/VenturesView.js")).toContain('only={["venture"]}');
+    expect(read("src/app/member/(contexts)/participant/ventures/page.js")).toContain('only={["venture"]}');
   });
 
   test("the action row is driven by the shared capability catalogue", () => {
-    const src = read("src/components/create/CreateActions.js");
+    const src = read("src/components/shared/create/CreateActions.js");
     expect(src).toContain("@/lib/creationActions");
     expect(src).toMatch(/can\(action\.module, action\.capability\)/);
   });

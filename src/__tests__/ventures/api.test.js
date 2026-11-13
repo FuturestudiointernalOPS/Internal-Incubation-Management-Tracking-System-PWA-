@@ -241,6 +241,7 @@ describe("Venture API Integration Tests", () => {
           }],
         })
         .mockResolvedValueOnce({ rows: [] }) // founders
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // members: internal id resolution
         .mockResolvedValueOnce({ rows: [] }) // members
         .mockResolvedValueOnce({ rows: [{ id: 1, action: "VENTURE_CREATED" }] }) // activity
         .mockResolvedValueOnce({ rows: [] }) // history
@@ -263,6 +264,7 @@ describe("Venture API Integration Tests", () => {
           }],
         })
         .mockResolvedValueOnce({ rows: [] }) // founders
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] }) // members: internal id resolution
         .mockResolvedValueOnce({ rows: [] }) // members
         .mockResolvedValueOnce({ rows: [{ id: 1, action: "VENTURE_CREATED" }, { id: 2, action: "VENTURE_UPDATED" }] }) // activity
         .mockResolvedValueOnce({ rows: [{ id: 1, event_type: "VENTURE_UPDATED" }] }) // history

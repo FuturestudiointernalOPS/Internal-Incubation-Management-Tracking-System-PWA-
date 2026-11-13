@@ -160,7 +160,8 @@ describe("separation of duties", () => {
       const res = await route.PUT(putReq({ user_cid: "U-1", responsibility_id: 2, action }));
       expect(res.status).toBe(403);
       const body = await res.json();
-      expect(String(body.error)).toMatch(/your own responsibilities/i);
+      // A refusal is an `errors.*` key the screen translates, never a sentence.
+      expect(String(body.error)).toBe("errors.cannotChangeOwnResponsibilities");
       expect(assignResponsibility).not.toHaveBeenCalled();
       expect(removeResponsibility).not.toHaveBeenCalled();
     }

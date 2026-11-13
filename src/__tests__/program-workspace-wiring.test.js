@@ -1,7 +1,7 @@
 /**
  * The PM program workspace wiring.
  *
- * The screen (src/app/pm/programs/[id]/page.js) keeps every state value and every
+ * The screen (src/app/staff/program-manager/programs/[id]/page.js) keeps every state value and every
  * data read; its writes live in ./actions/ (one factory per concern) and its
  * markup in `WorkspaceContent` / `WorkspaceModals`. Those blocks read the page's
  * values through two objects the page builds by hand: `values` (state, setters,
@@ -23,7 +23,8 @@ const ROOT = path.join(__dirname, "..");
 const PAGE = path.join(
   ROOT,
   "app",
-  "pm",
+  "staff",
+  "program-manager",
   "programs",
   "[id]",
   "page.js",
@@ -31,15 +32,18 @@ const PAGE = path.join(
 const ACTIONS_DIR = path.join(
   ROOT,
   "app",
-  "pm",
+  "staff",
+  "program-manager",
   "programs",
   "[id]",
   "actions",
 );
 const WORKSPACE_DIR = path.join(
   ROOT,
+  "spaces",
+  "staff",
+  "program-manager",
   "components",
-  "pm",
   "program-workspace",
 );
 const BLOCKS = ["WorkspaceContent.js", "WorkspaceModals.js"];

@@ -1,5 +1,8 @@
 import db, { initDb } from "@/lib/db";
-import { RESPONSIBILITY_FEATURE_ROLES } from "@/lib/featureAccess";
+import {
+  RESPONSIBILITY_DEFINITIONS,
+  RESPONSIBILITY_FEATURE_ROLES,
+} from "../seedData";
 import { ensureResponsibilitiesSchema } from "./schema";
 
 /**
@@ -37,80 +40,7 @@ async function seedDefaultResponsibilitiesOnce() {
     await initDb();
     await ensureResponsibilitiesSchema();
 
-    const defaults = [
-      {
-        name: "CRM",
-        key: "crm",
-        description: "People, contacts, timeline, membership, duplicates",
-        icon: "Users",
-      },
-      {
-        name: "Communication",
-        key: "communication",
-        description: "Messaging, announcements, forms — outreach suite",
-        icon: "Send",
-      },
-      {
-        name: "Programs",
-        key: "programs",
-        description: "Program oversight — programs, participants, submissions",
-        icon: "Briefcase",
-      },
-      {
-        name: "Ventures",
-        key: "ventures",
-        description: "Venture management — portfolio and registrations",
-        icon: "Rocket",
-      },
-      {
-        name: "Investors",
-        key: "investors",
-        description: "Investor management — records, reviews, campaigns",
-        icon: "TrendingUp",
-      },
-      {
-        name: "Finance",
-        key: "finance",
-        description: "Financial operations — budgets, reports",
-        icon: "BarChart3",
-      },
-      {
-        name: "Operations",
-        key: "operations",
-        description: "Internal operations — projects, tasks, standups, retros",
-        icon: "Settings",
-      },
-      {
-        name: "Reports",
-        key: "reports",
-        description: "Reports and analytics",
-        icon: "BarChart3",
-      },
-      {
-        name: "Knowledge",
-        key: "knowledge",
-        description: "Knowledge management",
-        icon: "Library",
-      },
-      {
-        name: "LMS",
-        key: "lms",
-        description: "Course management — create and maintain courses",
-        icon: "GraduationCap",
-      },
-      {
-        name: "Security",
-        key: "security",
-        description: "User administration — personnel, permissions",
-        icon: "Users",
-      },
-      {
-        name: "Settings",
-        key: "settings",
-        description: "System configuration and engineering operations",
-        icon: "Settings",
-      },
-    ];
+    const defaults = RESPONSIBILITY_DEFINITIONS;
 
     // 1. Definitions — ONE multi-row statement instead of 12 round trips.
     //    Same ON CONFLICT (key) upsert as before, same values as the incoming

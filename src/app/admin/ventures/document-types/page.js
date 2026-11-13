@@ -1,6 +1,6 @@
 "use client";
 
-import VentureDocumentTypePicker from "@/components/ventures/VentureDocumentTypePicker";
+import VentureDocumentTypePicker from "@/components/shared/ventures/console/VentureDocumentTypePicker";
 
 /**
  * SUPER ADMIN → VENTURES → DATA BANK DOCUMENTS

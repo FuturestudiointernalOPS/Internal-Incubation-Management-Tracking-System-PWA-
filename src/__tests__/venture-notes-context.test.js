@@ -12,7 +12,9 @@
 const executed = [];
 
 const mockDb = {
-  execute: jest.fn(async ({ sql, args = [] }) => {
+  execute: jest.fn(async (statement) => {
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    const args = typeof statement === "string" ? [] : statement.args || [];
     executed.push({ sql, args });
     if (sql.includes("SELECT venture_id FROM ventures WHERE id::text")) {
       return { rows: [{ venture_id: "VNT-TEST" }] };

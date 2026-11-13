@@ -66,9 +66,10 @@ describe("useApi — the status of the last response", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.status).toBe(401);
-    // The distinction that matters: a refusal is NOT a request that failed to
-    // complete, so no message is reported as a network error.
-    expect(result.current.error).toBeNull();
+    // The status is the machine-readable verdict (a 401 sends the screen back to
+    // the login); the payload's message is what a screen prints. A refusal is a
+    // completed exchange, never a network failure.
+    expect(result.current.error).toBe("Unauthenticated");
   });
 
   it("reports 500, which is what separates a server fault from an expiry", async () => {
@@ -80,7 +81,9 @@ describe("useApi — the status of the last response", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.status).toBe(500);
-    expect(result.current.error).toBeNull();
+    // A server fault is reported as an error, and the status separates it from an
+    // expiry: 500 means "try again", 401 means "sign in again".
+    expect(result.current.error).toBe("boom");
   });
 
   it("reports no status at all when the request never got an answer", async () => {

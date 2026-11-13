@@ -3,7 +3,7 @@
  *
  * The screen (`src/app/admin/ventures/[id]/page.js`) keeps the state, the reads
  * and the presentation getters; its markup lives in
- * `src/components/admin/ventures/VentureDetailView.js`, which reads everything
+ * `src/spaces/admin/components/ventures/VentureDetailView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No behavioural test
  * renders the screen, so a key that stops being declared - or a name the view
  * reads that the screen never puts in `ctx` - is invisible. This suite pins the
@@ -15,7 +15,7 @@ const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
 const PARENT = path.join(ROOT, "app", "admin", "ventures", "[id]", "page.js");
-const VIEW = path.join(ROOT, "components", "admin", "ventures", "VentureDetailView.js");
+const VIEW = path.join(ROOT, "spaces", "admin", "components", "ventures", "VentureDetailView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 
@@ -30,12 +30,16 @@ describe("the venture-detail screen wiring", () => {
   );
 
   const destructure = view.match(/const \{([^}]*)\} = ctx;/);
-  const viewKeys = destructure
+  const destructured = destructure
     ? destructure[1]
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
     : [];
+  // The view may also read a value directly (`ctx.errorTitle`), without
+  // destructuring it; both forms read `ctx` and count as a use.
+  const direct = [...view.matchAll(/ctx\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]);
+  const viewKeys = [...new Set([...destructured, ...direct])];
 
   test("every name the view reads is a key of `ctx`", () => {
     expect(viewKeys.filter((key) => !ctxKeys.has(key))).toEqual([]);

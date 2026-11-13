@@ -76,28 +76,28 @@ describe("activeContextFromPathname (Phase I4)", () => {
     {
       key: "assign-PB-facilitator",
       type: "program_assignment",
-      href: "/facilitator/program/PB",
+      href: "/member/facilitator/program/PB",
       title: "Program B",
       labelKey: "roleFacilitator",
     },
     {
       key: "part-PA",
       type: "program_participation",
-      href: "/participant/PA",
+      href: "/member/participant/PA",
       title: "Program A",
       labelKey: "roleParticipant",
     },
     {
       key: "venture-VX",
       type: "venture",
-      href: "/participant/ventures/VX",
+      href: "/member/participant/ventures/VX",
       title: "Venture X",
       labelKey: "roleFounder",
     },
     {
       key: "learning",
       type: "learning",
-      href: "/participant/learning",
+      href: "/member/participant/learning",
       title: "My Learning",
       labelKey: "roleLearner",
     },
@@ -108,32 +108,32 @@ describe("activeContextFromPathname (Phase I4)", () => {
   test("deep pages inside a workspace resolve to that context", () => {
     const items = fixtureItems();
     expect(
-      activeContextFromPathname("/facilitator/program/PB/sessions/9", items),
+      activeContextFromPathname("/member/facilitator/program/PB/sessions/9", items),
     ).toMatchObject({ key: "assign-PB-facilitator" });
-    expect(activeContextFromPathname("/participant/PA/deliverables", items)).toMatchObject({
+    expect(activeContextFromPathname("/member/participant/PA/deliverables", items)).toMatchObject({
       key: "part-PA",
     });
-    expect(activeContextFromPathname("/participant/ventures/VX/team", items)).toMatchObject({
+    expect(activeContextFromPathname("/member/participant/ventures/VX/team", items)).toMatchObject({
       key: "venture-VX",
     });
-    expect(activeContextFromPathname("/participant/learning", items)).toMatchObject({
+    expect(activeContextFromPathname("/member/participant/learning", items)).toMatchObject({
       key: "learning",
     });
   });
 
   test("exact context landing pages count as active", () => {
-    expect(activeContextFromPathname("/facilitator/program/PB", fixtureItems())).toMatchObject({
+    expect(activeContextFromPathname("/member/facilitator/program/PB", fixtureItems())).toMatchObject({
       key: "assign-PB-facilitator",
     });
-    expect(activeContextFromPathname("/participant/PA", fixtureItems())).toMatchObject({
+    expect(activeContextFromPathname("/member/participant/PA", fixtureItems())).toMatchObject({
       key: "part-PA",
     });
   });
 
   test("baseline/home pages wear no hat", () => {
     const items = fixtureItems();
-    expect(activeContextFromPathname("/participant", items)).toBeNull();
-    expect(activeContextFromPathname("/facilitator", items)).toBeNull();
+    expect(activeContextFromPathname("/member/participant", items)).toBeNull();
+    expect(activeContextFromPathname("/member/facilitator", items)).toBeNull();
     expect(activeContextFromPathname("/admin", items)).toBeNull();
     expect(activeContextFromPathname("/login", items)).toBeNull();
     expect(activeContextFromPathname(null, items)).toBeNull();
@@ -150,27 +150,27 @@ describe("activeContextFromPathname (Phase I4)", () => {
 
   test("longest context href wins when two contexts could match", () => {
     const items = [
-      { key: "narrow", type: "program_assignment", href: "/facilitator/program/PB" },
-      { key: "broad", type: "program_assignment", href: "/facilitator" },
+      { key: "narrow", type: "program_assignment", href: "/member/facilitator/program/PB" },
+      { key: "broad", type: "program_assignment", href: "/member/facilitator" },
     ];
     expect(
-      activeContextFromPathname("/facilitator/program/PB/sessions/9", items),
+      activeContextFromPathname("/member/facilitator/program/PB/sessions/9", items),
     ).toMatchObject({ key: "narrow" });
-    expect(activeContextFromPathname("/facilitator", items)).toMatchObject({ key: "broad" });
+    expect(activeContextFromPathname("/member/facilitator", items)).toMatchObject({ key: "broad" });
   });
 
   test("non-matching neighbours never leak into the result", () => {
     const items = fixtureItems();
     // Participant home is a surface, not Program A — no context match.
-    expect(activeContextFromPathname("/participant", items)).toBeNull();
+    expect(activeContextFromPathname("/member/participant", items)).toBeNull();
     // The ventures area of one venture is not another venture's workspace.
-    expect(activeContextFromPathname("/participant/ventures", items)).toBeNull();
+    expect(activeContextFromPathname("/member/participant/ventures", items)).toBeNull();
   });
 
   test("handles malformed input without throwing", () => {
-    expect(activeContextFromPathname("/participant/PA", null)).toBeNull();
-    expect(activeContextFromPathname("/participant/PA", [])).toBeNull();
-    expect(activeContextFromPathname("/participant/PA", [{ type: "venture" }])).toBeNull();
-    expect(activeContextFromPathname("/participant/PA", [{ type: "venture", href: null }])).toBeNull();
+    expect(activeContextFromPathname("/member/participant/PA", null)).toBeNull();
+    expect(activeContextFromPathname("/member/participant/PA", [])).toBeNull();
+    expect(activeContextFromPathname("/member/participant/PA", [{ type: "venture" }])).toBeNull();
+    expect(activeContextFromPathname("/member/participant/PA", [{ type: "venture", href: null }])).toBeNull();
   });
 });

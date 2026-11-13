@@ -4,7 +4,9 @@
       "title": "Modules de la plateforme",
       "subtitle": "Tous les modules enregistrés de la plateforme. Les futurs modules seront construits ici.",
       "comingSoon": "Bientôt disponible",
-      "open": "Ouvrir →"
+      "open": "Ouvrir →",
+      "loading": "Chargement de vos accès…",
+      "none": "Aucun module ne vous est encore ouvert. Un administrateur peut en accorder un depuis l'écran des permissions."
     },
     "nav": {
       "dashboard": "Tableau de bord",

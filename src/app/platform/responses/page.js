@@ -6,8 +6,7 @@ import { Loader2, Search, Eye, FileText, Filter, X, ArrowLeft } from "lucide-rea
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
-
-const cn = (...classes) => classes.filter(Boolean).join(" ");
+import { cn } from "@/lib/cn";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

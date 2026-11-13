@@ -4,7 +4,9 @@
       "title": "Platform Modules",
       "subtitle": "All registered platform modules. Future modules will be built here.",
       "comingSoon": "Coming Soon",
-      "open": "Open →"
+      "open": "Open →",
+      "loading": "Loading your access…",
+      "none": "No module is open to you yet. An administrator can grant one from the Permissions screen."
     },
     "nav": {
       "dashboard": "Dashboard",

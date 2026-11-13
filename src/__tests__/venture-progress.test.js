@@ -12,14 +12,16 @@ const executed = [];
 const VENTURE_DB_ID = "11111111-1111-4111-8111-111111111111";
 
 const mockDb = {
-  execute: jest.fn(async ({ sql, args = [] }) => {
+  execute: jest.fn(async (statement) => {
+    const sql = typeof statement === "string" ? statement : statement.sql;
+    const args = typeof statement === "string" ? [] : statement.args || [];
     executed.push({ sql, args });
     if (sql.includes("SELECT id FROM ventures WHERE venture_id = ?")) {
       return { rows: [{ id: VENTURE_DB_ID }] };
     }
     // The roadmap engine reads the task statuses: 5 tasks, 3 terminal-success
     // (done | accepted | completed — the canonical set, not 'done' alone).
-    if (sql.startsWith("SELECT status FROM venture_tasks")) {
+    if (sql.startsWith("SELECT id, status FROM venture_tasks")) {
       return { rows: [{ status: "done" }, { status: "accepted" }, { status: "completed" }, { status: "backlog" }, { status: "in_progress" }] };
     }
 
@@ -33,7 +35,7 @@ const mockDb = {
     if (sql.includes("FROM venture_customer_interviews")) return { rows: [{ count: 2 }] };
     if (sql.includes("FROM venture_validations")) return { rows: [{ count: 3 }] };
     if (sql.includes("FROM venture_pmf_assessments")) return { rows: [{ count: 1 }] };
-    if (sql.includes("SELECT name, description, mission, vision, industry, sector, business_stage, website FROM ventures WHERE id = ?")) {
+    if (sql.includes("sector, business_stage, website, logo_url FROM ventures WHERE id = ?")) {
       return { rows: [{ name: "Acme", description: "d", mission: "m", vision: "v", industry: "Fintech", sector: "x", business_stage: "idea", website: "w" }] };
     }
     if (sql.includes("FROM venture_standups")) return { rows: [{ count: 0 }] };

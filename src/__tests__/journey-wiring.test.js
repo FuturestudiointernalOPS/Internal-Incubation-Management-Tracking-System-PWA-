@@ -1,7 +1,7 @@
 /**
  * The journey panel wiring.
  *
- * The panel (src/components/ventures/JourneyManagerPanel.js) keeps every state
+ * The panel (src/components/shared/ventures/console/JourneyManagerPanel.js) keeps every state
  * value, every read and the composition; its writes live in
  * journey/actions (one factory per concern) and the two large markup blocks in
  * journey/. Nothing at the type level ties those sides together and no
@@ -22,7 +22,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const parser = require("@babel/parser");
 const ROOT = path.join(__dirname, "..");
-const VENTURES = path.join(ROOT, "components", "ventures");
+const VENTURES = path.join(ROOT, "components", "shared", "ventures", "console");
 const PANEL = path.join(VENTURES, "JourneyManagerPanel.js");
 const ACTIONS = path.join(VENTURES, "journey", "actions");
 const JOURNEY = path.join(VENTURES, "journey");

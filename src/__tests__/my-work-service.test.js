@@ -31,7 +31,7 @@ import { buildMyWork, DUE_SOON_DAYS } from "@/services/ventures/myWork";
 
 const TODAY = "2026-10-21";
 const ME = "CID_ME";
-const HREF = "/participant/ventures/VNT-TEST";
+const HREF = "/member/participant/ventures/VNT-TEST";
 
 const STAGE = { id: "s-1", name: "Market Expansion", stage_order: 1, status: "active", start_date: null, target_date: null };
 

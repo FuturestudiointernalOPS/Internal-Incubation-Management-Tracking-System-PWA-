@@ -102,7 +102,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/deliverables/route.js#M2",
 
   "src/app/api/engineering/permissions/profile-role-defaults/route.js#M4",
-  "src/app/api/engineering/permissions/route.js#M3",
 
   "src/app/api/facilitator-reviews/route.js#M1",
   "src/app/api/facilitators/invite-bulk/route.js#M1",
@@ -116,14 +115,11 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
 
   "src/app/api/investor/approval/route.js#M1",
   "src/app/api/investor/profile/route.js#M1",
-  "src/app/api/investor/relationships/meetings/route.js#M1",
-  "src/app/api/investor/relationships/route.js#M1",
   "src/app/api/invites/route.js#M2",
   "src/app/api/participant-programs/bulk/route.js#M1",
   "src/app/api/participants/route.js#M1",
   "src/app/api/platform/form-runs/handlers/get.js#M3",
 
-  "src/app/api/pm/programs/[id]/manager/route.js#M3",
   "src/app/api/pm/programs/[id]/route.js#M2",
   "src/app/api/program-staff/route.js#M3",
   "src/app/api/programs/route.js#M1",
@@ -131,43 +127,39 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/api/retros/submit/route.js#M3",
   "src/app/api/sessions/route.js#M2",
   "src/app/api/standups/submit/route.js#M3",
-  "src/app/api/system/database/route.js#M1",
   "src/app/api/teams/route.js#M1",
   "src/app/api/teams/route.js#M3",
 
-  "src/app/api/user-groups/route.js#M3",
-
   "src/app/api/v2/program-staff/route.js#M1",
   "src/app/api/ventures/[id]/blockers/route.js#M4",
-  "src/app/api/ventures/[id]/dashboard/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js#M4",
   "src/app/api/ventures/[id]/documents/[docId]/transition/route.js#M4",
   "src/app/api/ventures/[id]/founders/[founderId]/route.js#M3",
   "src/app/api/ventures/[id]/founders/route.js#M4",
   "src/app/api/ventures/[id]/members/route.js#M3",
-  "src/app/api/ventures/[id]/notes/route.js#M4",
   "src/app/api/ventures/[id]/tasks/[taskId]/submissions/route.js#M4",
   "src/app/api/ventures/[id]/tasks/route.js#M4",
-  "src/app/api/ventures/[id]/verification/documents/[docId]/versions/route.js#M3",
   "src/app/api/ventures/[id]/verification/route.js#M4",
+  // createHandler's role list remains the admission gate; the capability
+  // (`ventures.setup`) decides the configuration action inside the handler.
+  "src/app/api/ventures/[id]/reporting/settings/route.js#M2",
   "src/app/api/ventures/assigned/route.js#M4",
   "src/app/api/ventures/lead-manager/home/route.js#M3",
   "src/app/api/ventures/route.js#M4",
-  "src/app/investor/organizations/page.js#M3",
+  "src/app/member/(contexts)/investor/organizations/page.js#M3",
   "src/app/staff/dashboard/page.js#M3",
-  "src/components/crm/useMembershipState.js#M3",
-  "src/components/dashboard/ProfileView.js#M3",
-  "src/components/dashboard/unified-dashboard/MyProjectsCard.js#M3",
-  "src/components/pm/program-workspace/DeployTeamModal.js#M3",
-  "src/components/pm/programs/programTabs.js#M2",
-  "src/components/pm/programs/programWorkspaceSelectors.js#M4",
-  "src/components/staff/ProjectsView.js#M3",
-  "src/components/staff/op-report/SummaryOwnerCard.js#M3",
-  "src/components/staff/project-detail/TeamTab.js#M3",
+  "src/components/shared/crm/useMembershipState.js#M3",
+  "src/components/shared/dashboard/ProfileView.js#M3",
+  "src/components/shared/dashboard/unified-dashboard/MyProjectsCard.js#M3",
+  "src/spaces/staff/program-manager/components/program-workspace/DeployTeamModal.js#M3",
+  "src/spaces/staff/program-manager/components/programs/programTabs.js#M2",
+  "src/spaces/staff/program-manager/components/programs/programWorkspaceSelectors.js#M4",
+  "src/spaces/staff/core/components/ProjectsView.js#M3",
+  "src/spaces/staff/core/components/op-report/SummaryOwnerCard.js#M3",
+  "src/spaces/staff/core/components/project-detail/TeamTab.js#M3",
   "src/lib/api/createHandler.js#M2",
   "src/lib/featureAccess.js#M4",
   "src/lib/identity.js#M4",
-  "src/lib/masterNavigation/builders.js#M3",
   "src/lib/notificationLinks.js#M4",
 
   "src/lib/ventureDeliverables.js#M3",
@@ -216,13 +208,10 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/tasks/comments.js#M3",
   "src/services/tasks/create.js#M3",
   "src/services/tasks/create.js#M4",
-  "src/services/tasks/query.js#M3",
-  "src/services/tasks/remove.js#M3",
   "src/services/tasks/teamBoard.js#M3",
   "src/services/tasks/updateEffects.js#M3",
   "src/services/tasks/updateFields/assignment.js#M3",
   "src/services/tasks/updateGuards.js#M3",
-  "src/services/ventures/founders.js#M3",
   "src/services/ventures/founders.js#M4",
   "src/services/ventures/memberRoster.js#M3",
 
@@ -232,7 +221,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/ventures/submissions/createSubmission.js#M3",
   "src/services/ventures/submissions/review.js#M4",
   "src/services/ventures/submissions/scope.js#M3",
-  "src/services/ventures/ventureDocumentTypes.js#M3",
   "src/services/ventures/verification/categories.js#M3",
   "src/services/workspace/calendar.js#M4",
   "src/services/workspace/navigation.js#M3",
@@ -240,9 +228,9 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   // centre actif sont de l'affichage/validation (liste des rôles d'un profil),
   // jamais une décision d'accès. Les sept autres préexistaient à ce lot et
   // restent à traiter séparément.
-  "src/components/permissions/center/drawers/CreateProfileDrawer.js#M2",
-  "src/components/permissions/center/drawers/CreateProfileDrawer.js#M4",
-  "src/components/permissions/center/personAccess.js#M4",
+  "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js#M2",
+  "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js#M4",
+  "src/spaces/admin/permissions/center/personAccess.js#M4",
   "src/services/programs/teams.js#M3",
   "src/services/ventures/people.js#M2",
 ]);
@@ -346,6 +334,52 @@ function routeUrl(file) {
   return `/api/${rel}`.replace(/\/$/, "");
 }
 
+
+// =============================================================================
+// GARDE 2b — le moteur de décision ne lit aucune valeur d'accès fournie par le
+// code. Les seeds restent des migrations ; la décision finale vient de la base.
+// =============================================================================
+
+describe("Garde 2b — le moteur de décision ne lit aucun seed", () => {
+  const DECISION_ENGINE_FILES = [
+    "src/services/authorization/context.js",
+    "src/services/authorization/contextResolver.js",
+    "src/services/authorization/contextDecisions.js",
+    "src/services/authorization/contextAccess.js",
+    "src/services/authorization/contextGrants.js",
+    "src/services/authorization/contextCache.js",
+    "src/server/authz/responses.js",
+    "src/server/authz/capabilities.js",
+  ];
+
+  const SEED_DEFAULTS = [
+    "FEATURE_ELIGIBILITY_DEFAULTS",
+    "FEATURE_ELIGIBILITY_PROFILE_DEFAULTS",
+    "PROGRAM_ASSIGNMENT_ROWS",
+    "PROFILE_CATALOGUE_SEED",
+    "ROLE_PROFILE_DEFAULTS_SEED",
+    "RESPONSIBILITY_FEATURE_ROLES",
+    "authorization/seedData",
+  ];
+
+  test("aucun fichier de décision n'importe une valeur de seed", () => {
+    const offenders = [];
+    for (const rel of DECISION_ENGINE_FILES) {
+      const abs = path.join(ROOT, rel);
+      if (!fs.existsSync(abs)) continue;
+      const src = fs.readFileSync(abs, "utf8");
+      for (const token of SEED_DEFAULTS) {
+        if (src.includes(token)) offenders.push(`${rel}#${token}`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  test("l'avertissement de responsabilité n'a plus de repli code", () => {
+    const featureAccess = require("@/lib/featureAccess");
+    expect(featureAccess.defaultAllowedRoles).toBeUndefined();
+  });
+});
 
 describe("Garde 2 — chaque route API a une décision ou une déclaration publique", () => {
   test("aucune route sans décision ni déclaration", () => {

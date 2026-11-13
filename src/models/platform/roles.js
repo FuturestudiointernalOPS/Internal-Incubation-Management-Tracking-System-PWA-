@@ -14,6 +14,8 @@ import {
   RETIRED_CONTEXTUAL_LABELS,
   resolveProgramManagerIdentity,
 } from "@/lib/identity";
+import { spaceForRole } from "@/spaces/registry";
+import { LANDING_PRIORITY } from "@/models/authorization/landingData";
 
 export const DEFAULT_ROLE = "member";
 
@@ -129,16 +131,103 @@ export function resolveEffectiveRole({
  */
 export const ROLE_HOME = {
   super_admin: "/admin",
-  program_manager: "/pm",
+  program_manager: "/staff/program-manager",
   staff: "/staff",
-  facilitator: "/facilitator",
-  participant: "/participant",
-  finance: "/finance",
-  investor: "/investor/dashboard",
+  facilitator: "/member/facilitator",
+  participant: "/member/participant",
+  finance: "/staff/finance",
+  investor: "/member/investor/dashboard",
 };
 
 export function roleHomeHref(role) {
   return ROLE_HOME[String(role || "").toLowerCase()] || null;
+}
+
+/** Étape 4 — landing from access. Default OFF while the production rule is reviewed. */
+export const landingFromRightsEnabled = () =>
+  process.env.AUTHZ_LANDING_FROM_RIGHTS === "true";
+
+/**
+ * A right is held when the matrix says so. `null` means the matrix is not
+ * loaded: a capability-only destination cannot be chosen, but a destination
+ * that a PROFILE or a RELATIONSHIP already opens still can.
+ */
+function holdsRight(effective, module, capability) {
+  if (!effective) return null;
+  return Number(effective?.[module]?.[capability] ?? 0) >= 1;
+}
+
+/**
+ * Étape 4 — where a person belongs, from their space, profiles, relationships
+ * and (when available) their effective rights. The priority list is data
+ * (`authorization/landingData.js`); this function only evaluates it.
+ */
+export function resolveLandingFromAccess({
+  role,
+  teamId = null,
+  profiles = [],
+  ventures = [],
+  isInvestor = false,
+  isProgramParticipant = false,
+  isFounder = false,
+  effective = null,
+} = {}) {
+  const space = spaceForRole(role) || "member";
+  const profileList = Array.isArray(profiles) ? profiles : [];
+  const owned = (ventures || []).filter(
+    (venture) => isActiveVenture(venture) && isFounderMembership(venture),
+  );
+  const signals = {
+    isInvestor: isInvestor === true,
+    isFounder:
+      isFounder === true || (ventures || []).some((venture) => isFounderMembership(venture)),
+    isProgramParticipant: isProgramParticipant === true,
+  };
+
+  for (const destination of LANDING_PRIORITY) {
+    if (destination.space && destination.space !== space) continue;
+    if (
+      destination.role &&
+      String(role || "").toLowerCase() !== destination.role
+    ) {
+      continue;
+    }
+
+    const hasSignal = Boolean(destination.profile || destination.relationship);
+    const profileOk = destination.profile
+      ? profileList.includes(destination.profile)
+      : false;
+    const relationshipOk = destination.relationship
+      ? signals[destination.relationship] === true
+      : false;
+    const signalOk = hasSignal ? profileOk || relationshipOk : true;
+    if (!signalOk) continue;
+
+    if (destination.capability) {
+      const { module, capability } = destination.capability;
+      const right = holdsRight(effective, module, capability);
+      if (right === false) continue;
+      // Unknown matrix: only a profile/relationship can still justify the
+      // destination. A capability-only entry waits for the real matrix.
+      if (right === null && !hasSignal) continue;
+    }
+
+    if (destination.kind === "team") {
+      return teamId ? `/member/team/${teamId}` : "/member/team";
+    }
+    if (destination.kind === "owned-venture") {
+      if (owned.length === 1 && owned[0].venture_id) {
+        return `/member/participant/ventures/${owned[0].venture_id}`;
+      }
+      continue;
+    }
+    if (destination.href) return destination.href;
+  }
+
+  // Space home: the structural fallback, never a role-label branch.
+  if (space === "admin") return "/admin";
+  if (space === "staff") return "/staff";
+  return "/member";
 }
 
 /**
@@ -172,7 +261,7 @@ export function landingNeedsRelationships(role) {
   const home = roleHomeHref(normalizedRole);
   // No section of its own, or the Participant surface: both are decided by the
   // person's actual enrollments/memberships.
-  return !home || home === "/participant";
+  return !home || home === "/member/participant";
 }
 
 /**
@@ -187,8 +276,12 @@ export function landingNeedsRelationships(role) {
  *   2. Everyone else lives in the PERSONAL world, where the RELATIONSHIPS
  *      decide. Founding exactly one active Venture is the case the product
  *      wants to land directly inside it. That is a fact about what the person
- *      OWNS, and the baseline badge ("member") cannot express it — which is why
+ *      The baseline badge ("member") cannot express it — which is why
  *      the old badge-keyed shortcut only ever fired for legacy accounts.
+ *      Founding SEVERAL active Ventures is deliberately left unresolved: the
+ *      rule refuses to choose one of them for the person. They get the neutral
+ *      hub (which lists every context they hold), or the Participant page when
+ *      they are also enrolled in a programme.
  *      Being MADE an investor (an approved investor context) is the same kind
  *      of fact, so it lands in the investor space for the same reason.
  *
@@ -218,7 +311,7 @@ export function resolveLanding({
 
   // An entity login IS the account (a team, a family), not a person whose
   // relationships would be read — it keeps its own space.
-  if (normalizedRole === "team") return teamId ? `/team/${teamId}` : "/team";
+  if (normalizedRole === "team") return teamId ? `/member/team/${teamId}` : "/member/team";
 
   // D-1 — a staff identity carrying the program-manager PROFILE works in the
   // PM space. The hidden role default still lands there through ROLE_HOME.
@@ -230,11 +323,11 @@ export function resolveLanding({
   if (!landingNeedsRelationships(normalizedRole)) return home;
 
   const owned = (ventures || []).filter((venture) => isActiveVenture(venture) && isFounderMembership(venture));
+  // Exactly one active Venture: the product wants to land inside it. Several:
+  // the rule refuses to pick one, so it falls through to the hub below (or to
+  // the Participant page when the person is also enrolled in a programme).
   if (owned.length === 1 && owned[0].venture_id) {
-    return `/founder/ventures/${owned[0].venture_id}`;
-  }
-  if (owned.length > 1) {
-    return "/founder/ventures";
+    return `/member/participant/ventures/${owned[0].venture_id}`;
   }
 
   // An approved investor context is a relationship the badge cannot carry:
@@ -245,9 +338,9 @@ export function resolveLanding({
   // THE PARTICIPANT PAGE IS A PROGRAM SEAT. Only an actual enrollment hands
   // out that destination; without one the person is offered the neutral hub,
   // which lists the contexts they really hold and refuses nobody.
-  if (!isProgramParticipant) return "/workspaces";
+  if (!isProgramParticipant) return "/member";
 
-  return home || "/participant";
+  return home || "/member/participant";
 }
 
 /**

@@ -9,7 +9,7 @@ afterEach(cleanup);
 function Rail({ mobile = false, initiallyCollapsed = false }) {
   const [collapsed, setCollapsed] = useState(initiallyCollapsed);
   const [openMenus, setOpen] = useState({});
-  return <SidebarContent mobile={mobile} collapsed={mobile ? false : collapsed} setCollapsed={setCollapsed} role="participant" pathname="/participant" activePathIds={new Set()} navItems={[{ id: "prog_one", name: "One", icon: User, children: [{ id: "prog_child_one", name: "First child", href: "/participant/one" }] }, { id: "prog_two", name: "Two", icon: User, children: [{ id: "prog_child_two", name: "Second child", href: "/participant/two" }] }]} openMenus={openMenus} toggleMenu={id => setOpen(prev => ({ ...prev, [id]: !prev[id] }))} setMobileMenuOpen={() => {}} handleLogout={() => {}} t={key => key} />;
+  return <SidebarContent mobile={mobile} collapsed={mobile ? false : collapsed} setCollapsed={setCollapsed} role="participant" pathname="/member/participant" activePathIds={new Set()} navItems={[{ id: "prog_one", name: "One", icon: User, children: [{ id: "prog_child_one", name: "First child", href: "/member/participant/one" }] }, { id: "prog_two", name: "Two", icon: User, children: [{ id: "prog_child_two", name: "Second child", href: "/member/participant/two" }] }]} openMenus={openMenus} toggleMenu={id => setOpen(prev => ({ ...prev, [id]: !prev[id] }))} setMobileMenuOpen={() => {}} handleLogout={() => {}} t={key => key} />;
 }
 test("collapsed participant group expands the rail and opens its children", () => {
   render(<Rail initiallyCollapsed />);

@@ -600,7 +600,7 @@
       "cannotDeleteCourse": "Seuls les brouillons sans inscriptions peuvent être supprimés.",
       "cannotDeleteWithProgress": "Ce contenu possède de la progression d'apprenant et ne peut pas être supprimé.",
       "cannotDeleteWithAttempts": "Cette évaluation possède des tentatives d'apprenants et ne peut pas être supprimée.",
-      "noChapitres": "Ajoutez au moins un chapitre avant de publier.",
+      "noChapters": "Ajoutez au moins un chapitre avant de publier.",
       "noLessons": "Ajoutez au moins une leçon avant de publier.",
       "sectionTitleRequired": "Le titre du chapitre est requis.",
       "lessonTitleRequired": "Le titre de la leçon est requis.",

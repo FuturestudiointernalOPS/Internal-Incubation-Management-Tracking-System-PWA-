@@ -12,7 +12,7 @@
  * No React rendering: the grouping is a pure shaper (ventureScreenModel), so it
  * is tested directly rather than through a component.
  */
-import { groupWork, pickMyWork } from "@/components/participant/ventures/ventureScreenModel";
+import { groupWork, pickMyWork } from "@/components/shared/ventures/workspace/ventureScreenModel";
 
 const item = (id, extra = {}) => ({ id, title: id, ...extra });
 

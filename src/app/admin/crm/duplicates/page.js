@@ -7,5 +7,5 @@ export const dynamic = "force-dynamic";
  * Kept as a server redirect for one release so old links keep working.
  */
 export default function LegacyDuplicatesRedirect() {
-  redirect("/crm/duplicates");
+  redirect("/staff/crm/duplicates");
 }
