@@ -204,8 +204,6 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/services/programs/programStaff.js#M3",
   "src/services/projects/collaboration.js#M3",
   "src/services/tasks/assignments.js#M3",
-  "src/services/tasks/blockers.js#M3",
-  "src/services/tasks/comments.js#M3",
   "src/services/tasks/create.js#M3",
   "src/services/tasks/create.js#M4",
   "src/services/tasks/teamBoard.js#M3",

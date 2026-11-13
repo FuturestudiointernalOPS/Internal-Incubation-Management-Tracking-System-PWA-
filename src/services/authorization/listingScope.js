@@ -37,6 +37,11 @@ export function seesWholePortfolio(role) {
   );
 }
 
+// NOTE — this module is the LEGACY role-based scope. The tasks domain resolves
+// `tasks.act_any` / `tasks.view_all` and passes the verdict (`seesAll`), so it no
+// longer reads the role; the projects domain still uses the role-based default
+// until its own `projects.view_all` conversion lands.
+
 /**
  * Resolve a caller's own-scope filter for a listing endpoint.
  *
@@ -45,6 +50,9 @@ export function seesWholePortfolio(role) {
  * @param {string} args.sessionCid       the caller's own id
  * @param {string|null} args.requestedCid the id the caller asked for (or null)
  * @param {string} args.denialMessage    the refusal to return when refused
+ * @param {boolean} [args.seesAll]       the resolved cross-person verdict; when
+ *                                       supplied it decides instead of the role
+ *                                       (services that read the right pass it)
  * @returns {{cid?: string|null, denied?: string}}
  *   `cid` is the id to filter on — null means "no filter" for a portfolio
  *   caller; `denied` is set when a non-portfolio caller asked for someone else.
@@ -54,8 +62,10 @@ export function resolveListingScope({
   sessionCid,
   requestedCid,
   denialMessage,
+  seesAll,
 }) {
-  if (seesWholePortfolio(role)) {
+  const portfolio = typeof seesAll === "boolean" ? seesAll : seesWholePortfolio(role);
+  if (portfolio) {
     return { cid: requestedCid };
   }
   if (requestedCid && String(requestedCid) !== String(sessionCid)) {

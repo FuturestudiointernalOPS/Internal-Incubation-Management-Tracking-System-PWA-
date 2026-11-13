@@ -29,12 +29,17 @@ jest.mock("@/lib/db", () => ({
 const mockSession = { cid: "user-1", name: "Staff One", role: "staff" };
 // The cross-person read is a RIGHT now: the route resolves it through the engine.
 let mockCanSeeAll = false;
+// The staff-side cohort's "act on any task" right.
+let mockCanActAny = true;
 
 jest.mock("@/models/authorization/index", () => ({
   getAuthorizationContext: jest.fn(async () => ({})),
-  authorize: jest.fn((_ctx, module, capability) =>
-    module === "tasks" && capability === "view_all" ? mockCanSeeAll : false,
-  ),
+  authorize: jest.fn((_ctx, module, capability) => {
+    if (module !== "tasks") return false;
+    if (capability === "view_all") return mockCanSeeAll;
+    if (capability === "act_any") return mockCanActAny;
+    return false;
+  }),
 }));
 
 jest.mock("@/server/auth/guards", () => ({
@@ -53,6 +58,7 @@ beforeEach(() => {
   mockSession.cid = "user-1";
   mockSession.role = "staff";
   mockCanSeeAll = false;
+  mockCanActAny = true;
   mockModels.getTaskRowById.mockResolvedValue({ rows: [] });
   mockModels.getTasksByFilters.mockResolvedValue({ rows: [] });
   mockModels.getBlockersForTask.mockResolvedValue({ rows: [] });
@@ -81,12 +87,14 @@ describe("GET /api/tasks — scoping", () => {
 
   test("a non-portfolio caller cannot filter by a foreign assignee (403)", async () => {
     mockSession.role = "participant";
+    mockCanActAny = false;
     const res = await GET(getReq("/api/tasks?assigned_to=someone-else"));
     expect(res.status).toBe(403);
   });
 
   test("a non-portfolio caller with no filter is scoped to their own tasks", async () => {
     mockSession.role = "participant";
+    mockCanActAny = false;
     await GET(getReq("/api/tasks"));
     expect(mockModels.getTasksByFilters).toHaveBeenCalledWith(
       expect.objectContaining({ scope: "self", effectiveUserId: "user-1" }),
@@ -118,6 +126,7 @@ describe("GET /api/tasks?id= — single-task lookup", () => {
 
   test("a task the caller does not own/assign/supervise is refused (403)", async () => {
     mockSession.role = "participant";
+    mockCanActAny = false;
     mockModels.getTaskRowById.mockResolvedValue({
       rows: [{ id: 9, user_id: "other", assigned_to: null, supervisor_id: null }],
     });

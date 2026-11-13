@@ -12,14 +12,14 @@ import {
   getTaskAccessById,
   getTaskAssignmentLogs,
 } from "@/models/taskLifecycle";
-import { canAccessTask } from "./access";
+import { canAccessTaskFor } from "./access";
 
 /** The assignment log of a task the caller may see. */
 export async function listTaskLogs({ taskId, limit, role, sessionCid }) {
   const taskResult = await getTaskAccessById(taskId);
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
-  if (!canAccessTask({ task, role, cid: sessionCid })) {
+  if (!(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { status: 403, error: "errors.taskAccessDenied" };
   }
 

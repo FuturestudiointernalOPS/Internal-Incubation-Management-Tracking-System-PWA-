@@ -242,4 +242,9 @@ describe("platform modules — every door names a real right", () => {
   test("the cross-person task read is a declared capability", () => {
     expect(CAPABILITY_CATALOG.tasks.capabilities.view_all).toBeTruthy();
   });
+
+  test("the tasks act/moderation rights are declared capabilities", () => {
+    expect(CAPABILITY_CATALOG.tasks.capabilities.act_any).toBeTruthy();
+    expect(CAPABILITY_CATALOG.tasks.capabilities.moderate).toBeTruthy();
+  });
 });

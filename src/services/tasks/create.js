@@ -47,7 +47,7 @@ import { standupUpsert } from "@/models/standupUpsert";
 import { logTaskEvent, ACTION_TYPES } from "@/models/taskAudit";
 import { logAuditEvent } from "@/services/tasks/auditLog";
 import { validateTaskAssignment } from "@/models/contactGroups";
-import { seesWholePortfolio } from "@/services/authorization/listingScope";
+import { resolveTaskActAny } from "./access";
 import { isValidDateStr, todayStr, isCurrentWeek } from "./dates";
 
 /**
@@ -217,6 +217,10 @@ export async function createTaskRecord({ input, role, sessionCid }) {
     ? priority
     : "medium";
 
+  // The supervisor is a management field, so only a holder of `tasks.act_any`
+  // may set it. A participant's value is ignored.
+  const canActAny = await resolveTaskActAny({ role, cid: sessionCid });
+
   const result = await createTask({
     user_id,
     user_name,
@@ -236,9 +240,9 @@ export async function createTaskRecord({ input, role, sessionCid }) {
     priority: finalPriority,
     context_type,
     context_id,
-    // Management field: only a staff-side caller may set a supervisor (it grants
-    // access to the task). A participant's value is ignored.
-    supervisor_id: seesWholePortfolio(role) ? supervisor_id || null : null,
+    // Only a holder of `tasks.act_any` may set a supervisor (it grants access to
+    // the task). A participant's value is ignored.
+    supervisor_id: canActAny ? supervisor_id || null : null,
     intent_id,
   });
 

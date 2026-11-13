@@ -68,10 +68,8 @@ reste `AND 1 = 0`.
 
 ## Ce qui reste (gardes de domaine)
 
-- `src/services/tasks/blockers.js` : lever ou modifier un blocker sur une tâche
-  qu'on ne possède pas admet encore le rôle propriétaire
-  (`session.role !== "super_admin"`). Ce sont des règles d'écriture, pas les
-  écrans ci-dessus ; elles seront converties avec le reste du domaine tâches.
-- `seesWholePortfolio(role)` distingue encore « côté personnel interne » de
-  « côté membre » pour forcer le périmètre personnel. Elle ne donne aucun droit
-  à elle seule, mais reste une lecture par rôle.
+- `src/services/tasks/blockers.js` : **converti** à l'étape 8 (levée et
+  suppression d'un blocker sur la tâche d'autrui passent par
+  `tasks.moderate`). Voir `ETAPE8-TASKS-SCOPE-RIGHTS.md`.
+- `seesWholePortfolio(role)` ne sert plus qu'aux **projets** ; les tâches
+  résolvent `tasks.act_any` et `tasks.view_all` (`ETAPE8`).

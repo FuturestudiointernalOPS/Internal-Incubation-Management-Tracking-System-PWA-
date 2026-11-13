@@ -26,14 +26,14 @@ import {
   getCommentSenderForEdit,
   updateCommentBody,
 } from "@/models/taskComments";
-import { canAccessTask } from "./access";
+import { canAccessTaskFor, resolveTaskModerate } from "./access";
 
 /** The comments on a task the caller may see. */
 export async function listTaskComments({ taskId, role, sessionCid }) {
   const taskResult = await getTaskAccessById(taskId);
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
-  if (!canAccessTask({ task, role, cid: sessionCid })) {
+  if (!(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { status: 403, error: "errors.taskAccessDenied" };
   }
 
@@ -65,7 +65,7 @@ export async function postTaskComment({
   const taskResult = await getTaskAccessForCreate(taskId);
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
-  if (!canAccessTask({ task, role, cid: sessionCid })) {
+  if (!(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { status: 403, error: "errors.taskAccessDenied" };
   }
 
@@ -126,7 +126,7 @@ export async function postTaskComment({
   };
 }
 
-/** Delete a comment — only its author (or Super Admin) may. */
+/** Delete a comment — only its author (or a holder of `tasks.moderate`) may. */
 export async function deleteTaskComment({ id, role, sessionCid }) {
   const commentResult = await getCommentSenderById(id);
 
@@ -134,7 +134,7 @@ export async function deleteTaskComment({ id, role, sessionCid }) {
     const comment = commentResult.rows[0];
     if (
       String(comment.sender_id) !== String(sessionCid) &&
-      role !== "super_admin"
+      !(await resolveTaskModerate({ role, cid: sessionCid }))
     ) {
       return { status: 403, error: "errors.commentDeleteAuthorOnly" };
     }
@@ -144,7 +144,7 @@ export async function deleteTaskComment({ id, role, sessionCid }) {
   return { status: 200, body: { success: true } };
 }
 
-/** Edit a comment's body — only its author (or Super Admin) may. */
+/** Edit a comment's body — only its author (or a holder of `tasks.moderate`) may. */
 export async function editTaskComment({ id, body, role, sessionCid }) {
   const commentResult = await getCommentSenderForEdit(id);
 
@@ -154,7 +154,7 @@ export async function editTaskComment({ id, body, role, sessionCid }) {
 
   if (
     String(commentResult.rows[0].sender_id) !== String(sessionCid) &&
-    role !== "super_admin"
+    !(await resolveTaskModerate({ role, cid: sessionCid }))
   ) {
     return { status: 403, error: "errors.commentEditAuthorOnly" };
   }

@@ -25,10 +25,8 @@ import {
 import { getTaskTitleById } from "@/models/tasks";
 import { completeCarryoverAncestors } from "@/models/taskCarryover";
 import { logAuditEvent } from "@/services/tasks/auditLog";
-import {
-  seesWholePortfolio,
-  resolveListingScope,
-} from "@/services/authorization/listingScope";
+import { resolveListingScope } from "@/services/authorization/listingScope";
+import { resolveTaskActAny } from "./access";
 
 /** The only outcomes a retro reconciliation may record. */
 export const RECONCILE_STATUSES = ["completed", "carried_over", "in_progress"];
@@ -51,13 +49,16 @@ export async function reconcileTasks({
   role,
   sessionCid,
 }) {
-  // The caller may only reconcile their own tasks unless they hold a portfolio
-  // role (the shared listing-scope rule, applied as an equality check).
+  // The caller may only reconcile their own tasks unless they hold
+  // `tasks.act_any` (the shared listing-scope rule, applied as an equality
+  // check).
+  const canActAny = await resolveTaskActAny({ role, cid: sessionCid });
   const scope = resolveListingScope({
     role,
     sessionCid,
     requestedCid: userId,
     denialMessage: "errors.ownReconcileOnly",
+    seesAll: canActAny,
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -76,9 +77,9 @@ export async function reconcileTasks({
       continue;
     }
 
-    // Non-portfolio users may only touch tasks they own, are assigned or
-    // supervise — reported per row, not as a batch failure.
-    if (!seesWholePortfolio(role)) {
+    // Callers without `tasks.act_any` may only touch tasks they own, are
+    // assigned or supervise — reported per row, not as a batch failure.
+    if (!canActAny) {
       const taskResult = await getTaskAccessForReconcile(id);
       const row = taskResult.rows[0];
       if (

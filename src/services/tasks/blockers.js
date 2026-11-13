@@ -25,7 +25,7 @@
 
 import { isSupervisorOf } from "@/models/authorization/accessQueries";
 import { getTaskTitleById } from "@/models/tasks";
-import { canAccessTask } from "./access";
+import { canAccessTaskFor, resolveTaskModerate } from "./access";
 import {
   createBlocker,
   createBlockerDiscussion,
@@ -117,12 +117,13 @@ export async function createBlockerForTask({ session, input }) {
   }
   const task = taskCheck.rows[0];
 
-  // SECURITY: Only task owner, assignee, supervisor, or SA can add a blocker
+  // SECURITY: Only task owner, assignee, supervisor, or a holder of
+  // `tasks.moderate` can add a blocker to somebody else's task.
   if (
-    session.role !== "super_admin" &&
     String(task.user_id) !== String(session.cid) &&
     String(task.assigned_to || "") !== String(session.cid) &&
-    String(task.supervisor_id || "") !== String(session.cid)
+    String(task.supervisor_id || "") !== String(session.cid) &&
+    !(await resolveTaskModerate({ role: session.role, cid: session.cid }))
   ) {
     return {
       status: 403,
@@ -273,10 +274,10 @@ export async function deleteBlockerRecord({ session, id }) {
   if (blockerCheck.rows.length > 0) {
     const blocker = blockerCheck.rows[0];
 
-    // SECURITY: Only creator or SA can delete (using session identity)
+    // SECURITY: Only the creator or a holder of `tasks.moderate` can delete.
     if (
-      session.role !== "super_admin" &&
-      String(blocker.user_id) !== String(session.cid)
+      String(blocker.user_id) !== String(session.cid) &&
+      !(await resolveTaskModerate({ role: session.role, cid: session.cid }))
     ) {
       return {
         status: 403,
@@ -293,7 +294,7 @@ export async function deleteBlockerRecord({ session, id }) {
 /**
  * The blocker row and the task-access decision that guards its discussion.
  * A discussion is part of the task, so it follows the SAME rule as comments,
- * resources and logs: portfolio roles, or the task's owner/assignee/supervisor.
+ * resources and logs: `tasks.act_any`, or the task's owner/assignee/supervisor.
  */
 async function guardBlockerDiscussion({ blocker_id, role, sessionCid }) {
   const blockerCheck = await getBlockerForDiscussion(blocker_id);
@@ -303,7 +304,7 @@ async function guardBlockerDiscussion({ blocker_id, role, sessionCid }) {
   const blocker = blockerCheck.rows[0];
   const taskResult = await getTaskForBlockerCheck(blocker.task_id);
   const task = taskResult.rows[0];
-  if (!task || !canAccessTask({ task, role, cid: sessionCid })) {
+  if (!task || !(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { denied: { status: 403, error: "errors.insufficientPermissions" } };
   }
   return { blocker };

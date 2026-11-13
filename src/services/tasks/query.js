@@ -31,7 +31,7 @@ import {
   getResourcesForTasks,
   getCommentCountsForTasks,
 } from "@/models/tasks";
-import { seesWholePortfolio } from "@/services/authorization/listingScope";
+import { resolveTaskActAny } from "./access";
 
 /**
  * The tasks a caller may see, enriched unless `brief` is set.
@@ -60,9 +60,11 @@ export async function listTasks({
     return { status: 403, error: "errors.ownTasksOnly" };
   }
 
-  // Non-staff-side roles (participants, …) may only view their own tasks: force
-  // the user filter to the session user and reject foreign assignee filters.
-  const notStaffSide = !seesWholePortfolio(role);
+  // A caller with neither the cross-person read nor the staff-side act right —
+  // a participant, for example — may only view their own tasks: force the user
+  // filter to the session user and reject foreign assignee filters.
+  const canActAny = await resolveTaskActAny({ role, cid: sessionCid });
+  const notStaffSide = !(canSeeAll || canActAny);
   const effectiveUserId = userId || (notStaffSide ? sessionCid : null);
   if (notStaffSide && assignedTo && String(assignedTo) !== String(sessionCid)) {
     return { status: 403, error: "errors.ownTasksViewOnly" };

@@ -279,6 +279,22 @@ export const FEATURE_MODULE_CAPABILITY = {
           risk: "medium",
           description: "See every user's tasks and blockers, not only the caller's own",
         },
+        // The staff-side cohort's power: act on a task the caller does not own
+        // (comments, resources, logs, discussion, carry-over, reconciliation,
+        // supervisor field). It replaces `seesWholePortfolio(role)`.
+        act_any: {
+          label: "Act On Any Task",
+          risk: "medium",
+          description: "Work on tasks the caller does not own: comments, resources, logs, discussion, carry-over, reconciliation and the supervisor field",
+        },
+        // Support/repair moderation on somebody else's sub-resources: edit or
+        // delete their comment, raise or delete a blocker on their task. It
+        // replaces the platform-owner role checks.
+        moderate: {
+          label: "Moderate Any Task",
+          risk: "high",
+          description: "Edit or delete another person's task comment, and raise or delete a blocker on a task the caller does not own",
+        },
       },
     },
   },
