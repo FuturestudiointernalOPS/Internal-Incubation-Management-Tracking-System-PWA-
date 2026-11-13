@@ -1,4 +1,8 @@
-import { spaceRedirects } from "./src/spaces/redirects.js";
+import {
+  spaceRedirects,
+  retiredDashboardRedirects,
+  spaceRewrites,
+} from "./src/spaces/redirects.js";
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -40,6 +44,9 @@ const nextConfig = {
 
   async redirects() {
     return [
+      // The retired per-profile dashboards. Every member now opens ONE dashboard,
+      // so these addresses lead there instead of showing a second, narrower home.
+      ...retiredDashboardRedirects(),
       // Every legacy space address → its new home. The list lives in a plain
       // module so it can be tested; SPACE_REDIRECTS_PERMANENT flips the whole
       // set from temporary (307, reversible) to permanent (308, cached).
@@ -54,6 +61,16 @@ const nextConfig = {
         destination: "/admin",
         permanent: true,
       },
+    ];
+  },
+
+  async rewrites() {
+    return [
+      // THE member dashboard has ONE address (`/dashboard`) but lives inside the
+      // member space's shell group, so the sidebar is mounted once for the whole
+      // space instead of a second time for this page. A rewrite keeps the
+      // address the person sees while serving the screen the space layout owns.
+      ...spaceRewrites(),
     ];
   },
 };

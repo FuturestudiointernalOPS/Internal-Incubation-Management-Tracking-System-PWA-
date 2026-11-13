@@ -14,6 +14,8 @@ const {
   SPACE_REDIRECTS,
   SPACE_REDIRECTS_PERMANENT,
   spaceRedirects,
+  RETIRED_DASHBOARD_REDIRECTS,
+  retiredDashboardRedirects,
 } = require("@/spaces/redirects");
 
 const LEGACY_PREFIXES = [
@@ -82,6 +84,34 @@ describe("the redirect table", () => {
       indexOf("/founder/:path*"),
     );
     expect(indexOf("/founder/ventures")).toBeLessThan(indexOf("/founder"));
+  });
+});
+
+describe("the retired dashboards", () => {
+  test("every source is a member address and unique", () => {
+    const sources = RETIRED_DASHBOARD_REDIRECTS.map((entry) => entry.source);
+    expect(new Set(sources).size).toBe(sources.length);
+    for (const source of sources) {
+      expect(source.startsWith("/member/")).toBe(true);
+    }
+  });
+
+  test("they all lead to the ONE dashboard, never to another dashboard", () => {
+    for (const entry of RETIRED_DASHBOARD_REDIRECTS) {
+      expect(entry.destination).toBe("/dashboard");
+    }
+  });
+
+  test("the permanence flag applies to them too", () => {
+    for (const entry of retiredDashboardRedirects()) {
+      expect(entry.permanent).toBe(SPACE_REDIRECTS_PERMANENT);
+    }
+    expect(retiredDashboardRedirects({ permanent: true }).every((e) => e.permanent)).toBe(true);
+  });
+
+  test("the Next config consumes the list instead of restating it", () => {
+    const config = fs.readFileSync(path.join(process.cwd(), "next.config.mjs"), "utf8");
+    expect(config).toContain("retiredDashboardRedirects()");
   });
 });
 

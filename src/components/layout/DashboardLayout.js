@@ -98,7 +98,11 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
-  const participantSurface = pathname?.startsWith("/member/participant") || pathname?.startsWith("/member/founder");
+  const participantSurface =
+    pathname?.startsWith("/member/participant") ||
+    pathname?.startsWith("/member/founder") ||
+    pathname === "/dashboard" ||
+    pathname?.startsWith("/member/dashboard");
   const participantCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readParticipantCollapse, expandedServerSnapshot);
   const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
   const setCollapsed = participantSurface ? writeParticipantCollapse : setLegacyCollapsed;

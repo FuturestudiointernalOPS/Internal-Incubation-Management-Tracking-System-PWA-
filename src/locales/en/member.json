@@ -1,0 +1,168 @@
+{
+  "member": {
+    "dashboard": {
+      "week": "Week {current} / {total}",
+      "seeAll": "See all",
+      "open": "Open",
+      "newReminder": "New reminder",
+      "failedToLoad": "The dashboard could not be loaded.",
+      "subtitle": {
+        "programs": "{count} program(s)",
+        "facilitator": "You facilitate {count} program(s)",
+        "founder": "You are a founder",
+        "ventures": "{count} venture(s)",
+        "learning": "{count} course(s) in progress",
+        "investor": "Investor space",
+        "none": "Your dashboard fills up as you join a program, a venture or a course."
+      },
+      "section": {
+        "program": {
+          "title": "My program",
+          "subtitle": "Your progress and what is waiting for you",
+          "seats": "My programs"
+        },
+        "facilitator": {
+          "title": "Programs I facilitate",
+          "subtitle": "The programs you animate, and what comes next",
+          "reviews": "My reviews",
+          "programs": "Assigned programs"
+        },
+        "ventures": {
+          "title": "My ventures",
+          "subtitle": "The ventures you belong to",
+          "founderSubtitle": "The ventures you founded",
+          "name": "Venture",
+          "role": "Role",
+          "status": "Status",
+          "founderBadge": "Founder",
+          "memberBadge": "Member",
+          "meetingsLink": "My meetings"
+        },
+        "learning": {
+          "title": "My learning",
+          "subtitle": "The courses you are taking",
+          "certified": "Certified",
+          "resume": "Resume",
+          "review": "Review"
+        },
+        "investor": {
+          "title": "Investor space",
+          "subtitle": "Your pipeline, your watchlist and what matches you",
+          "dealFlow": "Deal flow",
+          "suggestions": "Suggestions for you",
+          "noDetail": "No detail yet",
+          "portfolio": "Portfolio",
+          "diligence": "Due diligence",
+          "profile": "Investor profile"
+        }
+      },
+      "kpi": {
+        "programs": "Programs",
+        "upcoming": "Upcoming sessions",
+        "ventures": "Ventures",
+        "courses": "Courses",
+        "lessons": "Lessons",
+        "certificates": "Certificates",
+        "pipeline": "Pipeline",
+        "watchlist": "Watchlist",
+        "invested": "Invested"
+      },
+      "mySpaces": {
+        "title": "My spaces",
+        "text": "Every workspace and program you belong to"
+      },
+      "empty": {
+        "title": "Nothing assigned yet",
+        "body": "You are not part of a program, a venture or a course yet. When you join one, it appears here."
+      }
+    },
+    "investor": {
+      "browser": {
+        "title": "Investor space",
+        "individual": "Individual investor",
+        "watchlistAdded": "Added to watchlist",
+        "watchlistRemoved": "Removed from watchlist",
+        "profileGate": {
+          "titleMissing": "Complete your investor profile",
+          "titlePending": "Account pending approval",
+          "bodyMissing": "Create your investor profile to access venture discovery and investment opportunities.",
+          "bodyPending": "Your investor account is under review. You will be notified once approved.",
+          "cta": "Set up profile"
+        },
+        "campaigns": {
+          "active": "Active",
+          "interested": "{count} interested"
+        },
+        "compare": {
+          "selected": "{count} selected",
+          "action": "Compare",
+          "title": "Compare",
+          "metric": "Metric",
+          "industry": "Industry",
+          "country": "Country",
+          "status": "Status",
+          "progress": "Progress",
+          "interest": "Interest",
+          "investors": "{count} investors",
+          "description": "Description"
+        },
+        "intro": {
+          "title": "Request introduction",
+          "lead": "You are requesting an introduction to",
+          "after": "Future Studio will review your request and coordinate the introduction.",
+          "statement": "Investment interest statement",
+          "placeholder": "Briefly describe why you are interested in this opportunity...",
+          "submit": "Submit request"
+        },
+        "pipeline": {
+          "all": "All ({count})",
+          "emptyTitle": "Pipeline empty",
+          "emptyBody": "Discover ventures and add them to your pipeline.",
+          "openWorkspace": "Open workspace"
+        },
+        "meetings": {
+          "untitled": "Meeting",
+          "tbd": "TBD",
+          "at": "at {time}"
+        },
+        "filters": {
+          "min": "Min",
+          "max": "Max"
+        },
+        "grid": {
+          "found": "{count} ventures found",
+          "campaignActive": "Campaign active",
+          "match": "{score}% match",
+          "removeCompare": "Remove from compare",
+          "addCompare": "Add to compare",
+          "requestIntro": "Request introduction"
+        },
+        "detail": {
+          "activeCampaign": "Active campaign: {name}",
+          "raised": "{amount} raised",
+          "minInvestment": "Min investment",
+          "investors": "Investors",
+          "activeDD": "Active DD",
+          "closing": "Closing: {date}",
+          "noDescription": "No description available.",
+          "pipelineStatus": "Your pipeline status",
+          "addToPipeline": "Add to pipeline",
+          "removeWatchlist": "Remove from watchlist",
+          "addWatchlist": "Add to watchlist"
+        },
+        "watchlist": {
+          "emptyTitle": "No saved ventures",
+          "emptyBody": "Bookmark ventures from the Discover tab to track their progress.",
+          "tracked": "{count} tracked",
+          "readiness": "Readiness",
+          "funding": "Funding",
+          "interest": "Interest",
+          "closes": "Closes {date}",
+          "view": "View",
+          "requestIntro": "Request intro",
+          "addToPipeline": "Add to pipeline"
+        }
+      }
+    }
+  }
+}

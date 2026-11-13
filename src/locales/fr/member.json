@@ -1,0 +1,168 @@
+{
+  "member": {
+    "dashboard": {
+      "week": "Semaine {current} / {total}",
+      "seeAll": "Tout voir",
+      "open": "Ouvrir",
+      "newReminder": "Nouveau rappel",
+      "failedToLoad": "Le tableau de bord n'a pas pu être chargé.",
+      "subtitle": {
+        "programs": "{count} programme(s)",
+        "facilitator": "Vous animez {count} programme(s)",
+        "founder": "Vous êtes fondateur",
+        "ventures": "{count} venture(s)",
+        "learning": "{count} cours suivi(s)",
+        "investor": "Espace investisseur",
+        "none": "Votre tableau de bord se remplit au fur et à mesure que vous rejoignez un programme, une venture ou un cours."
+      },
+      "section": {
+        "program": {
+          "title": "Mon programme",
+          "subtitle": "Votre progression et ce qui vous attend",
+          "seats": "Mes programmes"
+        },
+        "facilitator": {
+          "title": "Programmes que j'anime",
+          "subtitle": "Les programmes que vous animez, et la suite",
+          "reviews": "Mes revues",
+          "programs": "Programmes assignés"
+        },
+        "ventures": {
+          "title": "Mes ventures",
+          "subtitle": "Les ventures auxquelles vous appartenez",
+          "founderSubtitle": "Les ventures que vous avez fondées",
+          "name": "Venture",
+          "role": "Rôle",
+          "status": "Statut",
+          "founderBadge": "Fondateur",
+          "memberBadge": "Membre",
+          "meetingsLink": "Mes réunions"
+        },
+        "learning": {
+          "title": "Mon apprentissage",
+          "subtitle": "Les cours que vous suivez",
+          "certified": "Certifié",
+          "resume": "Reprendre",
+          "review": "Revoir"
+        },
+        "investor": {
+          "title": "Espace investisseur",
+          "subtitle": "Votre pipeline, votre watchlist et ce qui vous correspond",
+          "dealFlow": "Deal flow",
+          "suggestions": "Suggestions pour vous",
+          "noDetail": "Pas encore de détail",
+          "portfolio": "Portefeuille",
+          "diligence": "Due diligence",
+          "profile": "Profil investisseur"
+        }
+      },
+      "kpi": {
+        "programs": "Programmes",
+        "upcoming": "Séances à venir",
+        "ventures": "Ventures",
+        "courses": "Cours",
+        "lessons": "Leçons",
+        "certificates": "Certificats",
+        "pipeline": "Pipeline",
+        "watchlist": "Watchlist",
+        "invested": "Investi"
+      },
+      "mySpaces": {
+        "title": "Mes espaces",
+        "text": "Tous les espaces de travail et programmes auxquels vous appartenez"
+      },
+      "empty": {
+        "title": "Rien ne vous est encore assigné",
+        "body": "Vous ne faites encore partie d'aucun programme, d'aucune venture ni d'aucun cours. Dès que vous en rejoignez un, il apparaît ici."
+      }
+    },
+    "investor": {
+      "browser": {
+        "title": "Espace investisseur",
+        "individual": "Investisseur individuel",
+        "watchlistAdded": "Ajouté à la watchlist",
+        "watchlistRemoved": "Retiré de la watchlist",
+        "profileGate": {
+          "titleMissing": "Complétez votre profil investisseur",
+          "titlePending": "Compte en attente d'approbation",
+          "bodyMissing": "Créez votre profil investisseur pour accéder à la découverte de ventures et aux opportunités d'investissement.",
+          "bodyPending": "Votre compte investisseur est en cours d'examen. Vous serez notifié dès son approbation.",
+          "cta": "Créer mon profil"
+        },
+        "campaigns": {
+          "active": "Actif",
+          "interested": "{count} intéressé(s)"
+        },
+        "compare": {
+          "selected": "{count} sélectionné(s)",
+          "action": "Comparer",
+          "title": "Comparer",
+          "metric": "Critère",
+          "industry": "Secteur",
+          "country": "Pays",
+          "status": "Statut",
+          "progress": "Progression",
+          "interest": "Intérêt",
+          "investors": "{count} investisseurs",
+          "description": "Description"
+        },
+        "intro": {
+          "title": "Demander une introduction",
+          "lead": "Vous demandez une introduction à",
+          "after": "Future Studio examinera votre demande et coordonnera l'introduction.",
+          "statement": "Note d'intérêt",
+          "placeholder": "Décrivez brièvement pourquoi cette opportunité vous intéresse…",
+          "submit": "Envoyer la demande"
+        },
+        "pipeline": {
+          "all": "Tous ({count})",
+          "emptyTitle": "Pipeline vide",
+          "emptyBody": "Découvrez des ventures et ajoutez-les à votre pipeline.",
+          "openWorkspace": "Ouvrir l'espace"
+        },
+        "meetings": {
+          "untitled": "Réunion",
+          "tbd": "À définir",
+          "at": "à {time}"
+        },
+        "filters": {
+          "min": "Min",
+          "max": "Max"
+        },
+        "grid": {
+          "found": "{count} ventures trouvées",
+          "campaignActive": "Campagne active",
+          "match": "{score}% de correspondance",
+          "removeCompare": "Retirer de la comparaison",
+          "addCompare": "Ajouter à la comparaison",
+          "requestIntro": "Demander une introduction"
+        },
+        "detail": {
+          "activeCampaign": "Campagne active : {name}",
+          "raised": "{amount} levés",
+          "minInvestment": "Investissement minimum",
+          "investors": "Investisseurs",
+          "activeDD": "DD en cours",
+          "closing": "Clôture : {date}",
+          "noDescription": "Aucune description disponible.",
+          "pipelineStatus": "Votre statut dans le pipeline",
+          "addToPipeline": "Ajouter au pipeline",
+          "removeWatchlist": "Retirer de la watchlist",
+          "addWatchlist": "Ajouter à la watchlist"
+        },
+        "watchlist": {
+          "emptyTitle": "Aucune venture enregistrée",
+          "emptyBody": "Mettez des ventures en favori depuis l'onglet Découvrir pour suivre leur progression.",
+          "tracked": "{count} suivie(s)",
+          "readiness": "Maturité",
+          "funding": "Financement",
+          "interest": "Intérêt",
+          "closes": "Clôture {date}",
+          "view": "Voir",
+          "requestIntro": "Demander une intro",
+          "addToPipeline": "Ajouter au pipeline"
+        }
+      }
+    }
+  }
+}

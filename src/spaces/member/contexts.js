@@ -24,6 +24,7 @@ const holdsProfile = (profiles, key) =>
 /** What a person with no relationship at all carries. */
 export const EMPTY_RELATIONSHIPS = {
   isProgramParticipant: false,
+  isFacilitator: false,
   isVentureMember: false,
   isFounder: false,
   isInvestor: false,
@@ -33,9 +34,10 @@ export const EMPTY_RELATIONSHIPS = {
 /**
  * The contexts, in the order their doors appear.
  *
- * `replacesDashboard` means the context owns the person's home screen, so the
- * generic dashboard door is not shown at all (an investor lands in their space,
- * not on a participant dashboard).
+ * No context replaces the dashboard any more. Every member opens the SAME page
+ * (`/dashboard`); each context only adds its own doors beside it. The investor
+ * space used to own the person's home — that is exactly what the unified
+ * dashboard replaces.
  */
 export const MEMBER_CONTEXTS = [
   {
@@ -45,19 +47,18 @@ export const MEMBER_CONTEXTS = [
       holdsProfile(profiles, "investor") ||
       normalizeRole(role) === "investor" ||
       rel?.isInvestor === true,
-    replacesDashboard: true,
     doors: [
       {
         id: "investor",
         name: "INVESTOR SPACE",
         icon: "trendingUp",
-        href: "/member/investor/dashboard",
+        href: "/member/investor/deal-flow",
       },
       {
-        id: "investor_deal_flow",
-        name: "DEAL FLOW",
+        id: "investor_portfolio",
+        name: "PORTFOLIO",
         icon: "briefcase",
-        href: "/member/investor/deal-flow",
+        href: "/member/investor/portfolio",
       },
     ],
   },
@@ -98,7 +99,11 @@ export const MEMBER_CONTEXTS = [
   {
     key: "facilitator",
     labelKey: "contexts.member.facilitator",
-    when: ({ profiles }) => holdsProfile(profiles, "facilitator"),
+    // An actual facilitation assignment is the truth (the dashboard and the
+    // facilitator area's own guard read the same table); the resolved profile is
+    // accepted as well for accounts that carry it without an assignment.
+    when: ({ rel, profiles }) =>
+      rel?.isFacilitator === true || holdsProfile(profiles, "facilitator"),
     doors: [
       {
         id: "my_programs",
@@ -166,16 +171,12 @@ function doorsOf(contexts, key) {
 }
 
 /**
- * The person's home: a team account keeps its own workspace, a founder lands in
- * their founder space, everyone else on the participant dashboard.
+ * The person's home. One address for everyone in the space: a team account
+ * keeps its own workspace, every other member opens `/dashboard`.
  */
-function dashboardDoor(role, rel, founder = rel.isFounder) {
+function dashboardDoor(role) {
   const href =
-    normalizeRole(role) === "team"
-      ? "/member/team"
-      : founder
-        ? "/member/founder"
-        : "/member/participant";
+    normalizeRole(role) === "team" ? "/member/team" : "/dashboard";
   return { id: "dashboard", name: "DASHBOARD", icon: "layoutDashboard", href };
 }
 
@@ -187,14 +188,14 @@ const MESSAGES_DOOR = {
 };
 
 /**
- * Compose the member sidebar: the baseline home, then the doors of every active
- * context, in their declared order.
+ * Compose the member sidebar: the one dashboard first, then the doors of every
+ * active context, in their declared order.
  *
- * Two placements are deliberate and were already the product's behaviour:
- *   - a FOUNDER's ventures door sits with the programme doors (the founder
- *     contract reads Dashboard → Programmes → Ventures), not at the end;
- *   - the investor space owns the home, so it opens first and the generic
- *     dashboard is not shown.
+ * One placement is deliberate and was already the product's behaviour: a
+ * FOUNDER's ventures door sits with the programme doors (the founder contract
+ * reads Dashboard → Programmes → Ventures), not at the end. The investor doors
+ * now come LAST, because the dashboard is no longer replaced by the investor
+ * space.
  */
 export function composeMemberNav({
   role,
@@ -211,9 +212,8 @@ export function composeMemberNav({
     profiles,
   });
   const investor = hasMemberContext(contexts, "investor");
-  const founder = hasMemberContext(contexts, "founder");
 
-  const items = investor ? [] : [dashboardDoor(role, relationships, founder)];
+  const items = [dashboardDoor(role)];
 
   items.push(...doorsOf(contexts, "learner"));
   items.push(...doorsOf(contexts, "program-participant"));
@@ -237,7 +237,8 @@ export function composeMemberNav({
   // door the founder context adds (the venture workspace keeps the rest).
   items.push(...doorsOf(contexts, "founder"));
 
-  if (investor) items.unshift(...doorsOf(contexts, "investor"));
+  // The investor's doors are additions, never a replacement of the home.
+  if (investor) items.push(...doorsOf(contexts, "investor"));
 
   return items;
 }

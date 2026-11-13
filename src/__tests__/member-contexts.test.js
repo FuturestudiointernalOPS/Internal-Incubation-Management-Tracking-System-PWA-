@@ -64,6 +64,11 @@ describe("which contexts are active", () => {
     expect(contexts.map((c) => c.key)).toEqual(["investor"]);
   });
 
+  test("an actual facilitation assignment opens the facilitator context", () => {
+    const contexts = activeMemberContexts({ role: "member", rel: rel({ isFacilitator: true }) });
+    expect(contexts.map((c) => c.key)).toEqual(["facilitator"]);
+  });
+
   test("every context declares a translation key and at least one door", () => {
     for (const context of MEMBER_CONTEXTS) {
       expect(typeof context.labelKey).toBe("string");
@@ -73,13 +78,19 @@ describe("which contexts are active", () => {
       }
     }
   });
+
+  test("no context replaces the dashboard any more", () => {
+    for (const context of MEMBER_CONTEXTS) {
+      expect(context.replacesDashboard).toBeUndefined();
+    }
+  });
 });
 
 describe("the sidebar they compose", () => {
-  test("no relationship at all — dashboard only", () => {
-    expect(ids(composeMemberNav({ role: "member", rel: rel() }))).toEqual([
-      "dashboard",
-    ]);
+  test("no relationship at all — dashboard only, on the one address", () => {
+    const items = composeMemberNav({ role: "member", rel: rel() });
+    expect(ids(items)).toEqual(["dashboard"]);
+    expect(href(items, "dashboard")).toBe("/dashboard");
   });
 
   test("team accounts keep their own home", () => {
@@ -88,12 +99,12 @@ describe("the sidebar they compose", () => {
     expect(href(items, "dashboard")).toBe("/member/team");
   });
 
-  test("a founder lands on the founder home", () => {
+  test("a founder still opens the one dashboard", () => {
     const items = composeMemberNav({
       role: "member",
       rel: rel({ isFounder: true, isProgramParticipant: true }),
     });
-    expect(href(items, "dashboard")).toBe("/member/founder");
+    expect(href(items, "dashboard")).toBe("/dashboard");
   });
 
   test("the learner door follows the dashboard", () => {
@@ -152,22 +163,32 @@ describe("the sidebar they compose", () => {
     expect(ids(items)).toEqual(["dashboard", "ventures", "founder_meetings"]);
   });
 
-  test("an investor's space owns the home — no generic dashboard", () => {
+  test("an investor keeps the dashboard, and the investor doors come last", () => {
     const items = composeMemberNav({
       role: "member",
       rel: rel({ isInvestor: true }),
     });
-    expect(ids(items)).toEqual(["investor", "investor_deal_flow"]);
-    expect(href(items, "investor")).toBe("/member/investor/dashboard");
-    expect(href(items, "investor_deal_flow")).toBe("/member/investor/deal-flow");
+    expect(ids(items)).toEqual(["dashboard", "investor", "investor_portfolio"]);
+    expect(href(items, "dashboard")).toBe("/dashboard");
+    // The main investor door opens the workspace browser; the portfolio is the
+    // second door. There is no third "deal flow" alias any more: that page IS
+    // the browser.
+    expect(href(items, "investor")).toBe("/member/investor/deal-flow");
+    expect(href(items, "investor_portfolio")).toBe("/member/investor/portfolio");
   });
 
-  test("an investor who also participates keeps both, investor first", () => {
+  test("an investor who also participates keeps both, the investor doors last", () => {
     const items = composeMemberNav({
       role: "member",
       rel: rel({ isInvestor: true, isProgramParticipant: true }),
     });
-    expect(ids(items)).toEqual(["investor", "investor_deal_flow", "programs", "certificates"]);
+    expect(ids(items)).toEqual([
+      "dashboard",
+      "programs",
+      "certificates",
+      "investor",
+      "investor_portfolio",
+    ]);
   });
 });
 
@@ -187,10 +208,10 @@ describe("active profiles open the member contexts", () => {
     expect(href(items, "reviews")).toBe("/member/facilitator/reviews");
   });
 
-  test("investor profile replaces the dashboard with the investor space", () => {
+  test("investor profile adds its doors without replacing the dashboard", () => {
     expect(contextKeys(["investor"])).toEqual(["investor"]);
     const items = composeMemberNav({ role: "member", rel: rel(), profiles: ["investor"] });
-    expect(ids(items)).toEqual(["investor", "investor_deal_flow"]);
+    expect(ids(items)).toEqual(["dashboard", "investor", "investor_portfolio"]);
   });
 
   test("learner profile opens learning without an enrollment flag", () => {
@@ -207,10 +228,10 @@ describe("active profiles open the member contexts", () => {
     ).toEqual(["dashboard", "programs", "certificates"]);
   });
 
-  test("founder profile lands on the founder home", () => {
+  test("founder profile opens the founder door, on the one dashboard", () => {
     expect(contextKeys(["founder"])).toEqual(["founder"]);
     const items = composeMemberNav({ role: "member", rel: rel(), profiles: ["founder"] });
-    expect(href(items, "dashboard")).toBe("/member/founder");
+    expect(href(items, "dashboard")).toBe("/dashboard");
     expect(ids(items)).toContain("founder_meetings");
   });
 

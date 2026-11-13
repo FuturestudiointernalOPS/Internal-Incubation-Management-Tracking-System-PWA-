@@ -108,7 +108,7 @@ describe("buildWorkspaceNavigation — the hub list", () => {
       program_id: "p2",
       program_name: "Beta",
       completed: false,
-      href: "/member/participant",
+      href: "/member/participant/p2",
     });
 
     // The legacy staff row is echoed as a program assignment (not mirrored).
@@ -198,7 +198,7 @@ describe("buildWorkspaceNavigation — the hub list", () => {
 
     // The door stays in the hub…
     expect(nav.workspaces).toContainEqual(
-      expect.objectContaining({ program_id: "p9", completed: true, href: "/member/participant" }),
+      expect.objectContaining({ program_id: "p9", completed: true, href: "/member/participant/p9" }),
     );
     // …and the context says it is read-only.
     expect(nav.contexts.program_participations[0]).toEqual(

@@ -51,7 +51,8 @@ jest.mock("@/models/authFlows/passwordReset", () => ({
 jest.mock("@/models/platform/roles", () => ({
   resolveEffectiveRole: jest.fn(() => "staff"),
   resolveLanding: jest.fn(() => "/"),
-  landingNeedsRelationships: jest.fn(() => false),
+  resolveLandingFromAccess: jest.fn(() => "/"),
+  landingFromRightsEnabled: jest.fn(() => false),
 }));
 jest.mock("@/services/authorization/membership", () => ({
   getEffectiveGroupsForUser: jest.fn(async () => []),

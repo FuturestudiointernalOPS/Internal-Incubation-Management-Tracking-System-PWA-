@@ -55,6 +55,13 @@ const SELF_SCOPED_ROUTES = [
     reason: "Relations (programmes/ventures) de l'appelant.",
   },
   {
+    file: "src/app/api/member/dashboard/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason:
+      "Tableau de bord unique de l'appelant : seules ses propres sections sont construites, à partir de ses relations.",
+  },
+  {
     file: "src/app/api/participant/rituals/checkin/route.js",
     methods: ["GET", "POST"],
     scope: "session.cid",

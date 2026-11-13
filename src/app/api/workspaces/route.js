@@ -6,13 +6,9 @@ import {
   resolveLanding,
   resolveLandingFromAccess,
   landingFromRightsEnabled,
-  landingNeedsRelationships,
-  isFounderMembership,
 } from "@/models/platform/roles";
 import { getAuthorizationContext } from "@/models/authorization/index";
 import { getContactStoredRole } from "@/models/workspace";
-import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
-import { resolveParticipantParticipation } from "@/services/participant/participation";
 import {
   readWorkspaceContext,
   writeWorkspaceContext,
@@ -75,7 +71,7 @@ export async function GET(request) {
     // authorization context (src/lib/workspaceContextCache.js).
     const cachedNavigation = readWorkspaceContext(session.cid, scope);
 
-    // ── Phase I3: BASELINE ECHO (informational), read IN THE SAME WAVE ─────
+    // ── Phase I3: BASELINE ECHO (informational) ─────────────────────────────
     // contacts.role is the raw stored role (baseline identity OR legacy
     // contextual value). session.role is what today's gates see (identical to
     // baseline_role unless the I2 legacy-role derivation is enabled, in which
@@ -83,47 +79,23 @@ export async function GET(request) {
     //
     // This read is deliberately fresh and NOT part of the cache: it is what
     // labels the identity chip, and a cached list must never be able to mislabel
-    // the person it belongs to. It rides with the navigation read so that a first
-    // navigation is still ONE wave, and on a cached one it is the only statement.
+    // the person it belongs to. It rides with the navigation read so that a
+    // first navigation is still ONE wave, and on a cached one it is the only
+    // statement.
     //
-    // The investor context rides in the same wave, for the same reason: `home` is
-    // not cached, and whether the person was MADE an investor can move it. It is
-    // answered locally (no statement) for a global identity, whose home never
-    // depends on relationships.
-    //
-    // The program enrollment rides along too: the Participant page is a PROGRAM
-    // seat, so the hub's home button must ask the same question the login asked.
-    const needsRelationshipReads = landingNeedsRelationships(session.role);
-    const [navigation, [
-      storedRoleSettled,
-      investorSettled,
-      participationSettled,
-    ]] = await Promise.all([
+    // The home button no longer reads any relationship: the member space answers
+    // ONE destination for everyone (the unified dashboard), so `home` is decided
+    // from the space alone. The hub's context list keeps its own reads — they
+    // describe the person's workspaces, not their destination.
+    const [navigation, [storedRoleSettled]] = await Promise.all([
       cachedNavigation
         ? cachedNavigation
         : buildWorkspaceNavigation(session, contextsOnly).then((builtNavigation) => {
             writeWorkspaceContext(session.cid, scope, builtNavigation);
             return builtNavigation;
           }),
-      Promise.allSettled([
-        getContactStoredRole(session.cid),
-        needsRelationshipReads
-          ? getApprovedInvestorProfileIdByUserId(session.cid)
-          : Promise.resolve({ rows: [] }),
-        // THE participation rule shared with the menu, the participant
-        // dashboard and the login landing; a completed seat counts too
-        // (read-only), and the older group/program links are honoured.
-        needsRelationshipReads
-          ? resolveParticipantParticipation({ cid: session.cid, email: session.email })
-          : Promise.resolve({ isProgramParticipant: false, memberships: [] }),
-      ]),
+      Promise.allSettled([getContactStoredRole(session.cid)]),
     ]);
-
-    const isInvestor = rowsOf(investorSettled).length > 0;
-    const isProgramParticipant =
-      participationSettled.status === "fulfilled"
-        ? participationSettled.value?.isProgramParticipant === true
-        : false;
 
     const { baselineRole, derivedRole } = deriveBaselineRole(
       session,
@@ -137,7 +109,6 @@ export async function GET(request) {
         accessContext = await getAuthorizationContext(session);
       } catch (_) {}
     }
-    const ventures = navigation.contexts?.venture_memberships || [];
 
     return NextResponse.json({
       success: true,
@@ -150,24 +121,14 @@ export async function GET(request) {
         derived_role: derivedRole,
       },
       // The home button must agree with where the login actually sent this
-      // person: same rule, same data (the memberships just read above), so the
-      // door and the button can never point at two different places.
+      // person: same rule, same data.
       home: landingFromRightsEnabled()
         ? resolveLandingFromAccess({
             role: session.role,
-            ventures,
-            isInvestor,
-            isProgramParticipant,
-            isFounder: ventures.some((membership) => isFounderMembership(membership)),
             profiles: accessContext?.profiles || [],
             effective: accessContext?.effective || null,
           })
-        : resolveLanding({
-            role: session.role,
-            ventures,
-            isInvestor,
-            isProgramParticipant,
-          }),
+        : resolveLanding({ role: session.role }),
       workspaces: navigation.workspaces,
       contexts: navigation.contexts,
     });

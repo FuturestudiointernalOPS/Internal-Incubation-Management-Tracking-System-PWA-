@@ -206,10 +206,14 @@ describe("landing data — every destination is real", () => {
     expect(problems).toEqual([]);
   });
 
-  test("every static address resolves to a page", () => {
+  test("every static address resolves to a page or a rewrite", () => {
+    // A rewritten address is a real destination: the URL the person sees is
+    // served by a route that exists (see src/spaces/redirects.js).
+    const { SPACE_REWRITES } = require("@/spaces/redirects");
+    const rewritten = new Set(SPACE_REWRITES.map((entry) => entry.source));
     const dead = LANDING_PRIORITY.filter((entry) => entry.href)
       .map((entry) => entry.href)
-      .filter((href) => !pageExists(href));
+      .filter((href) => !pageExists(href) && !rewritten.has(href));
     expect(dead).toEqual([]);
   });
 

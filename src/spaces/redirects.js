@@ -60,3 +60,50 @@ export const SPACE_REDIRECTS = [
 export function spaceRedirects({ permanent = SPACE_REDIRECTS_PERMANENT } = {}) {
   return SPACE_REDIRECTS.map((entry) => ({ ...entry, permanent }));
 }
+
+/**
+ * THE RETIRED DASHBOARDS.
+ *
+ * Every member now opens ONE dashboard (`/dashboard`). These four addresses
+ * used to be a separate home per profile, so a founder, an investor, a
+ * facilitator and a participant each saw a different page. They stay as
+ * addresses (bookmarks, links in emails) and lead to the one dashboard; their
+ * own detail screens — my programmes, my courses, the investor workspace, the
+ * facilitator's programme screens, the founder's meetings — are untouched.
+ *
+ * Declared here rather than inline in the Next config so the list is testable
+ * and shares the same temporary/permanent switch as the space migration.
+ */
+export const RETIRED_DASHBOARD_REDIRECTS = [
+  { source: "/member/participant", destination: "/dashboard" },
+  { source: "/member/founder", destination: "/dashboard" },
+  { source: "/member/facilitator", destination: "/dashboard" },
+  { source: "/member/investor/dashboard", destination: "/dashboard" },
+];
+
+/** The retired-dashboard list, with the permanence flag applied. */
+export function retiredDashboardRedirects({
+  permanent = SPACE_REDIRECTS_PERMANENT,
+} = {}) {
+  return RETIRED_DASHBOARD_REDIRECTS.map((entry) => ({ ...entry, permanent }));
+}
+
+/**
+ * THE ADDRESSES SERVED BY A REWRITE.
+ *
+ * A rewrite proxies one address to a route without changing what the person
+ * sees. `/dashboard` is the member space's ONE dashboard: the address is short
+ * and stable, while the screen lives inside the member space's shell group so
+ * the sidebar is mounted once for the whole space.
+ *
+ * Declared here rather than inline in the Next config so the "every advertised
+ * address exists" checks can treat these as real pages.
+ */
+export const SPACE_REWRITES = [
+  { source: "/dashboard", destination: "/member/dashboard" },
+];
+
+/** The rewrite list expected by Next. */
+export function spaceRewrites() {
+  return SPACE_REWRITES.map((entry) => ({ ...entry }));
+}

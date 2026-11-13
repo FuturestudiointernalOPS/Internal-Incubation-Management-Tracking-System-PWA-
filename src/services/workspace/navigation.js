@@ -108,7 +108,9 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
       program_id: row.program_id,
       program_name: row.program_name || row.program_id,
       completed: row.completed === true,
-      href: "/member/participant",
+      // The participant HOME is the unified dashboard now, so a seat opens the
+      // program's own screen instead of an address that redirects away.
+      href: `/member/participant/${row.program_id}`,
     });
   }
 

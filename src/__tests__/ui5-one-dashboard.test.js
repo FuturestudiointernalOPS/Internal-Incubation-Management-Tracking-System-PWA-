@@ -102,7 +102,7 @@ describe("sidebar additions — the doors live in the sidebar", () => {
     // doors; Phase H removed the founder role mask, so this branch is the ONLY
     // source of that ordering.
     expect(ROLE_ACCESS.founder).toBeUndefined();
-    expect(src).toContain("rel.isFounder");
+    expect(src).toContain("relationships.isFounder");
     expect(src).toContain(
       "items.splice(programIndex === -1 ? 1 : programIndex + 2, 0, ...ventureDoors)",
     );
@@ -136,21 +136,18 @@ describe("founder classification — ownership, not the role string", () => {
   });
 });
 
-describe("landing — the participant page follows a program, not the bare badge", () => {
+describe("landing — one member dashboard, decided by the space", () => {
   test("a member has no section of its own in the map", () => {
-    // "member" is what anyone without a role resolves to, so the map cannot
-    // hand out the Participant page as a default. The enrollment does.
+    // "member" is what anyone without a role resolves to. Every member identity
+    // answers the same page; the SECTIONS come from the relationships.
     expect(ROLE_HOME.member).toBeUndefined();
     expect(roleHomeHref("member")).toBeNull();
-    expect(resolveLanding({ role: "member" })).toBe("/member");
-    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/member/participant");
+    expect(resolveLanding({ role: "member" })).toBe("/dashboard");
+    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/dashboard");
   });
 
-  test("the member sidebar Dashboard door points at the dashboard once they have one", () => {
-    // nav contract: buildRoleNav("member") resolves dashboard → /participant.
-    // (The per-page sidebar is built from /api/me/relationships; this locks
-    // the fallback contract so the two can never disagree.)
-    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/member/participant");
+  test("the member sidebar Dashboard door points at the dashboard", () => {
+    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/dashboard");
   });
 
   test("the sidebar never keys the dashboard href off sessionRole", () => {
@@ -159,17 +156,17 @@ describe("landing — the participant page follows a program, not the bare badge
     // /workspaces. The personal branch must resolve the href from activeRole.
     const src = read(DASHBOARD) + read(NAV_HOOK) + read(MEMBER_CONTEXTS);
     expect(src).not.toMatch(/homeRole\s*=\s*sessionRole/);
-    // The home is resolved from the CONNECTED role (activeRole), never from the
-    // session badge; the branches live in the member context module.
+    // The home is the ONE member address; only an entity account has its own.
     expect(src).toContain('normalizeRole(role) === "team"');
     expect(src).toContain('"/member/team"');
-    expect(src).toContain('"/member/participant"');
+    expect(src).toContain('"/dashboard"');
   });
 
   test("the other surfaces are unchanged", () => {
     expect(roleHomeHref("staff")).toBe("/staff");
     expect(roleHomeHref("super_admin")).toBe("/admin");
-    expect(roleHomeHref("participant")).toBe("/member/participant");
+    // The retired member labels all answer the one dashboard.
+    expect(roleHomeHref("participant")).toBe("/dashboard");
   });
 });
 

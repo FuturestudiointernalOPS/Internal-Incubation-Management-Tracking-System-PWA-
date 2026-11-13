@@ -116,27 +116,37 @@ export function resolveEffectiveRole({
 }
 
 /**
+ * THE ONE MEMBER DASHBOARD.
+ *
+ * Every member-space identity lands here, whatever they are inside the space
+ * (participant, facilitator, venture member, founder, learner, investor). The
+ * page is the same one for all of them; the SECTIONS it shows are decided from
+ * the relationships the person actually holds, never from the badge.
+ */
+export const MEMBER_HOME = "/dashboard";
+
+/**
  * Where each GLOBAL role lands after login. Single source of truth shared by
  * the login redirect and the workspaces hub so the hub's "My Dashboard"
  * button can never drift from the real login routing.
  *
- * A PERSONAL identity deliberately has NO entry here: "member" is what anyone
- * without a role resolves to, so the map cannot hand it the Participant page as
- * a default. That page is a PROGRAM seat — an enrollment, an owned Venture or
- * an approved investor profile decides it (see `resolveLanding`), and the
- * neutral hub is the destination that refuses nobody.
+ * A PERSONAL identity has no section of its own: "member" is what anyone
+ * without a role resolves to, so it cannot carry a destination. Every
+ * member-space identity resolves to the one dashboard (`MEMBER_HOME`); the
+ * retired context labels below are kept only for callers that still hold a
+ * stored one, and they all answer the same page now.
  *
- * Roles not listed here (or dynamic targets like team/founder) fall back to
- * the neutral /workspaces hub.
+ * Roles not listed here still resolve through their SPACE (`spaceForRole`),
+ * and an entity account (team) keeps its own workspace.
  */
 export const ROLE_HOME = {
   super_admin: "/admin",
   program_manager: "/staff/program-manager",
   staff: "/staff",
-  facilitator: "/member/facilitator",
-  participant: "/member/participant",
+  facilitator: MEMBER_HOME,
+  participant: MEMBER_HOME,
   finance: "/staff/finance",
-  investor: "/member/investor/dashboard",
+  investor: MEMBER_HOME,
 };
 
 export function roleHomeHref(role) {
@@ -158,31 +168,36 @@ function holdsRight(effective, module, capability) {
 }
 
 /**
- * Étape 4 — where a person belongs, from their space, profiles, relationships
- * and (when available) their effective rights. The priority list is data
+ * Which space a session role works in. `spaceForRole` is the registry's answer;
+ * a legacy global label that has a section of its own (`finance`, `crm`) but is
+ * not a registry identity is derived from its home address.
+ */
+function landingSpace(role) {
+  const space = spaceForRole(role);
+  if (space) return space;
+  const home = roleHomeHref(role);
+  if (home && home.startsWith("/admin")) return "admin";
+  if (home && home.startsWith("/staff")) return "staff";
+  return "member";
+}
+
+/**
+ * Étape 4 — where a person belongs, from their space, profiles and (when
+ * available) their effective rights. The priority list is data
  * (`authorization/landingData.js`); this function only evaluates it.
+ *
+ * The member space answers ONE destination for every member: the unified
+ * dashboard. An entity account (team) is the one exception, because it is the
+ * account itself rather than a person whose relationships would be read.
  */
 export function resolveLandingFromAccess({
   role,
   teamId = null,
   profiles = [],
-  ventures = [],
-  isInvestor = false,
-  isProgramParticipant = false,
-  isFounder = false,
   effective = null,
 } = {}) {
-  const space = spaceForRole(role) || "member";
+  const space = landingSpace(role);
   const profileList = Array.isArray(profiles) ? profiles : [];
-  const owned = (ventures || []).filter(
-    (venture) => isActiveVenture(venture) && isFounderMembership(venture),
-  );
-  const signals = {
-    isInvestor: isInvestor === true,
-    isFounder:
-      isFounder === true || (ventures || []).some((venture) => isFounderMembership(venture)),
-    isProgramParticipant: isProgramParticipant === true,
-  };
 
   for (const destination of LANDING_PRIORITY) {
     if (destination.space && destination.space !== space) continue;
@@ -193,33 +208,20 @@ export function resolveLandingFromAccess({
       continue;
     }
 
-    const hasSignal = Boolean(destination.profile || destination.relationship);
-    const profileOk = destination.profile
-      ? profileList.includes(destination.profile)
-      : false;
-    const relationshipOk = destination.relationship
-      ? signals[destination.relationship] === true
-      : false;
-    const signalOk = hasSignal ? profileOk || relationshipOk : true;
-    if (!signalOk) continue;
+    const hasSignal = Boolean(destination.profile);
+    if (hasSignal && !profileList.includes(destination.profile)) continue;
 
     if (destination.capability) {
       const { module, capability } = destination.capability;
       const right = holdsRight(effective, module, capability);
       if (right === false) continue;
-      // Unknown matrix: only a profile/relationship can still justify the
-      // destination. A capability-only entry waits for the real matrix.
+      // Unknown matrix: only a profile can still justify the destination. A
+      // capability-only entry waits for the real matrix.
       if (right === null && !hasSignal) continue;
     }
 
     if (destination.kind === "team") {
       return teamId ? `/member/team/${teamId}` : "/member/team";
-    }
-    if (destination.kind === "owned-venture") {
-      if (owned.length === 1 && owned[0].venture_id) {
-        return `/member/participant/ventures/${owned[0].venture_id}`;
-      }
-      continue;
     }
     if (destination.href) return destination.href;
   }
@@ -227,7 +229,7 @@ export function resolveLandingFromAccess({
   // Space home: the structural fallback, never a role-label branch.
   if (space === "admin") return "/admin";
   if (space === "staff") return "/staff";
-  return "/member";
+  return MEMBER_HOME;
 }
 
 /**
@@ -242,71 +244,31 @@ export function isFounderMembership(row) {
   return String(row?.member_type || "").toLowerCase() === "founder" || owner;
 }
 
-/** A Venture is active unless the membership row says otherwise. */
-const isActiveVenture = (row) =>
-  String(row?.status || row?.venture_status || "active").toLowerCase() === "active";
 
-/**
- * Whether the LANDING depends on what the person belongs to.
- *
- * A global identity works in a section of the platform, so its home never
- * depends on a relationship — which is also why reading them for such a person
- * would be wasted work. A PERSONAL identity is the opposite: it has no section
- * of its own, and the Participant surface is a PROGRAM seat, so a relationship
- * read is exactly what decides it.
- */
-export function landingNeedsRelationships(role) {
-  const normalizedRole = String(role || "").trim().toLowerCase();
-  if (normalizedRole === "team") return false; // an entity account, not a person
-  const home = roleHomeHref(normalizedRole);
-  // No section of its own, or the Participant surface: both are decided by the
-  // person's actual enrollments/memberships.
-  return !home || home === "/member/participant";
-}
 
 /**
  * WHERE A PERSON BELONGS AFTER SIGNING IN — the single answer shared by the
- * login redirect, the neutral hub's home button and the root bounce page.
+ * login redirect, the workspaces hub's home button and the root bounce page.
  *
- * Two questions, asked in this order, because they are not the same question:
+ * Two questions, asked in this order:
  *
- *   1. A GLOBAL identity owns a whole SECTION: where that person works follows
- *      from being staff, a program manager, the platform's administrator. A
- *      Venture they happen to own is one of their doors, not their desk.
- *   2. Everyone else lives in the PERSONAL world, where the RELATIONSHIPS
- *      decide. Founding exactly one active Venture is the case the product
- *      wants to land directly inside it. That is a fact about what the person
- *      The baseline badge ("member") cannot express it — which is why
- *      the old badge-keyed shortcut only ever fired for legacy accounts.
- *      Founding SEVERAL active Ventures is deliberately left unresolved: the
- *      rule refuses to choose one of them for the person. They get the neutral
- *      hub (which lists every context they hold), or the Participant page when
- *      they are also enrolled in a programme.
- *      Being MADE an investor (an approved investor context) is the same kind
- *      of fact, so it lands in the investor space for the same reason.
+ *   1. Is this an ENTITY account? A team login IS the account, not a person:
+ *      it keeps its own workspace.
+ *   2. Otherwise, does the identity own a SECTION? Staff, a program manager and
+ *      the platform owner work in their own section, whatever they also happen
+ *      to own (a Venture is one of their doors, not their desk).
  *
- * Precedence inside the personal world: an owned Venture first (the existing
- * single-Venture shortcut is unchanged), then an approved investor context,
- * then a PROGRAM ENROLLMENT. A person who owns a Venture also gets the
- * investor door in the sidebar; the Venture still wins the landing.
+ * Everyone else belongs to the member space, and the member space has ONE home:
+ * `/dashboard`. The page is identical for a participant, a facilitator, a
+ * venture member, a founder, a learner and an investor — what changes is which
+ * SECTIONS it shows, and that is decided by the dashboard's own read from the
+ * relationships the person really holds.
  *
- * The Participant page is a PROGRAM seat, not the resting place of every
- * personal identity: "member" is what anyone with no role resolves to, so it
- * cannot, on its own, open a page reserved for a program's participants. A
- * person with no program, no Venture and no investor context is offered the
- * neutral hub, which lists the contexts they really hold.
- *
- * The last resort is that neutral hub, which refuses nobody, so no branch here
- * can strand someone.
+ * This is why the landing no longer branches on memberships: sending a founder
+ * into their Venture, or an investor into an investor-only page, would give two
+ * members two different dashboards again.
  */
-export function resolveLanding({
-  role,
-  teamId = null,
-  ventures = [],
-  isInvestor = false,
-  isProgramParticipant = false,
-  profiles = [],
-} = {}) {
+export function resolveLanding({ role, teamId = null, profiles = [] } = {}) {
   const normalizedRole = String(role || "").trim().toLowerCase();
 
   // An entity login IS the account (a team, a family), not a person whose
@@ -319,28 +281,12 @@ export function resolveLanding({
     return roleHomeHref("program_manager");
   }
 
-  const home = roleHomeHref(normalizedRole);
-  if (!landingNeedsRelationships(normalizedRole)) return home;
-
-  const owned = (ventures || []).filter((venture) => isActiveVenture(venture) && isFounderMembership(venture));
-  // Exactly one active Venture: the product wants to land inside it. Several:
-  // the rule refuses to pick one, so it falls through to the hub below (or to
-  // the Participant page when the person is also enrolled in a programme).
-  if (owned.length === 1 && owned[0].venture_id) {
-    return `/member/participant/ventures/${owned[0].venture_id}`;
+  const space = landingSpace(normalizedRole);
+  if (space === "admin" || space === "staff") {
+    return roleHomeHref(normalizedRole) || `/${space}`;
   }
 
-  // An approved investor context is a relationship the badge cannot carry:
-  // a baseline member who was taken as an investor belongs in their investor
-  // space, not on the empty participant dashboard.
-  if (isInvestor) return roleHomeHref("investor");
-
-  // THE PARTICIPANT PAGE IS A PROGRAM SEAT. Only an actual enrollment hands
-  // out that destination; without one the person is offered the neutral hub,
-  // which lists the contexts they really hold and refuses nobody.
-  if (!isProgramParticipant) return "/member";
-
-  return home || "/member/participant";
+  return MEMBER_HOME;
 }
 
 /**

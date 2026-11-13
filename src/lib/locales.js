@@ -50,6 +50,7 @@ import enMembership from "@/locales/en/membership.json";
 import enGoogleCalendar from "@/locales/en/googleCalendar.json";
 import enDataRoom from "@/locales/en/dataRoom.json";
 import enCreation from "@/locales/en/creation.json";
+import enMember from "@/locales/en/member.json";
 
 // ─── Deep merge: recursively merges objects ───
 // IMPORTANT: If the target already holds an object for a given key,
@@ -122,6 +123,7 @@ export const EN = [
   enGoogleCalendar,
   enDataRoom,
   enCreation,
+  enMember,
 ].reduce((merged, module) => deepMerge(merged, module), {});
 
 // Languages that HAVE arrived. `en` is there from the start; the others are
@@ -176,6 +178,7 @@ const LOADERS = {
       import("@/locales/fr/googleCalendar.json"),
       import("@/locales/fr/dataRoom.json"),
       import("@/locales/fr/creation.json"),
+      import("@/locales/fr/member.json"),
     ]),
 };
 

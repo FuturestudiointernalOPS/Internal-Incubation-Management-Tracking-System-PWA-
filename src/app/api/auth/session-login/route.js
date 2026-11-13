@@ -9,16 +9,11 @@ import {
   resolveLanding,
   resolveLandingFromAccess,
   landingFromRightsEnabled,
-  landingNeedsRelationships,
-  isFounderMembership,
 } from "@/models/platform/roles";
 import { getAuthorizationContext } from "@/models/authorization/index";
 import { getEffectiveGroupsForUser } from "@/services/authorization/membership";
 import { listActiveProfileKeys } from "@/models/authorization/profileAssignmentsStore";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
-import { getVentureMembershipsForContact } from "@/models/contacts/programMembership";
-import { resolveParticipantParticipation } from "@/services/participant/participation";
-import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
 import {
   getContactByEmailOrCid,
   getTeamByUsernameForSessionLogin,
@@ -230,57 +225,13 @@ export async function POST(req) {
       legacySa: user.id === "sa",
     });
 
-    // The person's Venture memberships are read ONCE here, because two rules in
-    // this route need them: whether an unassigned participant is really neutral,
-    // and where this person belongs (§7b). They replace a narrower probe that
-    // looked in only ONE of the two identity columns and ignored removals — so
-    // someone removed from a Venture, or recorded under the other column, was
-    // judged to have no relationship at all and could lose the participant
-    // identity on the spot.
-    //
-    // The approved investor context rides in the same wave: a baseline "member"
-    // who has been made an investor belongs in the investor space, and that fact
-    // lives in their investor profile, not in their badge.
-    //
-    // The PROGRAM ENROLLMENT rides in it too: the Participant page is a program
-    // seat, so whether this person is actually enrolled is what decides whether
-    // they may land on it at all (§7b).
-    //
-    // A global identity's landing never depends on these, so such a login pays
-    // for no extra read.
-    let ventureMemberships = [];
-    let isInvestor = false;
-    let isProgramParticipant = false;
-    // A family login's person is the registration id it acts as; every other
-    // login uses the contact id.
-    const landingCid = isFamilyLogin ? user.registration_id : userCid;
-    if (!isTeamLogin && landingNeedsRelationships(finalRole)) {
-      try {
-        const [
-          ventureMembershipsResult,
-          investorProfileResult,
-          participation,
-        ] = await Promise.all([
-          getVentureMembershipsForContact(landingCid),
-          getApprovedInvestorProfileIdByUserId(landingCid),
-          // THE participation rule shared with the menu, the dashboard and the
-          // workspace hub: a completed seat still counts (read-only), and the
-          // older group/program links are honoured.
-          resolveParticipantParticipation({
-            cid: landingCid,
-            email: user.shared_email || user.email || "",
-          }),
-        ]);
-        ventureMemberships = ventureMembershipsResult.rows || [];
-        isInvestor = (investorProfileResult.rows || []).length > 0;
-        isProgramParticipant = participation.isProgramParticipant === true;
-      } catch (_) {}
-    }
+    // A global identity's landing never depends on a membership, and the member
+    // space now answers ONE home for everyone (the unified dashboard). The three
+    // relationship reads this route used to pay for — Ventures, the approved
+    // investor profile and the program seat — are no longer needed to choose a
+    // destination, so a login no longer pays for them.
 
-    // (The old "participant with no relationship → member" downgrade is gone:
-    // member IS the personal identity now. The relationship decides the landing,
-    // never the identity.)
-
+    // --- 7. BUILD RESPONSE USER ---
     // D-1 — the landing of a staff member carrying the program-manager PROFILE
     // is the PM space. Profiles are read only for a baseline staff identity, so
     // every other login keeps its previous cost.
@@ -340,20 +291,14 @@ export async function POST(req) {
     }
 
     // --- 7b. WHERE THIS PERSON BELONGS ---
-    // Decided HERE, from the relationships just read, and returned WITH the
-    // identity: every client surface that already holds the signed-in person
-    // (the login redirect, the root bounce) then uses this same answer instead of
-    // re-deriving a destination from a badge that cannot carry the context.
-    // The rule itself lives in src/models/platform/roles.js.
+    // Decided HERE and returned WITH the identity: every client surface that
+    // already holds the signed-in person (the login redirect, the root bounce)
+    // then uses this same answer instead of re-deriving a destination from a
+    // badge that cannot carry the context. The rule itself lives in
+    // src/models/platform/roles.js.
     const landingContext = {
       role: responseUser.role,
       teamId: responseUser.team_id || null,
-      ventures: ventureMemberships,
-      isInvestor,
-      isProgramParticipant,
-      isFounder: ventureMemberships.some((membership) =>
-        isFounderMembership(membership),
-      ),
       profiles: accessContext?.profiles || activeProfiles,
       effective: accessContext?.effective || null,
     };

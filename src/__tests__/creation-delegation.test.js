@@ -82,7 +82,8 @@ describe("creation is an action, not a sidebar section", () => {
   test("the actions are rendered on the dashboards and the list views", () => {
     // Dashboards (the person's own landing) …
     expect(read("src/spaces/staff/core/components/StaffDashboard.js")).toContain("CreateActions");
-    expect(read("src/components/shared/dashboard/ParticipantDashboardHome.js")).toContain("CreateActions");
+    // The ONE member dashboard (every member lands there).
+    expect(read("src/spaces/member/core/DashboardScreen.js")).toContain("CreateActions");
     // … the neutral hub a personal account lands on without a program …
     expect(read("src/app/member/page.js")).toContain("CreateActions");
     // … and the views the records live in.

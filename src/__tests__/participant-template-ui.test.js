@@ -8,35 +8,9 @@ jest.mock("@/lib/i18n", () => ({ useI18n: () => ({ lang: "en", t: (key, paramete
   return Object.entries(parameters).reduce((text, [name, v]) => text.replaceAll(`{${name}}`, v), value);
 } }) }));
 jest.mock("@/components/ui/DialogProvider", () => ({ useDialogs: () => ({ confirm: jest.fn().mockResolvedValue(true), alert: jest.fn() }) }));
-jest.mock("@/lib/PermissionProvider", () => ({ usePermissions: () => ({ can: () => false }) }));
-let mockRole = "participant";
-let mockInvestor = false;
-jest.mock("@/lib/hooks/useSessionUser", () => ({ useSessionUser: () => ({ user: { cid: "P1", role: mockRole }, role: mockRole }) }));
-const mockHome = {
-  success: true, participant: { cid: "P1", name: "Amina Koné" },
-  primaryProgram: { id: "program1", name: "Come UP", currentWeek: 2, durationWeeks: 12, metrics: { programCompletion: 25, attendanceRate: 50, assignmentCompletion: 20, kpiCompletion: 30 } },
-  programs: [{ id: "program1" }], calendarEvents: [], announcements: [],
-  actionCenter: { overdue: [], dueSoon: [], pendingSubmissions: [], upcomingSessions: [] },
-};
-const mockCourses = [{ course: { id: "course1", title: "Real course" }, progress: { percent: 50, completedLessons: 2, totalLessons: 4 } }];
-// The cross-program report: its figures differ from the primary program's on
-// purpose, so a screen that reads the primary program can be told apart.
-const mockProgress = {
-  success: true,
-  overall: { programCompletion: 60, attendanceRate: 75, assignmentCompletion: 100, kpiCompletion: 80, ritualParticipation: 50 },
-  totals: { submissions: 4, approved: 4, sessions: 4, attended: 3, deliverables: 5, completedDeliverables: 3, rituals: 2, programs: 2 },
-};
-jest.mock("@/lib/hooks/useApi", () => ({
-  useApi: (url, options) => {
-    const payload = url === "/api/me/relationships" ? { success: true, isInvestor: mockInvestor } : url === "/api/participant/home" ? mockHome : url === "/api/participant/progress" ? mockProgress : { success: true, courses: mockCourses };
-    return { data: options.transform ? options.transform(payload) : payload, loading: false, error: null, refresh: jest.fn() };
-  },
-  useApiMulti: () => ({ data: {}, loading: false, error: null }),
-}));
 const { default: ParticipantCommandCalendar, calendarRange, placeCalendarItems } = require("@/components/ui/ParticipantCommandCalendar");
-const ParticipantDashboardHome = require("@/components/shared/dashboard/ParticipantDashboardHome").default;
 
-beforeEach(() => { mockRole = "participant"; mockInvestor = false; jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-08T12:00:00Z")); });
+beforeEach(() => { jest.useFakeTimers(); jest.setSystemTime(new Date("2026-10-08T12:00:00Z")); });
 afterEach(() => { cleanup(); jest.useRealTimers(); });
 
 test("month starts from its own month even when the first day is a Sunday", () => {
@@ -75,36 +49,4 @@ test("local reminder validates duration, can be added, and is found by search", 
   fireEvent.change(screen.getByLabelText("Search"), { target: { value: "pitch" } });
   fireEvent.click(screen.getByRole("button", { name: "Week" }));
   expect(screen.getByRole("button", { name: /Prepare pitch/ })).toBeTruthy();
-});
-test("dashboard keeps course links and omits the removed shortcut and ritual sections", () => {
-  render(<ParticipantDashboardHome />);
-  expect(screen.getByText("Welcome back, Amina")).toBeTruthy();
-  expect(screen.getByRole("link", { name: /Real course/ }).getAttribute("href")).toBe("/member/participant/learning/course1");
-  expect(screen.queryByRole("link", { name: /Assignments/ })).toBeNull();
-  expect(screen.queryByRole("heading", { name: /Shortcuts|My rituals/ })).toBeNull();
-  expect(screen.queryByRole("link", { name: /Messages/ })).toBeNull();
-  expect(screen.queryByText("Your weekly recap")).toBeNull();
-});
-
- test.each([["investor", false], ["member", true]])("investor account %s does not see participant learning, progress or attention blocks", (role, investor) => {
-  mockRole = role; mockInvestor = investor;
-  render(<ParticipantDashboardHome />);
-  expect(screen.queryByRole("link", { name: /All my courses/i })).toBeNull();
-  expect(screen.queryByRole("heading", { name: /My Learning|Your Progress|Overdue|Due Soon|Pending/i })).toBeNull();
-  expect(screen.getByRole("link", { name: /View all announcements/i })).toBeTruthy();
-});
- test("participant keeps the attention and learning blocks, and the progress section reads every program", () => {
-  render(<ParticipantDashboardHome />);
-  // The "Your Progress" section is back, and it reads the cross-program report:
-  // its figures are the overall ones, never the primary program's own rates.
-  expect(screen.getByRole("heading", { name: "Your Progress" })).toBeTruthy();
-  expect(screen.getByRole("link", { name: /View my progress/i }).getAttribute("href")).toBe("/member/participant/progress");
-  expect(screen.getByText("3/5 deliverables")).toBeTruthy();
-  expect(screen.getByText("4/4 approved")).toBeTruthy();
-  expect(screen.getByText("3/4 sessions")).toBeTruthy();
-  // The primary program's own rates (25 % completion, 30 % KPI) are gone.
-  expect(screen.queryByText("25%")).toBeNull();
-  expect(screen.queryByText("30%")).toBeNull();
-  expect(screen.getByRole("heading", { name: /Overdue/i })).toBeTruthy();
-  expect(screen.getByRole("link", { name: /All my courses/i })).toBeTruthy();
 });

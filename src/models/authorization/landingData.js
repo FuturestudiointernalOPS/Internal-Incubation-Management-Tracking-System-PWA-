@@ -7,15 +7,24 @@
  *   space        "admin" | "staff" | "member" — the structural space
  *   role         an exact session role (only `team` uses it)
  *   profile      an active profile key
- *   relationship a boolean fact (isInvestor, isFounder, isProgramParticipant)
  *   capability   { module, capability } — the right the destination requires
- *   kind         "owned-venture" | "team" for destinations whose href is dynamic
+ *   kind         "team" for destinations whose href is dynamic
  *
- * A profile and a relationship on the same entry are alternatives (either one
- * opens it). A capability is required IN ADDITION when present.
+ * The decision engine never reads a destination out of thin air: it walks this
+ * list and stops at the first entry whose condition holds.
  *
- * The decision engine never reads this file: it is consumed by
- * `resolveLandingFromAccess` in `models/platform/roles.js`.
+ * ── The member space has ONE home ────────────────────────────────────────────
+ * Every member-space identity resolves to `/dashboard`. The page no longer
+ * changes with a membership: a founder, an investor, a facilitator and a
+ * learner all open the SAME dashboard, and the sections inside it are decided
+ * by the dashboard's own read (see `services/member/dashboard.js`). There is
+ * therefore no "owned venture" or "investor" destination here any more — those
+ * were the two ways the product used to give two members two dashboards.
+ *
+ * The only member-space exception is `team`: an entity account is the account
+ * itself, not a person, and keeps its own workspace.
+ *
+ * Consumed by `resolveLandingFromAccess` in `models/platform/roles.js`.
  */
 
 export const LANDING_PRIORITY = [
@@ -45,38 +54,8 @@ export const LANDING_PRIORITY = [
   },
   { key: "staff_home", href: "/staff", space: "staff" },
 
-  // ── Member contexts ──────────────────────────────────────────────────────
+  // ── Member space ─────────────────────────────────────────────────────────
   { key: "team", kind: "team", space: "member", role: "team" },
-  // Exactly one active owned venture: the person lands inside it. Several
-  // ventures is deliberately not a decision the rule takes for them.
-  { key: "owned_venture", kind: "owned-venture", space: "member" },
-  {
-    key: "investor",
-    href: "/member/investor/dashboard",
-    space: "member",
-    profile: "investor",
-    relationship: "isInvestor",
-  },
-  {
-    key: "founder",
-    href: "/member/founder",
-    space: "member",
-    profile: "founder",
-    relationship: "isFounder",
-  },
-  {
-    key: "facilitator",
-    href: "/member/facilitator",
-    space: "member",
-    profile: "facilitator",
-  },
-  {
-    key: "participant",
-    href: "/member/participant",
-    space: "member",
-    profile: "participant",
-    relationship: "isProgramParticipant",
-  },
-  // The neutral member hub refuses nobody.
-  { key: "member_hub", href: "/member", space: "member" },
+  // THE one member dashboard, for every member.
+  { key: "member_home", href: "/dashboard", space: "member" },
 ];

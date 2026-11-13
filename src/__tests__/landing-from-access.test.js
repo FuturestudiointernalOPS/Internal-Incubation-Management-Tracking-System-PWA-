@@ -1,24 +1,17 @@
 /**
- * Étape 4 — landing from access (the default-off rule).
+ * Étape 4 — landing from access (the data-driven rule).
  *
  * The priority list is data; this suite pins the evaluation:
  *   - the structural space home is the fallback, never a role-label branch;
- *   - a profile or a relationship opens a member context;
  *   - a capability gates the staff/owner destinations;
- *   - exactly one owned venture wins over the generic member home.
+ *   - the member space answers ONE destination for every member, whatever
+ *     relationship or profile they hold (the sections are decided by the
+ *     dashboard's own read, not by the landing).
  */
 
 const {
   resolveLandingFromAccess,
 } = require("@/models/platform/roles");
-
-const venture = (overrides = {}) => ({
-  venture_id: "VNT-1",
-  status: "active",
-  member_type: "founder",
-  is_owner: true,
-  ...overrides,
-});
 
 describe("landing from access — staff and owner", () => {
   test("the owner lands on the admin home", () => {
@@ -70,7 +63,7 @@ describe("landing from access — staff and owner", () => {
   });
 });
 
-describe("landing from access — member contexts", () => {
+describe("landing from access — one member home", () => {
   test("a team account keeps its workspace", () => {
     expect(resolveLandingFromAccess({ role: "team", teamId: 7 })).toBe(
       "/member/team/7",
@@ -78,83 +71,21 @@ describe("landing from access — member contexts", () => {
     expect(resolveLandingFromAccess({ role: "team" })).toBe("/member/team");
   });
 
-  test("an investor profile lands in the investor space", () => {
-    expect(
-      resolveLandingFromAccess({ role: "member", profiles: ["investor"] }),
-    ).toBe("/member/investor/dashboard");
+  test.each([
+    "member",
+    "participant",
+    "founder",
+    "facilitator",
+    "investor",
+    "security_officer",
+  ])("%s lands on the dashboard", (role) => {
+    expect(resolveLandingFromAccess({ role })).toBe("/dashboard");
   });
 
-  test("an investor relationship lands in the investor space", () => {
-    expect(
-      resolveLandingFromAccess({ role: "member", isInvestor: true }),
-    ).toBe("/member/investor/dashboard");
-  });
-
-  test("exactly one owned active venture wins over the member home", () => {
-    expect(
-      resolveLandingFromAccess({
-        role: "member",
-        ventures: [venture()],
-        profiles: ["investor"],
-      }),
-    ).toBe("/member/participant/ventures/VNT-1");
-  });
-
-  test("several owned ventures fall to the founder home, not one venture", () => {
-    expect(
-      resolveLandingFromAccess({
-        role: "member",
-        ventures: [venture(), venture({ venture_id: "VNT-2" })],
-      }),
-    ).toBe("/member/founder");
-  });
-
-  test("several ventures without a founder context keep the member hub", () => {
-    const memberVenture = (ventureId) =>
-      venture({ venture_id: ventureId, member_type: "team_member", is_owner: false });
-    expect(
-      resolveLandingFromAccess({
-        role: "member",
-        ventures: [memberVenture("VNT-1"), memberVenture("VNT-2")],
-      }),
-    ).toBe("/member");
-  });
-
-  test("a founder profile lands on the founder home", () => {
-    expect(
-      resolveLandingFromAccess({ role: "member", profiles: ["founder"] }),
-    ).toBe("/member/founder");
-  });
-
-  test("a facilitator profile lands on the facilitator space", () => {
-    expect(
-      resolveLandingFromAccess({ role: "member", profiles: ["facilitator"] }),
-    ).toBe("/member/facilitator");
-  });
-
-  test("a participant profile lands on the participant dashboard", () => {
-    expect(
-      resolveLandingFromAccess({ role: "member", profiles: ["participant"] }),
-    ).toBe("/member/participant");
-  });
-
-  test("a program relationship lands on the participant dashboard", () => {
-    expect(
-      resolveLandingFromAccess({
-        role: "member",
-        isProgramParticipant: true,
-      }),
-    ).toBe("/member/participant");
-  });
-
-  test("no signal falls back to the neutral member hub", () => {
-    expect(resolveLandingFromAccess({ role: "member" })).toBe("/member");
-  });
-
-  test("an unknown identity is treated as a personal identity", () => {
-    expect(resolveLandingFromAccess({ role: "security_officer" })).toBe(
-      "/member",
-    );
+  test("profiles do not open a separate destination any more", () => {
+    for (const profiles of [["investor"], ["founder"], ["facilitator"], ["participant"]]) {
+      expect(resolveLandingFromAccess({ role: "member", profiles })).toBe("/dashboard");
+    }
   });
 });
 

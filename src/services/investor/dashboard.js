@@ -117,6 +117,72 @@ export function scoreVentures({ profile, ventures, mode = "deal_flow_only" }) {
  * empty payload. Recommendation, campaign and relationship blocks are each
  * best-effort: a failure there never fails the whole dashboard.
  */
+/**
+ * The compact investor block the unified member dashboard shows.
+ *
+ * The full investor dashboard also carries campaigns, relationship workspaces
+ * and their meetings (an N+1 by design, because every relationship shows its
+ * next meetings). None of that belongs on a page that every member opens: the
+ * unified dashboard needs the figures and a few led candidates, and the deal
+ * flow / portfolio screens keep the browsing.
+ *
+ * Returns `null` when the person holds no investor profile, which is what makes
+ * the section disappear entirely instead of rendering empty figures.
+ */
+export async function buildInvestorDashboardSummary({ session }) {
+  const profileResult = await getInvestorDashboardProfile(session.cid || session.id);
+  const profile = profileResult.rows[0];
+  if (!profile) return null;
+
+  const mode = profile.visibility_mode || "deal_flow_only";
+
+  const [statsResult, watchlistCount] = await Promise.all([
+    getInvestorPipelineStats(profile.id),
+    countInvestorWatchlist(profile.id),
+  ]);
+
+  let recommendations = [];
+  try {
+    if (mode === "deal_flow_only") {
+      const dealFlow = await listActiveDealFlowEntriesWithVenture();
+      recommendations = scoreVentures({
+        profile,
+        mode,
+        ventures: (dealFlow.rows || []).map((row) => ({
+          ...row,
+          raise_amount: row.target_amount,
+        })),
+      });
+    } else {
+      const allVentures = await listActiveVenturesForRecommendations();
+      recommendations = scoreVentures({ profile, ventures: allVentures.rows, mode });
+    }
+
+    recommendations = recommendations.map((venture) =>
+      investorVentureCard(venture, {
+        mode,
+        dealFlow:
+          mode === "deal_flow_only"
+            ? { target_amount: venture.raise_amount, currency: venture.currency }
+            : null,
+      }),
+    );
+  } catch (_) {}
+
+  return {
+    profile: {
+      name: profile.full_name || profile.name || null,
+      organization: profile.organization || null,
+      visibility_mode: mode,
+    },
+    stats: {
+      ...statsResult.rows[0],
+      watchlist_count: parseInt(watchlistCount.rows[0]?.count || 0),
+    },
+    recommendations: recommendations.slice(0, 4),
+  };
+}
+
 export async function buildInvestorDashboard({ session }) {
   const profileResult = await getInvestorDashboardProfile(session.cid || session.id);
   const profile = profileResult.rows[0];
