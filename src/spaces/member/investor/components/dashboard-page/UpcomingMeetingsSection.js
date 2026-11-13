@@ -28,10 +28,10 @@ export default function UpcomingMeetingsSection({ relationships }) {
                           <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
                         </div>
                         <div>
-                          <p className="text-xs font-black text-[var(--text-primary)]">{relationship.venture_name} — {meeting.meeting_type?.replace(/_/g, " ") || "Meeting"}</p>
+                          <p className="text-xs font-black text-[var(--text-primary)]">{relationship.venture_name} — {meeting.meeting_type?.replace(/_/g, " ") || t("member.investor.browser.meetings.untitled")}</p>
                           <p className="text-[10px] text-[var(--text-secondary)]">
-                            {meeting.scheduled_date ? new Date(meeting.scheduled_date).toLocaleDateString() : "TBD"}
-                            {meeting.scheduled_time ? ` at ${meeting.scheduled_time}` : ""}
+                            {meeting.scheduled_date ? new Date(meeting.scheduled_date).toLocaleDateString() : t("member.investor.browser.meetings.tbd")}
+                            {meeting.scheduled_time ? ` ${t("member.investor.browser.meetings.at", { time: meeting.scheduled_time })}` : ""}
                             {relationship.relationship_manager_name ? ` · ${relationship.relationship_manager_name}` : ""}
                           </p>
                         </div>

@@ -31,7 +31,7 @@ export default function VentureGrid({
     </div>
   ) : (
     <>
-      {venturesTotal > 0 && <p className="text-[10px] text-[var(--text-tertiary)]">{venturesTotal} ventures found</p>}
+      {venturesTotal > 0 && <p className="text-[10px] text-[var(--text-tertiary)]">{t("member.investor.browser.grid.found", { count: venturesTotal })}</p>}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {items.map(venture => {
           const isWatching = watchlist.some(entry => entry.venture_id === venture.id);
@@ -46,19 +46,19 @@ export default function VentureGrid({
                     <p className="text-[10px] text-[var(--text-secondary)] mt-0.5">{venture.industry || "—"}{venture.country ? ` · ${venture.country}` : ""}</p>
                     {activeCampaign && (
                       <span className="inline-block mt-1 mr-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/10 text-amber-400">
-                        Campaign Active
+                        {t("member.investor.browser.grid.campaignActive")}
                       </span>
                     )}
                     {venture.match_score > 0 && (
                       <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">
-                        {venture.match_score}% match
+                        {t("member.investor.browser.grid.match", { score: venture.match_score })}
                       </span>
                     )}
                   </button>
                   <div className="flex items-center gap-1">
                     <button onClick={() => onToggleCompare(venture)}
                       className={`p-1 rounded transition-colors ${isCompared ? "text-[var(--brand-orange)]" : "text-[var(--text-tertiary)] hover:text-[var(--brand-orange)]"}`}
-                      title={isCompared ? "Remove from compare" : "Add to compare"}>
+                      title={isCompared ? t("member.investor.browser.grid.removeCompare") : t("member.investor.browser.grid.addCompare")}>
                       <GitCompare className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => onToggleWatchlist(venture.id)}
@@ -81,7 +81,7 @@ export default function VentureGrid({
                       disabled={processingId !== null}
                       className="flex items-center gap-1 text-[10px] font-black text-[var(--brand-orange)] uppercase tracking-wider hover:underline disabled:opacity-40 disabled:cursor-wait disabled:no-underline"
                     >
-                      Request Introduction <ArrowRight className="w-3 h-3" />
+                      {t("member.investor.browser.grid.requestIntro")} <ArrowRight className="w-3 h-3" />
                     </button>
                   )}
                 </div>

@@ -28,7 +28,9 @@ export default function CampaignsSection({ campaigns, onOpenVenture }) {
                     <h4 className="text-xs font-black text-[var(--text-primary)]">{campaign.venture_name || campaign.name}</h4>
                     <p className="text-[10px] font-medium text-[var(--text-secondary)]">{campaign.name}{campaign.industry ? ` · ${campaign.industry}` : ""}</p>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">Active</span>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">
+                    {t("member.investor.browser.campaigns.active")}
+                  </span>
                 </div>
                 {campaign.target_raise > 0 && (
                   <div className="space-y-1">
@@ -42,7 +44,7 @@ export default function CampaignsSection({ campaigns, onOpenVenture }) {
                   </div>
                 )}
                 <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
-                  {campaign.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5"/>{campaign.investor_count} interested</span>}
+                  {campaign.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5"/>{t("member.investor.browser.campaigns.interested", { count: campaign.investor_count })}</span>}
                   {campaign.opening_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5"/>{new Date(campaign.opening_date).toLocaleDateString()}</span>}
                 </div>
               </div>

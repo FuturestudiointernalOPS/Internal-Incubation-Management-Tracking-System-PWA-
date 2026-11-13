@@ -60,10 +60,10 @@ export default function VentureFilters({
         <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("fundingRange")}</label>
         <div className="flex gap-1 mt-1.5">
           <input value={filterFundingMin} onChange={event => onFundingMinChange(event.target.value)}
-            type="number" placeholder="Min"
+            type="number" placeholder={t("member.investor.browser.filters.min")}
             className="w-full px-2 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
           <input value={filterFundingMax} onChange={event => onFundingMaxChange(event.target.value)}
-            type="number" placeholder="Max"
+            type="number" placeholder={t("member.investor.browser.filters.max")}
             className="w-full px-2 py-2 bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg text-xs font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none" />
         </div>
       </div>

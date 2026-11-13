@@ -8,7 +8,6 @@ import { PIPELINE_STAGES, STAGE_COLORS, STAGE_LABELS } from "./constants";
 /**
  * The venture detail modal (campaign summary, metrics, pipeline status, watchlist
  * toggle).
- * Extracted verbatim from InvestorDashboard.
  */
 export default function VentureDetailModal({
   detailVenture,
@@ -32,7 +31,7 @@ export default function VentureDetailModal({
           <div className="flex items-center gap-2">
             <AppButton variant="secondary" size="sm" icon={GitCompare}
               onClick={() => onToggleCompare(detailVenture)}>
-              Compare
+              {t("member.investor.browser.compare.action")}
             </AppButton>
             <button onClick={onClose}
               className="p-1.5 rounded-lg hover:bg-[var(--surface-3)] text-[var(--text-secondary)]">
@@ -50,12 +49,16 @@ export default function VentureDetailModal({
               <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15 space-y-3">
                 <div className="flex items-center gap-2">
                   <Megaphone className="w-4 h-4 text-emerald-400" />
-                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Active Campaign: {campaign.name}</span>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">
+                    {t("member.investor.browser.detail.activeCampaign", { name: campaign.name })}
+                  </span>
                 </div>
                 {campaign.target_raise > 0 && (
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px]">
-                      <span className="font-bold text-[var(--text-secondary)]">${Number(campaign.current_raised || 0).toLocaleString()} raised</span>
+                      <span className="font-bold text-[var(--text-secondary)]">
+                        {t("member.investor.browser.detail.raised", { amount: `$${Number(campaign.current_raised || 0).toLocaleString()}` })}
+                      </span>
                       <span className="font-black text-[var(--text-primary)]">{progressPercent}% of ${Number(campaign.target_raise).toLocaleString()}</span>
                     </div>
                     <div className="w-full h-2.5 bg-[var(--surface-3)] rounded-full overflow-hidden">
@@ -65,9 +68,9 @@ export default function VentureDetailModal({
                 )}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   {[
-                    { label: "Min Investment", value: campaign.min_investment ? `$${Number(campaign.min_investment).toLocaleString()}` : "—" },
-                    { label: "Investors", value: `${campaign.investor_count || 0} interested` },
-                    { label: "Active DD", value: campaign.active_dd_count || 0 },
+                    { label: t("member.investor.browser.detail.minInvestment"), value: campaign.min_investment ? `$${Number(campaign.min_investment).toLocaleString()}` : "—" },
+                    { label: t("member.investor.browser.detail.investors"), value: t("member.investor.browser.campaigns.interested", { count: campaign.investor_count || 0 }) },
+                    { label: t("member.investor.browser.detail.activeDD"), value: campaign.active_dd_count || 0 },
                   ].map((metric, index) => (
                     <div key={index} className="p-2 rounded-lg bg-[var(--surface-2)] text-center">
                       <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{metric.label}</p>
@@ -76,20 +79,22 @@ export default function VentureDetailModal({
                   ))}
                 </div>
                 {campaign.closing_date && (
-                  <p className="text-[10px] font-medium text-[var(--text-tertiary)]">Closing: {new Date(campaign.closing_date).toLocaleDateString()}</p>
+                  <p className="text-[10px] font-medium text-[var(--text-tertiary)]">
+                    {t("member.investor.browser.detail.closing", { date: new Date(campaign.closing_date).toLocaleDateString() })}
+                  </p>
                 )}
               </div>
             );
           })()}
           <div>
-            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{detailVenture.description || "No description available."}</p>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{detailVenture.description || t("member.investor.browser.detail.noDescription")}</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: "Industry", value: detailVenture.industry || "—" },
-              { label: "Country", value: detailVenture.country || "—" },
-              { label: "Status", value: detailVenture.status || "—" },
-              { label: "Interest", value: `${detailVenture.investor_interest_count || 0} investors` },
+              { label: t("member.investor.browser.compare.industry"), value: detailVenture.industry || "—" },
+              { label: t("member.investor.browser.compare.country"), value: detailVenture.country || "—" },
+              { label: t("member.investor.browser.compare.status"), value: detailVenture.status || "—" },
+              { label: t("member.investor.browser.compare.interest"), value: t("member.investor.browser.compare.investors", { count: detailVenture.investor_interest_count || 0 }) },
             ].map((metric, index) => (
               <div key={index} className="p-3 rounded-xl bg-[var(--surface-3)]">
                 <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{metric.label}</p>
@@ -99,7 +104,7 @@ export default function VentureDetailModal({
           </div>
           {detailPipeline ? (
             <div className="p-4 rounded-xl bg-[var(--surface-2)] border border-[var(--border-primary)]">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">Your Pipeline Status</p>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-2">{t("member.investor.browser.detail.pipelineStatus")}</p>
               <div className="flex items-center gap-3">
                 <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[detailPipeline.stage]}`}>
                   {t(STAGE_LABELS[detailPipeline.stage] || "")}
@@ -116,12 +121,14 @@ export default function VentureDetailModal({
             <AppButton variant="primary" size="sm" icon={ArrowRight}
               loading={processingId !== null}
               onClick={onAddDetailToPipeline}>
-              Add to Pipeline
+              {t("member.investor.browser.detail.addToPipeline")}
             </AppButton>
           )}
           <div className="flex gap-3 pt-2 border-t border-[var(--border-primary)]">
             <AppButton variant="secondary" size="sm" loading={processingId !== null} onClick={() => onToggleWatchlist(detailVenture.id)}>
-              {watchlist.some(entry => entry.venture_id === detailVenture.id) ? "Remove from Watchlist" : "Add to Watchlist"}
+              {watchlist.some(entry => entry.venture_id === detailVenture.id)
+                ? t("member.investor.browser.detail.removeWatchlist")
+                : t("member.investor.browser.detail.addWatchlist")}
             </AppButton>
           </div>
         </div>
