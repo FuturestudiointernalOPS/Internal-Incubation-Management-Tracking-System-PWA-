@@ -250,5 +250,6 @@ describe("platform modules — every door names a real right", () => {
 
   test("the cross-member project read is a declared capability", () => {
     expect(CAPABILITY_CATALOG.projects.capabilities.view_all).toBeTruthy();
+    expect(CAPABILITY_CATALOG.projects.capabilities.moderate).toBeTruthy();
   });
 });

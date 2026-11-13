@@ -87,9 +87,9 @@ export const PROFILE_CATALOGUE_SEED = [
     contacts: { view: 1, invite_families: 2 },
     collections: { view: 1 },
     // The staff-side cohort works on anyone's tasks (comments, resources,
-    // discussion, carry-over, reconciliation, supervisor field). It used to be
-    // `seesWholePortfolio(role)`; it is a right now.
-    tasks: { act_any: 1 },
+    // discussion, carry-over, reconciliation, supervisor field) and may create a
+    // task for another person. Both used to be role checks; they are rights now.
+    tasks: { create: 1, act_any: 1 },
   } },
   { key: "venture_member", label: "Venture Member", context: "venture", allowedRoles: ["member"], capabilities: {
     ventures: { view: 1, edit: 3 },

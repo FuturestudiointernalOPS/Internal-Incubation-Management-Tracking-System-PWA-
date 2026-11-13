@@ -59,10 +59,10 @@ lecture par question. Un échec de résolution est une porte fermée.
 
 ## Ce qui reste keyé sur l'identité
 
-- **Annuler l'invitation d'autrui** (`collaboration.js`,
-  `role !== "super_admin"`) : pouvoir de support du propriétaire. Il faudrait
-  décider s'il devient `projects.view_all` (mauvaise idée : c'est une lecture),
-  `projects.delete`, ou un `projects.moderate` dédié.
-- **Création d'une tâche** pour quelqu'un d'autre, et l'exemption du contrôle de
-  groupe pour le propriétaire (`tasks/create.js`).
-- **Réassigner / annuler l'affectation d'autrui** (`tasks/assignments.js`).
+**Converti à l'étape 10** : les gardes d'écriture listées ici (annuler
+l'invitation d'autrui, créer pour quelqu'un d'autre, réassigner/annuler une
+affectation, les dérogations du propriétaire) passent par `projects.moderate`,
+`tasks.create` et `tasks.moderate`. Voir `ETAPE10-WRITE-GUARDS.md`.
+
+Il ne reste qu'une exception d'entité : un compte `team` (pas une personne, pas
+de profil).

@@ -47,7 +47,11 @@ import { standupUpsert } from "@/models/standupUpsert";
 import { logTaskEvent, ACTION_TYPES } from "@/models/taskAudit";
 import { logAuditEvent } from "@/services/tasks/auditLog";
 import { validateTaskAssignment } from "@/models/contactGroups";
-import { resolveTaskActAny } from "./access";
+import {
+  resolveTaskActAny,
+  resolveTaskModerate,
+  resolveTaskRight,
+} from "./access";
 import { isValidDateStr, todayStr, isCurrentWeek } from "./dates";
 
 /**
@@ -80,10 +84,17 @@ export async function createTaskRecord({ input, role, sessionCid }) {
     intent_id,
   } = input;
 
-  // Non-privileged users can only create tasks for themselves.
-  if (
-    !["super_admin", "staff", "program_manager", "team"].includes(role)
-  ) {
+  // Who may create a task FOR SOMEBODY ELSE is `tasks.create` (the staff-side
+  // cohort); a `team` login is an entity account, not a person with a profile,
+  // so it keeps the ability it has always had. Everyone else creates for
+  // themselves. The moderation right waives the assignment group check below.
+  const [canCreateForOthers, canModerate] = await Promise.all([
+    role === "team"
+      ? Promise.resolve(true)
+      : resolveTaskRight({ role, cid: sessionCid }, "create"),
+    resolveTaskModerate({ role, cid: sessionCid }),
+  ]);
+  if (!canCreateForOthers) {
     user_id = sessionCid;
   }
 
@@ -199,8 +210,9 @@ export async function createTaskRecord({ input, role, sessionCid }) {
   const needsAssignment = finalAssignedTo && finalAssignedTo !== user_id;
   const effectiveAssignedTo = needsAssignment ? null : finalAssignedTo;
 
-  // Contact Group enforcement: the assigner and assignee must share a group.
-  if (needsAssignment && role !== "super_admin") {
+  // Contact Group enforcement: the assigner and assignee must share a group,
+  // unless the caller holds `tasks.moderate`.
+  if (needsAssignment && !canModerate) {
     const groupCheck = await validateTaskAssignment(user_id, finalAssignedTo, {
       context_type: context_type || "staff",
       context_id: context_id || null,

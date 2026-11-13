@@ -12,7 +12,7 @@ données de seed, qui est explicite.
 npm run test:authz
 ```
 
-- Attendu : **28 suites / 319 tests passés**.
+- Attendu : **28 suites / 320 tests passés**.
 - Vérifie la frontière données / vocabulaire : rôles, profils, fonctionnalités,
   capacités, adresses d'arrivée et portes de plateforme.
 - Exécuté par la CI à chaque pull request (`.github/workflows/authz-ratchet.yml`).
@@ -146,6 +146,12 @@ npm run authz:snapshot -- --compare scratch/authz-reference/<référence>.json
 - Cible : **0 régression** (aucun droit retiré, aucune porte de menu perdue),
   à l'exception des pertes décidées et listées ci-dessus (Forms à l'étape 3,
   Dashboard et Forms de `/platform` à l'étape 5).
+- **Étape 10 — `tasks.create`** : les droits ajoutés apparaissent comme des
+  **ouvertures** (`tasks.create` accordé au personnel interne). Un compte dont
+  `contacts.status` n'est pas `active` sera refusé par le moteur
+  (`account_not_active`) là où l'ancienne liste de rôles le laissait passer :
+  c'est la porte du compte qui s'applique, pas une perte légitime. Réactiver le
+  contact est la correction.
 - Les **ouvertures** doivent être exactement celles décidées à l'étape 2.
 - En production, ajouter `--env .env.prod-verify --allow-production`.
 

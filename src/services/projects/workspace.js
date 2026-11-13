@@ -62,6 +62,23 @@ export async function resolveProjectPortfolio({ role, cid }) {
 }
 
 /**
+ * `projects.moderate` — may this caller act on another person's project record
+ * (cancel their invitation)? Owner-only by default.
+ */
+export async function resolveProjectModerate({ role, cid }) {
+  if (!cid) return false;
+  try {
+    return authorize(
+      await getAuthorizationContext({ cid, role }),
+      "projects",
+      "moderate",
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * Resolve which rows a caller's project list may return.
  *
  * A caller without `projects.view_all` is pinned to their own id: asking for

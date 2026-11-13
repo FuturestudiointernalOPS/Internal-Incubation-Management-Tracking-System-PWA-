@@ -41,7 +41,11 @@ import {
   getContactCidByName,
   createInvitationAcceptedNotification,
 } from "@/models/projectCollaboration";
-import { resolveProjectPortfolio, resolveOwnScope } from "./workspace";
+import {
+  resolveProjectModerate,
+  resolveProjectPortfolio,
+  resolveOwnScope,
+} from "./workspace";
 
 /** The members of a project, with their contact names. */
 export async function listProjectMembers(projectId) {
@@ -285,7 +289,8 @@ export async function respondToProjectInvitation({
     }
     const isInviter =
       Boolean(inviterCid) && String(sessionCid) === String(inviterCid);
-    if (!isInviter && role !== "super_admin") {
+    const canModerate = await resolveProjectModerate({ role, cid: sessionCid });
+    if (!isInviter && !canModerate) {
       return { status: 403, error: "errors.notInviter" };
     }
     await cancelProjectInvitation(invitationId);

@@ -47,7 +47,7 @@ import {
 } from "@/models/tasks";
 import { logAuditEvent } from "@/services/tasks/auditLog";
 import { resolveListingScope } from "@/services/authorization/listingScope";
-import { resolveTaskActAny } from "./access";
+import { resolveTaskActAny, resolveTaskModerate } from "./access";
 
 /** The assignments a caller may see (their own unless they hold `tasks.act_any`). */
 export async function listTaskAssignments({
@@ -95,12 +95,13 @@ export async function respondToTaskAssignment({
   }
 
   const userCid = sessionCid;
+  const canModerate = await resolveTaskModerate({ role, cid: sessionCid });
 
   if (action === "reassign") {
     if (!newAssigneeId) {
       return { status: 400, error: "new_assignee_id required for reassign" };
     }
-    if (role !== "super_admin" && assignment.assigner_id !== userCid) {
+    if (!canModerate && assignment.assigner_id !== userCid) {
       return { status: 403, error: "errors.notAssigner" };
     }
   } else if (assignment.assignee_id !== userCid) {
@@ -157,9 +158,9 @@ export async function respondToTaskAssignment({
 
   if (action === "reassign") {
     // Permission checked above — only the assigner/Super Admin reaches here.
-    // Contact-group enforcement for everyone but Super Admin: you may only
-    // reassign within your own group.
-    if (role !== "super_admin") {
+    // Contact-group enforcement unless the caller holds `tasks.moderate`: you
+    // may only reassign within your own group.
+    if (!canModerate) {
       const taskContextResult = await getTaskAssignmentContext(assignment.task_id);
       const taskContext = taskContextResult.rows[0] || {};
       const groupCheck = await validateTaskAssignment(userCid, newAssigneeId, {

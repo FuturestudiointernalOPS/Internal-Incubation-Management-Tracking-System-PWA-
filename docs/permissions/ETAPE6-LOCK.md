@@ -42,7 +42,7 @@ de casser une connexion.
 une proposition et que chaque capacité proposée existe — mais il ne tournait pas
 dans le travail de CI. **Il y est désormais**, avec les suites des étapes 3 à 5.
 
-`npm run test:authz` couvre maintenant **28 suites / 319 tests** :
+`npm run test:authz` couvre maintenant **28 suites / 320 tests** :
 
 | Sujet | Suites |
 |---|---|
@@ -74,7 +74,7 @@ vérifiés en production :
 
 ## Validation
 
-- `npm run test:authz` : **28 suites, 319 tests passés**.
+- `npm run test:authz` : **28 suites, 320 tests passés**.
 - `npm run lint` : **0 erreur**.
 - `npm run build` : **succès**.
 - Photographie de référence : **0 changement**.

@@ -87,11 +87,7 @@ attendant leur conversion.
 
 - **Projets** : **converti à l'étape 9** (`projects.view_all`) — voir
   `ETAPE9-PROJECT-SCOPE-RIGHTS.md`.
-- **Annuler l'invitation d'autrui** (`collaboration.js`) : pouvoir de support
-  du propriétaire, encore keyé sur le rôle.
-- **Création de tâche** : `create.js` garde deux décisions par rôle — qui peut
-  créer une tâche pour quelqu'un d'autre (`["super_admin","staff",
-  "program_manager","team"]`) et l'exemption du contrôle de groupe pour le
-  propriétaire. Ce sont des règles d'écriture à trancher séparément.
-- **Affectation** : `assignments.js` admet encore le propriétaire pour accepter
-  ou refuser une affectation à la place d'autrui.
+- **Gardes d'écriture** : **converties à l'étape 10** (`tasks.create`,
+  `tasks.moderate`, `projects.moderate`) — voir `ETAPE10-WRITE-GUARDS.md`.
+- Il ne reste qu'une exception d'**entité** : un compte `team`
+  (`tasks/teamBoard.js`, et la création pour autrui dans `create.js`).

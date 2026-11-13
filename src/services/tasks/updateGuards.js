@@ -31,18 +31,19 @@ import { isTaskLocked } from "@/services/tasks/auditLog";
 /**
  * Run the entry guards of an update.
  *
- * @param {{id: string|number, task: Object, input: Object, role: string, sessionCid: string}} args
+ * @param {{id: string|number, task: Object, input: Object, canModerate: boolean, sessionCid: string}} args
  * @returns {Promise<{failure?: {status: number, error?: string, body?: Object}, locked?: boolean}>}
  *   `failure` is the decision the controller turns into the HTTP answer; without
  *   it, `locked` is the lock state the answer reports back.
  */
-export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
+export async function runUpdateGuards({ id, task, input, canModerate = false, sessionCid }) {
   const { title, description, status, user_id, force_complete } = input;
 
-  // SECURITY: only the task owner, assignee, supervisor or Super Admin may update.
+  // SECURITY: only the task owner, assignee, supervisor or a holder of
+  // `tasks.moderate` may update.
   const cid = String(sessionCid);
   if (
-    role !== "super_admin" &&
+    !canModerate &&
     String(task.user_id) !== cid &&
     String(task.assigned_to || "") !== cid &&
     String(task.supervisor_id || "") !== cid
@@ -62,7 +63,7 @@ export async function runUpdateGuards({ id, task, input, role, sessionCid }) {
   if (status !== undefined && status !== task.status) {
     const effectiveUserId = user_id || sessionCid;
     if (
-      role !== "super_admin" &&
+      !canModerate &&
       String(effectiveUserId) !== String(task.user_id) &&
       String(effectiveUserId) !== String(task.assigned_to || "")
     ) {

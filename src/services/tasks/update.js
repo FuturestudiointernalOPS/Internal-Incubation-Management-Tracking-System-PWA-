@@ -28,7 +28,7 @@
 // The task suite mocks `@/models/tasks`, so the reads the update path needs
 // stay on that module.
 import { getTaskById, updateTaskFields } from "@/models/tasks";
-import { resolveTaskActAny } from "./access";
+import { resolveTaskActAny, resolveTaskModerate } from "./access";
 import { runUpdateGuards } from "./updateGuards";
 import {
   applyAssignmentChange,
@@ -67,11 +67,15 @@ export async function updateTaskRecord({ id, input, role, sessionCid, sessionNam
     return { status: 404, error: "Task not found" };
   }
 
+  // The moderation right covers every owner-only override in this file: the
+  // entry guards, the assignment group check and the strict-owner rule.
+  const canModerate = await resolveTaskModerate({ role, cid: sessionCid });
+
   const { failure, locked } = await runUpdateGuards({
     id,
     task,
     input,
-    role,
+    canModerate,
     sessionCid,
   });
   if (failure) return failure;
@@ -100,7 +104,7 @@ export async function updateTaskRecord({ id, input, role, sessionCid, sessionNam
       id,
       task,
       input,
-      role,
+      canModerate,
       sessionCid,
       sessionName,
     });
@@ -136,7 +140,7 @@ export async function updateTaskRecord({ id, input, role, sessionCid, sessionNam
   const strictOwnerFailure = assertStrictOwnerChange({
     task,
     input,
-    role,
+    canModerate,
     sessionCid,
   });
   if (strictOwnerFailure) return strictOwnerFailure;

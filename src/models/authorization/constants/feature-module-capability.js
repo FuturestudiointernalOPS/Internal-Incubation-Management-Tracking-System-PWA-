@@ -268,6 +268,13 @@ export const FEATURE_MODULE_CAPABILITY = {
           risk: "medium",
           description: "See every project, not only the ones the caller owns or belongs to",
         },
+        // Support/repair moderation on another person's project record: cancelling
+        // their invitation. It replaces the platform-owner role check.
+        moderate: {
+          label: "Moderate Any Project",
+          risk: "high",
+          description: "Cancel another person's project invitation",
+        },
       },
     },
     tasks: {
@@ -294,13 +301,14 @@ export const FEATURE_MODULE_CAPABILITY = {
           risk: "medium",
           description: "Work on tasks the caller does not own: comments, resources, logs, discussion, carry-over, reconciliation and the supervisor field",
         },
-        // Support/repair moderation on somebody else's sub-resources: edit or
-        // delete their comment, raise or delete a blocker on their task. It
-        // replaces the platform-owner role checks.
+        // Support/repair moderation on somebody else's task: update it, move its
+        // status, reassign it, edit or delete their comment, raise or delete a
+        // blocker on it, and waive the assignment group check. It replaces the
+        // platform-owner role checks.
         moderate: {
           label: "Moderate Any Task",
           risk: "high",
-          description: "Edit or delete another person's task comment, and raise or delete a blocker on a task the caller does not own",
+          description: "Moderate any task: update it, change its status, reassign it, edit or delete another person's comment, raise or delete a blocker on it, and assign outside the caller's group",
         },
       },
     },

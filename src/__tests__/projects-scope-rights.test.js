@@ -21,7 +21,7 @@ const {
   getAuthorizationContext,
   authorize,
 } = require("@/models/authorization/index");
-const { resolveProjectPortfolio, resolveProjectListFilter } = require(
+const { resolveProjectPortfolio, resolveProjectModerate, resolveProjectListFilter } = require(
   "@/services/projects/workspace",
 );
 const { needsProjectObjectCheck } = require("@/services/projects/access");
@@ -48,6 +48,12 @@ describe("resolveProjectPortfolio — the engine decides", () => {
   test("a resolution failure is a closed door", async () => {
     getAuthorizationContext.mockRejectedValueOnce(new Error("db down"));
     await expect(resolveProjectPortfolio({ role: "staff", cid: "u1" })).resolves.toBe(false);
+  });
+
+  test("moderation is a different question (projects.moderate)", async () => {
+    authorize.mockReturnValue(true);
+    await expect(resolveProjectModerate({ role: "staff", cid: "u1" })).resolves.toBe(true);
+    expect(authorize).toHaveBeenCalledWith(expect.anything(), "projects", "moderate");
   });
 });
 
