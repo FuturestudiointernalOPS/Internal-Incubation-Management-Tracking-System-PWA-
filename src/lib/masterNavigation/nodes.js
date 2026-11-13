@@ -46,7 +46,23 @@ export const MASTER_NAVIGATION = [
     children: [
       { id: "messages", name: "MESSAGES", icon: "send", href: "/admin/internal-comms" },
       { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
-      { id: "forms", name: "FORMS", icon: "fileText", href: "/platform" },
+      // The Forms workspace unfolds in the main sidebar: its screens render in
+      // the same shell (src/app/platform/layout.js) instead of a second one.
+      // Each child mirrors a module of src/models/platform/registry.js.
+      {
+        id: "forms",
+        name: "FORMS",
+        icon: "fileText",
+        href: "/platform",
+        children: [
+          { id: "forms_dashboard", name: "DASHBOARD", href: "/platform" },
+          { id: "forms_list", name: "FORMS", href: "/platform/forms" },
+          { id: "forms_runs", name: "RUNS", href: "/platform/runs" },
+          { id: "forms_import", name: "HISTORICAL IMPORT", href: "/admin/platform/import" },
+          { id: "forms_identity_review", name: "IDENTITY REVIEW", href: "/admin/platform/import/review" },
+          { id: "forms_scores", name: "SCORES", href: "/admin/platform/scores" },
+        ],
+      },
       { id: "groups", name: "GROUPS", href: "/staff/program-manager/communications/contacts" },
     ],
   },

@@ -94,10 +94,12 @@ describe("the same rule reaches every capability surface", () => {
     );
   });
 
-  test("the platform sidebar applies it", () => {
-    expect(read("src/app/platform/layout.js")).toContain(
-      "mePerms.isSuperAdmin && !mePerms.ownerThroughEngine",
-    );
+  // The Forms workspace has no sidebar of its own any more: it renders in the
+  // main shell, whose rights come from the shared permission provider below.
+  test("the platform workspace uses the shared shell, not a private bypass", () => {
+    const layout = read("src/app/platform/layout.js");
+    expect(layout).toContain("DashboardLayout");
+    expect(layout).not.toContain("isSuperAdmin");
   });
 
   test("the CRM capability hook applies it", () => {

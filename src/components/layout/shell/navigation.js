@@ -39,6 +39,12 @@ const NAV_KEY_MAP = {
   administration: "navigation.administration",
 
   forms: "navigation.forms",
+  forms_dashboard: "platformMisc.nav.dashboard",
+  forms_list: "platformMisc.nav.forms",
+  forms_runs: "platformMisc.nav.runs",
+  forms_import: "platformMisc.nav.historicalImport",
+  forms_identity_review: "platformMisc.nav.identityReview",
+  forms_scores: "platformMisc.nav.scores",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
   knowledge_base: "navigation.knowledgeBase",
