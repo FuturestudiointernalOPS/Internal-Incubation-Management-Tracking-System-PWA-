@@ -234,4 +234,8 @@ describe("platform modules — every door names a real right", () => {
     }
     expect(problems).toEqual([]);
   });
+
+  test("the CRM support exception is a declared capability", () => {
+    expect(CAPABILITY_CATALOG.crm.capabilities.next_action_any).toBeTruthy();
+  });
 });

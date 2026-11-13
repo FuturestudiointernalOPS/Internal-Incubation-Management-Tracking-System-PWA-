@@ -16,7 +16,7 @@ export default function CrmOpportunityDetailPage({ params }) {
   const { t } = useI18n();
   const router = useRouter();
   const { alert } = useDialogs();
-  const { cid, isSuperAdmin } = useCrmCapabilities();
+  const { cid, holds } = useCrmCapabilities();
 
   const [opp, setOpp]         = useState(null);
   const [history, setHistory] = useState([]);
@@ -264,7 +264,11 @@ export default function CrmOpportunityDetailPage({ params }) {
         opportunityId={opp.id}
         contactCid={opp.contact_cid ?? undefined}
         record={opp}
-        canSetNextAction={Boolean(isSuperAdmin || (cid && opp.owner_cid && opp.owner_cid === cid))}
+        canSetNextAction={Boolean(
+          holds("crm", "edit") &&
+          (holds("crm", "next_action_any") ||
+            (cid && opp.owner_cid && opp.owner_cid === cid))
+        )}
         onNextActionSaved={(updated) =>
           updated && setOpp((current) => ({ ...current, ...updated }))
         }

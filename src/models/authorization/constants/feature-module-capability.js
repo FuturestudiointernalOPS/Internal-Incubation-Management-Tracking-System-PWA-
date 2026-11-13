@@ -87,6 +87,14 @@ export const FEATURE_MODULE_CAPABILITY = {
         delete: { label: "Delete", risk: "high", description: "Remove CRM organizations and relationships (soft delete)" },
         assign: { label: "Assign", risk: "medium", description: "Assign ownership of CRM records" },
         manage: { label: "Manage", risk: "high", description: "Administer CRM configuration, module capabilities, and pipeline (Phase 2+)" },
+        // The next action of a record belongs to its owner. This right is the
+        // support/repair exception, so it replaces the former platform-owner
+        // role check: grantable, restrictable, and revocable like any other.
+        next_action_any: {
+          label: "Set Any Next Action",
+          risk: "medium",
+          description: "Set or clear the next action on a CRM record the caller does not own",
+        },
       },
     },
     org_membership: {

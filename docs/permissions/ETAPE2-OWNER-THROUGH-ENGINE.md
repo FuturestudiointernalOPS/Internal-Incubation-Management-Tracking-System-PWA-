@@ -67,10 +67,11 @@ Comme le profil `super_admin_default` contient tous les droits du catalogue,
 rien ne change en pratique tant qu'aucun droit n'est retiré. Dès qu'un droit est
 retiré ou bloqué, l'écran cesse de le proposer — ce qui est le but.
 
-> Restent keyés sur l'identité quelques **raccourcis d'affichage** dont l'API
-> correspondante contourne encore le moteur (bouton « prochaine action » d'un
-> lead, écran complet des contacts, mode « full state »). Ils sont listés dans
-> `ETAPE0-WHOAUDIT.md` et suivront avec les gardes de domaine.
+> Les raccourcis d'affichage keyés sur l'identité ont été corrigés : l'écran
+> complet des contacts s'ouvre sur `contacts.create`/`contacts.edit`, et
+> l'action suivante d'un enregistrement CRM s'ouvre sur le nouveau droit
+> **`crm.next_action_any`** (l'exception « support/réparation »), plus sur un
+> rôle. Le composant mort `CrmOverview` (mode « full state ») est supprimé.
 
 ---
 
@@ -115,15 +116,17 @@ modifiée par le mode lui-même.
 
 ## Ce qui reste hors de ce lot
 
-Le moteur de décision et les surfaces de capacité de l'interface sont couverts.
-D'autres raccourcis « propriétaire » vivent encore dans des gardes de domaine et
-seront traités dans les lots suivants :
+Le moteur de décision, les surfaces de capacité de l'interface et les raccourcis
+d'affichage nommés ci-dessus sont couverts. D'autres raccourcis « propriétaire »
+vivent encore dans des gardes de domaine et seront traités dans les lots
+suivants :
 
 - le garde « gestionnaire de programme » admet le propriétaire par son rôle ;
 - l'accès à une ressource précise (`scopedAccess`) dispense le propriétaire de
   l'affectation, mais exige désormais le droit et passe par la décision
   normale ;
-- certains écrans gardent un raccourci d'affichage keyé sur l'identité (voir
-  ci-dessus), parce que leur API contourne encore le moteur.
+- les écrans d'administration qui comparent encore `isPlatformOwnerRole` (page
+  Blockers, page Investisseurs, page Work) : leur API doit d'abord passer au
+  droit correspondant.
 
 Ces points sont déjà inventoriés dans `ETAPE0-WHOAUDIT.md`.

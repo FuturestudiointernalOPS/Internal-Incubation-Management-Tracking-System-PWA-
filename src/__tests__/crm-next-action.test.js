@@ -15,6 +15,8 @@ jest.mock("@/lib/api/createHandler", () => ({
 jest.mock("@/server/auth/session", () => ({ getSession: jest.fn() }));
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn(async () => null),
+  getAuthorizationContext: jest.fn(async () => ({})),
+  authorize: jest.fn(() => false),
 }));
 jest.mock("@/services/contacts/timeline", () => ({
   addContactTimelineEvent: jest.fn(async () => ({})),
@@ -29,6 +31,7 @@ jest.mock("@/models/crm/leads", () => ({
 }));
 
 const { getSession } = require("@/server/auth/session");
+const { authorize } = require("@/models/authorization/index");
 const { addContactTimelineEvent } = require("@/services/contacts/timeline");
 const { ensureCrmNextActionColumns } = require("@/models/crm/schema");
 const { getCrmLeadById, updateCrmLead } = require("@/models/crm/leads");
@@ -108,11 +111,23 @@ describe("planNextActionWrite", () => {
     expect(plan).toMatchObject({ error: "crm.activities.nextActionAssignOwner", status: 403 });
   });
 
-  test("a platform owner may repair any record", () => {
+  test("the support exception is a RIGHT, not a session role", () => {
+    // A platform owner WITHOUT the right is refused: the role no longer
+    // short-circuits the decision.
+    expect(
+      planNextActionWrite({
+        body: { next_action: "Call back", next_action_due: "2026-11-01" },
+        existing: LEAD,
+        session: { cid: "admin-1", role: "super_admin" },
+      }),
+    ).toMatchObject({ error: "crm.activities.nextActionOwnerOnly", status: 403 });
+
+    // A holder of the right may repair any record.
     const plan = planNextActionWrite({
       body: { next_action: "Call back", next_action_due: "2026-11-01" },
       existing: LEAD,
-      session: { cid: "admin-1", role: "super_admin" },
+      session: { cid: "support-1", role: "staff" },
+      canSetAny: true,
     });
     expect(plan.error).toBeUndefined();
     expect(plan.updates.next_action).toBe("Call back");
@@ -152,6 +167,28 @@ describe("PATCH /api/crm/leads/[id] — next action", () => {
     expect(response.status).toBe(403);
     expect(updateCrmLead).not.toHaveBeenCalled();
     expect(addContactTimelineEvent).not.toHaveBeenCalled();
+  });
+
+  test("the caller holding crm.next_action_any may repair a record they do not own", async () => {
+    getSession.mockResolvedValue({ cid: "support-1", role: "staff" });
+    authorize.mockReturnValue(true);
+
+    const response = await PATCH(
+      request({ next_action: "Send the proposal", next_action_due: "2026-11-01" }),
+      params,
+    );
+
+    expect(authorize).toHaveBeenCalledWith(
+      expect.anything(),
+      "crm",
+      "next_action_any",
+    );
+    expect(response.status).toBe(200);
+    expect(updateCrmLead).toHaveBeenCalledWith(
+      "lead-1",
+      expect.objectContaining({ next_action: "Send the proposal" }),
+    );
+    authorize.mockReturnValue(false);
   });
 
   test("a plain edit does not touch the next-action columns", async () => {

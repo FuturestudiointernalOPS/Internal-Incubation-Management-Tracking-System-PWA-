@@ -36,7 +36,11 @@ export const SPACES = {
   staff: {
     key: "staff",
     home: "/staff",
-    identities: ["staff", "program_manager", "finance", "crm"],
+    // Only IDENTITIES. `finance` and `crm` are CONTEXTS of this space (what a
+    // staff member does there), decided by the `finance.*` and `crm.*` rights —
+    // see `src/spaces/staff/contexts.js`. Listing them here made the registry
+    // claim roles that the sign-in resolver never produces.
+    identities: ["staff", "program_manager"],
   },
   admin: {
     key: "admin",

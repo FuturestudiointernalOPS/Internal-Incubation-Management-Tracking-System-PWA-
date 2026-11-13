@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 export default function CrmLeadDetailPage({ params }) {
   const { t } = useI18n();
   const router = useRouter();
-  const { cid, isSuperAdmin } = useCrmCapabilities();
+  const { cid, holds } = useCrmCapabilities();
   
   const [lead, setLead] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -148,7 +148,11 @@ export default function CrmLeadDetailPage({ params }) {
       <CrmActivityPanel
         leadId={lead.id}
         record={lead}
-        canSetNextAction={Boolean(isSuperAdmin || (cid && lead.owner_cid && lead.owner_cid === cid))}
+        canSetNextAction={Boolean(
+          holds("crm", "edit") &&
+          (holds("crm", "next_action_any") ||
+            (cid && lead.owner_cid && lead.owner_cid === cid))
+        )}
         onNextActionSaved={(updated) =>
           updated && setLead((current) => ({ ...current, ...updated }))
         }

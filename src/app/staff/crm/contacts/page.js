@@ -17,11 +17,11 @@ export const dynamic = "force-dynamic";
  * CRM WORKSPACE — the single people directory.
  *
  * The old /admin/communications/contacts route now redirects here. The screen
- * chooses by right, not by URL:
- *   - Super Admin gets the full contacts screen (create, edit, invite, groups,
- *     bulk assignment) — the same screen the legacy route rendered.
- *   - Everyone else keeps the read-only directory, because the write
- *     affordances on that screen are not yet individually gated.
+ * chooses by RIGHT, not by role:
+ *   - a caller who may create or edit a contact gets the full contacts screen
+ *     (create, edit, invite, groups, bulk assignment);
+ *   - everyone else keeps the read-only directory, because the write
+ *     affordances on that screen are not individually gated.
  * The APIs remain the authority in both cases: GET /api/contacts requires
  * `contacts.view`, and every mutation re-checks its own capability.
  */
@@ -185,11 +185,15 @@ function ReadOnlyContacts() {
 }
 
 export default function CrmContactsPage() {
-  const { isSuperAdmin, loaded } = useCrmCapabilities();
+  const { holds, loaded } = useCrmCapabilities();
 
   // Wait for the permission read instead of flashing the wrong directory; a
   // failed read resolves as a closed door, not a spinner forever.
   if (!loaded) return <TableSkeleton rows={10} />;
 
-  return isSuperAdmin ? <ContactsScreen /> : <ReadOnlyContacts />;
+  // The write affordances belong to whoever may actually write: the same
+  // capabilities the mutations enforce, never an identity.
+  const canManage = holds("contacts", "create") || holds("contacts", "edit");
+
+  return canManage ? <ContactsScreen /> : <ReadOnlyContacts />;
 }

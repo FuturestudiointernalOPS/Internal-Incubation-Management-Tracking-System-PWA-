@@ -1,13 +1,13 @@
-import { isPlatformOwnerRole } from "@/lib/identity";
-
 /**
  * CRM — the next action of a lead or an opportunity (DECISION layer).
  *
  * Product rules settled for Lot 1:
  *  - the next action is a first-class attribute of the record: a label and a
  *    due date, kept next to the record rather than inferred;
- *  - the record OWNER sets it. A platform owner may also set it, for support and
- *    repair, which keeps a record recoverable when its owner has left;
+ *  - the record OWNER sets it. A holder of `crm.next_action_any` may also set
+ *    it, for support and repair, which keeps a record recoverable when its
+ *    owner has left. The exception used to be the platform owner's role; it is
+ *    a RIGHT now, so it is granted, restricted and revoked like any other;
  *  - a label requires a due date — the whole point is that a date can go
  *    overdue, and the screens show that lateness everywhere;
  *  - clearing is allowed: the next action is not mandatory;
@@ -26,12 +26,16 @@ export function touchesNextAction(body) {
 /**
  * Validate a next-action write and return the columns to persist.
  *
+ * `canSetAny` is the caller's `crm.next_action_any` verdict, resolved by the
+ * route through the authorization engine. This function stays pure: it receives
+ * the decision, never a session role.
+ *
  * @returns {{updates: object, cleared: boolean} | {error: string, status: number}}
  */
-export function planNextActionWrite({ body, existing, session }) {
+export function planNextActionWrite({ body, existing, session, canSetAny = false }) {
   const isOwner = Boolean(existing?.owner_cid) && existing.owner_cid === session?.cid;
 
-  if (!isOwner && !isPlatformOwnerRole(session?.role)) {
+  if (!isOwner && !canSetAny) {
     return {
       // Two distinct messages on purpose: "assign an owner first" is actionable,
       // "not yours" is not.

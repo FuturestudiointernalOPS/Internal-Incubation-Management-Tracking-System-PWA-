@@ -112,3 +112,47 @@ describe("the same rule reaches every capability surface", () => {
     );
   });
 });
+
+describe("display shortcuts are rights, not identities", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const read = (relative) => fs.readFileSync(path.join(process.cwd(), relative), "utf8");
+
+  test("the full contacts screen opens on the write rights", () => {
+    const page = read("src/app/staff/crm/contacts/page.js");
+    expect(page).toContain('holds("contacts", "create")');
+    expect(page).toContain('holds("contacts", "edit")');
+    expect(page).not.toContain("isSuperAdmin");
+  });
+
+  test("the next-action editor opens on the support right", () => {
+    for (const page of [
+      "src/app/staff/crm/leads/[id]/page.js",
+      "src/app/staff/crm/opportunities/[id]/page.js",
+    ]) {
+      const source = read(page);
+      expect(source).toContain('holds("crm", "next_action_any")');
+      expect(source).toContain('holds("crm", "edit")');
+      expect(source).not.toContain("isSuperAdmin");
+    }
+  });
+
+  test("the next-action decision is a right, never a session role", () => {
+    const service = read("src/services/crm/nextAction.js");
+    expect(service).toContain("canSetAny");
+    expect(service).not.toContain("isPlatformOwnerRole");
+
+    for (const route of [
+      "src/app/api/crm/leads/[id]/route.js",
+      "src/app/api/crm/opportunities/[id]/route.js",
+    ]) {
+      expect(read(route)).toContain('"next_action_any"');
+    }
+  });
+
+  test("the dead full-state overview is gone", () => {
+    expect(
+      fs.existsSync(path.join(process.cwd(), "src/components/shared/crm/CrmOverview.js")),
+    ).toBe(false);
+  });
+});
