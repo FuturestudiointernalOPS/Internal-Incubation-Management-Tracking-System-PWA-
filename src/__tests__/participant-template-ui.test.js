@@ -86,9 +86,11 @@ test("dashboard keeps course links and omits the removed shortcut and ritual sec
   expect(screen.queryByRole("heading", { name: /My Learning|Your Progress|Overdue|Due Soon|Pending/i })).toBeNull();
   expect(screen.getByRole("link", { name: /View all announcements/i })).toBeTruthy();
 });
- test("participant keeps progress, attention and learning blocks", () => {
+ test("participant keeps the attention and learning blocks", () => {
   render(<ParticipantDashboardHome />);
-  expect(screen.getByRole("heading", { name: "Your Progress" })).toBeTruthy();
+  // The "Your Progress" card was removed with the program-card change: the
+  // participant's programme cards carry the progress figures now.
+  expect(screen.queryByRole("heading", { name: "Your Progress" })).toBeNull();
   expect(screen.getByRole("heading", { name: /Overdue/i })).toBeTruthy();
   expect(screen.getByRole("link", { name: /All my courses/i })).toBeTruthy();
 });

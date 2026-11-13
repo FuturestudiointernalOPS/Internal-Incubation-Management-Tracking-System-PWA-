@@ -75,6 +75,12 @@ function MiniMetric({ icon: Icon, label, value, color }) {
 function ProgramCard({ program, onSelect }) {
   const { t, lang } = useI18n();
   const { metrics } = program;
+  const facilitatorLabel =
+    program.facilitators?.length > 1
+      ? t("participantMisc.programListing.facilitators", {
+          count: program.facilitators.length,
+        })
+      : t("participantMisc.programListing.facilitator");
   // Show "Completed" once every unlocked deliverable has an approved
   // submission, or once the program's end date is over.
   const displayStatus =
@@ -169,17 +175,24 @@ function ProgramCard({ program, onSelect }) {
             </span>
           </div>
         )}
-        {program.facilitators?.length > 0 && (
-          <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-white/5">
-            <Users className="w-3 h-3 text-[var(--text-tertiary)]" />
-            <span className="text-[10px] font-bold text-[var(--text-secondary)]">
-              {t("participantMisc.programListing.facilitators", {
-                count: program.facilitators.length,
-              })}
-            </span>
-          </div>
-        )}
       </div>
+
+      {/* Facilitator */}
+      {program.facilitators?.length > 0 && (
+        <div className="mb-4 rounded-lg border border-[var(--border-primary)] bg-white/5 px-3 py-2.5">
+          <div className="flex items-center gap-1.5">
+            <Users className="w-3 h-3 text-[var(--text-tertiary)]" />
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">
+              {facilitatorLabel}
+            </p>
+          </div>
+          <p className="mt-1 text-xs font-bold text-[var(--text-primary)]">
+            {program.facilitators
+              .map((facilitator) => facilitator.name)
+              .join(", ")}
+          </p>
+        </div>
+      )}
 
       {/* Mini metrics grid */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-[var(--border-primary)]">
