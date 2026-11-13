@@ -50,7 +50,7 @@ export function computeProgramProgress({
   const nonAttendanceDeliverables = unlockedDeliverables.filter(
     (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
   );
-  const totalDeliverables = nonAttendanceDeliverables.length || 1;
+  const totalDeliverables = nonAttendanceDeliverables.length;
   const completedDeliverables = nonAttendanceDeliverables.filter((deliverable) =>
     submissions.some(
       (submission) =>
@@ -59,7 +59,11 @@ export function computeProgramProgress({
           String(submission.deliverable_id) === String(deliverable.id)),
     ),
   ).length;
-  const programCompletion = Math.round((completedDeliverables / totalDeliverables) * 100);
+  // The real count is reported (the screen shows "completed / total"); only the
+  // rate is guarded against a division by zero, so a program that tracks no
+  // deliverable contributes nothing to the cross-program totals.
+  const programCompletion =
+    totalDeliverables > 0 ? Math.round((completedDeliverables / totalDeliverables) * 100) : 0;
 
   // Count distinct sessions with a "present" mark, restricted to unlocked
   // sessions, so duplicate attendance rows can never push the rate above 100%.
@@ -73,8 +77,9 @@ export function computeProgramProgress({
       )
       .map((record) => String(record.session_id)),
   ).size;
-  const totalSessions = unlockedSessions.length || 1;
-  const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
+  const totalSessions = unlockedSessions.length;
+  const attendanceRate =
+    totalSessions > 0 ? Math.round((attendedSessions / totalSessions) * 100) : 0;
 
   // KPI attendance factor only considers the days where presence was actually
   // marked for this participant (unmarked sessions don't penalize it).
