@@ -6,7 +6,9 @@ import { useState } from "react";
 import { Loader2, Search, SlidersHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import AppButton from "@/components/ui/AppButton";
+import AppInput from "@/components/ui/AppInput";
 import GlobalToast from "@/components/ui/GlobalToast";
+import PageHero from "@/components/ui/PageHero";
 import { useI18n } from "@/lib/i18n";
 import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import DashboardStats from "@/spaces/member/investor/components/dashboard-page/DashboardStats";
@@ -252,20 +254,14 @@ export default function InvestorSpacePage() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
+      <div className="stf max-w-[1500px] mx-auto space-y-6">
         <GlobalToast toast={toast} onClose={() => setToast(null)} />
 
-        {/* HEADER */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black text-[var(--text-primary)] uppercase tracking-tighter">
-              {t("member.investor.browser.title")}
-            </h1>
-            <p className="text-xs text-[var(--text-secondary)] mt-1">
-              {profile.organization_name || t("member.investor.browser.individual")}
-            </p>
-          </div>
-        </div>
+        <PageHero
+          kicker={profile.organization_name || t("member.investor.browser.individual")}
+          title={t("member.investor.browser.title")}
+          subtitle={t("member.investor.browser.subtitle")}
+        />
 
         {/* STATS */}
         <DashboardStats stats={stats} />
@@ -277,27 +273,24 @@ export default function InvestorSpacePage() {
         {activeTab === "discover" && (
           <div className="space-y-4">
             {/* Search + Filter bar */}
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-tertiary)]" />
-                <input
-                  type="text"
+            <div className="stf-card flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <AppInput
+                  icon={Search}
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   onKeyDown={(event) => event.key === "Enter" && searchVentures()}
                   placeholder={t("searchVentures")}
-                  className="w-full pl-11 pr-4 py-3 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none focus:border-brand-orange/60"
+                  aria-label={t("searchVentures")}
                 />
               </div>
               <button
+                type="button"
+                aria-pressed={showFilters}
                 onClick={() => setShowFilters(!showFilters)}
-                className={`px-4 py-3 rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
-                  showFilters
-                    ? "bg-[var(--brand-orange)] text-white"
-                    : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                }`}
+                className={`stf-btn${showFilters ? " pr" : ""}`}
               >
-                <SlidersHorizontal className="w-4 h-4" /> {t("filters")}
+                <SlidersHorizontal size={15} /> {t("filters")}
               </button>
               <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures}>
                 {t("search")}

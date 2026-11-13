@@ -79,6 +79,7 @@
     "investor": {
       "browser": {
         "title": "Espace investisseur",
+        "subtitle": "Découvrez des ventures, suivez votre pipeline et faites grandir votre watchlist.",
         "individual": "Investisseur individuel",
         "watchlistAdded": "Ajouté à la watchlist",
         "watchlistRemoved": "Retiré de la watchlist",

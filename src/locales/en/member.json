@@ -79,6 +79,7 @@
     "investor": {
       "browser": {
         "title": "Investor space",
+        "subtitle": "Discover ventures, follow your pipeline and grow your watchlist.",
         "individual": "Individual investor",
         "watchlistAdded": "Added to watchlist",
         "watchlistRemoved": "Removed from watchlist",
