@@ -1,13 +1,19 @@
 "use client";
 
-import { BarChart3, Building2 } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
+import AppEmptyState from "@/components/ui/AppEmptyState";
+import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
-import { PIPELINE_STAGES, STAGE_COLORS, STAGE_LABELS } from "./constants";
+import VentureIdentity from "./VentureIdentity";
+import { PIPELINE_STAGES, STAGE_COLORS, STAGE_LABELS, STAGE_TONES } from "./constants";
 
 /**
  * The Pipeline tab: the stage filter row and the pipeline entries.
- * Extracted verbatim from InvestorDashboard.
+ *
+ * Each entry wears the same identity row as the discovery card and states its
+ * stage as a shared tag; the actions it offers are the same ones, in the same
+ * order, as everywhere else.
  */
 export default function PipelineTab({
   pipeline,
@@ -48,40 +54,37 @@ export default function PipelineTab({
       </div>
 
       {filteredPipeline.length === 0 ? (
-        <div className="text-center py-16">
-          <BarChart3 className="w-12 h-12 text-[var(--text-tertiary)] mx-auto mb-4" />
-          <p className="text-sm font-bold text-[var(--text-secondary)]">{t("member.investor.browser.pipeline.emptyTitle")}</p>
-          <p className="text-xs text-[var(--text-tertiary)] mt-1">{t("member.investor.browser.pipeline.emptyBody")}</p>
-        </div>
+        <AppEmptyState
+          icon={BarChart3}
+          title={t("member.investor.browser.pipeline.emptyTitle")}
+          description={t("member.investor.browser.pipeline.emptyBody")}
+        />
       ) : (
         <div className="space-y-3">
           {filteredPipeline.map(item => (
             <AppCard key={item.id} padding="md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Building2 className="w-8 h-8 text-brand-orange/60" />
-                  <div>
-                    <p className="text-sm font-bold text-[var(--text-primary)]">{item.venture_name || item.venture_id}</p>
-                    <p className="text-[10px] text-[var(--text-tertiary)]">
-                      {new Date(item.stage_changed_at).toLocaleDateString()}
-                    </p>
-                  </div>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <VentureIdentity
+                    name={item.venture_name || item.venture_id}
+                    meta={item.stage_changed_at ? new Date(item.stage_changed_at).toLocaleDateString() : null}
+                  />
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wide ${STAGE_COLORS[item.stage]}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`stf-tag ${STAGE_TONES[item.stage] ?? ""}`}>
                     {t(STAGE_LABELS[item.stage] || "") || item.stage}
                   </span>
                   {item.stage === "due_diligence" && (
-                    <button onClick={() => onOpenWorkspace(item.id)}
-                      className="px-3 py-1 rounded-lg bg-purple-500/10 text-purple-400 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20">
+                    <AppButton variant="secondary" size="sm" onClick={() => onOpenWorkspace(item.id)}>
                       {t("member.investor.browser.pipeline.openWorkspace")}
-                    </button>
+                    </AppButton>
                   )}
                   <select
                     value={item.stage}
                     onChange={event => onAddToPipeline(item.venture_id, event.target.value)}
                     disabled={processingId !== null}
-                    className="bg-[var(--surface-3)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[10px] font-bold text-[var(--text-primary)] outline-none disabled:opacity-40 disabled:cursor-wait"
+                    aria-label={t("member.investor.browser.detail.pipelineStatus")}
+                    className="bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-lg px-2 py-1 text-[11px] font-bold text-[var(--text-primary)] outline-none disabled:opacity-40 disabled:cursor-wait"
                   >
                     {PIPELINE_STAGES.map(stageOption => (
                       <option key={stageOption} value={stageOption}>{t(STAGE_LABELS[stageOption] || "")}</option>

@@ -28,6 +28,21 @@ export const STAGE_LABELS = {
   declined: "declined",
 };
 
+/**
+ * The shared tag tones each stage wears (see the `stf-tag` variants). The tone
+ * carries the meaning — neutral, info, watch, accent, good, critical — instead
+ * of a bespoke colour per stage.
+ */
+export const STAGE_TONES = {
+  interested: "",
+  watching: "b",
+  meeting_requested: "w",
+  due_diligence: "o",
+  negotiation: "o",
+  invested: "g",
+  declined: "r",
+};
+
 export const INDUSTRY_OPTIONS = ["FinTech","HealthTech","AgriTech","EdTech","CleanTech","Logistics","E-Commerce","SaaS","AI/ML","Renewable Energy"];
 export const COUNTRY_OPTIONS = ["CD","KE","NG","ZA","GH","RW","UG","TZ","EG","MA"];
 export const STAGE_OPTIONS = ["Pre-Seed","Seed","Series A","Series B","Growth"];
