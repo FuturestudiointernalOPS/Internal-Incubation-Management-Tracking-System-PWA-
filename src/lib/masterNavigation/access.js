@@ -32,6 +32,10 @@ export const ROLE_ACCESS = {
         "pending_users", "bulk_upload",
       ],
       communication: ["messages", "announcements", "forms"],
+      forms: [
+        "forms_dashboard", "forms_list", "forms_runs",
+        "forms_import", "forms_identity_review", "forms_scores",
+      ],
       programs: ["all_programs", "create_program", "progress"],
       ventures: ["all_ventures"],
       investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_campaigns", "investors_relationships", "investors_portfolio", "investors_deal_flow", "investors_introductions", "investors_metrics"],
@@ -55,6 +59,8 @@ export const ROLE_ACCESS = {
     top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
     children: {
       communication: ["messages", "forms"],
+      // The /admin screens of the Forms workspace stay with the owner.
+      forms: ["forms_dashboard", "forms_list", "forms_runs"],
     },
     hrefs: {
       dashboard: "/staff",
@@ -99,7 +105,7 @@ export const ROLE_ACCESS = {
     //
     // Forms and runs are NOT CRM: they belong to the Communication feature, so
     // they open through the Communication section like they do for every other
-    // role. The Forms workspace itself carries Runs in its own sidebar.
+    // role. The Forms workspace unfolds there (dashboard, forms, runs).
     top: ["crm", "communication"],
     children: {
       crm: [
@@ -108,6 +114,7 @@ export const ROLE_ACCESS = {
         "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
       ],
       communication: ["forms"],
+      forms: ["forms_dashboard", "forms_list", "forms_runs"],
     },
     hrefs: {
       crm_dashboard: "/staff/crm",
@@ -216,6 +223,14 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
       { module: "collections", capability: "view" },
     ],
   },
+  // The Forms workspace screens — each one the right its API checks, exactly
+  // as declared in src/models/platform/registry.js.
+  forms_dashboard: { module: "runs", capability: "view" },
+  forms_list: { module: "forms", capability: "view" },
+  forms_runs: { module: "runs", capability: "view" },
+  forms_import: { module: "settings", capability: "edit" },
+  forms_identity_review: { module: "settings", capability: "edit" },
+  forms_scores: { module: "runs", capability: "view" },
   weekly_ops: { module: "reports", capability: "create" },
   my_projects: { module: "projects", capability: "view" },
   messages: { module: "messaging", capability: "view" },
