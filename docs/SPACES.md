@@ -116,6 +116,27 @@ manifeste, pas modifier la navigation.
 Les manifestes sont verrouillés par `member-contexts.test.js` et
 `staff-contexts.test.js`, qui figent l'ordre et le contenu des portes.
 
+## Le tableau de bord unique de l'espace membre
+
+Toute personne de l'espace membre ouvre **`/dashboard`**. L'adresse est servie
+par une **réécriture** vers l'écran `/member/dashboard` : l'URL affichée reste
+courte, et la coquille de l'espace est montée une seule fois (pas de barre
+latérale rechargée en allant du tableau de bord vers un contexte).
+
+La page est la même pour tous ; ce qui change est la liste des **sections**, et
+c'est le serveur qui la décide à partir des relations réellement détenues. Une
+personne sans siège de programme ne reçoit aucun bloc de programme — pas un bloc
+vide : rien n'est lu, rien n'est envoyé.
+
+Les anciens tableaux de bord par profil (`/member/participant`,
+`/member/founder`, `/member/facilitator`, `/member/investor/dashboard`)
+redirigent vers `/dashboard` (liste `RETIRED_DASHBOARD_REDIRECTS`). Leurs écrans
+de détail restent : mes programmes, mes cours, l'espace investisseur, les écrans
+de facilitation, les réunions du fondateur. Pour l'investisseur, la porte
+principale de la section ouvre le navigateur de deal flow complet (découverte,
+filtres, pipeline, watchlist, campagnes, comparaison, demandes d'introduction) ;
+le tableau de bord n'en affiche qu'un résumé.
+
 ## Correspondance des adresses
 
 | Ancienne adresse | Nouvelle adresse | État |
@@ -129,7 +150,8 @@ Les manifestes sont verrouillés par `member-contexts.test.js` et
 | `/investor/**` | `/member/investor/**` | ✅ routes + composants |
 | `/facilitator/**` | `/member/facilitator/**` | ✅ routes + composants |
 | `/team/**` | `/member/team/**` | ✅ routes + composants |
-| `/workspaces` | `/member` | ✅ hub de l'espace |
+| `/workspaces` | `/member` | ✅ hub de l'espace (secondaire) |
+| `/dashboard` | `/member/dashboard` | ✅ tableau de bord unique, par réécriture |
 | `/founder/ventures/**` | `/member/participant/ventures/**` | ✅ redirection |
 | `/admin/**`, `/platform/**` | inchangé | ✅ |
 
