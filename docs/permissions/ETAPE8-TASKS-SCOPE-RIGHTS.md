@@ -85,10 +85,10 @@ attendant leur conversion.
 
 ## Ce qui reste
 
-- **Projets** : `seesWholePortfolio` y est encore la règle
-  (`projects/access.js`, `projects/collaboration.js`, `projects/workspace.js`).
-  La conversion suit le même schéma, avec un `projects.view_all` porté par le
-  personnel interne (comportement actuel).
+- **Projets** : **converti à l'étape 9** (`projects.view_all`) — voir
+  `ETAPE9-PROJECT-SCOPE-RIGHTS.md`.
+- **Annuler l'invitation d'autrui** (`collaboration.js`) : pouvoir de support
+  du propriétaire, encore keyé sur le rôle.
 - **Création de tâche** : `create.js` garde deux décisions par rôle — qui peut
   créer une tâche pour quelqu'un d'autre (`["super_admin","staff",
   "program_manager","team"]`) et l'exemption du contrôle de groupe pour le

@@ -29,6 +29,22 @@ const getSession = jest.fn(async () => mockSession);
 const requireProjectAccess = jest.fn(async () => null);
 const requireAuthorization = jest.fn(async () => null);
 
+// `projects.view_all` is resolved through the engine by the services; the
+// harness answers it from the scenario's role, so a "portfolio caller" test and
+// a "non-portfolio caller" test keep meaning what they say.
+const getAuthorizationContext = jest.fn(async (user) => ({
+  cid: user?.cid,
+  role: user?.role,
+}));
+const authorize = jest.fn((_ctx, moduleKey, capability) => {
+  if (moduleKey === "projects" && capability === "view_all") {
+    return ["super_admin", "staff", "program_manager"].includes(
+      String(mockSession.role),
+    );
+  }
+  return false;
+});
+
 const readJson = (res) => res.json();
 
 const req = (url, { method = "GET", body } = {}) =>
@@ -138,7 +154,7 @@ function authMock() {
 }
 
 function authorizationMock() {
-  return { requireAuthorization };
+  return { requireAuthorization, getAuthorizationContext, authorize };
 }
 
 /** The whole beforeEach: the query log, the mutable inputs and the session. */
@@ -151,6 +167,8 @@ function reset() {
   mockSession.role = "staff";
   requireProjectAccess.mockResolvedValue(null);
   requireAuthorization.mockResolvedValue(null);
+  getAuthorizationContext.mockClear();
+  authorize.mockClear();
 }
 
 module.exports = {

@@ -31,38 +31,52 @@ import {
   deleteProjectById,
 } from "@/models/projects";
 import {
-  PORTFOLIO_ROLES,
-  seesWholePortfolio,
   resolveListingScope,
 } from "@/services/authorization/listingScope";
-
-/**
- * The roles that see the whole project portfolio. Everyone else is limited to
- * the projects they own or belong to. (Alias of the shared authorization rule.)
- */
-export const PROJECT_PORTFOLIO_ROLES = PORTFOLIO_ROLES;
-
-/** May this role look at projects it is not a member of? */
-export const seesWholeProjectPortfolio = seesWholePortfolio;
+import {
+  getAuthorizationContext,
+  authorize,
+} from "@/models/authorization/index";
 
 /** The shared own-scope rule, re-exported for the collaboration module. */
 export const resolveOwnScope = resolveListingScope;
 
 /**
+ * `projects.view_all` — may this caller look at projects it is not a member of?
+ *
+ * Resolved through the authorization engine (cached per identity), so the
+ * services below never compare a role label. A resolution failure is a closed
+ * door.
+ */
+export async function resolveProjectPortfolio({ role, cid }) {
+  if (!cid) return false;
+  try {
+    return authorize(
+      await getAuthorizationContext({ cid, role }),
+      "projects",
+      "view_all",
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
  * Resolve which rows a caller's project list may return.
  *
- * A non-portfolio role is pinned to their own id: asking for somebody else's is
- * refused rather than silently ignored. A portfolio role may filter by whatever
- * cid (or none) they passed.
+ * A caller without `projects.view_all` is pinned to their own id: asking for
+ * somebody else's is refused rather than silently ignored. A holder may filter
+ * by whatever cid (or none) they passed.
  *
  * @returns {{filterCid?: string|null, denied?: string}}
  */
-export function resolveProjectListFilter({ role, sessionCid, requestedCid }) {
+export function resolveProjectListFilter({ role, sessionCid, requestedCid, seesAll }) {
   const resolved = resolveOwnScope({
     role,
     sessionCid,
     requestedCid,
     denialMessage: "errors.ownProjectsViewOnly",
+    seesAll,
   });
   if (resolved.denied) return { denied: resolved.denied };
   return { filterCid: resolved.cid };
@@ -220,7 +234,12 @@ export async function listProjects({
   requestedCid,
   includeArchived,
 }) {
-  const filter = resolveProjectListFilter({ role, sessionCid, requestedCid });
+  const filter = resolveProjectListFilter({
+    role,
+    sessionCid,
+    requestedCid,
+    seesAll: await resolveProjectPortfolio({ role, cid: sessionCid }),
+  });
   if (filter.denied) {
     return { status: 403, error: filter.denied };
   }

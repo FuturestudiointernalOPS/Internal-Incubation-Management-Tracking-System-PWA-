@@ -41,7 +41,7 @@ import {
   getContactCidByName,
   createInvitationAcceptedNotification,
 } from "@/models/projectCollaboration";
-import { seesWholeProjectPortfolio, resolveOwnScope } from "./workspace";
+import { resolveProjectPortfolio, resolveOwnScope } from "./workspace";
 
 /** The members of a project, with their contact names. */
 export async function listProjectMembers(projectId) {
@@ -91,11 +91,13 @@ export async function removeProjectMember(projectId, userCid) {
  * dropdown that cannot be built must not turn a page into an error.
  */
 export async function listProjectAssignments({ role, sessionCid, requestedCid }) {
+  const seesAll = await resolveProjectPortfolio({ role, cid: sessionCid });
   const scope = resolveOwnScope({
     role,
     sessionCid,
     requestedCid,
     denialMessage: "errors.ownAssignmentsViewOnly",
+    seesAll,
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -113,7 +115,7 @@ export async function listProjectAssignments({ role, sessionCid, requestedCid })
 
   const owned = await readRows(() => getOwnedProjectsByUser(userCid));
   const collab = await readRows(() => getCollaboratingProjectsByUser(userCid));
-  const all_active = seesWholeProjectPortfolio(role)
+  const all_active = seesAll
     ? await readRows(() => getAllActiveProjects())
     : [];
 
@@ -233,6 +235,7 @@ export async function listProjectInvitations({
     sessionCid,
     requestedCid: inviteeId,
     denialMessage: "errors.ownInvitationsViewOnly",
+    seesAll: await resolveProjectPortfolio({ role, cid: sessionCid }),
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 

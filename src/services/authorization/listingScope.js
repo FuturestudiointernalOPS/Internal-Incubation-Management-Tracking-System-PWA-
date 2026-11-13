@@ -2,9 +2,14 @@
  * Authorization — listing scope (SERVICE layer).
  *
  * A decision that recurs across every "list my X" endpoint: which callers may
- * look at somebody else's rows, and which are pinned to their own. The
- * portfolio roles may; everyone else may not, and asking for another person's
- * rows is refused rather than silently ignored.
+ * look at somebody else's rows, and which are pinned to their own. Asking for
+ * another person's rows without the cross-person right is refused rather than
+ * silently ignored.
+ *
+ * WHO may look at other people's rows is a RIGHT, resolved by the domain before
+ * it calls here (`tasks.act_any`, `tasks.view_all`, `projects.view_all`). This
+ * module therefore takes the verdict and no longer reads a role: an absent
+ * verdict is a closed scope — fail closed, never "this role probably meant it".
  *
  * It lives here, in the authorization decision layer, because it is a "may
  * they?" question — and once, so the rule cannot drift between endpoints.
@@ -12,60 +17,26 @@
  * Layer (see docs/LAYER_SPLIT.md): a pure decision — no SQL, no HTTP.
  */
 
-import {
-  INTERNAL_STAFF_ROLE,
-  PLATFORM_OWNER_ROLE,
-  PROGRAM_MANAGER_ROLE,
-  isInternalStaffRole,
-  isLegacyProgramManagerRole,
-  isPlatformOwnerRole,
-} from "@/lib/identity";
-
-/** The roles that may see the whole portfolio, not just their own rows. */
-export const PORTFOLIO_ROLES = [
-  PLATFORM_OWNER_ROLE,
-  INTERNAL_STAFF_ROLE,
-  PROGRAM_MANAGER_ROLE,
-];
-
-/** May this role look at rows that are not its own? */
-export function seesWholePortfolio(role) {
-  return (
-    isPlatformOwnerRole(role) ||
-    isInternalStaffRole(role) ||
-    isLegacyProgramManagerRole(role)
-  );
-}
-
-// NOTE — this module is the LEGACY role-based scope. The tasks domain resolves
-// `tasks.act_any` / `tasks.view_all` and passes the verdict (`seesAll`), so it no
-// longer reads the role; the projects domain still uses the role-based default
-// until its own `projects.view_all` conversion lands.
-
 /**
  * Resolve a caller's own-scope filter for a listing endpoint.
  *
  * @param {Object} args
- * @param {string} args.role             the caller's role
- * @param {string} args.sessionCid       the caller's own id
+ * @param {string} args.sessionCid        the caller's own id
  * @param {string|null} args.requestedCid the id the caller asked for (or null)
- * @param {string} args.denialMessage    the refusal to return when refused
- * @param {boolean} [args.seesAll]       the resolved cross-person verdict; when
- *                                       supplied it decides instead of the role
- *                                       (services that read the right pass it)
+ * @param {string} args.denialMessage     the refusal to return when refused
+ * @param {boolean} args.seesAll          the resolved cross-person verdict
  * @returns {{cid?: string|null, denied?: string}}
- *   `cid` is the id to filter on — null means "no filter" for a portfolio
- *   caller; `denied` is set when a non-portfolio caller asked for someone else.
+ *   `cid` is the id to filter on — null means "no filter" for a cross-person
+ *   caller; `denied` is set when a caller without the right asked for someone
+ *   else.
  */
 export function resolveListingScope({
-  role,
   sessionCid,
   requestedCid,
   denialMessage,
   seesAll,
 }) {
-  const portfolio = typeof seesAll === "boolean" ? seesAll : seesWholePortfolio(role);
-  if (portfolio) {
+  if (seesAll === true) {
     return { cid: requestedCid };
   }
   if (requestedCid && String(requestedCid) !== String(sessionCid)) {

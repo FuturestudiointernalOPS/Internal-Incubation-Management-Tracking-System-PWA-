@@ -79,7 +79,7 @@ export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
 export const PROFILE_CATALOGUE_SEED = [
   { key: "super_admin_default", label: "Super Admin Default", context: "global", allowedRoles: ["super_admin"], allCapabilities: true },
   { key: "staff_default", label: "Staff Default", context: "global", allowedRoles: ["staff"], capabilities: {
-    projects: { view: 1, create: 2, edit: 3 },
+    projects: { view: 1, create: 2, edit: 3, view_all: 1 },
     programs: { view: 1, groups: 2 },
     ventures: { view: 1, view_all: 1, edit: 3, setup: 3, kpis: 3, permissions_view: 1, my_assignments: 1 },
     reports: { view: 1, create: 2 },

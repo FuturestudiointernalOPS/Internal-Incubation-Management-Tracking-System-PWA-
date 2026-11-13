@@ -257,10 +257,17 @@ export const FEATURE_MODULE_CAPABILITY = {
       risk: "medium",
       capabilities: {
         view: { label: "View", risk: "low", description: "See projects" },
-        create: { label: "Create", risk: "medium", description: "Create projects" },
+        create: { label: "Create", risk: "low", description: "Create projects" },
         edit: { label: "Edit", risk: "medium", description: "Edit projects" },
         delete: { label: "Delete", risk: "high", description: "Delete projects" },
-        archive: { label: "Archive", risk: "medium", parent: "edit", description: "Archive projects" },
+        // The cross-member read: every project, not only the ones the caller owns
+        // or belongs to. It replaces the staff-side `seesWholePortfolio(role)`
+        // rule in the project listing and object-check bypass.
+        view_all: {
+          label: "View All Projects",
+          risk: "medium",
+          description: "See every project, not only the ones the caller owns or belongs to",
+        },
       },
     },
     tasks: {

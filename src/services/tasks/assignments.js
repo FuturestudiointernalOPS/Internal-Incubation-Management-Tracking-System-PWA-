@@ -47,8 +47,9 @@ import {
 } from "@/models/tasks";
 import { logAuditEvent } from "@/services/tasks/auditLog";
 import { resolveListingScope } from "@/services/authorization/listingScope";
+import { resolveTaskActAny } from "./access";
 
-/** The assignments a caller may see (their own unless they hold a portfolio role). */
+/** The assignments a caller may see (their own unless they hold `tasks.act_any`). */
 export async function listTaskAssignments({
   role,
   sessionCid,
@@ -60,6 +61,7 @@ export async function listTaskAssignments({
     sessionCid,
     requestedCid,
     denialMessage: "errors.ownAssignmentsViewOnly",
+    seesAll: await resolveTaskActAny({ role, cid: sessionCid }),
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
