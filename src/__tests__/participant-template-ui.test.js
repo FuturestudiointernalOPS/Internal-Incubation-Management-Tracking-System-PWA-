@@ -19,9 +19,16 @@ const mockHome = {
   actionCenter: { overdue: [], dueSoon: [], pendingSubmissions: [], upcomingSessions: [] },
 };
 const mockCourses = [{ course: { id: "course1", title: "Real course" }, progress: { percent: 50, completedLessons: 2, totalLessons: 4 } }];
+// The cross-program report: its figures differ from the primary program's on
+// purpose, so a screen that reads the primary program can be told apart.
+const mockProgress = {
+  success: true,
+  overall: { programCompletion: 60, attendanceRate: 75, assignmentCompletion: 100, kpiCompletion: 80, ritualParticipation: 50 },
+  totals: { submissions: 4, approved: 4, sessions: 4, attended: 3, deliverables: 5, completedDeliverables: 3, rituals: 2, programs: 2 },
+};
 jest.mock("@/lib/hooks/useApi", () => ({
   useApi: (url, options) => {
-    const payload = url === "/api/me/relationships" ? { success: true, isInvestor: mockInvestor } : url === "/api/participant/home" ? mockHome : { success: true, courses: mockCourses };
+    const payload = url === "/api/me/relationships" ? { success: true, isInvestor: mockInvestor } : url === "/api/participant/home" ? mockHome : url === "/api/participant/progress" ? mockProgress : { success: true, courses: mockCourses };
     return { data: options.transform ? options.transform(payload) : payload, loading: false, error: null, refresh: jest.fn() };
   },
   useApiMulti: () => ({ data: {}, loading: false, error: null }),
@@ -86,11 +93,18 @@ test("dashboard keeps course links and omits the removed shortcut and ritual sec
   expect(screen.queryByRole("heading", { name: /My Learning|Your Progress|Overdue|Due Soon|Pending/i })).toBeNull();
   expect(screen.getByRole("link", { name: /View all announcements/i })).toBeTruthy();
 });
- test("participant keeps the attention and learning blocks", () => {
+ test("participant keeps the attention and learning blocks, and the progress section reads every program", () => {
   render(<ParticipantDashboardHome />);
-  // The "Your Progress" card was removed with the program-card change: the
-  // participant's programme cards carry the progress figures now.
-  expect(screen.queryByRole("heading", { name: "Your Progress" })).toBeNull();
+  // The "Your Progress" section is back, and it reads the cross-program report:
+  // its figures are the overall ones, never the primary program's own rates.
+  expect(screen.getByRole("heading", { name: "Your Progress" })).toBeTruthy();
+  expect(screen.getByRole("link", { name: /View my progress/i }).getAttribute("href")).toBe("/member/participant/progress");
+  expect(screen.getByText("3/5 deliverables")).toBeTruthy();
+  expect(screen.getByText("4/4 approved")).toBeTruthy();
+  expect(screen.getByText("3/4 sessions")).toBeTruthy();
+  // The primary program's own rates (25 % completion, 30 % KPI) are gone.
+  expect(screen.queryByText("25%")).toBeNull();
+  expect(screen.queryByText("30%")).toBeNull();
   expect(screen.getByRole("heading", { name: /Overdue/i })).toBeTruthy();
   expect(screen.getByRole("link", { name: /All my courses/i })).toBeTruthy();
 });
