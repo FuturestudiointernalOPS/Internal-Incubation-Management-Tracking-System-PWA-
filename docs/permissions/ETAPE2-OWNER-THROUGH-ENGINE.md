@@ -125,8 +125,11 @@ suivants :
 - l'accès à une ressource précise (`scopedAccess`) dispense le propriétaire de
   l'affectation, mais exige désormais le droit et passe par la décision
   normale ;
-- les écrans d'administration qui comparent encore `isPlatformOwnerRole` (page
-  Blockers, page Investisseurs, page Work) : leur API doit d'abord passer au
-  droit correspondant.
+- les écrans d'administration qui comparaient `isPlatformOwnerRole` (page
+  Blockers, page Investisseurs, page Work) sont **convertis** : voir
+  `ETAPE7-ADMIN-SCREEN-GUARDS.md` ;
+- `src/services/tasks/blockers.js` admet encore le rôle propriétaire pour
+  **lever ou modifier** un blocker sur une tâche qu'on ne possède pas (règle
+  d'écriture, hors des trois écrans ci-dessus).
 
 Ces points sont déjà inventoriés dans `ETAPE0-WHOAUDIT.md`.

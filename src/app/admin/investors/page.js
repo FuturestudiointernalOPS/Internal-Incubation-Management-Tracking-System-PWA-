@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   Building2, CheckCircle2, XCircle,
   Search, Loader2, Clock, Ban, Check, Copy, RefreshCw, X, UserPlus,
@@ -10,7 +9,7 @@ import {
 import { useI18n } from "@/lib/i18n";
 import AppButton from "@/components/ui/AppButton";
 import { useApi } from "@/lib/hooks/useApi";
-import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { usePermissions } from "@/lib/PermissionProvider";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { notify } from "@/components/shared/notify";
 
@@ -59,9 +58,11 @@ export default function AdminInvestorsPage() {
   const [acting, setActing] = useState(null);
   const [detail, setDetail] = useState(null);
   const { t } = useI18n();
-  const { role } = useSessionUser();
+  const { can } = usePermissions();
   const { confirm } = useDialogs();
-  const isSuperAdmin = isPlatformOwnerRole(role);
+  // The API behind the "add investor" link requires investor.create or
+  // settings.edit; the button opens on exactly those rights.
+  const canCreateInvestor = can("investor", "create") || can("settings", "edit");
 
   // The "add an investor" link: its own small state, so opening it never touches
   // the list. `runId` is kept to rotate the link (regenerate).
@@ -179,7 +180,7 @@ export default function AdminInvestorsPage() {
               {t("investorAdmin.list.subtitle")}
             </p>
           </div>
-          {isSuperAdmin && (
+          {canCreateInvestor && (
             <AppButton variant="primary" size="sm" icon={UserPlus} onClick={openInvestorLink}>
               {t("investorAdmin.list.addInvestor")}
             </AppButton>
@@ -381,7 +382,7 @@ export default function AdminInvestorsPage() {
         )}
 
         {/* Add Investor — the execution link handed to a prospective investor */}
-        {isSuperAdmin && link.open && (
+        {canCreateInvestor && link.open && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setLink((prev) => ({ ...prev, open: false }))} />
             <div className="relative w-full max-w-lg bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl">

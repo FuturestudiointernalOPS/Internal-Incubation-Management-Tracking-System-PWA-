@@ -4,7 +4,8 @@
  * The domain work behind DELETE /api/tasks. The CONTROLLER authenticates and
  * validates; everything below is the rule set:
  *
- *   - only the task's owner, assignee, supervisor, or Super Admin may delete it;
+ *   - only the task's owner, assignee, supervisor, or a holder of
+ *     `tasks.delete` may delete it;
  *   - a locked task (older than the lock window) cannot be deleted;
  *   - a carry-over task cannot be deleted — it is a standup commitment that must
  *     be completed or resolved;
@@ -31,13 +32,14 @@ import { logAuditEvent, isTaskLocked } from "@/services/tasks/auditLog";
  *
  * @returns {Promise<{status: number, error?: string, body?: Object}>}
  */
-export async function deleteTaskRecord({ id, role, sessionCid, sessionName }) {
-  // SECURITY: only the task owner, assignee, supervisor or Super Admin may delete.
+export async function deleteTaskRecord({ id, canDeleteAny = false, sessionCid, sessionName }) {
+  // SECURITY: only the task owner, assignee, supervisor or a holder of
+  // `tasks.delete` may delete. The verdict is resolved by the route.
   const taskCheckResult = await getTaskDeleteInfo(parseInt(id));
   if (taskCheckResult.rows.length > 0) {
     const taskRow = taskCheckResult.rows[0];
     if (
-      role !== "super_admin" &&
+      !canDeleteAny &&
       String(taskRow.user_id) !== String(sessionCid) &&
       String(taskRow.assigned_to || "") !== String(sessionCid) &&
       String(taskRow.supervisor_id || "") !== String(sessionCid)

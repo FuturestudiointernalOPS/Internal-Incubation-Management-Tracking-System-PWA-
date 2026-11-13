@@ -3,7 +3,7 @@ import { useI18n } from "@/lib/i18n";
 
 export default function KanbanTaskCard({
   task,
-  isSuperAdmin,
+  canDelete,
   deletingTaskId,
   onDelete,
   onDragStart,
@@ -29,7 +29,7 @@ export default function KanbanTaskCard({
         >
           {task.title}
         </span>
-        {isSuperAdmin && (
+        {canDelete && (
           <button
             onClick={() => onDelete(task.id)}
             disabled={deletingTaskId === task.id}

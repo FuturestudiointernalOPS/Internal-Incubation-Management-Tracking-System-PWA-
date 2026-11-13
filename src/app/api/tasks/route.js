@@ -6,6 +6,10 @@ import { createTaskRecord } from "@/services/tasks/create";
 import { updateTaskRecord } from "@/services/tasks/update";
 import { deleteTaskRecord } from "@/services/tasks/remove";
 import { respondToPendingAssignment } from "@/services/tasks/assignments";
+import {
+  getAuthorizationContext,
+  authorize,
+} from "@/models/authorization/index";
 
 /**
  * TASKS API — controller layer.
@@ -36,6 +40,14 @@ export async function GET(req) {
     }
     const { searchParams } = new URL(req.url);
 
+    // The cross-person read is a RIGHT (`tasks.view_all`), resolved here so the
+    // service receives a verdict instead of a role label.
+    const canSeeAll = authorize(
+      await getAuthorizationContext(session),
+      "tasks",
+      "view_all",
+    );
+
     const result = await listTasks({
       userId: searchParams.get("user_id"),
       assignedTo: searchParams.get("assigned_to"),
@@ -50,6 +62,7 @@ export async function GET(req) {
       priority: searchParams.get("priority"),
       role: session.role,
       sessionCid: session.cid,
+      canSeeAll,
     });
 
     if (result.error) {
@@ -178,7 +191,11 @@ export async function DELETE(req) {
 
     const result = await deleteTaskRecord({
       id,
-      role: session.role,
+      canDeleteAny: authorize(
+        await getAuthorizationContext(session),
+        "tasks",
+        "delete",
+      ),
       sessionCid: session.cid,
       sessionName: session.name,
     });

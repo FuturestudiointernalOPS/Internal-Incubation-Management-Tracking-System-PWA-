@@ -27,6 +27,15 @@ jest.mock("@/lib/db", () => ({
 }));
 
 const mockSession = { cid: "user-1", name: "Staff One", role: "staff" };
+// The cross-person read is a RIGHT now: the route resolves it through the engine.
+let mockCanSeeAll = false;
+
+jest.mock("@/models/authorization/index", () => ({
+  getAuthorizationContext: jest.fn(async () => ({})),
+  authorize: jest.fn((_ctx, module, capability) =>
+    module === "tasks" && capability === "view_all" ? mockCanSeeAll : false,
+  ),
+}));
 
 jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn(async () => null),
@@ -43,6 +52,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockSession.cid = "user-1";
   mockSession.role = "staff";
+  mockCanSeeAll = false;
   mockModels.getTaskRowById.mockResolvedValue({ rows: [] });
   mockModels.getTasksByFilters.mockResolvedValue({ rows: [] });
   mockModels.getBlockersForTask.mockResolvedValue({ rows: [] });
@@ -54,10 +64,19 @@ beforeEach(() => {
 });
 
 describe("GET /api/tasks — scoping", () => {
-  test("a non-super-admin asking for another user's tasks is refused (403)", async () => {
+  test("a caller without the cross-person right asking for another user's tasks is refused (403)", async () => {
     const res = await GET(getReq("/api/tasks?user_id=someone-else"));
     expect(res.status).toBe(403);
     expect(mockModels.getTasksByFilters).not.toHaveBeenCalled();
+  });
+
+  test("a holder of tasks.view_all may ask for another user's tasks", async () => {
+    mockCanSeeAll = true;
+    const res = await GET(getReq("/api/tasks?user_id=someone-else"));
+    expect(res.status).toBe(200);
+    expect(mockModels.getTasksByFilters).toHaveBeenCalledWith(
+      expect.objectContaining({ seesAll: true, effectiveUserId: "someone-else" }),
+    );
   });
 
   test("a non-portfolio caller cannot filter by a foreign assignee (403)", async () => {
@@ -77,15 +96,15 @@ describe("GET /api/tasks — scoping", () => {
   test("a portfolio caller with no filter is scoped to their own tasks by default", async () => {
     await GET(getReq("/api/tasks"));
     expect(mockModels.getTasksByFilters).toHaveBeenCalledWith(
-      expect.objectContaining({ isSuperAdmin: false, scope: "self", effectiveUserId: null }),
+      expect.objectContaining({ seesAll: false, scope: "self", effectiveUserId: null }),
     );
   });
 
-  test("a super-admin is unscoped", async () => {
-    mockSession.role = "super_admin";
+  test("a holder of tasks.view_all is unscoped", async () => {
+    mockCanSeeAll = true;
     await GET(getReq("/api/tasks"));
     expect(mockModels.getTasksByFilters).toHaveBeenCalledWith(
-      expect.objectContaining({ isSuperAdmin: true }),
+      expect.objectContaining({ seesAll: true }),
     );
   });
 });

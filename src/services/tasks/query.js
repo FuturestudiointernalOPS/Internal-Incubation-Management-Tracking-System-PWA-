@@ -9,11 +9,11 @@
  * The CONTROLLER authenticates and shapes the HTTP answer; everything below is
  * the decision:
  *
- *   - a non-super-admin asking for another user's tasks is refused;
- *   - a non-portfolio caller may only see their own tasks (the user filter is
- *     forced to the session user, and a foreign assignee filter is refused);
+ *   - a caller without `tasks.view_all` asking for another user's tasks is refused;
+ *   - such a caller may only see their own tasks (the user filter is forced to
+ *     the session user, and a foreign assignee filter is refused);
  *   - a task looked up by id is still access-checked (owner / assignee /
- *     supervisor / super-admin), so the id path cannot be an IDOR;
+ *     supervisor / `tasks.view_all`), so the id path cannot be an IDOR;
  *   - the SQL scope is assembled in `@/models/tasks` (getTasksByFilters); this
  *     service only chooses which scope applies.
  *
@@ -52,10 +52,11 @@ export async function listTasks({
   priority,
   role,
   sessionCid,
+  canSeeAll = false,
 }) {
-  // SECURITY: a non-super-admin explicitly requesting another user's tasks is
-  // refused.
-  if (role !== "super_admin" && userId && userId !== sessionCid) {
+  // SECURITY: a caller without the cross-person right explicitly requesting
+  // another user's tasks is refused.
+  if (!canSeeAll && userId && userId !== sessionCid) {
     return { status: 403, error: "errors.ownTasksOnly" };
   }
 
@@ -76,7 +77,7 @@ export async function listTasks({
     const task = result.rows[0];
 
     if (
-      role !== "super_admin" &&
+      !canSeeAll &&
       String(task.user_id) !== String(sessionCid) &&
       String(task.assigned_to || "") !== String(sessionCid) &&
       String(task.supervisor_id || "") !== String(sessionCid)
@@ -101,11 +102,11 @@ export async function listTasks({
     };
   }
 
-  // SECURITY: for a non-SA caller, scope to owned / assigned / supervised tasks.
-  // The SQL for each scope is assembled in getTasksByFilters; here we only pick
-  // the scope.
+  // SECURITY: without `tasks.view_all`, scope to owned / assigned / supervised
+  // tasks. The SQL for each scope is assembled in getTasksByFilters; here we
+  // only pick the scope.
   let scope;
-  if (role !== "super_admin") {
+  if (!canSeeAll) {
     if (!userId && !assignedTo) {
       // No user/assignee filter given: scope to the session user.
       scope = "self";
@@ -125,7 +126,7 @@ export async function listTasks({
   }
 
   const result = await getTasksByFilters({
-    isSuperAdmin: role === "super_admin",
+    seesAll: canSeeAll,
     scope,
     sessionCid,
     effectiveUserId,

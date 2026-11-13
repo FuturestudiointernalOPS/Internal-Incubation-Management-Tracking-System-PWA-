@@ -155,4 +155,41 @@ describe("display shortcuts are rights, not identities", () => {
       fs.existsSync(path.join(process.cwd(), "src/components/shared/crm/CrmOverview.js")),
     ).toBe(false);
   });
+
+  test("the admin blockers board opens on the cross-person task right", () => {
+    const page = read("src/app/admin/blockers/page.js");
+    expect(page).toContain('can("tasks", "view_all")');
+    expect(page).not.toContain("isPlatformOwnerRole");
+  });
+
+  test("the work board deletes on the task-delete right", () => {
+    for (const file of [
+      "src/app/admin/work/page.js",
+      "src/spaces/admin/components/work/KanbanBoard.js",
+      "src/spaces/admin/components/work/KanbanTaskCard.js",
+    ]) {
+      expect(read(file)).not.toContain("isSuperAdmin");
+    }
+    expect(read("src/app/admin/work/page.js")).toContain('can("tasks", "delete")');
+  });
+
+  test("the investors screen opens its add link on the rights its API enforces", () => {
+    const page = read("src/app/admin/investors/page.js");
+    expect(page).toContain('can("investor", "create")');
+    expect(page).toContain('can("settings", "edit")');
+    expect(page).not.toContain("isPlatformOwnerRole");
+  });
+
+  test("the task and blocker read scopes receive a verdict, not a role", () => {
+    const query = read("src/services/tasks/query.js");
+    expect(query).toContain("canSeeAll");
+    expect(query).not.toContain('role !== "super_admin"');
+
+    const blockers = read("src/services/tasks/blockers.js");
+    expect(blockers).toContain("canSeeAll");
+
+    const remove = read("src/services/tasks/remove.js");
+    expect(remove).toContain("canDeleteAny");
+    expect(remove).not.toContain('role !== "super_admin"');
+  });
 });

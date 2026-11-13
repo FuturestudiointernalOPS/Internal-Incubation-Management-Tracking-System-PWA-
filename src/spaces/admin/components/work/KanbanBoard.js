@@ -17,7 +17,7 @@ export default function KanbanBoard({
   expandedProjects,
   onToggleProgram,
   onToggleProject,
-  isSuperAdmin,
+  canDelete,
   deletingTaskId,
   onDeleteTask,
   onDragStart,
@@ -28,7 +28,7 @@ export default function KanbanBoard({
     <KanbanTaskCard
       key={task.id}
       task={task}
-      isSuperAdmin={isSuperAdmin}
+      canDelete={canDelete}
       deletingTaskId={deletingTaskId}
       onDelete={onDeleteTask}
       onDragStart={onDragStart}

@@ -271,6 +271,14 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "low", description: "Create tasks" },
         edit: { label: "Edit", risk: "low", description: "Edit tasks" },
         delete: { label: "Delete", risk: "medium", description: "Delete tasks" },
+        // The cross-person read: every user's tasks and blockers, not only the
+        // caller's own. It replaces the platform-owner role check in the task
+        // and blocker listing scopes.
+        view_all: {
+          label: "View All Tasks",
+          risk: "medium",
+          description: "See every user's tasks and blockers, not only the caller's own",
+        },
       },
     },
   },

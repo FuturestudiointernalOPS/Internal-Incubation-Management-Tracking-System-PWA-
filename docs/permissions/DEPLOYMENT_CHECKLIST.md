@@ -12,7 +12,7 @@ données de seed, qui est explicite.
 npm run test:authz
 ```
 
-- Attendu : **24 suites / 265 tests passés**.
+- Attendu : **24 suites / 270 tests passés**.
 - Vérifie la frontière données / vocabulaire : rôles, profils, fonctionnalités,
   capacités, adresses d'arrivée et portes de plateforme.
 - Exécuté par la CI à chaque pull request (`.github/workflows/authz-ratchet.yml`).

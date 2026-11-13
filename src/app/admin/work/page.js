@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
-import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   LayoutGrid,
   ListTodo,
@@ -17,7 +16,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
-import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { usePermissions } from "@/lib/PermissionProvider";
 import KanbanBoard from "@/spaces/admin/components/work/KanbanBoard";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
@@ -111,9 +110,9 @@ export default function ProjectKanbanBoard() {
   const projects = data.projects ?? EMPTY_LIST;
   const allTasks = data.tasks ?? EMPTY_LIST;
 
-  // Who is signed in, from the shell's session cache: no request of its own, and
-  // no dependence on the browser's stored copy.
-  const { role } = useSessionUser();
+  // The delete affordance is the `tasks.delete` right: the same one the DELETE
+  // route resolves. No identity shortcut.
+  const { can } = usePermissions();
 
   const [expandedPrograms, setExpandedPrograms] = useState({});
   const [expandedProjects, setExpandedProjects] = useState({});
@@ -198,7 +197,7 @@ export default function ProjectKanbanBoard() {
     }
   }, [t, setData]);
 
-  const isSuperAdmin = isPlatformOwnerRole(role);
+  const canDelete = can("tasks", "delete");
 
   // ── Build hierarchical column data ──
   const columns = useMemo(() => {
@@ -360,7 +359,7 @@ export default function ProjectKanbanBoard() {
           expandedProjects={expandedProjects}
           onToggleProgram={toggleProgram}
           onToggleProject={toggleProject}
-          isSuperAdmin={isSuperAdmin}
+          canDelete={canDelete}
           deletingTaskId={deletingTaskId}
           onDeleteTask={handleDeleteTask}
           onDragStart={handleDragStart}

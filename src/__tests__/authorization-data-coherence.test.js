@@ -238,4 +238,8 @@ describe("platform modules — every door names a real right", () => {
   test("the CRM support exception is a declared capability", () => {
     expect(CAPABILITY_CATALOG.crm.capabilities.next_action_any).toBeTruthy();
   });
+
+  test("the cross-person task read is a declared capability", () => {
+    expect(CAPABILITY_CATALOG.tasks.capabilities.view_all).toBeTruthy();
+  });
 });
