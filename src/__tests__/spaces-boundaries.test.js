@@ -150,9 +150,48 @@ describe("the routes follow the spaces", () => {
   });
 
   test("each migrated member context owns its components", () => {
-    for (const context of ["investor", "facilitator", "team"]) {
+    for (const context of ["investor", "facilitator", "team", "participant"]) {
       expect(fs.existsSync(path.join(ROOT, "spaces", "member", context, "components"))).toBe(true);
     }
+  });
+
+  test("a screen only one context shows lives in that context, not in shared", () => {
+    const participantOnly = [
+      "AssignmentsView.js",
+      "ProgramListing.js",
+      "ProgramDetail.js",
+      "ProgressView.js",
+      "RitualsView.js",
+      "SubmissionVersionHistory.js",
+    ];
+    for (const file of participantOnly) {
+      expect(
+        fs.existsSync(path.join(ROOT, "components", "shared", "dashboard", file)),
+      ).toBe(false);
+      expect(
+        fs.existsSync(path.join(ROOT, "spaces", "member", "participant", "components", file)),
+      ).toBe(true);
+    }
+
+    for (const [file, context] of [
+      ["StandupRetroView.js", path.join("staff", "core")],
+      ["UnifiedDashboard.js", path.join("staff", "program-manager")],
+    ]) {
+      expect(
+        fs.existsSync(path.join(ROOT, "components", "shared", "dashboard", file)),
+      ).toBe(false);
+      expect(
+        fs.existsSync(path.join(ROOT, "spaces", context, "components", file)),
+      ).toBe(true);
+    }
+  });
+
+  test("the dead founder overview is gone", () => {
+    expect(
+      fs.existsSync(
+        path.join(ROOT, "components", "shared", "dashboard", "FounderDashboardOverview.js"),
+      ),
+    ).toBe(false);
   });
 
   test("the admin components live in the admin space", () => {

@@ -150,7 +150,7 @@ const ROLE_MOTIF_EXCEPTIONS = new Set([
   "src/app/staff/dashboard/page.js#M3",
   "src/components/shared/crm/useMembershipState.js#M3",
   "src/components/shared/dashboard/ProfileView.js#M3",
-  "src/components/shared/dashboard/unified-dashboard/MyProjectsCard.js#M3",
+  "src/spaces/staff/program-manager/components/unified-dashboard/MyProjectsCard.js#M3",
   "src/spaces/staff/program-manager/components/program-workspace/DeployTeamModal.js#M3",
   "src/spaces/staff/program-manager/components/programs/programTabs.js#M2",
   "src/spaces/staff/program-manager/components/programs/programWorkspaceSelectors.js#M4",

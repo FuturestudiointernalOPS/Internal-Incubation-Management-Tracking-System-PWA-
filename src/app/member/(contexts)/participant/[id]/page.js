@@ -1,7 +1,7 @@
 "use client";
 
 import { use } from "react";
-import ProgramDetail from "@/components/shared/dashboard/ProgramDetail";
+import ProgramDetail from "@/spaces/member/participant/components/ProgramDetail";
 
 /**
  * PARTICIPANT PROGRAM DETAIL PAGE

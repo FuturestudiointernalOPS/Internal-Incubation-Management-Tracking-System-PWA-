@@ -9,7 +9,7 @@ at once, and each context contributes its own screens and doors.
 | --- | --- | --- | --- |
 | Investor | an approved investor profile | `/member/investor` | `investor/components/` |
 | Founder | an owned venture membership | `/member/founder` | shared venture workspace |
-| Programme participant | an active programme membership | `/member/participant` | shared dashboard |
+| Programme participant | an active programme membership | `/member/participant` | `participant/components/` |
 | Venture member | a venture membership that is not an ownership | `/member/participant/ventures` | `shared/ventures/workspace/` |
 | Learner | a live course enrolment | `/member/participant/learning` | `shared/lms/` |
 | Facilitator | a facilitation assignment | `/member/facilitator` | `facilitator/components/` |

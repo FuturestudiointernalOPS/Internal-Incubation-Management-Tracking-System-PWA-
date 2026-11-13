@@ -6,7 +6,7 @@ copying the same screen into two space folders.
 | Folder | Used by |
 | --- | --- |
 | `calendar/` | staff dashboard and the admin dashboard (`StaffCalendar`, models, modals) |
-| `dashboard/` | member, staff and admin (profile, assignments, progress, dashboards) |
+| `dashboard/` | the profile (three spaces) and the participant home (participant + investor) |
 | `ventures/console/` | admin, staff and member (the operating venture console) |
 | `ventures/workspace/` | member and staff (the venture workspace screen and its model) |
 | `lms/` | member, staff and admin (courses, player, authoring) |

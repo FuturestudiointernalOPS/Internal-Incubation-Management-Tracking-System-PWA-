@@ -16,8 +16,10 @@ Where the code lives:
 
 ```text
 src/spaces/staff/
+├── core/
+│   └── components/        ← the staff dashboard, tasks, projects, op-report
 └── program-manager/
-    └── components/        ← the programme workspace, panels, modals
+    └── components/        ← the programme workspace, unified dashboard, panels
 ```
 
 A context's folder receives its screens and components as it migrates. Its

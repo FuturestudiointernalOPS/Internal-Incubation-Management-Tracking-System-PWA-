@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import StandupRetroView from "@/components/shared/dashboard/StandupRetroView";
+import StandupRetroView from "@/spaces/staff/core/components/StandupRetroView";
 import TasksView from "@/spaces/staff/core/components/TasksView";
 import { useI18n } from "@/lib/i18n";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";

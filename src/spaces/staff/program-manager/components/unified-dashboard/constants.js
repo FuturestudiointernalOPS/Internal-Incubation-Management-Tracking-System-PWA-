@@ -182,7 +182,7 @@ export { cn } from "@/lib/cn";
 // rather than on every render.
 
 /** The dashboard payload, or nothing when the server refused the read. */
-export const pickDashboard = (payload) => (payload?.success ? payload : null);
+export { pickDashboard } from "@/components/shared/dashboard/pickDashboard";
 
 // ─── OPERATIONS SECTION ────────────────────────────────────────────────────
 // Week number for the weekly ops panel. Restored weekly operations panel for

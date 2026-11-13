@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import ProgramListing from "@/components/shared/dashboard/ProgramListing";
+import ProgramListing from "@/spaces/member/participant/components/ProgramListing";
 import { useI18n } from "@/lib/i18n";
 
 export default function ParticipantProgramsPage() {

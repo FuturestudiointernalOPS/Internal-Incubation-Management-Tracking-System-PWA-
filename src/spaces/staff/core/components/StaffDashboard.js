@@ -9,7 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
-import { pickDashboard } from "@/components/shared/dashboard/unified-dashboard/constants";
+import { pickDashboard } from "@/components/shared/dashboard/pickDashboard";
 import StaffCalendar from "@/components/shared/calendar/StaffCalendar";
 import {
   AssignmentsCard,
