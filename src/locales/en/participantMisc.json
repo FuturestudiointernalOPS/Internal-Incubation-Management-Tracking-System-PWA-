@@ -101,6 +101,7 @@
     "programListing": {
       "active": "Active",
       "weekRange": "Week {current}/{total}",
+      "facilitator": "Facilitator",
       "facilitators": "{count} facilitator(s)",
       "progress": "Progress",
       "attendance": "Attendance",
