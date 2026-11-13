@@ -1,22 +1,11 @@
 /**
- * The pipeline stages, their colours/labels and the discovery filter options for
- * the investor dashboard.
- * Extracted verbatim from InvestorDashboard.
+ * The pipeline stages, their labels and the shared tag tones they wear, plus the
+ * discovery filter options for the investor workspace.
  */
 export const PIPELINE_STAGES = [
   "interested", "watching", "meeting_requested",
   "due_diligence", "negotiation", "invested", "declined",
 ];
-
-export const STAGE_COLORS = {
-  interested: "bg-slate-500/10 text-slate-400",
-  watching: "bg-blue-500/10 text-blue-400",
-  meeting_requested: "bg-amber-500/10 text-amber-400",
-  due_diligence: "bg-purple-500/10 text-purple-400",
-  negotiation: "bg-orange-500/10 text-orange-400",
-  invested: "bg-emerald-500/10 text-emerald-400",
-  declined: "bg-rose-500/10 text-rose-400",
-};
 
 export const STAGE_LABELS = {
   interested: "interested",

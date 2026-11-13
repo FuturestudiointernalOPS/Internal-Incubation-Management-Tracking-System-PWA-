@@ -97,6 +97,7 @@
         "compare": {
           "selected": "{count} selected",
           "action": "Compare",
+          "clear": "Clear comparison",
           "title": "Compare",
           "metric": "Metric",
           "industry": "Industry",

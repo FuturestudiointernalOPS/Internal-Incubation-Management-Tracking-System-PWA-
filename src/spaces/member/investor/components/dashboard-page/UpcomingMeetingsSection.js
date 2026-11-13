@@ -3,10 +3,10 @@
 import { Calendar } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
+import { InitialAvatar } from "./VentureIdentity";
 
 /**
  * The upcoming meetings block on the Discover tab.
- * Extracted verbatim from InvestorDashboard.
  */
 export default function UpcomingMeetingsSection({ relationships }) {
   const { t } = useI18n();
@@ -14,27 +14,23 @@ export default function UpcomingMeetingsSection({ relationships }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-        <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t("upcomingMeetings")}</h3>
+        <Calendar className="w-4 h-4 text-[var(--brand-orange)]" aria-hidden="true" />
+        <h3 className="stf-k">{t("upcomingMeetings")}</h3>
       </div>
       <div className="space-y-2">
         {relationships.map(relationship => (
           <div key={relationship.id}>
             {relationship.next_meetings && Array.isArray(relationship.next_meetings) && relationship.next_meetings.length > 0 && relationship.next_meetings.map(meeting => (
                   <AppCard key={meeting.id} padding="md" className="mb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-brand-orange/10">
-                          <Calendar className="w-4 h-4 text-[var(--brand-orange)]" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-black text-[var(--text-primary)]">{relationship.venture_name} — {meeting.meeting_type?.replace(/_/g, " ") || t("member.investor.browser.meetings.untitled")}</p>
-                          <p className="text-[10px] text-[var(--text-secondary)]">
-                            {meeting.scheduled_date ? new Date(meeting.scheduled_date).toLocaleDateString() : t("member.investor.browser.meetings.tbd")}
-                            {meeting.scheduled_time ? ` ${t("member.investor.browser.meetings.at", { time: meeting.scheduled_time })}` : ""}
-                            {relationship.relationship_manager_name ? ` · ${relationship.relationship_manager_name}` : ""}
-                          </p>
-                        </div>
+                    <div className="flex items-center gap-3">
+                      <InitialAvatar name={relationship.venture_name} />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-black text-[var(--text-primary)]">{relationship.venture_name} — {meeting.meeting_type?.replace(/_/g, " ") || t("member.investor.browser.meetings.untitled")}</p>
+                        <p className="text-[10px] text-[var(--text-secondary)]">
+                          {meeting.scheduled_date ? new Date(meeting.scheduled_date).toLocaleDateString() : t("member.investor.browser.meetings.tbd")}
+                          {meeting.scheduled_time ? ` ${t("member.investor.browser.meetings.at", { time: meeting.scheduled_time })}` : ""}
+                          {relationship.relationship_manager_name ? ` · ${relationship.relationship_manager_name}` : ""}
+                        </p>
                       </div>
                     </div>
                   </AppCard>

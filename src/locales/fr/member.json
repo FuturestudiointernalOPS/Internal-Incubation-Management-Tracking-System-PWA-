@@ -97,6 +97,7 @@
         "compare": {
           "selected": "{count} sélectionné(s)",
           "action": "Comparer",
+          "clear": "Vider la comparaison",
           "title": "Comparer",
           "metric": "Critère",
           "industry": "Secteur",

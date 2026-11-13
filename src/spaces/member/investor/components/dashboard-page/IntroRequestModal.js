@@ -1,42 +1,68 @@
 "use client";
 
-import { Send, X } from "lucide-react";
+import { Send } from "lucide-react";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
+import InvestorModal from "./InvestorModal";
 
 /**
- * The "request an introduction" modal.
+ * The "request an introduction" window, in the workspace's one frame.
  */
-export default function IntroRequestModal({ introVenture, introMessage, onMessageChange, processingId, onClose, onSubmit }) {
+export default function IntroRequestModal({
+  introVenture,
+  introMessage,
+  onMessageChange,
+  processingId,
+  onClose,
+  onSubmit,
+}) {
   const { t } = useI18n();
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-md bg-[var(--surface-1)] border border-[var(--border-primary)] rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-primary)]">
-          <h3 className="text-sm font-black text-[var(--text-primary)] uppercase">{t("member.investor.browser.intro.title")}</h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-[var(--surface-3)]"><X className="w-4 h-4"/></button>
-        </div>
-        <div className="p-6 space-y-4">
-          <p className="text-xs text-[var(--text-secondary)]">
-            {t("member.investor.browser.intro.lead")} <b className="text-[var(--text-primary)]">{introVenture.name}</b>.{" "}
-            {t("member.investor.browser.intro.after")}
-          </p>
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{t("member.investor.browser.intro.statement")}</label>
-            <textarea value={introMessage} onChange={event => onMessageChange(event.target.value)}
-              rows={3} placeholder={t("member.investor.browser.intro.placeholder")}
-              className="w-full mt-1.5 px-4 py-2.5 bg-[var(--surface-2)] border border-[var(--border-primary)] rounded-xl text-sm font-bold text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] outline-none resize-none"/>
-          </div>
-        </div>
-        <div className="flex justify-end gap-3 px-6 pb-5">
-          <button onClick={onClose} className="px-4 py-2 text-[10px] font-black text-[var(--text-secondary)] uppercase rounded-xl hover:bg-[var(--surface-3)]">{t("common.cancel")}</button>
-          <AppButton variant="primary" icon={Send} loading={processingId !== null} disabled={processingId !== null}
-            onClick={onSubmit}>
+    <InvestorModal
+      title={t("member.investor.browser.intro.title")}
+      onClose={onClose}
+      maxWidth="max-w-md"
+      footer={
+        <>
+          <AppButton variant="secondary" size="sm" onClick={onClose}>
+            {t("common.cancel")}
+          </AppButton>
+          <AppButton
+            variant="primary"
+            size="sm"
+            icon={Send}
+            loading={processingId !== null}
+            disabled={processingId !== null}
+            onClick={onSubmit}
+          >
             {t("member.investor.browser.intro.submit")}
           </AppButton>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">
+          {t("member.investor.browser.intro.lead")}{" "}
+          <b className="text-[var(--text-primary)]">{introVenture.name}</b>.{" "}
+          {t("member.investor.browser.intro.after")}
+        </p>
+        <div>
+          <label
+            htmlFor="investor-intro-message"
+            className="stf-k"
+          >
+            {t("member.investor.browser.intro.statement")}
+          </label>
+          <textarea
+            id="investor-intro-message"
+            value={introMessage}
+            onChange={(event) => onMessageChange(event.target.value)}
+            rows={3}
+            placeholder={t("member.investor.browser.intro.placeholder")}
+            className="mt-1.5 w-full resize-none rounded-xl border border-[var(--border-primary)] bg-[var(--surface-2)] px-4 py-2.5 text-sm font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)] focus:border-[var(--brand-orange)] focus:ring-2 focus:ring-[var(--brand-orange)]/25"
+          />
         </div>
       </div>
-    </div>
+    </InvestorModal>
   );
 }

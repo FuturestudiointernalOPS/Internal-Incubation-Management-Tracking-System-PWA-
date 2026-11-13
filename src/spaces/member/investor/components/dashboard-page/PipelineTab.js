@@ -6,7 +6,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import VentureIdentity from "./VentureIdentity";
-import { PIPELINE_STAGES, STAGE_COLORS, STAGE_LABELS, STAGE_TONES } from "./constants";
+import { PIPELINE_STAGES, STAGE_LABELS, STAGE_TONES } from "./constants";
 
 /**
  * The Pipeline tab: the stage filter row and the pipeline entries.
@@ -29,10 +29,10 @@ export default function PipelineTab({
     <div className="space-y-4">
       <div className="flex gap-2 overflow-x-auto pb-2">
         <button
+          type="button"
           onClick={() => onStageFilterChange("all")}
-          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors ${
-            stageFilter === "all" ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)]"
-          }`}
+          aria-pressed={stageFilter === "all"}
+          className={`stf-btn sm whitespace-nowrap${stageFilter === "all" ? " pr" : ""}`}
         >
           {t("member.investor.browser.pipeline.all", { count: pipeline.length })}
         </button>
@@ -41,11 +41,11 @@ export default function PipelineTab({
           if (count === 0 && stageFilter !== stage) return null;
           return (
             <button
+              type="button"
               key={stage}
               onClick={() => onStageFilterChange(stage)}
-              className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wide whitespace-nowrap transition-colors ${
-                stageFilter === stage ? "bg-[var(--brand-orange)] text-white" : STAGE_COLORS[stage]
-              }`}
+              aria-pressed={stageFilter === stage}
+              className={`stf-btn sm whitespace-nowrap${stageFilter === stage ? " pr" : ""}`}
             >
               {t(STAGE_LABELS[stage] || "")} ({count})
             </button>

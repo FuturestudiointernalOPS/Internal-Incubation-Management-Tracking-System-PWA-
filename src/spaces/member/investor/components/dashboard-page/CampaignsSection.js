@@ -3,10 +3,11 @@
 import { Megaphone, Users, Calendar } from "lucide-react";
 import AppCard from "@/components/ui/AppCard";
 import { useI18n } from "@/lib/i18n";
+import VentureIdentity from "./VentureIdentity";
 
 /**
- * The active fundraising campaigns block on the Discover tab.
- * Extracted verbatim from InvestorDashboard.
+ * The active fundraising campaigns block on the Discover tab. Its cards use the
+ * same identity row and tags as every venture card in the workspace.
  */
 export default function CampaignsSection({ campaigns, onOpenVenture }) {
   const { t } = useI18n();
@@ -14,8 +15,8 @@ export default function CampaignsSection({ campaigns, onOpenVenture }) {
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2">
-        <Megaphone className="w-4 h-4 text-[var(--brand-orange)]" />
-        <h3 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wider">{t("activeCampaigns")}</h3>
+        <Megaphone className="w-4 h-4 text-[var(--brand-orange)]" aria-hidden="true" />
+        <h3 className="stf-k">{t("activeCampaigns")}</h3>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {campaigns.map(campaign => {
@@ -23,12 +24,12 @@ export default function CampaignsSection({ campaigns, onOpenVenture }) {
           return (
             <AppCard key={campaign.id} padding="md" hover onClick={() => onOpenVenture({ id: campaign.venture_id, name: campaign.venture_name, industry: campaign.industry, country: campaign.country, business_stage: campaign.business_stage, funding_requirement: campaign.funding_requirement, completion_index: campaign.completion_index })}>
               <div className="space-y-2 cursor-pointer">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h4 className="text-xs font-black text-[var(--text-primary)]">{campaign.venture_name || campaign.name}</h4>
-                    <p className="text-[10px] font-medium text-[var(--text-secondary)]">{campaign.name}{campaign.industry ? ` · ${campaign.industry}` : ""}</p>
-                  </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-500/10 text-emerald-400">
+                <div className="flex items-start justify-between gap-2">
+                  <VentureIdentity
+                    name={campaign.venture_name || campaign.name}
+                    meta={[campaign.name, campaign.industry].filter(Boolean).join(" · ")}
+                  />
+                  <span className="stf-tag g shrink-0">
                     {t("member.investor.browser.campaigns.active")}
                   </span>
                 </div>
@@ -44,8 +45,8 @@ export default function CampaignsSection({ campaigns, onOpenVenture }) {
                   </div>
                 )}
                 <div className="flex items-center gap-3 text-[10px] text-[var(--text-tertiary)]">
-                  {campaign.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5"/>{t("member.investor.browser.campaigns.interested", { count: campaign.investor_count })}</span>}
-                  {campaign.opening_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5"/>{new Date(campaign.opening_date).toLocaleDateString()}</span>}
+                  {campaign.investor_count > 0 && <span className="flex items-center gap-1"><Users className="w-2.5 h-2.5" aria-hidden="true"/>{t("member.investor.browser.campaigns.interested", { count: campaign.investor_count })}</span>}
+                  {campaign.opening_date && <span className="flex items-center gap-1"><Calendar className="w-2.5 h-2.5" aria-hidden="true"/>{new Date(campaign.opening_date).toLocaleDateString()}</span>}
                 </div>
               </div>
             </AppCard>
