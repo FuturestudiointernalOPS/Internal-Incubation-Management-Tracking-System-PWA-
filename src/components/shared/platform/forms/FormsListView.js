@@ -43,7 +43,10 @@ export default function FormsListView({
         <div className="flex items-center justify-center py-20"><Loader2 className="w-5 h-5 animate-spin text-[var(--brand-orange)]" /></div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {forms.filter((form) => !search || form.name.toLowerCase().includes(search.toLowerCase())).map((form) => {
+          {forms
+            .filter((form) => statusFilter === "all" || form.status === statusFilter)
+            .filter((form) => !search || form.name.toLowerCase().includes(search.toLowerCase()))
+            .map((form) => {
             const collection = form.collection_id ? collections.find((candidate) => candidate.id === form.collection_id) : null;
             return (
               <FormCard
