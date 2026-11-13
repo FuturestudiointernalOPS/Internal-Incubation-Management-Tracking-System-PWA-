@@ -131,6 +131,7 @@
       "participant": "Participant",
       "weekOf": "Week {current} of {total}",
       "yourProgress": "Your Progress",
+      "allProgramsHint": "Statistics for all your programs combined",
       "programCompletion": "Program Completion",
       "attendance": "Attendance",
       "assignments": "Assignments",

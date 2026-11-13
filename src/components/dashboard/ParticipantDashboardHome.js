@@ -22,6 +22,7 @@ const EMPTY_HOME = { payload: null, failure: false };
 const pickHome = response => response?.success ? { payload: response, failure: false } : EMPTY_HOME;
 const pickCourses = response => response?.success ? (response.courses || []).map(entry => ({ ...entry.course, progress: entry.progress, certificate: entry.certificate })) : [];
 const pickAssignments = response => response?.success ? response.assignments || [] : null;
+const pickProgress = response => response?.success ? { overall: response.overall || null, totals: response.totals || null } : null;
 
 function SectionHeader({ letter, title, description, href, action }) {
   return <SectionHead letter={letter} tone="o" title={title} subtitle={description} action={href && <Link className="stf-link-btn" href={href}>{action}</Link>} />;
@@ -39,11 +40,27 @@ export default function ParticipantDashboardHome() {
   const data = home.payload;
   const { data: assignments, loading: assignmentsLoading } = useApi(showParticipantBlocks && data?.primaryProgram?.id ? `/api/participant/assignments?program_id=${encodeURIComponent(data.primaryProgram.id)}` : null, { defaultValue: null, transform: pickAssignments });
   const { data: courses, error: courseError } = useApi(showParticipantBlocks && data ? "/api/lms/my-learning" : null, { defaultValue: [], transform: pickCourses });
+  // The progress section reads the participant's report across EVERY program, so
+  // no figure on this page can depend on which program happens to be primary.
+  const { data: progress, loading: progressLoading } = useApi(showParticipantBlocks && data?.programs?.length ? "/api/participant/progress" : null, { defaultValue: null, transform: pickProgress });
   const [addRequest, setAddRequest] = useState(0);
   if (loading && !data) return <div className="space-y-5"><Skeleton className="h-36 w-full" /><Skeleton className="h-96 w-full" /></div>;
   if (error || !data) return <AppCard><p className="text-sm text-[var(--text-secondary)]">{t("participantMisc.dashboardHome.failedToLoad")}</p><AppButton className="mt-3" icon={RefreshCw} onClick={refresh}>{t("common.retry")}</AppButton></AppCard>;
   const { participant, primaryProgram, actionCenter = {}, calendarEvents = [] } = data;
   const metrics = primaryProgram?.metrics || {};
+  const overall = progress?.overall || null;
+  const totals = progress?.totals || null;
+  // Global figures once the cross-program report is read; the primary program is
+  // only a stand-in while that read is still in flight.
+  const figures = overall || metrics;
+  const lessons = courses.reduce((acc, course) => ({ completed: acc.completed + Number(course.progress?.completedLessons || 0), total: acc.total + Number(course.progress?.totalLessons || 0) }), { completed: 0, total: 0 });
+  const lessonCompletion = lessons.total > 0 ? Math.round((lessons.completed / lessons.total) * 100) : null;
+  const progressBars = [
+    { key: "program", label: t("participant.template.progressLabels.program"), value: overall?.programCompletion ?? null, hint: totals ? t("participantMisc.progress.deliverablesCount", { completed: totals.completedDeliverables, total: totals.deliverables }) : null },
+    { key: "assignments", label: t("participant.template.progressLabels.assignments"), value: overall?.assignmentCompletion ?? null, hint: totals ? t("participantMisc.progress.approvedCount", { approved: totals.approved, total: totals.submissions }) : null },
+    { key: "attendance", label: t("participant.template.progressLabels.attendance"), value: overall?.attendanceRate ?? null, hint: totals ? t("participantMisc.progress.sessionsCount", { attended: totals.attended, total: totals.sessions }) : null },
+    { key: "courses", label: t("participant.template.progressLabels.courses"), value: lessonCompletion, hint: lessons.total > 0 ? t("participant.template.lessonCount", { completed: lessons.completed, total: lessons.total }) : null },
+  ];
   const overdue = actionCenter.overdue || [];
   const dueSoon = actionCenter.dueSoon || [];
   const pending = actionCenter.pendingSubmissions || [];
@@ -60,8 +77,12 @@ export default function ParticipantDashboardHome() {
       subtitle={primaryProgram ? `${primaryProgram.name} · ${t("participant.activeSession")} · ${t("participantMisc.dashboardHome.weekOf", { current: primaryProgram.currentWeek, total: primaryProgram.durationWeeks || "?" })}` : t("participant.noProgramsDesc")}
       action={<div className="flex flex-wrap items-center justify-end gap-2"><CreateActions /><button type="button" className="stf-btn pr" onClick={() => setAddRequest(previous => previous + 1)}><Plus size={15} /> {t("participant.template.newReminder")}</button></div>}
     />
-    <div className="stf-grid c4"><Metric label={t("participant.programCompletion")} value={`${metrics.programCompletion || 0}%`} icon={TrendingUp} /><Metric label={t("participant.attendance")} value={`${metrics.attendanceRate || 0}%`} icon={Check} /><Metric label={t("participant.template.approvedAssignments")} value={assignmentsLoading ? t("common.loading") : assignments ? `${assignments.filter(item => item.submission?.status === "approved").length} / ${assignments.length}` : t("participant.template.notAvailable")} icon={FileText} /><Metric label={t("participant.kpiAchievement")} value={`${metrics.kpiCompletion || 0}%`} icon={TrendingUp} /></div>
+    <div className="stf-grid c4"><Metric label={t("participant.programCompletion")} value={`${figures.programCompletion || 0}%`} icon={TrendingUp} /><Metric label={t("participant.attendance")} value={`${figures.attendanceRate || 0}%`} icon={Check} /><Metric label={t("participant.template.approvedAssignments")} value={progressLoading ? t("common.loading") : totals ? `${totals.approved} / ${totals.submissions}` : assignmentsLoading ? t("common.loading") : assignments ? `${assignments.filter(item => item.submission?.status === "approved").length} / ${assignments.length}` : t("participant.template.notAvailable")} icon={FileText} /><Metric label={t("participant.kpiAchievement")} value={`${figures.kpiCompletion || 0}%`} icon={TrendingUp} /></div>
     <ParticipantCommandCalendar events={calendarEvents} addRequest={addRequest} />
+    {showParticipantBlocks && data.programs?.length > 0 && <section>
+      <SectionHeader letter="P" title={t("participantMisc.dashboardHome.yourProgress")} description={t("participantMisc.dashboardHome.allProgramsHint")} href="/participant/progress" action={t("participant.template.viewProgress")} />
+      <AppCard><div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">{progressBars.map(bar => <div key={bar.key}><div className="flex items-baseline justify-between gap-3"><span className="text-xs font-bold text-[var(--text-secondary)]">{bar.label}</span><span className="text-sm font-black text-[var(--text-primary)]">{progressLoading ? "…" : bar.value === null ? t("participant.template.notAvailable") : `${bar.value}%`}</span></div><div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-3"><div className="h-full rounded-full bg-[var(--progress-fill)]" style={{ width: `${Math.min(100, Math.max(0, Number(bar.value) || 0))}%` }} /></div>{bar.hint && <p className="mt-2 text-xs text-[var(--text-secondary)]">{bar.hint}</p>}</div>)}</div></AppCard>
+    </section>}
     {showParticipantBlocks && <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">{attention(overdue, t("participant.overdue"), AlertCircle, "var(--chart-danger)")}{attention(dueSoon, t("participant.dueSoon"), Clock, "var(--chart-warning)")}{attention(pending, t("participant.pending"), FileText, "var(--chart-info)", true)}</div>}
     <AppCard><Link href="/participant/announcements" className="flex items-center justify-between gap-3 text-sm font-bold text-[var(--brand-orange)]"><span>{t("participant.announcements")}</span><span>{t("participant.announcementHub.open")}</span></Link></AppCard>
     {showParticipantBlocks && <section><SectionHeader letter="A" title={t("navigation.learning")} description={t("participant.template.learningHint")} href="/participant/learning" action={t("participant.template.allCourses")} /><div className="grid grid-cols-1 md:grid-cols-2 gap-4">
