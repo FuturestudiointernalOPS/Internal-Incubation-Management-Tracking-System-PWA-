@@ -75,11 +75,20 @@ function rightsAlternatives(id) {
   return proposalAlternatives(NAV_CAPABILITY_PROPOSAL[id]);
 }
 
-/** Public nodes pass; a capability node passes when one alternative is held. */
+/**
+ * Public nodes pass; a capability node passes when one alternative is held.
+ *
+ * An UNLOADED matrix is treated as NO rights: in rights mode there is no role
+ * mask to fall back on, so hiding a gated door is the only honest answer. This
+ * is the same policy the platform sidebar already applies (`/platform`), and it
+ * is what makes "no right = no door" true while the matrix is still loading.
+ * The shell paints from the cached matrix, so the door reappears as soon as the
+ * answer is known.
+ */
 function passesRights(id, effective) {
   const alternatives = rightsAlternatives(id);
   if (!alternatives) return true; // public (explicit or no requirement)
-  if (!effective) return true; // not loaded yet: show, server stays authoritative
+  if (!effective) return false; // not loaded yet: no right, no door
   return alternatives.some((alternative) =>
     hasCapability(effective, alternative.module, alternative.capability),
   );
@@ -221,8 +230,10 @@ function buildRightsNav(role, effective) {
  *   - drops a section left without children;
  *   - renders every id at most once (first occurrence wins).
  *
- * `effective === null` (capabilities not loaded yet) fails OPEN on visibility —
- * the server stays authoritative — but never on hrefs.
+ * In this ROLE-MASK mode an unloaded matrix (`effective === null`) keeps the
+ * role's own doors: that is the mask, not a right, and the server stays
+ * authoritative. The rights mode (`AUTHZ_NAV_FROM_RIGHTS`) is the opposite —
+ * there is no mask to fall back on, so it fails closed (see `passesRights`).
  */
 export function buildAccessNav(role, effective) {
   const roleSpace = spaceForRole(role);

@@ -42,7 +42,7 @@ de casser une connexion.
 une proposition et que chaque capacité proposée existe — mais il ne tournait pas
 dans le travail de CI. **Il y est désormais**, avec les suites des étapes 3 à 5.
 
-`npm run test:authz` couvre maintenant **21 suites / 232 tests** :
+`npm run test:authz` couvre maintenant **23 suites / 249 tests** :
 
 | Sujet | Suites |
 |---|---|
@@ -50,6 +50,7 @@ dans le travail de CI. **Il y est désormais**, avec les suites des étapes 3 à
 | gardes statiques | `permissions-static-guards`, `permissions-role-gates-extended`, `authz-metrics-ratchet`, `messaging-mode`, `login-role-unification`, `legacy-identity-migration`, `retired-routes` |
 | données | `authorization-data-coherence`, `authorization-nav-data` |
 | arrivée | `landing-from-access`, `login-landing` |
+| propriétaire | `authorization-owner-through-engine`, `owner-through-engine-ui` |
 | espaces et menu | `navigation-from-rights`, `member-contexts`, `spaces-boundaries` |
 
 `.github/workflows/authz-ratchet.yml` exécute déjà `npm run test:authz` : le
@@ -70,7 +71,7 @@ vérifiés en production :
 
 ## Validation
 
-- `npm run test:authz` : **21 suites, 232 tests passés**.
+- `npm run test:authz` : **23 suites, 249 tests passés**.
 - `npm run lint` : **0 erreur**.
 - `npm run build` : **succès**.
 - Photographie de référence : **0 changement**.

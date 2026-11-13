@@ -40,6 +40,40 @@ l'interface ; seule la **décision** change de chemin.
 
 ---
 
+## L'interface suit la même règle
+
+Le moteur était couvert, mais les écrans court-circutaient encore chaque droit
+sur la seule identité : `isSuperAdmin` ⇒ tout autorisé. Un droit retiré au
+propriétaire restait donc affiché comme accordé.
+
+`GET /api/me/permissions` publie maintenant **deux** faits distincts :
+
+| Champ | Sens |
+|---|---|
+| `isSuperAdmin` | fait d'identité : c'est le propriétaire |
+| `ownerThroughEngine` | le propriétaire est résolu par le moteur (drapeau actif) |
+
+La règle appliquée par les trois surfaces de capacité est unique :
+
+```
+le propriétaire est court-circuité SEULEMENT si isSuperAdmin && !ownerThroughEngine
+```
+
+- `src/lib/PermissionProvider.js` — `can()` ;
+- `src/app/platform/layout.js` — `hasCapability()` de la barre plateforme ;
+- `src/components/shared/crm/useCrmCapabilities.js` — `holds()`.
+
+Comme le profil `super_admin_default` contient tous les droits du catalogue,
+rien ne change en pratique tant qu'aucun droit n'est retiré. Dès qu'un droit est
+retiré ou bloqué, l'écran cesse de le proposer — ce qui est le but.
+
+> Restent keyés sur l'identité quelques **raccourcis d'affichage** dont l'API
+> correspondante contourne encore le moteur (bouton « prochaine action » d'un
+> lead, écran complet des contacts, mode « full state »). Ils sont listés dans
+> `ETAPE0-WHOAUDIT.md` et suivront avec les gardes de domaine.
+
+---
+
 ## Vérification en staging
 
 Comparaison entre le mode historique et le mode « même chemin », sur la base
@@ -54,8 +88,9 @@ Autrement dit : en staging, le propriétaire conserve exactement les mêmes
 droits et le même menu. La seule différence est que sa décision devient
 explicite et vérifiable.
 
-Tests : `npm run test:authz` (14 suites, 101 tests) et la suite dédiée
-`authorization-owner-through-engine` (9 tests).
+Tests : `npm run test:authz` (23 suites, 249 tests), dont la suite dédiée
+`authorization-owner-through-engine` et la suite d'interface
+`owner-through-engine-ui`.
 
 ---
 
@@ -80,13 +115,15 @@ modifiée par le mode lui-même.
 
 ## Ce qui reste hors de ce lot
 
-Le moteur de décision est couvert. D'autres raccourcis « propriétaire » vivent
-encore dans des gardes de domaine et seront traités dans les lots suivants :
+Le moteur de décision et les surfaces de capacité de l'interface sont couverts.
+D'autres raccourcis « propriétaire » vivent encore dans des gardes de domaine et
+seront traités dans les lots suivants :
 
 - le garde « gestionnaire de programme » admet le propriétaire par son rôle ;
 - l'accès à une ressource précise (`scopedAccess`) dispense le propriétaire de
   l'affectation, mais exige désormais le droit et passe par la décision
   normale ;
-- la navigation conserve des tables par rôle (étape 3).
+- certains écrans gardent un raccourci d'affichage keyé sur l'identité (voir
+  ci-dessus), parce que leur API contourne encore le moteur.
 
 Ces points sont déjà inventoriés dans `ETAPE0-WHOAUDIT.md`.

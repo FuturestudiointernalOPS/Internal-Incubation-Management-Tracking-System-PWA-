@@ -95,7 +95,10 @@ export default function PlatformLayout({ children }) {
   const hasCapability = useCallback(
     ({ module: moduleKey, capability }) => {
       if (!mePerms) return false;
-      if (mePerms.isSuperAdmin) return true;
+      // The owner bypass only applies while the owner is not resolved through
+      // the engine; with AUTHZ_OWNER_THROUGH_ENGINE the matrix is the answer
+      // for the owner too (the profile grants everything by default).
+      if (mePerms.isSuperAdmin && !mePerms.ownerThroughEngine) return true;
       return Number(mePerms.effective?.[moduleKey]?.[capability] ?? 0) > 0;
     },
     [mePerms],

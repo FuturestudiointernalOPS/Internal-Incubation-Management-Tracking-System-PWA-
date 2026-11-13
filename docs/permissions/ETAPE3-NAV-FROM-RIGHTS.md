@@ -39,6 +39,21 @@ unique.
    - une adresse explicitement donnée par le rôle gagne toujours (le profil
      personnel du rôle finance, par exemple).
 
+### Droits pas encore chargés : fermé, comme la plateforme
+
+Une matrice inconnue est traitée comme **aucun droit** : une porte qui exige un
+droit n'apparaît pas tant que la réponse n'est pas arrivée. C'est la même
+politique que la barre de la plateforme et du provider de permissions — une
+seule règle pour toutes les surfaces.
+
+Le shell peint d'abord la matrice **mise en cache** (écrite par
+`PermissionProvider`), donc la porte réapparaît immédiatement lors des visites
+suivantes ; seule une toute première connexion sans cache attend la réponse.
+
+Le mode actuel par défaut (tables de rôle, drapeau absent) n'est pas concerné :
+là, une matrice inconnue affiche les portes du rôle, puisqu'il n'y a pas encore
+de droit à évaluer.
+
 ---
 
 ## Vérification en staging

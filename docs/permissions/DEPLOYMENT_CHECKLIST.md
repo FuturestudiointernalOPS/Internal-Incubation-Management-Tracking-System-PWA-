@@ -12,7 +12,7 @@ données de seed, qui est explicite.
 npm run test:authz
 ```
 
-- Attendu : **21 suites / 232 tests passés**.
+- Attendu : **23 suites / 249 tests passés**.
 - Vérifie la frontière données / vocabulaire : rôles, profils, fonctionnalités,
   capacités, adresses d'arrivée et portes de plateforme.
 - Exécuté par la CI à chaque pull request (`.github/workflows/authz-ratchet.yml`).
@@ -88,6 +88,11 @@ AUTHZ_OWNER_THROUGH_ENGINE=true
 Après activation, relancer la photographie et comparer. Attendu : **0
 régression**, et pour seuls changements les éligibilités du propriétaire qui
 passent de « contournée » à explicite. Retour arrière : retirer le drapeau.
+
+Le drapeau change aussi l'**interface** : les écrans cessent de court-circuiter
+les droits du propriétaire (`/api/me/permissions` publie `ownerThroughEngine`).
+Comme le profil par défaut du propriétaire contient tout le catalogue, rien ne
+disparaît ; un droit retiré cesse simplement de s'afficher.
 
 Détail : `docs/permissions/ETAPE2-OWNER-THROUGH-ENGINE.md`.
 

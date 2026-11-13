@@ -21,6 +21,7 @@ export function useCrmCapabilities() {
     crm: null,
     effective: null,
     isSuperAdmin: false,
+    ownerThroughEngine: false,
     cid: null,
   });
 
@@ -34,6 +35,7 @@ export function useCrmCapabilities() {
           crm: data.effective?.crm ?? {},
           effective: data.effective ?? {},
           isSuperAdmin: Boolean(data.isSuperAdmin),
+          ownerThroughEngine: Boolean(data.ownerThroughEngine),
           cid: data.cid ?? null,
         });
       })
@@ -41,7 +43,13 @@ export function useCrmCapabilities() {
         // A failed read is a closed door, not a spinner forever: the screen
         // resolves with no capability instead of hanging.
         if (alive) {
-          setState({ crm: {}, effective: {}, isSuperAdmin: false, cid: null });
+          setState({
+            crm: {},
+            effective: {},
+            isSuperAdmin: false,
+            ownerThroughEngine: false,
+            cid: null,
+          });
         }
       });
     return () => {
@@ -56,9 +64,9 @@ export function useCrmCapabilities() {
 
   const holds = useCallback(
     (moduleKey, capability = "view") =>
-      state.isSuperAdmin ||
+      (state.isSuperAdmin && !state.ownerThroughEngine) ||
       Number(state.effective?.[moduleKey]?.[capability] ?? 0) >= 1,
-    [state.effective, state.isSuperAdmin],
+    [state.effective, state.isSuperAdmin, state.ownerThroughEngine],
   );
 
   return {

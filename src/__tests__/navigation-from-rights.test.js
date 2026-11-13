@@ -127,3 +127,17 @@ describe("menu derived from rights — explicit cross-space address", () => {
     expect(profile.href).toBe("/member/participant/profile");
   });
 });
+
+describe("menu derived from rights — an unloaded matrix means no rights", () => {
+  test("an unknown matrix and an empty one produce the same menu", () => {
+    for (const role of ["staff", "super_admin"]) {
+      expect(flattenIds(buildAccessNav(role, null))).toEqual(
+        flattenIds(buildAccessNav(role, {})),
+      );
+    }
+  });
+
+  test("a public destination still renders while the matrix is unknown", () => {
+    expect(flattenIds(buildAccessNav("staff", null))).toContain("dashboard");
+  });
+});
