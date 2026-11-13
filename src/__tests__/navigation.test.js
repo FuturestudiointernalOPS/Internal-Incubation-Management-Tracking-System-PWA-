@@ -46,7 +46,18 @@ const FIXTURE = {
       subItems: [
         { id: "messages", href: "/admin/internal-comms", subItems: null },
         { id: "announcements", href: "/admin/announcements", subItems: null },
-        { id: "forms", href: "/platform", subItems: null },
+        {
+          id: "forms",
+          href: null,
+          subItems: [
+            { id: "forms_dashboard", href: "/platform", subItems: null },
+            { id: "forms_list", href: "/platform/forms", subItems: null },
+            { id: "forms_runs", href: "/platform/runs", subItems: null },
+            { id: "forms_import", href: "/admin/platform/import", subItems: null },
+            { id: "forms_identity_review", href: "/admin/platform/import/review", subItems: null },
+            { id: "forms_scores", href: "/admin/platform/scores", subItems: null },
+          ],
+        },
       ],
     },
     {
@@ -152,7 +163,15 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "messages", href: "/staff/messages", subItems: null },
-        { id: "forms", href: "/platform", subItems: null },
+        {
+          id: "forms",
+          href: null,
+          subItems: [
+            { id: "forms_dashboard", href: "/platform", subItems: null },
+            { id: "forms_list", href: "/platform/forms", subItems: null },
+            { id: "forms_runs", href: "/platform/runs", subItems: null },
+          ],
+        },
       ],
     },
   ],
@@ -167,7 +186,15 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "messages", href: "/staff/messages", subItems: null },
-        { id: "forms", href: "/platform", subItems: null },
+        {
+          id: "forms",
+          href: null,
+          subItems: [
+            { id: "forms_dashboard", href: "/platform", subItems: null },
+            { id: "forms_list", href: "/platform/forms", subItems: null },
+            { id: "forms_runs", href: "/platform/runs", subItems: null },
+          ],
+        },
       ],
     },
   ],
@@ -218,7 +245,15 @@ const FIXTURE = {
       id: "communication",
       href: null,
       subItems: [
-        { id: "forms", href: "/platform", subItems: null },
+        {
+          id: "forms",
+          href: null,
+          subItems: [
+            { id: "forms_dashboard", href: "/platform", subItems: null },
+            { id: "forms_list", href: "/platform/forms", subItems: null },
+            { id: "forms_runs", href: "/platform/runs", subItems: null },
+          ],
+        },
       ],
     },
   ],

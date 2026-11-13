@@ -85,11 +85,18 @@ describe("menu derived from rights — staff space", () => {
     }
   });
 
-  test("the flag off keeps the role-mask Forms door", () => {
+  test("the flag off keeps the role-mask Forms door while the matrix loads", () => {
+    // The Forms screens carry their own rights (forms_*), so a LOADED matrix
+    // without them closes the door in both modes; what the role mask keeps is
+    // its own doors while the matrix is still unknown.
     process.env[FLAG] = "false";
-    const nav = buildAccessNav("staff", { messaging: { view: 1 } });
-    expect(flattenIds(nav)).toContain("forms");
-    process.env[FLAG] = "true";
+    try {
+      const ids = flattenIds(buildAccessNav("staff", null));
+      expect(ids).toContain("forms");
+      expect(ids).toContain("forms_list");
+    } finally {
+      process.env[FLAG] = "true";
+    }
   });
 
   test("the flag on derives the menu from rights only", () => {
