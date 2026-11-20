@@ -2,47 +2,72 @@
 
 export const dynamic = "force-dynamic";
 
-import React, { useEffect, useSyncExternalStore } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Loader2,
-  Shield,
   ArrowRight,
   BookOpen,
-  Rocket,
-  Users,
-  BarChart3,
-  TrendingUp,
-  Star,
-  Sun,
-  Moon,
+  CalendarCheck,
   Globe,
+  GraduationCap,
+  Handshake,
+  Loader2,
+  Moon,
+  Rocket,
+  Shield,
+  Sun,
 } from "lucide-react";
 import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { useTheme } from "@/lib/ThemeProvider";
 import { roleHomeHref } from "@/models/platform/roles";
 
-// Six capability pillars. Colours come from the charter palette — every
-// Tailwind family is remapped in tailwind.config.js — never a bespoke hex.
-const PILLARS = [
-  { key: "programs",   icon: BookOpen,   text: "text-brand-orange", soft: "bg-brand-orange/10", bar: "bg-brand-orange" },
-  { key: "ventures",   icon: Rocket,     text: "text-violet-400",   soft: "bg-violet-500/10",   bar: "bg-violet-500" },
-  { key: "mentorship", icon: Users,      text: "text-sky-300",      soft: "bg-sky-400/10",      bar: "bg-sky-400" },
-  { key: "progress",   icon: BarChart3,  text: "text-emerald-400",  soft: "bg-emerald-500/10",  bar: "bg-emerald-500" },
-  { key: "funding",    icon: TrendingUp, text: "text-amber-400",    soft: "bg-amber-500/10",    bar: "bg-amber-500" },
-  { key: "impact",     icon: Star,       text: "text-rose-400",     soft: "bg-rose-500/10",     bar: "bg-rose-500" },
+// The five products, in the order the page presents them. Only the key is
+// authored here: every word comes from the locale files.
+const PRODUCTS = [
+  { key: "operations", icon: CalendarCheck },
+  { key: "programs", icon: BookOpen },
+  { key: "learning", icon: GraduationCap },
+  { key: "ventures", icon: Rocket },
+  { key: "investors", icon: Handshake },
 ];
 
-// ─── Stored session store ──────────────────────────────────────────────────
-const subscribeNever   = () => () => {};
-const unknownOnServer  = () => undefined;
-const readStoredUser   = () => { try { return localStorage.getItem("user");       } catch { return null; } };
-const readStoredSession= () => { try { return localStorage.getItem("sa_session"); } catch { return null; } };
+const CONTACT_EMAIL = "info@futurestudio.bj";
+
+// ─── Stored session, read as a store ─────────────────────────────────────────
+// The browser's copy is only used to DECIDE WHAT TO PAINT while the server is
+// asked; it never authorises anything (the server's answer does).
+const subscribeNever = () => () => {};
+const unknownOnServer = () => undefined;
+const readStoredUser = () => {
+  try {
+    return localStorage.getItem("user");
+  } catch {
+    return null;
+  }
+};
 
 function readUser(raw) {
-  try { return JSON.parse(raw || "null"); } catch { return null; }
+  try {
+    return JSON.parse(raw || "null");
+  } catch {
+    return null;
+  }
+}
+
+function ConnectingScreen({ label }) {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center bg-primary text-[var(--text-secondary)]">
+      <div className="flex flex-col items-center gap-4 text-center">
+        <Shield className="h-10 w-10 text-[var(--brand-orange)]" aria-hidden="true" />
+        <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em]">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--brand-orange)]" aria-hidden="true" />
+          {label}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function HomePage() {
@@ -50,226 +75,297 @@ export default function HomePage() {
   const { t, lang, switchLang } = useI18n();
   const { resolvedTheme, toggleTheme, mounted } = useTheme();
 
-  const storedUser    = useSyncExternalStore(subscribeNever, readStoredUser,    unknownOnServer);
-  const storedSession = useSyncExternalStore(subscribeNever, readStoredSession, unknownOnServer);
+  const storedUser = useSyncExternalStore(subscribeNever, readStoredUser, unknownOnServer);
+  const resolved = storedUser !== undefined;
+  const hasStoredUser = resolved && Boolean(readUser(storedUser));
 
-  const resolved = storedUser !== undefined && storedSession !== undefined;
-  const user     = resolved ? readUser(storedUser) : null;
+  // "checking" until the server has answered. The answer decides everything:
+  // a valid session is sent to its home, and anything else stays here.
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (storedSession === undefined || storedUser === undefined) return;
-    if (storedSession === "prime-2026-active") { router.replace("/admin"); return; }
-    const user = readUser(storedUser);
-    if (user) router.replace(user.home || roleHomeHref(user.role) || "/member");
-  }, [storedUser, storedSession, router]);
+    let cancelled = false;
 
-  if (!resolved || user) {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-primary text-[var(--text-secondary)]">
-        <div className="flex flex-col items-center gap-4 text-center">
-          <Shield className="h-10 w-10 text-[var(--brand-orange)]" />
-          <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.3em]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--brand-orange)]" />
-            {t("rootMisc.landing.connecting")}
-          </p>
-        </div>
-      </div>
-    );
+    async function checkSession() {
+      try {
+        const response = await fetch("/api/auth/session", { cache: "no-store" });
+        const data = await response.json();
+
+        if (!cancelled && data?.authenticated && data.user) {
+          // Refresh the stored copy with the server's answer — a role or a home
+          // that changed server-side must not keep coming back from stale
+          // storage on the next visit. The destination the sign-in computed is
+          // kept, because the session check does not repeat that work.
+          let user = data.user;
+          try {
+            const cached = readUser(localStorage.getItem("user"));
+            if (cached) {
+              user = { ...cached, ...data.user, home: cached.home || data.user.home };
+              localStorage.setItem("user", JSON.stringify(user));
+            }
+          } catch {
+            // A browser with storage disabled still gets its destination below.
+          }
+          router.replace(user.home || roleHomeHref(user.role) || "/member");
+          return; // keep the connecting screen while the navigation starts
+        }
+
+        // A definitive "no valid session": drop the stored copy so no other
+        // screen can treat this person as signed in.
+        if (!cancelled) {
+          try {
+            localStorage.removeItem("user");
+          } catch {
+            // Nothing to clean up when storage is unavailable.
+          }
+        }
+      } catch {
+        // The server could not be asked (offline, restarting). Do not evict the
+        // stored copy on a network hiccup — just show the landing page.
+      }
+
+      if (!cancelled) setChecked(true);
+    }
+
+    checkSession();
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  // Server render and hydration wait for the browser's copy (no landing flash
+  // for a signed-in visitor), and a returning visitor waits for the server's
+  // verdict before the landing page is painted.
+  if (!resolved || (hasStoredUser && !checked)) {
+    return <ConnectingScreen label={t("rootMisc.landing.connecting")} />;
   }
 
-  return (
-    <main className="relative flex min-h-screen w-full flex-col overflow-hidden bg-primary">
+  const problemLines = [
+    t("rootMisc.landing.problem.line1"),
+    t("rootMisc.landing.problem.line2"),
+    t("rootMisc.landing.problem.line3"),
+    t("rootMisc.landing.problem.line4"),
+  ];
 
-      {/* ── Ambient background gradients ── */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
-        {/* Top warm glow */}
-        <div
-          className="absolute inset-x-0 top-0 h-[65vh]"
-          style={{ background: "radial-gradient(55% 55% at 50% -5%, rgb(255 102 0 / 0.18), transparent 70%)" }}
-        />
-        {/* Bottom cool glow */}
-        <div
-          className="absolute inset-x-0 bottom-0 h-[45vh]"
-          style={{ background: "radial-gradient(50% 60% at 50% 110%, rgb(0 102 255 / 0.10), transparent 70%)" }}
-        />
-        {/* Subtle grid overlay */}
-        <div
-          className="absolute inset-0 opacity-[0.025]"
-          style={{
-            backgroundImage:
-              "linear-gradient(var(--text-primary) 1px, transparent 1px), linear-gradient(90deg, var(--text-primary) 1px, transparent 1px)",
-            backgroundSize: "60px 60px",
-          }}
-        />
+  return (
+    <main className="relative flex min-h-screen w-full flex-col overflow-hidden bg-primary text-[var(--text-primary)]">
+      {/* ── Ambient background ── */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -top-48 left-1/2 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-brand-orange/10 blur-3xl" />
+        <div className="absolute -bottom-52 right-0 h-[30rem] w-[30rem] rounded-full bg-blue-500/10 blur-3xl" />
+        <div className="absolute -bottom-40 left-0 h-[24rem] w-[24rem] rounded-full bg-emerald-500/5 blur-3xl" />
       </div>
 
-      {/* ── Top bar ── */}
-      <header className="relative z-10 w-full px-6 py-5 sm:px-10">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4">
-
-          {/* Brand */}
+      {/* ── Header ── */}
+      <header className="relative z-10 w-full px-5 py-4 sm:px-10 sm:py-5">
+        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-xl border border-divider/60 bg-surface-1">
+            <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl border border-divider/60 bg-surface-1">
               <Image
                 src="/brand/logo_full.png"
                 alt="Future Studio"
                 width={120}
                 height={120}
                 priority
-                className="h-7 w-7 object-contain"
+                className="h-8 w-8 object-contain"
               />
             </div>
             <div className="leading-tight">
-              <div className="text-[13px] font-black tracking-tight text-[var(--text-primary)]">ImpactOS</div>
-              <div className="text-[9px] font-bold uppercase tracking-[0.28em] text-[var(--text-secondary)]">
-                {t("rootMisc.landing.kicker")}
+              <div className="text-sm font-black tracking-tight text-[var(--text-primary)]">
+                {t("rootMisc.landing.brand")}
+              </div>
+              <div className="text-[9px] font-bold uppercase tracking-[0.26em] text-[var(--text-secondary)]">
+                {t("rootMisc.landing.brandBy")}
               </div>
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-3">
-            {/* Language switcher */}
-            <div className="flex items-center gap-1 rounded-full border border-divider/60 bg-surface-1 px-2 py-1">
-              <Globe className="h-3 w-3 text-[var(--text-secondary)]" />
-              {SUPPORTED_LANGUAGES.map((language) => (
-                <button
-                  key={language.code}
-                  type="button"
-                  onClick={() => switchLang(language.code)}
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
-                    lang === language.code
-                      ? "bg-[var(--brand-orange)] text-white"
-                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                  }`}
-                >
-                  {language.nativeLabel}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Language */}
+              <div className="flex items-center gap-1 rounded-full border border-divider/60 bg-surface-1 px-1.5 py-1">
+                <Globe className="ml-1 h-3 w-3 text-[var(--text-secondary)]" aria-hidden="true" />
+                {SUPPORTED_LANGUAGES.map((language, index) => (
+                  <React.Fragment key={language.code}>
+                    {index > 0 && <span aria-hidden="true" className="h-3 w-px bg-divider/70" />}
+                    <button
+                      type="button"
+                      onClick={() => switchLang(language.code)}
+                      aria-pressed={lang === language.code}
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        lang === language.code
+                          ? "bg-[var(--brand-orange)] text-white"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      {language.nativeLabel}
+                    </button>
+                  </React.Fragment>
+                ))}
+              </div>
 
-            {/* Theme toggle */}
-            {mounted && (
-              <button
-                type="button"
-                onClick={toggleTheme}
-                aria-label={t("rootMisc.landing.switchTheme")}
-                className="flex h-8 w-8 items-center justify-center rounded-full border border-divider/60 bg-surface-1 text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)]"
+              {/* Theme */}
+              {mounted && (
+                <button
+                  type="button"
+                  onClick={toggleTheme}
+                  aria-label={t("rootMisc.landing.switchTheme")}
+                  className="flex h-8 w-8 items-center justify-center rounded-full border border-divider/60 bg-surface-1 text-[var(--text-secondary)] transition-all hover:text-[var(--text-primary)]"
+                >
+                  {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                </button>
+              )}
+
+              {/* Sign in */}
+              <Link
+                href="/login"
+                className="group inline-flex items-center gap-2 rounded-xl bg-[var(--brand-orange)] px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 hover:bg-orange-600 active:translate-y-0"
               >
-                {resolvedTheme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
-              </button>
-            )}
+                {t("rootMisc.landing.signIn")}
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+            </div>
+            <p className="max-w-xs text-[10.5px] leading-snug text-[var(--text-tertiary)] sm:text-right">
+              {t("rootMisc.landing.signInHint")}
+            </p>
           </div>
         </div>
       </header>
 
       {/* ── Hero ── */}
-      <section className="relative z-10 flex flex-col items-center justify-center px-6 pt-16 pb-20 text-center sm:pt-24 sm:pb-24">
-        <div className="w-full max-w-3xl">
-
-          {/* Eyebrow badge */}
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--brand-orange)]/30 bg-[var(--brand-orange)]/8 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-[var(--brand-orange)]">
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--brand-orange)]" />
-            {t("rootMisc.landing.kicker")}
-          </span>
-
-          {/* Headline */}
+      <section className="relative z-10 flex flex-col items-center px-5 pb-16 pt-12 text-center sm:px-10 sm:pb-24 sm:pt-20">
+        <div className="w-full max-w-4xl">
           <h1
-            className="mx-auto mt-7 text-[2.75rem] font-black leading-[1.05] tracking-[-0.03em] text-[var(--text-primary)] sm:text-[4rem]"
+            className="mx-auto max-w-3xl text-[2.5rem] font-black leading-[1.06] tracking-[-0.03em] text-[var(--text-primary)] sm:text-[3.75rem]"
             style={{ textWrap: "balance" }}
           >
-            {t("rootMisc.landing.title")}
+            {t("rootMisc.landing.hero.titleLead")}{" "}
+            <span className="text-[var(--brand-orange)]">{t("rootMisc.landing.hero.titleAccent")}</span>
           </h1>
 
-          {/* Sub-headline */}
-          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-[1.0625rem]">
-            {t("rootMisc.landing.intro")}
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
+            {t("rootMisc.landing.hero.intro")}
           </p>
 
-          {/* CTA */}
-          <div className="mt-10 flex flex-col items-center gap-3">
-            <Link
-              href="/login"
-              className="group inline-flex items-center gap-2.5 rounded-2xl bg-[var(--brand-orange)] px-8 py-3.5 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-orange-500/25 transition-all hover:bg-orange-600 hover:shadow-orange-600/30 hover:-translate-y-0.5 active:translate-y-0"
+          <div className="mt-9 flex flex-col items-center">
+            <a
+              href={`mailto:${CONTACT_EMAIL}`}
+              className="group inline-flex items-center gap-2.5 rounded-2xl bg-[var(--brand-orange)] px-8 py-3.5 text-[11px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-orange-500/25 transition-all hover:-translate-y-0.5 hover:bg-orange-600 active:translate-y-0"
             >
-              {t("rootMisc.landing.signIn")}
+              {t("rootMisc.landing.hero.talkToUs")}
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <p className="text-[11px] font-medium text-[var(--text-tertiary)]">
-              {t("rootMisc.landing.signInHint")}
-            </p>
+            </a>
           </div>
         </div>
       </section>
 
-      {/* ── Divider line with label ── */}
-      <div className="relative z-10 mx-auto w-full max-w-6xl px-6 sm:px-10">
-        <div className="flex items-center gap-4">
-          <div className="h-px flex-1 bg-divider/60" />
-          <span className="shrink-0 text-[9px] font-bold uppercase tracking-[0.35em] text-[var(--text-secondary)] opacity-60">
-            {t("rootMisc.landing.whatTitle")}
-          </span>
-          <div className="h-px flex-1 bg-divider/60" />
-        </div>
-      </div>
-
-      {/* ── 6-pillar grid ── */}
-      <section className="relative z-10 w-full px-6 py-12 sm:px-10 sm:py-16">
-        <div className="mx-auto w-full max-w-6xl">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {PILLARS.map(({ key, icon: Icon, text, soft, bar }, idx) => (
-              <div
-                key={key}
-                className="group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-divider/60 bg-surface-1 p-6 transition-all hover:border-divider hover:bg-surface-2 hover:-translate-y-0.5"
+      {/* ── The problem (no visible section label) ── */}
+      <section className="relative z-10 w-full px-5 py-8 sm:px-10 sm:py-12">
+        <div className="mx-auto w-full max-w-4xl">
+          <div className="space-y-4 border-l-2 border-brand-orange/50 pl-5 sm:pl-7">
+            {problemLines.map((line, index) => (
+              <p
+                key={index}
+                className={
+                  index === 2
+                    ? "text-base font-semibold leading-relaxed text-[var(--text-primary)] sm:text-lg"
+                    : "text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg"
+                }
               >
-                {/* Subtle corner accent */}
-                <div
-                  className={`pointer-events-none absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-10 blur-2xl transition-opacity group-hover:opacity-20 ${bar}`}
-                />
-
-                {/* Number + Icon row */}
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-xl ${soft} ${text}`}
-                  >
-                    <Icon className="h-4.5 w-4.5" style={{ width: "1.125rem", height: "1.125rem" }} />
-                  </span>
-                  <span
-                    className={`text-[10px] font-black uppercase tracking-[0.25em] tabular-nums opacity-50 ${text}`}
-                  >
-                    {String(idx + 1).padStart(2, "0")}
-                  </span>
-                </div>
-
-                {/* Text */}
-                <div>
-                  <h3 className="text-[12px] font-black uppercase tracking-[0.08em] text-[var(--text-primary)]">
-                    {t(`rootMisc.landing.pillars.${key}.title`)}
-                  </h3>
-                  <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-                    {t(`rootMisc.landing.pillars.${key}.body`)}
-                  </p>
-                </div>
-
-                {/* Bottom accent line */}
-                <div
-                  className={`absolute bottom-0 left-0 h-[2px] w-0 rounded-b-2xl transition-all duration-300 group-hover:w-full ${bar}`}
-                />
-              </div>
+                {line}
+              </p>
             ))}
           </div>
         </div>
       </section>
 
+      {/* ── What ImpactOS is (no visible section label) ── */}
+      <section className="relative z-10 w-full px-5 py-12 sm:px-10 sm:py-16">
+        <div className="mx-auto w-full max-w-3xl text-center">
+          <h2 className="text-2xl font-black tracking-tight text-[var(--text-primary)] sm:text-3xl">
+            {t("rootMisc.landing.is.title")}
+          </h2>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-[var(--text-secondary)] sm:text-lg">
+            {t("rootMisc.landing.is.body")}
+          </p>
+        </div>
+      </section>
+
+      {/* ── What it offers (no visible section label) ── */}
+      <section className="relative z-10 w-full px-5 sm:px-10">
+        <div className="mx-auto grid w-full max-w-6xl gap-4 sm:grid-cols-2 lg:grid-cols-6">
+          {PRODUCTS.map(({ key, icon: Icon }, index) => (
+            <article
+              key={key}
+              className={`group relative flex flex-col gap-4 overflow-hidden rounded-2xl border border-divider/60 bg-surface-1 p-6 transition-all hover:-translate-y-0.5 hover:border-brand-orange/40 hover:bg-surface-2 ${
+                index < 2 ? "lg:col-span-3" : "lg:col-span-2"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-orange/10 text-[var(--brand-orange)]">
+                  <Icon className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-[0.25em] tabular-nums text-[var(--text-tertiary)]">
+                  {String(index + 1).padStart(2, "0")}
+                </span>
+              </div>
+
+              <div>
+                <h3 className="text-[12px] font-black uppercase tracking-[0.08em] text-[var(--text-primary)]">
+                  {t(`rootMisc.landing.products.${key}.title`)}
+                </h3>
+                <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+                  {t(`rootMisc.landing.products.${key}.body`)}
+                </p>
+              </div>
+
+              <div className="absolute bottom-0 left-0 h-[2px] w-0 rounded-b-2xl bg-[var(--brand-orange)] transition-all duration-300 group-hover:w-full" />
+            </article>
+          ))}
+        </div>
+      </section>
+
+      {/* ── In short (closing invitation) ── */}
+      <section className="relative z-10 w-full px-5 py-16 sm:px-10 sm:py-20">
+        <div className="mx-auto w-full max-w-4xl">
+          <div className="relative overflow-hidden rounded-2xl border border-brand-orange/30 bg-surface-1 px-6 py-10 shadow-[var(--card-shadow)] sm:px-10 sm:py-12">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-brand-orange/15 blur-3xl"
+            />
+            <div className="relative">
+              <p className="text-xl font-black leading-snug tracking-tight text-[var(--text-primary)] sm:text-2xl">
+                {t("rootMisc.landing.short.tagline")}
+              </p>
+              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)] sm:text-base">
+                {t("rootMisc.landing.short.body")}
+              </p>
+              <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                <p className="text-sm font-bold text-[var(--text-primary)]">
+                  {t("rootMisc.landing.short.question")}
+                </p>
+                <a
+                  href={`mailto:${CONTACT_EMAIL}`}
+                  className="group inline-flex items-center gap-2 rounded-xl bg-[var(--brand-orange)] px-6 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-white shadow-lg shadow-orange-500/20 transition-all hover:-translate-y-0.5 hover:bg-orange-600 active:translate-y-0"
+                >
+                  {t("rootMisc.landing.short.talkToUs")}
+                  <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Footer ── */}
-      <footer className="relative z-10 mt-auto w-full border-t border-divider/60 px-6 py-5 sm:px-10">
+      <footer className="relative z-10 mt-auto w-full border-t border-divider/60 px-5 py-5 sm:px-10">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-2 sm:flex-row">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-60">
             {t("rootMisc.landing.footer")}
           </p>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)] opacity-50">
-            <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-orange)] opacity-70" />
-            ImpactOS
+          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-[var(--text-secondary)] opacity-60">
+            <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-orange)]" />
+            {t("rootMisc.landing.brand")}
           </div>
         </div>
       </footer>
