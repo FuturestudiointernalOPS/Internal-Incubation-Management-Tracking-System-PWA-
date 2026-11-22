@@ -118,6 +118,15 @@ export const PROFILE_CATALOG = [
     context: "staff",
     allowedRoles: ["staff"],
   },
+  // Delegated LMS authoring — create AND publish. `course_manager` stays the
+  // manage-only profile (D6); this one is assigned to the staff member the
+  // studio entrusts with building and publishing courses.
+  {
+    key: "lms_author",
+    labelKey: "engineering.permissions.profileLmsAuthor",
+    context: "staff",
+    allowedRoles: ["staff"],
+  },
 ];
 
 export const PROFILE_KEYS = PROFILE_CATALOG.map((profile) => profile.key);

@@ -59,6 +59,8 @@ const EXPECTED_KEYS = [
   "venture_manager",
   // Phase 7 (D6) — the dedicated course-management profile.
   "course_manager",
+  // Delegated LMS authoring — create AND publish, assigned per person.
+  "lms_author",
 ];
 
 /** SQL of a mock call, whether it was passed as a string or as { sql, args }. */

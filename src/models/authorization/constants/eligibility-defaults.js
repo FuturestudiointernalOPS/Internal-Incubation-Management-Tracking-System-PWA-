@@ -83,7 +83,11 @@ export const FEATURE_ELIGIBILITY_PROFILE_DEFAULTS = {
   investors: ["investor"],
   operations: ["program_manager", "participant", "investor"],
   reports: ["program_manager"],
-  lms: ["program_manager"],
+  // `lms_author` joins `program_manager`: a person holding the delegated
+  // authoring profile is eligible for the LMS feature through the profile they
+  // hold. Eligibility is a CEILING, never a grant — the capabilities come from
+  // the profile itself.
+  lms: ["program_manager", "lms_author"],
 };
 
 /**

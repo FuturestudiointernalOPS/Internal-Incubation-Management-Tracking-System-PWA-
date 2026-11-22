@@ -22,6 +22,7 @@ import db from "@/lib/db";
 import { PERMISSION_MODULES } from "@/models/authorization/constants/feature-module-capability";
 import { ACCESS_LEVELS } from "@/server/authz/capabilities";
 import { ensureProfileCapabilitiesSchema } from "./profileCapabilitiesStore";
+import { ensurePermissionsSchema } from "./bootstrap";
 
 /**
  * Every module at FULL — the platform-wide profile. Built LAZILY (at seed time,
@@ -108,6 +109,14 @@ export const PROFILE_CATALOGUE_SEED = [
   // also covers archive, assessment/thumbnail/resource deletion, assumed).
   { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
     lms: { view: 1, edit: 3 },
+  } },
+  // DELEGATED LMS AUTHORING. `course_manager` above manages and publishes
+  // existing courses (D6: manage-only, no create). This profile is for the
+  // person the studio entrusts with BUILDING and PUBLISHING courses, so it
+  // carries create + edit. Neither a Program Manager nor any default profile
+  // holds it: publishing stays a delegated right, never an implicit one.
+  { key: "lms_author", label: "LMS Author", context: "staff", allowedRoles: ["staff"], capabilities: {
+    lms: { view: 1, create: 2, edit: 3 },
   } },
   // VENTURE OPS CONTRIBUTOR — a narrow, delegable bundle: create and edit in
   // exactly three modules (LMS, Programs, Ventures), and nothing else.
@@ -244,6 +253,36 @@ export async function ensureVentureOpsProfileSeed() {
   await ensureProfileCapabilitiesSchema();
   const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "venture_ops_contributor");
   const seeded = await seedProfileDefinitions(definitions);
+  return { success: true, ...seeded };
+}
+
+/**
+ * The LMS AUTHOR profile, on databases seeded before it existed.
+ *
+ * Same reason as the two seeds above: `ensureProfileCatalogueSeed` is recorded
+ * once per database, so a profile added later never reaches an existing one.
+ *
+ * It also writes the PROFILE eligibility row. Eligibility is checked BEFORE the
+ * capability and fails closed, so without it the new profile's grants would look
+ * inert on a database that never re-runs the eligibility seed. Insert-only on
+ * both tables: an administrator's edit or removal still wins.
+ */
+export async function ensureLmsAuthorProfileSeed() {
+  await ensurePermissionsSchema();
+  await ensureProfileCapabilitiesSchema();
+
+  const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "lms_author");
+  const seeded = await seedProfileDefinitions(definitions);
+
+  await db.execute({
+    sql: `INSERT INTO feature_eligibility
+            (feature_key, identity_type, identity_value, eligible)
+          VALUES ('lms', 'profile', 'lms_author', 1)
+          ON CONFLICT (feature_key, identity_type, identity_value)
+          DO NOTHING`,
+    args: [],
+  });
+
   return { success: true, ...seeded };
 }
 

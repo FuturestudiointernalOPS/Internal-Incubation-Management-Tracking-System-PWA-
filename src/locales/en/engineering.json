@@ -995,6 +995,7 @@
       "profileProgramManager": "Program Manager",
       "profileVentureManager": "Venture Manager",
       "profileCourseManager": "Course Manager",
+      "profileLmsAuthor": "LMS Author",
       "profilePanelTitle": "Profiles",
       "profilePanelHint": "What this person is, per context. Pick a profile to see which sections it can open; open Profiles held for the full history.",
       "profilePanelSelectPrompt": "Pick a profile to see what it opens.",
