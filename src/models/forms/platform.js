@@ -84,6 +84,40 @@ export async function publishPlatformForm(formId, version) {
   });
 }
 
+/** A platform form by exact name (idempotent seeds). */
+export async function findPlatformFormByName(name) {
+  return db.execute({
+    sql: "SELECT * FROM platform_forms WHERE name = ?",
+    args: [name],
+  });
+}
+
+/** The active run of a form (idempotent seeds). */
+export async function findActivePlatformFormRun(formId) {
+  return db.execute({
+    sql: "SELECT * FROM platform_form_runs WHERE form_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1",
+    args: [parseInt(formId)],
+  });
+}
+
+/** Create an active, public run for a seeded form. */
+export async function createPlatformFormRun({ formId, formVersion, name, description, settings, slug }) {
+  return db.execute({
+    sql: `INSERT INTO platform_form_runs
+            (form_id, form_version, name, description, status, settings, owner_id, created_by, public_slug, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'active', ?::jsonb, 'system', 'system', ?, NOW(), NOW())
+          RETURNING *`,
+    args: [
+      parseInt(formId),
+      formVersion || 1,
+      name,
+      description || null,
+      JSON.stringify(settings || {}),
+      slug,
+    ],
+  });
+}
+
 /** Create a new platform form, returning the full row. */
 export async function createPlatformForm({
   name,

@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { isPlatformOwnerRole } from "@/lib/identity";
 import {
   Building2, CheckCircle2, XCircle,
-  Search, Loader2, Clock, Ban, Check, Copy, RefreshCw, X, UserPlus,
+  Search, Loader2, Clock, Ban, Check, Copy, RefreshCw, X, UserPlus, Link2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import AppButton from "@/components/ui/AppButton";
@@ -166,6 +166,25 @@ export default function AdminInvestorsPage() {
     }
   };
 
+  // The public "Join our investors network" form — same engine, same modal, a
+  // different seed endpoint. Idempotent on the server: it returns the existing
+  // form and link when it was already created.
+  const openNetworkForm = async () => {
+    setCopied(false);
+    setLink({ open: true, url: "", runId: null, loading: true, error: "" });
+    try {
+      const res = await fetch("/api/platform/seed/investor-network", { method: "POST" });
+      const data = await res.json();
+      if (data.success && data.slug) {
+        setLink({ open: true, url: `${window.location.origin}/s/${data.slug}`, runId: data.run_id, loading: false, error: "" });
+      } else {
+        setLink({ open: true, url: "", runId: null, loading: false, error: t(data.error || "") || data.error || t("investorAdmin.list.linkFailed") });
+      }
+    } catch (_) {
+      setLink({ open: true, url: "", runId: null, loading: false, error: t("investorAdmin.list.linkFailed") });
+    }
+  };
+
   return (
     <>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
@@ -180,9 +199,14 @@ export default function AdminInvestorsPage() {
             </p>
           </div>
           {isSuperAdmin && (
-            <AppButton variant="primary" size="sm" icon={UserPlus} onClick={openInvestorLink}>
-              {t("investorAdmin.list.addInvestor")}
-            </AppButton>
+            <div className="flex flex-wrap items-center gap-2">
+              <AppButton variant="primary" size="sm" icon={UserPlus} onClick={openInvestorLink}>
+                {t("investorAdmin.list.addInvestor")}
+              </AppButton>
+              <AppButton variant="secondary" size="sm" icon={Link2} onClick={openNetworkForm}>
+                {t("investorAdmin.list.networkForm")}
+              </AppButton>
+            </div>
           )}
         </div>
 
