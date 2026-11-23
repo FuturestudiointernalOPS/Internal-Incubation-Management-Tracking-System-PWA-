@@ -1,4 +1,50 @@
 {
+  "investorOptions": {
+    "industries": {
+      "fintech": "FinTech",
+      "healthtech": "HealthTech",
+      "agritech": "AgriTech",
+      "edtech": "EdTech",
+      "cleantech": "CleanTech",
+      "logistics": "Logistics",
+      "e_commerce": "E-Commerce",
+      "saas": "SaaS",
+      "ai_ml": "AI/ML",
+      "renewable_energy": "Renewable Energy"
+    },
+    "stages": {
+      "pre_seed": "Pre-Seed",
+      "seed": "Seed",
+      "series_a": "Series A",
+      "series_b": "Series B",
+      "growth": "Growth"
+    },
+    "countries": {
+      "cd": "DR Congo",
+      "ke": "Kenya",
+      "ng": "Nigeria",
+      "za": "South Africa",
+      "gh": "Ghana",
+      "rw": "Rwanda",
+      "ug": "Uganda",
+      "tz": "Tanzania",
+      "eg": "Egypt",
+      "ma": "Morocco",
+      "sn": "Senegal",
+      "ci": "Ivory Coast",
+      "cm": "Cameroon"
+    },
+    "types": {
+      "angel": "Angel investor",
+      "venture_fund": "Venture capital fund",
+      "family_office": "Family office",
+      "corporate": "Corporate investor",
+      "dfi": "Development finance institution",
+      "foundation": "Foundation",
+      "accelerator": "Accelerator",
+      "other": "Other"
+    }
+  },
   "discover": "Discover",
   "pipeline": "Pipeline",
   "watchlist": "Watchlist",

@@ -28,6 +28,10 @@ export const STAGE_LABELS = {
   declined: "declined",
 };
 
-export const INDUSTRY_OPTIONS = ["FinTech","HealthTech","AgriTech","EdTech","CleanTech","Logistics","E-Commerce","SaaS","AI/ML","Renewable Energy"];
-export const COUNTRY_OPTIONS = ["CD","KE","NG","ZA","GH","RW","UG","TZ","EG","MA"];
-export const STAGE_OPTIONS = ["Pre-Seed","Seed","Series A","Series B","Growth"];
+// The discovery filters use the SAME enumerations as the application form and
+// the investor profile (src/lib/investorOptions.js) — one list, 13 countries.
+export {
+  INVESTOR_INDUSTRIES as INDUSTRY_OPTIONS,
+  INVESTOR_COUNTRIES as COUNTRY_OPTIONS,
+  INVESTOR_STAGES as STAGE_OPTIONS,
+} from "@/lib/investorOptions";
