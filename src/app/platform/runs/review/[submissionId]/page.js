@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { formatCountryAnswer } from "@/lib/countries";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
 
@@ -265,6 +266,7 @@ export default function ReviewPage() {
   // Format display value
   const formatValue = (value, field) => {
     if (value === undefined || value === null || value === "") return null;
+    if (field?.field_type === "country") return formatCountryAnswer(value, lang);
     const text = String(value);
     if (field?.field_type === "phone" && text.startsWith("{") && text.includes('"code"')) {
       try { const parsed = JSON.parse(text); if (parsed.code && parsed.number) return `${parsed.code} ${parsed.number}`; } catch (_) {}

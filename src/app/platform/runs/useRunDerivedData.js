@@ -20,6 +20,7 @@ import { accountStatusOf, fmtAnswer } from "@/components/shared/platform/runs/he
  */
 export default function useRunDerivedData({
   fieldLabels,
+  runFormFields = [],
   emailLog,
   reviews,
   selectedRun,
@@ -48,7 +49,18 @@ export default function useRunDerivedData({
   emailPage,
   retrySelected,
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+
+  // A country answer is stored as its ISO code; the type is what tells the
+  // formatter to show the flag + readable name instead of the raw code.
+  const fieldTypeById = useMemo(() => {
+    const byKey = {};
+    for (const field of runFormFields) {
+      byKey[String(field.id)] = field.field_type;
+      if (field.label) byKey[String(field.label)] = field.field_type;
+    }
+    return byKey;
+  }, [runFormFields]);
 
   // ─── RUN-SCOPED FILTERING (Overview) ───
   // Runs against ONLY this run's submissions + their AI evaluations.
@@ -57,10 +69,10 @@ export default function useRunDerivedData({
     const answers = {};
     for (const [key, value] of Object.entries(submissionData)) {
       if (key.startsWith("_")) continue;
-      answers[fieldLabels[key] || key] = fmtAnswer(value);
+      answers[fieldLabels[key] || key] = fmtAnswer(value, fieldTypeById[String(key)], lang);
     }
     return answers;
-  }, [fieldLabels]);
+  }, [fieldLabels, fieldTypeById, lang]);
 
   const latestEmailOf = useCallback(
     (submission, type) =>

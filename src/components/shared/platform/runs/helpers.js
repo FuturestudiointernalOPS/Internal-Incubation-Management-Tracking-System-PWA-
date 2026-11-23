@@ -1,3 +1,5 @@
+import { formatCountryAnswer } from "@/lib/countries";
+
 export { cn } from "@/lib/cn";
 
 /** Human size for an attached document (512 B / 2 KB / 1.5 MB). */
@@ -58,8 +60,14 @@ export const pickRunList = (response) =>
  * helpers below memoise their own identity, and a formatter captured from the
  * component body would change on every render and defeat that memoisation.
  */
-export function fmtAnswer(answer) {
+export function fmtAnswer(answer, fieldType, locale = "en") {
   if (answer === undefined || answer === null) return "";
+  if (fieldType === "country") {
+    if (Array.isArray(answer)) {
+      return answer.map((item) => formatCountryAnswer(item, locale)).filter(Boolean).join(", ");
+    }
+    return formatCountryAnswer(answer, locale);
+  }
   if (Array.isArray(answer)) {
     return answer.map((item) => {
       if (item === undefined || item === null) return "";

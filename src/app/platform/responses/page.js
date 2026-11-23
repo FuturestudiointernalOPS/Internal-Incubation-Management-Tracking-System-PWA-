@@ -4,6 +4,7 @@ import { Suspense, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, Search, Eye, FileText, Filter, X, ArrowLeft } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
+import { formatCountryAnswer } from "@/lib/countries";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
 import { cn } from "@/lib/cn";
@@ -40,7 +41,7 @@ const pickResponses = (response) => {
 };
 
 function ResponsesContent() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const router = useRouter();
   const goBack = useSafeBack("/platform/runs");
   const searchParams = useSearchParams();
@@ -163,9 +164,11 @@ function ResponsesContent() {
 
   const visibleFields = shownFields.filter(formField => visibleFieldIds.includes(String(formField.id)));
 
-  const formatCell = (value) => {
+  const formatCell = (value, formField) => {
     if (value === undefined || value === null || value === "") return "—";
-    const text = String(value);
+    const text = formField?.field_type === "country"
+      ? formatCountryAnswer(value, lang)
+      : String(value);
     if (text.startsWith("{") && text.includes('"code"')) {
       try { const parsed = JSON.parse(text); if (parsed.code && parsed.number) return `${parsed.code} ${parsed.number}`; } catch (_) {}
     }
@@ -345,7 +348,7 @@ function ResponsesContent() {
                       {/* Dynamic cell values */}
                       {selectedFormId && visibleFields.map(formField => (
                         <td key={formField.id} className="px-3 py-3 text-[10px] text-[var(--text-primary)] whitespace-nowrap max-w-[200px] truncate">
-                          {formatCell(getFieldValue(submission, formField))}
+                          {formatCell(getFieldValue(submission, formField), formField)}
                         </td>
                       ))}
                       {!selectedFormId && (

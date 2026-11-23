@@ -126,6 +126,7 @@ export function useRunsState() {
   // Derived data
   const derived = useRunDerivedData({
     fieldLabels: responseFilters.fieldLabels,
+    runFormFields,
     emailLog,
     reviews,
     selectedRun,
