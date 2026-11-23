@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS platform_form_fields (
     CHECK (field_type IN (
       'text', 'textarea', 'number', 'email', 'phone', 'date', 'time',
       'select', 'radio', 'checkbox', 'multiselect', 'file', 'url',
-      'rating', 'currency', 'signature', 'richtext', 'hidden'
+      'rating', 'currency', 'signature', 'richtext', 'hidden', 'country'
     )),
   label TEXT NOT NULL,
   placeholder TEXT,

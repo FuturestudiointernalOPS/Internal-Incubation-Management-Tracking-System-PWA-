@@ -1,5 +1,44 @@
 import db from "@/lib/db";
 
+// ── Field-type support ──────────────────────────────────────────────────────
+//
+// Older databases were created with a CHECK that lists the accepted field
+// types. A new type ("country") would be rejected by that rule, so the rule is
+// widened once per process on the first field that needs it. Idempotent:
+// DROP … IF EXISTS, then the same constraint re-added with the full list.
+
+const PLATFORM_FORM_FIELD_TYPES = [
+  "text", "textarea", "number", "email", "phone", "date", "time",
+  "select", "radio", "checkbox", "multiselect", "file", "url",
+  "rating", "currency", "signature", "richtext", "hidden", "country",
+];
+
+let fieldTypeSupportPromise = null;
+
+export async function ensurePlatformFormFieldTypeSupport() {
+  if (!fieldTypeSupportPromise) {
+    const allowed = PLATFORM_FORM_FIELD_TYPES.map((type) => `'${type}'`).join(", ");
+    fieldTypeSupportPromise = (async () => {
+      try {
+        await db.execute({
+          sql: "ALTER TABLE platform_form_fields DROP CONSTRAINT IF EXISTS platform_form_fields_field_type_check",
+          args: [],
+        });
+        await db.execute({
+          sql: `ALTER TABLE platform_form_fields ADD CONSTRAINT platform_form_fields_field_type_check CHECK (field_type IN (${allowed}))`,
+          args: [],
+        });
+      } catch (error) {
+        // A database already carrying the widened rule is fine. A genuine
+        // failure is reported by the insert/update that follows.
+        console.warn("[forms] field-type rule not widened:", error.message);
+      }
+      return true;
+    })();
+  }
+  return fieldTypeSupportPromise;
+}
+
 // ── src/app/api/platform/forms/route.js ─────────────────────────────────────
 
 /** Platform form row matched by its text id (GET /api/platform/forms?id=X). */
@@ -147,6 +186,9 @@ export async function deletePlatformFormField({ formId, fieldId }) {
 
 /** Update an existing builder field. sectionId is the FK-resolved value. */
 export async function updatePlatformFormField({ formId, field, sectionId }) {
+  if ((field.field_type || "text") === "country") {
+    await ensurePlatformFormFieldTypeSupport();
+  }
   return db.execute({
     sql: `UPDATE platform_form_fields
                     SET label = ?, field_type = ?, placeholder = ?, help_text = ?, required = ?,
@@ -169,6 +211,9 @@ export async function updatePlatformFormField({ formId, field, sectionId }) {
 
 /** Insert a new builder field, returning the created row. */
 export async function createPlatformFormField({ formId, field, sectionId }) {
+  if ((field.field_type || "text") === "country") {
+    await ensurePlatformFormFieldTypeSupport();
+  }
   return db.execute({
     sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, conditional_logic, sort_order)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

@@ -1,5 +1,5 @@
 import db from "@/lib/db";
-import { selectFormRowById } from "@/models/forms/platform";
+import { ensurePlatformFormFieldTypeSupport, selectFormRowById } from "@/models/forms/platform";
 
 /**
  * Platform AI model — form generation, analysis log and framework config
@@ -31,6 +31,9 @@ export async function insertAiGeneratedSection(formId, title, description, sortO
 
 /** Insert one AI-generated field inside a section. */
 export async function insertAiGeneratedField(formId, sectionId, field, sortOrder) {
+  if ((field.field_type || "text") === "country") {
+    await ensurePlatformFormFieldTypeSupport();
+  }
   return db.execute({
     sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, sort_order)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
