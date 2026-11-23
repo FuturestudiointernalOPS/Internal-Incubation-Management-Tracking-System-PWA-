@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import Link from "next/link";
 import { Clock } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
@@ -13,6 +13,9 @@ import SectionHead from "@/components/ui/SectionHead";
  * load their own rows, so the caller passes them in. Sorting happens here
  * because the two sources do not guarantee the same order, and `created_at` is
  * absent on the first paint: those rows sort last instead of breaking.
+ *
+ * The card is a glance, so it is paged in small windows instead of listing the
+ * whole newest slice at once.
  */
 
 const PERSON_ROLE_KEYS = {
@@ -27,8 +30,14 @@ const PERSON_ROLE_KEYS = {
   pm: "crm.roles.pm",
 };
 
-export default function RecentContacts({ contacts = [], loading = false, limit = 8 }) {
+export default function RecentContacts({
+  contacts = [],
+  loading = false,
+  limit = 8,
+  pageSize = 5,
+}) {
   const { t } = useI18n();
+  const [page, setPage] = useState(1);
 
   const recent = useMemo(
     () =>
@@ -40,6 +49,10 @@ export default function RecentContacts({ contacts = [], loading = false, limit =
         .slice(0, limit),
     [contacts, limit],
   );
+
+  const totalPages = Math.max(1, Math.ceil(recent.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageRows = recent.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="space-y-3">
@@ -55,7 +68,7 @@ export default function RecentContacts({ contacts = [], loading = false, limit =
         </p>
       ) : (
         <div className="stf-card !p-0 divide-y divide-[var(--border-secondary)]">
-          {recent.map((contact) => {
+          {pageRows.map((contact) => {
             const displayName = contact.name || contact.email || "?";
             return (
               <Link
@@ -84,6 +97,30 @@ export default function RecentContacts({ contacts = [], loading = false, limit =
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest">
+            {t("crm.contacts.pageOf", { page: safePage, total: totalPages })}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage(Math.max(1, safePage - 1))}
+              disabled={safePage === 1}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              {t("common.previous")}
+            </button>
+            <button
+              onClick={() => setPage(Math.min(totalPages, safePage + 1))}
+              disabled={safePage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border-primary)] text-[10px] font-black uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              {t("common.next")}
+            </button>
+          </div>
         </div>
       )}
     </div>

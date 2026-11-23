@@ -39,7 +39,7 @@ export const isInternalContact = (contact) =>
 
 export const PROGRAMS_URL = "/api/pm/programs";
 
-export const PAGE_SIZE = 50;
+export const PAGE_SIZE = 10;
 
 // Module scope on purpose: the hook mirrors what the caller passes, so these are
 // built once here rather than on every render.
