@@ -7,6 +7,7 @@ import NavHistoryTracker from "@/components/NavHistoryTracker";
 import NavigationLoader from "@/components/ui/NavigationLoader";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import { DialogProvider } from "@/components/ui/DialogProvider";
+import { Analytics } from "@vercel/analytics/next";
 
 export default function RootLayout({ children }) {
   return (
@@ -61,6 +62,8 @@ export default function RootLayout({ children }) {
             </DialogProvider>
           </I18nProvider>
         </ThemeProvider>
+        {/* Vercel Web Analytics — inert in local dev, reports once deployed on Vercel. */}
+        <Analytics />
       </body>
     </html>
   );
