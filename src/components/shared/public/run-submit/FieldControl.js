@@ -1,4 +1,5 @@
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import AppCountrySelect from "@/components/ui/AppCountrySelect";
 
 /**
  * FIELD CONTROL — the input for one field, chosen by its type.
@@ -44,6 +45,16 @@ export default function FieldControl({ field, value, hasError, isDisabled, onCha
           placeholder={field.placeholder || "90 84 78 20"}
           disabled={isDisabled}
           inputClassName="flex-1 rounded-xl px-4 py-3 text-sm font-medium outline-none border bg-slate-800 text-slate-100 placeholder:text-slate-400 border-slate-600 focus:border-orange-500"
+        />
+      );
+    case "country":
+      return (
+        <AppCountrySelect
+          value={value}
+          onChange={onChange}
+          disabled={isDisabled}
+          className={`${inputClass} [&>option]:bg-slate-800 [&>option]:text-slate-100 appearance-none`}
+          placeholder={field.placeholder || undefined}
         />
       );
     case "select":

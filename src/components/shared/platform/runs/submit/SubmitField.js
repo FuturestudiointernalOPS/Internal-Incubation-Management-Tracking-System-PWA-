@@ -2,6 +2,7 @@
 
 import { Star } from "lucide-react";
 import AppPhoneInput from "@/components/ui/AppPhoneInput";
+import AppCountrySelect from "@/components/ui/AppCountrySelect";
 import { cn } from "@/lib/cn";
 
 export default function SubmitField({ field, value, hasError, isDisabled, updateField, t }) {
@@ -92,6 +93,17 @@ export default function SubmitField({ field, value, hasError, isDisabled, update
           placeholder={field.placeholder || "https://"}
           disabled={isDisabled}
           className={inputClass}
+        />
+      );
+
+    case "country":
+      return (
+        <AppCountrySelect
+          value={value}
+          onChange={(nextValue) => updateField(field.id, nextValue)}
+          disabled={isDisabled}
+          className={inputClass}
+          placeholder={field.placeholder || undefined}
         />
       );
 

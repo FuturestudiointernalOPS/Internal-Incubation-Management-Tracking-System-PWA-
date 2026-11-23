@@ -273,6 +273,8 @@
       "fieldTypeCurrency": "Currency",
       "fieldTypeRating": "Rating",
       "fieldTypeRichText": "Rich Text",
+      "fieldTypeCountry": "Country",
+      "countryOptionsHint": "The complete country list is provided automatically; the respondent picks one.",
       "generateForm": "Generate Form",
       "generating": "Generating...",
       "inCollection": "in {name}",

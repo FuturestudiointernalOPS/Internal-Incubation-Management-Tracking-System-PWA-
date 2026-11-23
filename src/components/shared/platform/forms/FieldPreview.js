@@ -120,6 +120,12 @@ export default function FieldPreview({
             </div>
           )}
 
+          {field.field_type === "country" && (
+            <p className="text-[10px] font-medium text-[var(--text-secondary)]">
+              {t("platformMisc.forms.countryOptionsHint")}
+            </p>
+          )}
+
           {/* Validation Rules */}
           <div className="space-y-2 p-3 rounded-xl bg-tertiary border border-[var(--border-primary)]">
             <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] opacity-50">{t("platformMisc.forms.validationTitle")}</p>

@@ -170,6 +170,7 @@ import AppTabs from "@/components/ui/AppTabs";
 import AppInput from "@/components/ui/AppInput";
 import AppTextarea from "@/components/ui/AppTextarea";
 import AppSelect from "@/components/ui/AppSelect";
+import AppCountrySelect from "@/components/ui/AppCountrySelect"; // single-choice country dropdown (ISO code stored, flag + localized name shown)
 import InfoHint from "@/components/ui/InfoHint";   // the (i) beside a label; AppInput and AppSelect take a `hint` prop
 
 // Data Display
@@ -410,6 +411,7 @@ src/
 │       ├── AppSplitMenu.js      ← Split action button — the action on show + a chevron for the other actions
 │       ├── AppPagination.js     ← Pagination with page numbers or compact
 │       ├── AppSelect.js
+│       ├── AppCountrySelect.js  ← Country dropdown; stores the ISO alpha-2 code, shows flag + localized name
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
 │       ├── AppTable.js
 │       ├── AppTabs.js           ← Tab navigation (underline/pills variants)

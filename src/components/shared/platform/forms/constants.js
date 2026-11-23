@@ -1,13 +1,13 @@
 import {
   Type, AlignLeft, Hash, Mail, PhoneIcon, Calendar, Clock, List, Circle, CheckSquare,
-  Grid3X3, Upload, Link, DollarSign, Star, PenTool, Eye,
+  Grid3X3, Upload, Link, DollarSign, Star, PenTool, Eye, Globe,
 } from "lucide-react";
 
 export const FIELD_ICONS = {
   text: Type, textarea: AlignLeft, number: Hash, email: Mail, phone: PhoneIcon,
   date: Calendar, time: Clock, select: List, radio: Circle, checkbox: CheckSquare,
   multiselect: Grid3X3, file: Upload, url: Link, currency: DollarSign,
-  rating: Star, richtext: PenTool, signature: PenTool, hidden: Eye,
+  rating: Star, richtext: PenTool, signature: PenTool, hidden: Eye, country: Globe,
 };
 
 export const FIELD_TYPES = [
@@ -27,6 +27,7 @@ export const FIELD_TYPES = [
   { value: "currency", label: "Currency", icon: DollarSign },
   { value: "rating", label: "Rating", icon: Star },
   { value: "richtext", label: "Rich Text", icon: PenTool },
+  { value: "country", label: "Country", icon: Globe },
 ];
 
 // i18n key suffixes for display-only labels — `value` attributes and stored values stay as-is
@@ -47,6 +48,7 @@ export const FIELD_TYPE_KEYS = {
   currency: "fieldTypeCurrency",
   rating: "fieldTypeRating",
   richtext: "fieldTypeRichText",
+  country: "fieldTypeCountry",
 };
 
 export const FORM_STATUS_KEYS = {

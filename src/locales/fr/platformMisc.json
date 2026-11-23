@@ -273,6 +273,8 @@
       "fieldTypeCurrency": "Devise",
       "fieldTypeRating": "Évaluation",
       "fieldTypeRichText": "Texte enrichi",
+      "fieldTypeCountry": "Pays",
+      "countryOptionsHint": "La liste complète des pays est fournie automatiquement ; le répondant en choisit un.",
       "generateForm": "Générer le formulaire",
       "generating": "Génération...",
       "inCollection": "dans {name}",
