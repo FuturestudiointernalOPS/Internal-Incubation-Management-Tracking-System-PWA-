@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from "uuid";
 import {
   getFamilyByRegistrationId,
   getAllFamilies,
+  findFamilyByName,
   ensureFamilyDescriptionColumn,
   ensureFamilyFormIdColumn,
   ensureFamilyDefaultRoleColumn,
@@ -104,6 +105,32 @@ export async function POST(req) {
 
     if (!name)
       return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
+
+    // A group's name is the key contacts are filed under, so an existing row
+    // with the same name IS the group: reuse it (and attach it to the requested
+    // program when it had none) instead of inserting a duplicate and a second
+    // auto-created registration form.
+    const duplicate = (await findFamilyByName(name)).rows?.[0];
+    if (duplicate) {
+      if (program_id && !duplicate.program_id) {
+        await updateFamilyFields(["program_id = ?"], [program_id, duplicate.id]);
+        duplicate.program_id = program_id;
+      }
+      return NextResponse.json({
+        success: true,
+        existing: true,
+        id: duplicate.id,
+        form_id: duplicate.form_id,
+        group: {
+          id: duplicate.id,
+          name: duplicate.name,
+          registration_id: duplicate.registration_id,
+          description: duplicate.description,
+          form_id: duplicate.form_id,
+          program_id: duplicate.program_id || null,
+        },
+      });
+    }
 
     const registration_id = "GRP-" + uuidv4().split("-")[0].toUpperCase() + Math.floor(Math.random() * 1000);
 
