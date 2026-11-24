@@ -69,6 +69,8 @@ export default function PlatformFormsView({ ctx }) {
     scoringConfig,
     search,
     sections,
+    seedInvestorNetwork,
+    seeding,
     selectedFieldId,
     setActiveSectionId,
     setAiEvalFramework,
@@ -124,6 +126,8 @@ export default function PlatformFormsView({ ctx }) {
           statusFilter={statusFilter}
           onStatusFilterChange={setStatusFilter}
           onNew={() => setShowCreate(true)}
+          onSeedInvestorNetwork={seedInvestorNetwork}
+          seeding={seeding}
           onOpen={openBuilder}
           onDuplicate={handleDuplicate}
           onArchive={handleArchive}

@@ -231,7 +231,6 @@
       "subtitle": "Approve, reject, and manage investor access to Investor OS",
       "linkCopied": "Link Copied",
       "addInvestor": "Add Investor",
-      "networkForm": "Investor network form",
       "addInvestorHint": "Share this link with the investor. Their application is reviewed here, and approval creates their account and sends the activation email.",
       "copyLink": "Copy Link",
       "regenerateLink": "Regenerate Link",

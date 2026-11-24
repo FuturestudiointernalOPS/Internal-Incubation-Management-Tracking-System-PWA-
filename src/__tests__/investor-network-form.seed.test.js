@@ -109,13 +109,22 @@ describe("the investor network form definition", () => {
     );
   });
 
-  test("the admin screen offers the button, labelled in both languages", () => {
-    expect(read("src/app/admin/investors/page.js")).toContain(
+  test("the Forms & Runs workspace offers the button, labelled in both languages", () => {
+    // The action lives where the form is USED — Forms & Runs — and its public
+    // URL is copied from the run's Share tab like any other run.
+    expect(read("src/components/platform/forms/hooks/useFormBuilder.js")).toContain(
       "api/platform/seed/investor-network",
     );
+    expect(read("src/components/platform/forms/FormsListView.js")).toContain(
+      "platformMisc.forms.seedInvestorNetwork",
+    );
+    // …and NOT on the Investors page.
+    expect(read("src/app/admin/investors/page.js")).not.toContain(
+      "investor-network",
+    );
     for (const lang of ["en", "fr"]) {
-      const locale = JSON.parse(read(`src/locales/${lang}/investorAdmin.json`));
-      expect(locale.investorAdmin.list.networkForm).toBeTruthy();
+      const locale = JSON.parse(read(`src/locales/${lang}/platformMisc.json`));
+      expect(locale.platformMisc.forms.seedInvestorNetwork).toBeTruthy();
     }
   });
 });
