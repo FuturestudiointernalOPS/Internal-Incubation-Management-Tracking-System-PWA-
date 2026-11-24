@@ -38,6 +38,21 @@ export async function getGroups(program_id, search) {
   return db.execute({ sql, args });
 }
 
+/**
+ * The existing group with the same trimmed, case-insensitive name, if any.
+ * A program-bound row wins over a program-less one, then the oldest row. Used
+ * as the duplicate guard before an insert.
+ */
+export async function findGroupByExactName(name) {
+  return db.execute({
+    sql: `SELECT * FROM families
+          WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))
+          ORDER BY (program_id IS NULL) ASC, created_at ASC
+          LIMIT 1`,
+    args: [name],
+  });
+}
+
 /** Insert a contact group (POST fast path). `insertArgs` = controller-built VALUES array. */
 export async function createGroup(insertArgs) {
   return db.execute({

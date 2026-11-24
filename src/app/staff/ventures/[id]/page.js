@@ -72,6 +72,7 @@ export default function StaffVentureWorkspace() {
 
   const [venture, setVenture] = useState(null);
   const [myRoles, setMyRoles] = useState([]);
+  const [myAccess, setMyAccess] = useState(null);
   const [members, setMembers] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [reviewQueue, setReviewQueue] = useState([]);
@@ -93,7 +94,19 @@ export default function StaffVentureWorkspace() {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const tabFromUrl = String(searchParams?.get("tab") || "");
-  const isLeadManager = myRoles.some((role) => role.responsibility_code === "venture_manager");
+  // A portfolio holder (the explicit `ventures.view_all` / `ventures.edit_all`
+  // rights) has no assignment row on the Venture, so the assignment-derived
+  // answer alone would hide the manager tabs from someone the server lets
+  // through. `my-access` reports the SAME verdict the routes use, so the page
+  // and the API cannot disagree.
+  const hasUnscopedAuthority =
+    myAccess?.capabilities?.view?.decision === "portfolio" ||
+    myAccess?.capabilities?.edit?.decision === "portfolio" ||
+    myAccess?.capabilities?.view?.decision === "super-admin" ||
+    myAccess?.capabilities?.edit?.decision === "super-admin";
+  const isLeadManager =
+    myRoles.some((role) => role.responsibility_code === "venture_manager") ||
+    hasUnscopedAuthority;
   // A tab the viewer is not entitled to is not a tab they can stand on: a
   // hand-typed ?tab=projects falls back to Overview instead of an empty pane.
   // (The SERVER is still the authority — this only decides what is rendered.)
@@ -155,21 +168,28 @@ export default function StaffVentureWorkspace() {
   useEffect(() => {
     (async () => {
       try {
-        const [ventureResponse, rolesResponse, membersResponse, tasksResponse, sessionsResponse] = await Promise.all([
+        const [ventureResponse, rolesResponse, membersResponse, tasksResponse, sessionsResponse, accessResponse] = await Promise.all([
           fetch(`/api/ventures/${id}`),
           fetch(`/api/ventures/assigned?venture=${id}`),
           fetch(`/api/ventures/${id}/members`),
           fetch(`/api/ventures/${id}/tasks`),
           fetch(`/api/ventures/${id}/sessions`),
+          // Optional: it only widens the tabs for a portfolio holder. A failed
+          // read must not take the whole workspace down with it.
+          fetch(`/api/ventures/${id}/my-access`).catch(() => null),
         ]);
         const ventureData = await ventureResponse.json();
         const rolesData = await rolesResponse.json();
         const membersData = await membersResponse.json();
         const tasksData = await tasksResponse.json();
         const sessionsData = await sessionsResponse.json();
+        const accessData = accessResponse
+          ? await accessResponse.json().catch(() => null)
+          : null;
         if (!ventureData.success) { setNotFound(true); return; }
         setVenture(ventureData.venture);
         setMyRoles((rolesData.assignments || []).filter((role) => role.venture_id === id));
+        setMyAccess(accessData?.success ? accessData : null);
         setMembers((membersData.members || membersData.rows || []));
         const fullTasks = tasksData.tasks || [];
         const taskMap = {};
@@ -253,8 +273,13 @@ export default function StaffVentureWorkspace() {
 
       {/* The viewer's mandate, kept as one line rather than a card: the full
           responsibility and its scope stay in the tooltip. */}
-      {myRoles.length > 0 && (
+      {(myRoles.length > 0 || hasUnscopedAuthority) && (
         <div className="-mt-2 flex flex-wrap items-center gap-2">
+          {hasUnscopedAuthority && (
+            <span className="rounded-lg bg-brand-orange/10 px-2.5 py-1 text-[9px] font-black uppercase tracking-widest text-[var(--brand-orange)]">
+              {t("staff.ventureWorkspace.portfolioAuthority")}
+            </span>
+          )}
           {myRoles.map((role) => {
             const scope =
               role.scope_type && role.scope_type !== "venture_wide"

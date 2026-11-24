@@ -75,6 +75,8 @@ const NAV_KEY_MAP = {
   watchlist: "navigation.watchlist",
   ventures: "navigation.ventures",
   all_ventures: "navigation.allVentures",
+  venture_admin: "navigation.ventureAdmin",
+  venture_admin_home: "navigation.ventureAdminOverview",
   venture_reporting_settings: "vadmin.list.reportingSettings",
   journey_reports: "navigation.journeyReports",
   document_types: "navigation.documentTypes",

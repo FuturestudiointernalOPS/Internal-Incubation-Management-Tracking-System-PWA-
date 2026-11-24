@@ -116,6 +116,34 @@ export const PROFILE_CATALOGUE_SEED = [
   { key: "venture_manager", label: "Venture Manager", context: "venture", allowedRoles: ["staff"], capabilities: {
     ventures: { view: 1, edit: 3 },
   } },
+  // The PORTFOLIO-WIDE Venture profile. A STAFF identity whose base profile is
+  // this one keeps the whole Staff Default bundle (so assigning it never strips
+  // the core workspace) and adds the two perimeter rights that make the
+  // difference: `view_all` and `edit_all`. `edit_all` is what opens the
+  // dedicated Venture administration area; both are editable from the Profiles
+  // matrix like every other right.
+  { key: "venture_admin", label: "Venture Admin", context: "venture", allowedRoles: ["staff"], capabilities: {
+    projects: { view: 1, create: 2, edit: 3, view_all: 1 },
+    programs: { view: 1, groups: 2 },
+    ventures: {
+      view: 1,
+      create: 2,
+      edit: 3,
+      delete: 4,
+      view_all: 1,
+      edit_all: 1,
+      setup: 3,
+      kpis: 3,
+      permissions_view: 1,
+      my_assignments: 1,
+      validate: 2,
+    },
+    reports: { view: 1, create: 2 },
+    messaging: { view: 1, send: 2 },
+    contacts: { view: 1, invite_families: 2 },
+    collections: { view: 1 },
+    tasks: { create: 1, act_any: 1 },
+  } },
   { key: "program_manager", label: "Assigned Program Manager", context: "program", allowedRoles: ["staff"], capabilities: {
     programs: { view: 1, edit: 3, publish: 4, groups: 2 },
     ventures: { kpis: 3 },

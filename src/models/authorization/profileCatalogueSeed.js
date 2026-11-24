@@ -166,6 +166,34 @@ export async function ensureLmsAuthorProfileSeed() {
 }
 
 /**
+ * The VENTURE ADMIN profile, on databases seeded before it existed.
+ *
+ * Same reason as the seeds above: `ensureProfileCatalogueSeed` is recorded once
+ * per database, so a profile added later never reaches an existing one. Its
+ * capability set is a SUPERSET of `staff_default` plus the portfolio perimeter
+ * (`ventures.view_all` / `ventures.edit_all`), which is what makes it able to
+ * see and operate on every Venture. Insert-only — an administrator's edit is
+ * never overwritten.
+ */
+export async function ensureVentureAdminProfileSeed() {
+  await ensureProfileCapabilitiesSchema();
+  const definitions = PROFILE_CATALOGUE_SEED.filter((def) => def.key === "venture_admin");
+  const seeded = await seedProfileDefinitions(definitions);
+  // The catalogue read seeds the bare row too (without a label). Fill a MISSING
+  // label only, so the screen never shows the raw key for a profile that has a
+  // display name — and never overwrite an administrator's edit either.
+  for (const definition of definitions) {
+    if (!definition.label) continue;
+    await db.execute({
+      sql: `UPDATE profiles SET label = ?
+            WHERE key = ? AND (label IS NULL OR label = '')`,
+      args: [definition.label, definition.key],
+    });
+  }
+  return { success: true, ...seeded };
+}
+
+/**
  * Lot 5 / D-7 — `ventures.edit` on the Venture Member profile.
  *
  * The catalogue seed is recorded once per database, so a capability added to an

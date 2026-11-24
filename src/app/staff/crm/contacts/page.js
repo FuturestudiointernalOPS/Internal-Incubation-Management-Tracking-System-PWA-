@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Users, Search } from "lucide-react";
 import AppTable from "@/components/ui/AppTable";
+import AppPagination from "@/components/ui/AppPagination";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import ContactsScreen from "@/components/shared/contacts/ContactsScreen";
 import RecentContacts from "@/components/shared/contacts/RecentContacts";
@@ -25,6 +26,8 @@ export const dynamic = "force-dynamic";
  * The APIs remain the authority in both cases: GET /api/contacts requires
  * `contacts.view`, and every mutation re-checks its own capability.
  */
+
+const PAGE_SIZE = 10;
 
 const ROLE_LABELS = {
   participant: "crm.roles.participant",
@@ -51,6 +54,7 @@ function ReadOnlyContacts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let alive = true;
@@ -81,6 +85,13 @@ function ReadOnlyContacts() {
         .some((value) => String(value).toLowerCase().includes(query)),
     );
   }, [contacts, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE,
+  );
 
   // A missing key comes back as the key itself (visible signal) — fall back to
   // the raw value so a new role/status never renders a key to the user.
@@ -157,7 +168,10 @@ function ReadOnlyContacts() {
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
           <input
             value={search}
-            onChange={(event) => setSearch(event.target.value)}
+            onChange={(event) => {
+              setSearch(event.target.value);
+              setPage(1);
+            }}
             placeholder={t("crm.directory.searchPlaceholder")}
             className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-3 pl-10 pr-4 text-sm outline-none focus:border-[var(--brand-orange)] transition-colors"
             style={{ color: "var(--text-primary)" }}
@@ -176,9 +190,15 @@ function ReadOnlyContacts() {
 
       <AppTable
         columns={columns}
-        data={filtered}
+        data={paginated}
         loading={loading}
         emptyMessage={t("crm.contacts.noContactsFound")}
+      />
+
+      <AppPagination
+        currentPage={safePage}
+        totalPages={totalPages}
+        onPageChange={setPage}
       />
     </div>
   );

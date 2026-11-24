@@ -26,6 +26,7 @@ import {
   ensureVentureMemberEditBackfill,
   ensureVentureOpsProfileSeed,
   ensureLmsAuthorProfileSeed,
+  ensureVentureAdminProfileSeed,
   ensureDelegatedCapabilityDefaults,
   ensureVenturePortfolioCapabilityDefaults,
   ensureSuperAdminFullMatrix,
@@ -193,6 +194,10 @@ export function ensureCapabilityBackfills() {
           // profile added later never reaches an existing one. Also writes the
           // profile's eligibility row, so its grants are not inert.
           runAuthzMigration("lms-author-profile-seed-v1", ensureLmsAuthorProfileSeed),
+          // The portfolio-wide Venture Admin profile (staff-only). It carries the
+          // Staff Default bundle plus the two portfolio rights, so a database
+          // seeded before it existed receives it (insert-only).
+          runAuthzMigration("venture-admin-profile-seed-v1", ensureVentureAdminProfileSeed),
           // Lot 5 / D-7 — the Venture Member profile gains `ventures.edit`, so
           // the canonical write gate preserves the access the legacy
           // membership gate gave every active member.
