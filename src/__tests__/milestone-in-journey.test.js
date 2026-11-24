@@ -182,7 +182,9 @@ describe("milestone structure authority (matrix `milestones.edit` / portfolio wr
     mockAuthContext = null;
   });
 
-  test("a Super Admin whose portfolio right was revoked follows the assignment matrix", async () => {
+  test("a Super Admin keeps the portfolio by ROLE, whatever the matrix says", async () => {
+    // `edit_all` is absent here and the owner still manages the Venture: the
+    // role is authoritative, so no profile row or migration can lock them out.
     mockAuthContext = {
       role: "super_admin",
       isSuperAdmin: true,
@@ -196,7 +198,7 @@ describe("milestone structure authority (matrix `milestones.edit` / portfolio wr
         role: "super_admin",
         session: { cid: "u1", role: "super_admin" },
       }),
-    ).toBe(false);
+    ).toBe(true);
     mockAuthContext = null;
   });
 

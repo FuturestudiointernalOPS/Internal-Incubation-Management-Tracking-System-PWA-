@@ -3,7 +3,6 @@ import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId, ventureExists } from "@/services/authorization/scope";
 import {
-  holdsExplicitCapability,
   holdsVenturePortfolioRight,
 } from "@/services/ventures/portfolioAccess";
 
@@ -82,19 +81,22 @@ export async function resolveVentureScopedDecision({
 
   // CAPABILITY — the resolver decides (eligibility, profile, grants…).
   //
-  // A Super Admin is NOT short-circuited any more: the role keeps its
-  // eligibility bypass, but the RIGHT must be in the effective matrix. Reading
-  // the matrix explicitly is what makes a revoked Venture right effective for a
-  // Super Admin too. (For everyone else the resolver's own answer is the one
-  // that counts, eligibility included.)
-  const capError = await requireAuthorization(module, capability, minLevel);
-  const explicitAction = holdsExplicitCapability(authContext, module, capability, minLevel);
-  if (authContext?.isSuperAdmin ? !explicitAction : Boolean(capError)) {
-    return {
-      allowed: false,
-      decision: "capability-missing",
-      missing: { capability: `${module}.${capability}` },
-    };
+  // THE PLATFORM OWNER KEEPS ITS ROLE. The owner's authority comes from the role,
+  // not from a row in the effective matrix: the resolver itself already answers
+  // "allowed" for a Super Admin, and this gate must not contradict it. Requiring
+  // the row meant that a database whose one-time grants had not been applied yet
+  // answered `capability-missing` to the owner of the platform (production,
+  // 2026-11-24). Everyone else is decided by the resolver, exactly as before —
+  // including a delegated staff member whose grant was revoked.
+  if (!authContext?.isSuperAdmin) {
+    const capError = await requireAuthorization(module, capability, minLevel);
+    if (capError) {
+      return {
+        allowed: false,
+        decision: "capability-missing",
+        missing: { capability: `${module}.${capability}` },
+      };
+    }
   }
 
   // PORTFOLIO — a right, not a role property. `view` reaches every Venture to

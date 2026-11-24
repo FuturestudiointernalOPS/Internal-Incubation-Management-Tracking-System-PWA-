@@ -256,9 +256,11 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
     expect(args).toEqual([VENTURE, "USR-1"]);
   });
 
-  test("a Super Admin whose portfolio right was revoked is refused", async () => {
+  test("a Super Admin keeps the portfolio by ROLE, whatever the matrix says", async () => {
     const db = dbWithRows();
-    // The same owner, but `edit_all` is no longer in the effective matrix.
+    // `edit_all` is absent from the effective matrix, and the owner may still
+    // configure the Venture: the role is authoritative, so no profile row or
+    // migration can lock the platform owner out.
     require("@/models/authorization/index").getAuthorizationContext.mockResolvedValueOnce({
       role: "super_admin",
       isSuperAdmin: true,
@@ -268,7 +270,7 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
 
     await expect(
       canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
-    ).resolves.toBe(false);
+    ).resolves.toBe(true);
   });
 
   test("a staff member who does not lead it is refused, and without a Venture too", async () => {
