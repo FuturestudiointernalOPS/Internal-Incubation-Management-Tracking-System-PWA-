@@ -27,6 +27,7 @@ const {
   ensureProfileCatalogueSeed,
   ensureDelegatedCapabilityDefaults,
   ensureVenturePortfolioCapabilityDefaults,
+  ensureVentureAdminProfileSeed,
 } = require("@/models/authorization/profileCatalogueSeed");
 
 beforeEach(() => {
@@ -112,4 +113,34 @@ test("the portfolio backfill gives the platform owner's profile the perimeter ri
   expect(rows).toContainEqual(["super_admin_default", "ventures", "view_all", 5]);
   expect(rows).toContainEqual(["super_admin_default", "ventures", "edit_all", 5]);
   expect(rows).toContainEqual(["staff_default", "ventures", "view_all", 1]);
+});
+
+test("the Venture Admin profile is a staff superset with the portfolio perimeter", () => {
+  const byKey = Object.fromEntries(PROFILE_CATALOGUE_SEED.map((def) => [def.key, def]));
+  const admin = byKey.venture_admin;
+  const staff = byKey.staff_default;
+
+  expect(admin).toBeTruthy();
+  expect(admin.allowedRoles).toEqual(["staff"]);
+  expect(admin.capabilities.ventures.view_all).toBeGreaterThan(0);
+  expect(admin.capabilities.ventures.edit_all).toBeGreaterThan(0);
+
+  // Assigning it as a base profile REPLACES the Staff Default bundle, so it
+  // must never be narrower than that bundle.
+  for (const [moduleKey, capabilities] of Object.entries(staff.capabilities)) {
+    for (const [capability, level] of Object.entries(capabilities)) {
+      expect(admin.capabilities[moduleKey]?.[capability]).toBeGreaterThanOrEqual(level);
+    }
+  }
+});
+
+test("the Venture Admin backfill writes its profile and capability rows", async () => {
+  await ensureVentureAdminProfileSeed();
+
+  const profileInserts = callsMatching(/INSERT INTO profiles/i).map(argsOf);
+  expect(profileInserts.map((args) => args[0])).toContain("venture_admin");
+
+  const capabilityRows = callsMatching(/INSERT INTO profile_capabilities/i).map(argsOf);
+  expect(capabilityRows).toContainEqual(["venture_admin", "ventures", "view_all", 1]);
+  expect(capabilityRows).toContainEqual(["venture_admin", "ventures", "edit_all", 1]);
 });

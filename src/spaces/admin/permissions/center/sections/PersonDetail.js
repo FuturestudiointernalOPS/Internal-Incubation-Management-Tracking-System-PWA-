@@ -18,6 +18,7 @@ import { defer } from "../../effectUtils";
 import { buildRightRows, countRights, gatesForRow } from "../personAccess";
 import { PERSON_TABS } from "../centerNav";
 import PersonProfiles from "../PersonProfiles";
+import PersonBaseProfile from "../PersonBaseProfile";
 import {
   Cell,
   EmptyRow,
@@ -130,11 +131,18 @@ export default function PersonDetail({ person, data, revision = 0, onBack, openD
       {!loading && !context && <Note>{t("engineering.permissions.center.personLoadFailed")}</Note>}
 
       {tab === "profiles" && (
-        <PersonProfiles
-          cid={cid}
-          data={data}
-          onChanged={() => setProfileRevision((value) => value + 1)}
-        />
+        <>
+          <PersonBaseProfile
+            cid={cid}
+            data={data}
+            onChanged={() => setProfileRevision((value) => value + 1)}
+          />
+          <PersonProfiles
+            cid={cid}
+            data={data}
+            onChanged={() => setProfileRevision((value) => value + 1)}
+          />
+        </>
       )}
 
       {context && tab === "rights" && (
