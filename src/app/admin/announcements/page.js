@@ -25,6 +25,25 @@ import { useApi } from "@/lib/hooks/useApi";
 // so an inline arrow would give it a new identity on every render and refetch in
 // a loop.
 const pickAnnouncements = (payload) => (payload?.success ? payload.announcements || [] : []);
+const pickPrograms = (payload) => (payload?.success ? payload.programs || [] : []);
+const pickGroups = (payload) => (payload?.success ? payload.groups || [] : []);
+
+// The stored target for a group is its NAME, because that is what the delivery
+// step matches on. Duplicate names therefore collapse into one choice, and the
+// program name is shown only to tell groups of the same name apart.
+const buildGroupChoices = (groups, programNameById) => {
+  const seen = new Set();
+  const choices = [];
+  for (const group of groups) {
+    const name = String(group.name || "").trim();
+    const archived = group.is_archived === true || Number(group.is_archived) === 1;
+    if (!name || archived || seen.has(name)) continue;
+    seen.add(name);
+    const programName = programNameById.get(group.program_id);
+    choices.push({ value: name, label: programName ? `${name} — ${programName}` : name });
+  }
+  return choices;
+};
 
 const TARGET_TYPES = [
   { value: "all", label: "announcements.targetAll", icon: Globe },
@@ -64,6 +83,36 @@ export default function AnnouncementsPage() {
     { defaultValue: [], transform: pickAnnouncements, deps: [showArchived] },
   );
 
+  // The target lists are read only while the form is open, so visiting the
+  // board still asks for nothing extra; a null address means "nothing to read".
+  const { data: programList, loading: programsLoading } = useApi(
+    showForm ? "/api/programs" : null,
+    { defaultValue: [], transform: pickPrograms },
+  );
+  const { data: groupList, loading: groupsLoading } = useApi(
+    showForm ? "/api/groups" : null,
+    { defaultValue: [], transform: pickGroups },
+  );
+
+  const programNameById = new Map(
+    programList.map((program) => [String(program.id), program.name]),
+  );
+  const programChoices = programList.map((program) => ({
+    value: program.id,
+    label: program.name,
+  }));
+  const groupChoices = buildGroupChoices(groupList, programNameById);
+
+  // A dropdown when the choices are known; the typed field remains as the
+  // fallback for a project, or when the list cannot be read (for example a staff
+  // member without the program directory right), so targeting is never lost.
+  const targetChoices =
+    targetType === "group" ? groupChoices : targetType === "program" ? programChoices : [];
+  const targetChoicesLoading =
+    targetType === "group" ? groupsLoading : programsLoading;
+  const useTargetSelect =
+    targetType !== "project" && (targetChoices.length > 0 || targetChoicesLoading);
+
   useEffect(() => {
     // Server session is authoritative; localStorage is only a legacy fallback.
     fetch("/api/auth/session")
@@ -86,6 +135,10 @@ export default function AnnouncementsPage() {
     event.preventDefault();
     if (!title.trim() || !body.trim()) {
       setError("Title and body are required.");
+      return;
+    }
+    if (targetType !== "all" && !targetId) {
+      setError(t("announcements.targetRequired"));
       return;
     }
     setSaving(true);
@@ -261,19 +314,41 @@ export default function AnnouncementsPage() {
                   <label className="block text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] mb-1">
                     {t("common.target")}
                   </label>
-                  <input
-                    type="text"
-                    value={targetId}
-                    onChange={(event) => setTargetId(event.target.value)}
-                    className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
-                    placeholder={
-                      targetType === "group"
-                        ? t("announcements.groupPlaceholder")
-                        : targetType === "project"
-                          ? t("announcements.projectPlaceholder")
-                          : t("announcements.programPlaceholder")
-                    }
-                  />
+                  {useTargetSelect ? (
+                    <div className="relative">
+                      <select
+                        value={targetId}
+                        onChange={(event) => setTargetId(event.target.value)}
+                        className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)] appearance-none"
+                      >
+                        <option value="" disabled>
+                          {targetType === "group"
+                            ? t("announcements.groupPlaceholder")
+                            : t("announcements.programPlaceholder")}
+                        </option>
+                        {targetChoices.map((choice) => (
+                          <option key={choice.value} value={choice.value}>
+                            {choice.label}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)] pointer-events-none" />
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={targetId}
+                      onChange={(event) => setTargetId(event.target.value)}
+                      className="w-full px-3 py-2 rounded-lg bg-primary border border-[var(--border-primary)] text-sm font-bold text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-orange)]"
+                      placeholder={
+                        targetType === "group"
+                          ? t("announcements.groupPlaceholder")
+                          : targetType === "project"
+                            ? t("announcements.projectPlaceholder")
+                            : t("announcements.programPlaceholder")
+                      }
+                    />
+                  )}
                 </div>
               )}
             </div>

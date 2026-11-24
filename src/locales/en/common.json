@@ -190,8 +190,9 @@
     "deleteSuccess": "Announcement archived.",
     "showAll": "Show All",
     "showActive": "Show Active",
-    "groupPlaceholder": "Enter group name",
+    "groupPlaceholder": "Select a group...",
     "projectPlaceholder": "Enter project ID or name",
-    "programPlaceholder": "Enter program ID or name"
+    "programPlaceholder": "Select a program...",
+    "targetRequired": "Choose the group or program this announcement is for."
   }
 }
