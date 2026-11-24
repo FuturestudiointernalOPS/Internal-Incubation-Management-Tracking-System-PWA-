@@ -20,6 +20,7 @@ import { buildRightRows, countRights } from "../personAccess";
 import {
   Cell,
   ClickRow,
+  CONTROL_CLASS,
   EmptyRow,
   HeadCell,
   Kpi,
@@ -34,6 +35,10 @@ const NO_GROUP = "\u0000no-group";
 
 const isSuperAdmin = (person) => isPlatformOwnerRole(person.role);
 
+// Display-only equality for the filters: a selected value narrows the list, it
+// never decides access.
+const matchesFilter = (value, filter) => !filter || String(value || "") === filter;
+
 export default function PeopleSection({ data, tab, openDrawer, onOpenPerson }) {
   if (tab === "groups") return <GroupsTab data={data} openDrawer={openDrawer} />;
   if (tab === "administrators") return <AdministratorsTab data={data} openDrawer={openDrawer} />;
@@ -47,17 +52,38 @@ function PeopleTab({ data, onOpenPerson, openDrawer }) {
   const { t } = useI18n();
   const { contacts = [], roleDefaults = {}, profiles = [], activeProfileKeys = {} } = data;
   const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [page, setPage] = useState(1);
   const [counts, setCounts] = useState(null);
   const [counting, setCounting] = useState(false);
 
+  const roles = useMemo(
+    () => [...new Set(contacts.map((person) => person.role).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [contacts],
+  );
+  const statuses = useMemo(
+    () => [...new Set(contacts.map((person) => person.status).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+    [contacts],
+  );
+  const hasFilters = Boolean(query || roleFilter || statusFilter);
+
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    if (!needle) return contacts;
-    return contacts.filter((person) =>
-      `${person.name || ""} ${person.email || ""} ${person.cid}`.toLowerCase().includes(needle),
-    );
-  }, [contacts, query]);
+    return contacts.filter((person) => {
+      if (!matchesFilter(person.role, roleFilter)) return false;
+      if (!matchesFilter(person.status, statusFilter)) return false;
+      if (!needle) return true;
+      return `${person.name || ""} ${person.email || ""} ${person.cid}`.toLowerCase().includes(needle);
+    });
+  }, [contacts, query, roleFilter, statusFilter]);
+
+  const clearFilters = () => {
+    setQuery("");
+    setRoleFilter("");
+    setStatusFilter("");
+    setPage(1);
+  };
 
   const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const current = Math.min(page, pages);
@@ -126,6 +152,46 @@ function PeopleTab({ data, onOpenPerson, openDrawer }) {
         <AppButton variant="secondary" onClick={loadRights} disabled={counting}>
           {counting ? t("common.loading") : t("engineering.permissions.center.loadRights")}
         </AppButton>
+      </Toolbar>
+
+      <Toolbar>
+        <select
+          value={roleFilter}
+          onChange={(event) => {
+            setRoleFilter(event.target.value);
+            setPage(1);
+          }}
+          aria-label={t("engineering.permissions.center.filterRole")}
+          className={`min-w-40 ${CONTROL_CLASS}`}
+        >
+          <option value="">{t("engineering.permissions.center.allRoles")}</option>
+          {roles.map((role) => (
+            <option key={role} value={role}>
+              {role}
+            </option>
+          ))}
+        </select>
+        <select
+          value={statusFilter}
+          onChange={(event) => {
+            setStatusFilter(event.target.value);
+            setPage(1);
+          }}
+          aria-label={t("engineering.permissions.center.filterStatus")}
+          className={`min-w-40 ${CONTROL_CLASS}`}
+        >
+          <option value="">{t("engineering.permissions.center.allStatuses")}</option>
+          {statuses.map((status) => (
+            <option key={status} value={status}>
+              {status}
+            </option>
+          ))}
+        </select>
+        {hasFilters && (
+          <AppButton variant="ghost" onClick={clearFilters}>
+            {t("engineering.permissions.center.clearFilters")}
+          </AppButton>
+        )}
       </Toolbar>
 
       <CenterTable minWidth="44rem">

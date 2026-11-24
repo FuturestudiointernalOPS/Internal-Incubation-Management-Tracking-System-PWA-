@@ -33,6 +33,11 @@
           "journal": "Qu’est-ce qui a changé, qui, pourquoi ?"
         },
         "searchPeople": "Rechercher une personne…",
+        "filterRole": "Filtrer par rôle",
+        "allRoles": "Tous les rôles",
+        "filterStatus": "Filtrer par statut",
+        "allStatuses": "Tous les statuts",
+        "clearFilters": "Effacer les filtres",
         "baseProfile": {
           "title": "Profil de base",
           "hint": "Le profil de base décide des droits que cette personne reçoit. Les profils listés en dessous décrivent seulement son contexte ; ils n'accordent rien par eux-mêmes.",
