@@ -16,14 +16,14 @@ import {
   BarChart3,
   FileText,
 } from "lucide-react";
-import SystemOverviewTab from "@/components/admin/system/SystemOverviewTab";
-import SystemHealthTab from "@/components/admin/system/SystemHealthTab";
-import SystemAlertsTab from "@/components/admin/system/SystemAlertsTab";
-import SystemApiTab from "@/components/admin/system/SystemApiTab";
-import SystemDatabaseTab from "@/components/admin/system/SystemDatabaseTab";
-import SystemStorageTab from "@/components/admin/system/SystemStorageTab";
-import SystemJobsTab from "@/components/admin/system/SystemJobsTab";
-import SystemReportsTab from "@/components/admin/system/SystemReportsTab";
+import SystemOverviewTab from "@/spaces/admin/components/system/SystemOverviewTab";
+import SystemHealthTab from "@/spaces/admin/components/system/SystemHealthTab";
+import SystemAlertsTab from "@/spaces/admin/components/system/SystemAlertsTab";
+import SystemApiTab from "@/spaces/admin/components/system/SystemApiTab";
+import SystemDatabaseTab from "@/spaces/admin/components/system/SystemDatabaseTab";
+import SystemStorageTab from "@/spaces/admin/components/system/SystemStorageTab";
+import SystemJobsTab from "@/spaces/admin/components/system/SystemJobsTab";
+import SystemReportsTab from "@/spaces/admin/components/system/SystemReportsTab";
 
 // Module scope on purpose: the hook keys its internal callback on these
 // functions, so inline arrows would give them a new identity on every render and

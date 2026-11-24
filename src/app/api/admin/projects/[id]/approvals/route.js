@@ -48,7 +48,7 @@ export async function POST(req, { params }) {
   try {
     await initDb();
     const { id } = await params;
-    const authError = await requireProjectAccess(id);
+    const authError = await requireProjectAccess(id, "edit");
     if (authError) return authError;
 
     const { request_id, reviewer_id, reviewer_name, action, rejection_reason } =

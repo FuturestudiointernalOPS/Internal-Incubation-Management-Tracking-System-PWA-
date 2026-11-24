@@ -69,7 +69,7 @@ export async function afterDeliverableReviewed({ ventureParam, dbId, session, mi
     });
   } catch (_) {}
 
-  const canCompleteMilestone = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+  const canCompleteMilestone = await canManageMilestones({ id, cid: session?.cid, role: session?.role, session });
   const milestoneSync = await syncMilestoneStatusFromDeliverables({
     dbId,
     milestoneId: milestone.id,

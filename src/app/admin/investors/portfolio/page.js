@@ -1,7 +1,7 @@
 "use client";
 
-import VenturePortfolioRollup from "@/components/ventures/reporting/VenturePortfolioRollup";
-import StudioCapitalPanel from "@/components/admin/investors/StudioCapitalPanel";
+import VenturePortfolioRollup from "@/components/shared/ventures/console/reporting/VenturePortfolioRollup";
+import StudioCapitalPanel from "@/spaces/admin/components/investors/StudioCapitalPanel";
 
 /**
  * /admin/investors/portfolio

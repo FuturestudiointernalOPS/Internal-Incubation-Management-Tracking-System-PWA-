@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { getSubmissionsByRunId } from "@/models/formRuns/readsAndHelpers/reads";
-import { getFormFieldsByFormId } from "@/models/publicFormRuns";
+import { getFormFieldsByFormId, getRunRecordByPublicSlug, getRunRecordById } from "@/models/publicFormRuns";
 import { deepseekIntelligence } from "@/lib/deepseek";
-import db from "@/lib/db";
 import {
   ensureRunAnalyticsTable,
   selectRunAnalytics,
@@ -36,7 +35,7 @@ export async function GET(req) {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const { searchParams } = new URL(req.url);
@@ -51,17 +50,11 @@ export async function GET(req) {
     let targetRunId = runId;
     let runRecord = null;
     if (slug) {
-      const r = await db.execute({
-        sql: "SELECT * FROM platform_form_runs WHERE public_slug = ? LIMIT 1",
-        args: [slug],
-      });
+      const r = await getRunRecordByPublicSlug(slug);
       runRecord = r.rows[0];
       targetRunId = runRecord?.id;
     } else {
-      const r = await db.execute({
-        sql: "SELECT * FROM platform_form_runs WHERE id = ? LIMIT 1",
-        args: [parseInt(runId)],
-      });
+      const r = await getRunRecordById(runId);
       runRecord = r.rows[0];
     }
 

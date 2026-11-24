@@ -4,7 +4,9 @@
       "title": "Platform Modules",
       "subtitle": "All registered platform modules. Future modules will be built here.",
       "comingSoon": "Coming Soon",
-      "open": "Open →"
+      "open": "Open →",
+      "loading": "Loading your access…",
+      "none": "No module is open to you yet. An administrator can grant one from the Permissions screen."
     },
     "nav": {
       "dashboard": "Dashboard",
@@ -271,6 +273,8 @@
       "fieldTypeCurrency": "Currency",
       "fieldTypeRating": "Rating",
       "fieldTypeRichText": "Rich Text",
+      "fieldTypeCountry": "Country",
+      "countryOptionsHint": "The complete country list is provided automatically; the respondent picks one.",
       "generateForm": "Generate Form",
       "generating": "Generating...",
       "inCollection": "in {name}",
@@ -330,6 +334,13 @@
       "restoreTitle": "Restore this form",
       "restoreWhatHappens": "What happens when you restore:",
       "runCreated": "Run created — launching...",
+      "runAlreadyActive": "This form is already collecting — opening its active run.",
+      "restorePublished": "Restore published",
+      "restorePublishedHint": "Re-create the sections and questions that are missing, using the last published version.",
+      "restorePublishedConfirm": "Bring back the sections and questions of the last published version?\nExisting sections and questions are kept — only the missing ones are re-created.",
+      "restorePublishedAction": "Restore",
+      "restorePublishedDone": "Published content restored.",
+      "restorePublishedFailed": "There is no published version to restore, or the restore failed.",
       "save": "Save",
       "saveFailed": "Save failed",
       "saving": "Saving...",

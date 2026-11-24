@@ -17,7 +17,7 @@ const {
 } = require("@/services/authorization/programAccessProjection");
 const {
   selectProgramAccess,
-} = require("@/components/pm/programs/programWorkspaceSelectors");
+} = require("@/spaces/staff/program-manager/components/programs/programWorkspaceSelectors");
 
 const allow = { allowed: true, status: 200, errorKey: null, reason: "granted" };
 

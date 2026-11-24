@@ -11,7 +11,7 @@ jest.mock("@/components/ui/DialogProvider", () => ({ useDialogs: () => ({ confir
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const ActivityReport = require("@/components/ventures/journey/ActivityReport").default;
+const ActivityReport = require("@/components/shared/ventures/console/journey/ActivityReport").default;
 
 const milestone = { id: "m1", title: "Foundation & Compliance Setup" };
 const activity = { id: "a1", source_ref: "FT-01", title: "Register the company" };

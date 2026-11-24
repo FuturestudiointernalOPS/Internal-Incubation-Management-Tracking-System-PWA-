@@ -5,7 +5,7 @@ import { Activity, BarChart3, Briefcase, DollarSign, Loader2, Megaphone, Shield,
 import AppLinkCard from "@/components/ui/AppLinkCard";
 import KpiCard from "@/components/ui/KpiCard";
 import SectionHead from "@/components/ui/SectionHead";
-import InvestorActivity from "@/components/admin/investors/InvestorActivity";
+import InvestorActivity from "@/spaces/admin/components/investors/InvestorActivity";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 

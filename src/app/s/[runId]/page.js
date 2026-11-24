@@ -11,9 +11,9 @@ import {
   requestPaymentVerification,
   detectFormLanguage,
 } from "@/lib/publicRunClient";
-import PublicSubmitView from "@/components/platform/s/PublicSubmitView";
-import PublicSubmitPayment from "@/components/platform/s/PublicSubmitPayment";
-import PublicSubmitSuccess from "@/components/platform/s/PublicSubmitSuccess";
+import PublicSubmitView from "@/components/shared/platform/s/PublicSubmitView";
+import PublicSubmitPayment from "@/components/shared/platform/s/PublicSubmitPayment";
+import PublicSubmitSuccess from "@/components/shared/platform/s/PublicSubmitSuccess";
 
 // ─── What the screen starts from (module scope: built once per run) ──────────
 

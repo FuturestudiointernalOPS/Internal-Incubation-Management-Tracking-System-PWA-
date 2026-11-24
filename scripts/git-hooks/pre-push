@@ -3,7 +3,12 @@
 #
 # Refuses:
 #   - any push to main that is not a commit reachable from the local G branch;
-#   - any push to interns whose history contains white_label_os.
+#   - any push to interns that introduces white-label work main has not
+#     published yet.
+#
+# White-label history already reachable from origin/main is exempt: those
+# branches were merged into main and reverted there, so every branch built on
+# main carries them. Only work main has not shipped is refused.
 #
 # Install it with: sh scripts/git-hooks/install.sh
 
@@ -28,7 +33,17 @@ resolve_ref() {
 }
 
 g_ref="$(resolve_ref refs/heads/G refs/remotes/origin/G || true)"
-white_ref="$(resolve_ref refs/heads/white_label_os refs/remotes/origin/white_label_os || true)"
+# The published main wins over a local main: only history main has actually
+# shipped may exempt white-label commits.
+main_ref="$(resolve_ref refs/remotes/origin/main refs/heads/main || true)"
+
+white_refs=""
+for candidate in refs/heads/white_label_os refs/remotes/origin/white_label_os; do
+  if git show-ref --verify --quiet "$candidate"; then
+    white_refs="${white_refs}${candidate}
+"
+  fi
+done
 
 while read -r local_ref local_sha remote_ref remote_sha; do
   # Branch deletion: the server decides.
@@ -43,9 +58,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
     fi
   fi
 
-  if [ "$remote_ref" = "refs/heads/interns" ] && [ -n "$white_ref" ]; then
-    if git merge-base --is-ancestor "$white_ref" "$local_sha"; then
-      block "white_label_os is an ancestor of the history being pushed to interns."
-    fi
+  if [ "$remote_ref" = "refs/heads/interns" ] && [ -n "$white_refs" ]; then
+    for white_ref in $white_refs; do
+      git merge-base --is-ancestor "$white_ref" "$local_sha" || continue
+      # Already published by main: tolerated.
+      if [ -n "$main_ref" ] && git merge-base --is-ancestor "$white_ref" "$main_ref"; then
+        continue
+      fi
+      block "$white_ref is an ancestor of the history being pushed to interns, and main does not carry it yet. Only white-label history already published in main may travel to interns."
+    done
   fi
 done

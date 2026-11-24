@@ -3,7 +3,7 @@
  *
  * The screen (`src/app/admin/ventures/[id]/founders/page.js`) keeps the state,
  * the reads and the founder handlers; its markup lives in
- * `src/components/admin/ventures/VentureFoundersView.js`, which reads
+ * `src/spaces/admin/components/ventures/VentureFoundersView.js`, which reads
  * everything through one `ctx` object the screen builds by hand. No behavioural
  * test renders the screen, so a key that stops being declared - or a name the
  * view reads that the screen never puts in `ctx` - is invisible. This suite
@@ -15,7 +15,7 @@ const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
 const PARENT = path.join(ROOT, "app", "admin", "ventures", "[id]", "founders", "page.js");
-const VIEW = path.join(ROOT, "components", "admin", "ventures", "VentureFoundersView.js");
+const VIEW = path.join(ROOT, "spaces", "admin", "components", "ventures", "VentureFoundersView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 

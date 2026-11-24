@@ -36,6 +36,16 @@ export async function resolve(specifier, context, nextResolve) {
     (specifier.startsWith("./") || specifier.startsWith("../")) &&
     !/\.(js|jsx|mjs|cjs|json)$/.test(specifier)
   ) {
+    // Next-style relative resolution: a file first, then a directory index.
+    const base = new URL(specifier, context.parentURL);
+    const asFile = new URL(`${base.href}.js`);
+    if (existsSync(fileURLToPath(asFile))) {
+      return { url: asFile.href, shortCircuit: true };
+    }
+    const asIndex = new URL(`${base.href.replace(/\/$/, "")}/index.js`);
+    if (existsSync(fileURLToPath(asIndex))) {
+      return { url: asIndex.href, shortCircuit: true };
+    }
     return nextResolve(`${specifier}.js`, context);
   }
   return nextResolve(specifier, context);

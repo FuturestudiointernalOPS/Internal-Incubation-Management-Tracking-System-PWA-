@@ -65,9 +65,31 @@ describe("Phase 2 — program write gates (no staff bypass)", () => {
     expect(authorize(ineligible, "programs", "edit")).toBe(false);
   });
 
-  test("super admin bypass preserved for program writes", () => {
-    const superAdmin = { cid: "sa", role: "super_admin", isSuperAdmin: true, eligibility: {}, effective: {}, grants: {}, restrictions: {} };
+  test("super admin holds the program rights through its matrix (no role bypass)", () => {
+    const superAdmin = {
+      cid: "sa",
+      role: "super_admin",
+      isSuperAdmin: true,
+      eligibility: {},
+      effective: { programs: { view: 5, create: 5, edit: 5 } },
+      grants: {},
+      restrictions: {},
+    };
     expect(authorize(superAdmin, "programs", "create")).toBe(true);
     expect(authorize(superAdmin, "programs", "edit")).toBe(true);
+  });
+
+  test("a super admin whose matrix lost the right is denied", () => {
+    const superAdmin = {
+      cid: "sa",
+      role: "super_admin",
+      isSuperAdmin: true,
+      eligibility: {},
+      effective: { programs: { view: 5 } },
+      grants: {},
+      restrictions: {},
+    };
+    expect(authorize(superAdmin, "programs", "create")).toBe(false);
+    expect(authorize(superAdmin, "programs", "edit")).toBe(false);
   });
 });

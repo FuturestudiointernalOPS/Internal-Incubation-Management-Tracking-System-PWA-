@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import DocumentTypeManager from "@/components/ventures/DocumentTypeManager";
+import DocumentTypeManager from "@/components/shared/ventures/console/DocumentTypeManager";
 
 /**
  * SUPER ADMIN → one Venture → the documents its Data bank asks for.

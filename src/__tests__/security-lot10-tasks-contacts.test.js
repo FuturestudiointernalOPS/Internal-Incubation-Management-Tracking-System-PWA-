@@ -29,8 +29,8 @@ beforeEach(() => {
 });
 
 describe("task listing fails closed", () => {
-  test("a non-super-admin with no recognised scope is denied, never unfiltered", async () => {
-    await getTasksByFilters({ isSuperAdmin: false, scope: undefined, sessionCid: "U1" });
+  test("a caller without the cross-person right and no recognised scope is denied, never unfiltered", async () => {
+    await getTasksByFilters({ seesAll: false, scope: undefined, sessionCid: "U1" });
 
     const { sql } = mockExecute.mock.calls[0][0];
     expect(sql).toContain("1 = 0");
@@ -39,15 +39,15 @@ describe("task listing fails closed", () => {
   });
 
   test("the self scope restricts to owned, assigned or supervised tasks", async () => {
-    await getTasksByFilters({ isSuperAdmin: false, scope: "self", sessionCid: "U1" });
+    await getTasksByFilters({ seesAll: false, scope: "self", sessionCid: "U1" });
 
     const { sql, args } = mockExecute.mock.calls[0][0];
     expect(sql).toContain("(user_id = ? OR assigned_to = ? OR supervisor_id = ?)");
     expect(args).toEqual(["U1", "U1", "U1"]);
   });
 
-  test("the super-admin path is not forced into the deny clause", async () => {
-    await getTasksByFilters({ isSuperAdmin: true, scope: undefined, sessionCid: "SA" });
+  test("the cross-person path is not forced into the deny clause", async () => {
+    await getTasksByFilters({ seesAll: true, scope: undefined, sessionCid: "SA" });
 
     const { sql } = mockExecute.mock.calls[0][0];
     expect(sql).not.toContain("1 = 0");
@@ -55,21 +55,21 @@ describe("task listing fails closed", () => {
 });
 
 describe("supervisor_id is a management field", () => {
-  test("the create-side gate only lets a staff-side caller set a supervisor", () => {
+  test("the create-side gate only lets a holder of tasks.act_any set a supervisor", () => {
     // The create gate moved to the service layer with the layer split; the rule
-    // is unchanged (staff-side roles only), now expressed through the shared
-    // portfolio rule.
+    // is unchanged (the staff-side cohort only), now expressed through the right
+    // that cohort holds.
     const createSrc = read("src/services/tasks/create.js");
-    expect(createSrc).toMatch(
-      /supervisor_id: seesWholePortfolio\(role\) \? supervisor_id \|\| null : null/,
-    );
+    expect(createSrc).toMatch(/resolveTaskActAny/);
+    expect(createSrc).toMatch(/supervisor_id: canActAny \? supervisor_id \|\| null : null/);
+    expect(createSrc).not.toMatch(/seesWholePortfolio/);
   });
 
-  test("the update-side gate only lets a staff-side caller change a supervisor", () => {
+  test("the update-side gate only lets a holder of tasks.act_any change a supervisor", () => {
     const updateSrc = read("src/services/tasks/update.js");
-    expect(updateSrc).toMatch(
-      /seesWholePortfolio\(role\) &&\s*\n\s*supervisor_id !== undefined/,
-    );
+    expect(updateSrc).toMatch(/resolveTaskActAny/);
+    expect(updateSrc).toMatch(/canActAny &&\s*\n\s*supervisor_id !== undefined/);
+    expect(updateSrc).not.toMatch(/seesWholePortfolio/);
   });
 });
 

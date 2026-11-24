@@ -9,9 +9,8 @@
  *
  * HTTP-free: it answers `{ status, body }` and the controller turns that into a
  * response. The controller keeps the `permissions.assign_capabilities` gate, the
- * session, the required-field validation and the ROLE gate on
- * promote/remove (a role change is never a capability grant — it stays in the
- * HTTP boundary, not here).
+ * session, the required-field validation and the two dedicated rights on
+ * promote/remove (`permissions.promote_super_admin` / `remove_super_admin`).
  *
  * It imports the same model/service homes the controller used, so module-level
  * test mocks keep intercepting the calls.
@@ -119,8 +118,8 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
     if (action === "grant") {
       const targetAuthorization = await getAuthorizationContext({ cid: userCid, role: targetRole });
       const targetEligible =
-        targetAuthorization?.isSuperAdmin ||
-        targetAuthorization?.eligibility?.[featureKey] === true;
+        targetAuthorization?.eligibility?.[featureKey] === true ||
+        (targetAuthorization?.isSuperAdmin && !targetAuthorization?.ownerThroughEngine);
       if (!targetEligible) {
         return {
           status: 403,

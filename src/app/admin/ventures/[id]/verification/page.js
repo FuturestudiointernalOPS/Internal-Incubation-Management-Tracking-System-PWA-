@@ -9,13 +9,13 @@ import {
   VerificationLoading,
   VerificationError,
   VerificationToast,
-} from "@/components/admin/ventures/verification/VerificationScenes";
-import VerificationHeader from "@/components/admin/ventures/verification/VerificationHeader";
-import ReadinessGauge from "@/components/admin/ventures/verification/ReadinessGauge";
-import VerificationProgress from "@/components/admin/ventures/verification/VerificationProgress";
-import VerificationHistory from "@/components/admin/ventures/verification/VerificationHistory";
-import VerificationComments from "@/components/admin/ventures/verification/VerificationComments";
-import ReviewModal from "@/components/admin/ventures/verification/ReviewModal";
+} from "@/spaces/admin/components/ventures/verification/VerificationScenes";
+import VerificationHeader from "@/spaces/admin/components/ventures/verification/VerificationHeader";
+import ReadinessGauge from "@/spaces/admin/components/ventures/verification/ReadinessGauge";
+import VerificationProgress from "@/spaces/admin/components/ventures/verification/VerificationProgress";
+import VerificationHistory from "@/spaces/admin/components/ventures/verification/VerificationHistory";
+import VerificationComments from "@/spaces/admin/components/ventures/verification/VerificationComments";
+import ReviewModal from "@/spaces/admin/components/ventures/verification/ReviewModal";
 
 // The documents the Data bank asks for are CONFIGURED (Super Admin / Lead
 // Manager, see /admin/ventures/document-types) and read from the API below; the

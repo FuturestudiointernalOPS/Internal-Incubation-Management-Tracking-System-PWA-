@@ -8,7 +8,7 @@
  * plan links.
  *
  * Access model for the `operating_plan` permission area:
- *  - GLOBAL roles (super_admin): full access.
+ *  - Holders of the explicit `ventures.edit_all` right: full access.
  *  - Delegated staff: require an active assignment. Cell-level action checks
  *    read the configurable matrix (defaults + per-venture overrides). Write
  *    actions (create/edit/manage) additionally require a venture-wide
@@ -36,6 +36,7 @@ import {
   selectTemplateSectionsForApply,
   insertPlanSectionFromTemplate,
 } from "@/models/ventureOperatingPlanStore";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 
 const GLOBAL_ROLES = ["super_admin"];
 
@@ -62,7 +63,10 @@ export function isGlobalRole(role) {
 export async function resolvePlanAccess(ventureId, session) {
   if (!session?.cid && !session?.role) return { ok: false };
   const code = await resolveVentureCode(ventureId);
-  if (isGlobalRole(session.role)) return { ok: true, code, session, global: true, assignments: [] };
+  // Unscoped plan authority is the explicit `ventures.edit_all` right, not the
+  // Super Admin role: revoking the right closes this door too.
+  const portfolio = await resolveVenturePortfolioAccess({ session, action: "edit" });
+  if (portfolio.allowed) return { ok: true, code, session, global: true, assignments: [] };
   if (!session.cid) return { ok: false };
   const result = await selectActivePlanAssignments(code, session.cid);
   const assignments = result.rows || [];
@@ -84,11 +88,12 @@ async function cellAllows(responsibilityCode, action) {
  * Whether the user may perform `action` on operating plans.
  * view/comment: any assignment with the cell allowed.
  * create/edit/manage: cell allowed AND venture-wide assignment.
- * delete: SUPER ADMIN ONLY — never delegated, no matrix cell consulted.
+ * delete: the portfolio WRITE right (`ventures.edit_all`) — never delegated
+ *         through an assignment, and no matrix cell is consulted.
  */
 export async function allowsPlanAction(access, action) {
   if (access.global) return true;
-  // Permanent deletion is a Super Admin act: an assignment may archive and
+  // Permanent deletion is a portfolio-editor act: an assignment may archive and
   // restore, but not destroy. The matrix has no say here.
   if (action === "delete") return false;
   const writeActions = ["create", "edit", "manage"];

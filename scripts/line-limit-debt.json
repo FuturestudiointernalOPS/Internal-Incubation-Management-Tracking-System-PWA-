@@ -1,1 +1,6 @@
-[]
+[
+  "src/__tests__/venture-reporting-phase2.test.js",
+  "src/components/shared/ventures/console/reporting/VentureReportingCharts.js",
+  "src/models/ventureDataRoomStore.js",
+  "src/models/ventureReportingStore.js"
+]

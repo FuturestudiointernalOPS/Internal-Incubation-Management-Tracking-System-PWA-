@@ -7,19 +7,19 @@ import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { carriesContextualValue } from "@/lib/identity";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import ProjectSkeleton from "@/components/admin/projects/detail/ProjectSkeleton";
-import ProjectNotFound from "@/components/admin/projects/detail/ProjectNotFound";
-import DetailHeader from "@/components/admin/projects/detail/DetailHeader";
-import DetailStats from "@/components/admin/projects/detail/DetailStats";
-import DetailTabs from "@/components/admin/projects/detail/DetailTabs";
-import OverviewTab from "@/components/admin/projects/detail/OverviewTab";
-import DetailTasksTab from "@/components/admin/projects/detail/DetailTasksTab";
-import BlockersTab from "@/components/admin/projects/detail/BlockersTab";
-import TeamTab from "@/components/admin/projects/detail/TeamTab";
-import UpdatesTab from "@/components/admin/projects/detail/UpdatesTab";
-import ApprovalsTab from "@/components/admin/projects/detail/ApprovalsTab";
-import DiscussionsTab from "@/components/admin/projects/detail/DiscussionsTab";
-import TimelineTab from "@/components/admin/projects/detail/TimelineTab";
+import ProjectSkeleton from "@/spaces/admin/components/projects/detail/ProjectSkeleton";
+import ProjectNotFound from "@/spaces/admin/components/projects/detail/ProjectNotFound";
+import DetailHeader from "@/spaces/admin/components/projects/detail/DetailHeader";
+import DetailStats from "@/spaces/admin/components/projects/detail/DetailStats";
+import DetailTabs from "@/spaces/admin/components/projects/detail/DetailTabs";
+import OverviewTab from "@/spaces/admin/components/projects/detail/OverviewTab";
+import DetailTasksTab from "@/spaces/admin/components/projects/detail/DetailTasksTab";
+import BlockersTab from "@/spaces/admin/components/projects/detail/BlockersTab";
+import TeamTab from "@/spaces/admin/components/projects/detail/TeamTab";
+import UpdatesTab from "@/spaces/admin/components/projects/detail/UpdatesTab";
+import ApprovalsTab from "@/spaces/admin/components/projects/detail/ApprovalsTab";
+import DiscussionsTab from "@/spaces/admin/components/projects/detail/DiscussionsTab";
+import TimelineTab from "@/spaces/admin/components/projects/detail/TimelineTab";
 
 /**
  * PROJECT DETAIL PAGE

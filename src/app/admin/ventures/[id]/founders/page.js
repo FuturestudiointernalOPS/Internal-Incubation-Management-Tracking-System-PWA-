@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import VentureFoundersView from "@/components/admin/ventures/VentureFoundersView";
+import VentureFoundersView from "@/spaces/admin/components/ventures/VentureFoundersView";
 
 const EMPTY_LIST = [];
 

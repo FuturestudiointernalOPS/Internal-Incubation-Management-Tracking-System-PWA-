@@ -27,7 +27,19 @@ jest.mock("@/models/authorization/investorScope", () => ({
   resolveInvestorScope: jest.fn(),
 }));
 jest.mock("@/models/authorization/index", () => ({
-  getAuthorizationContext: jest.fn(async (session) => ({ isSuperAdmin: session?.role === "super_admin" })),
+  // The unscoped Data Room authority is the explicit portfolio right now, so
+  // the context has to carry the effective matrix, not only the role flag.
+  getAuthorizationContext: jest.fn(async (session) => {
+    const isSuperAdmin = session?.role === "super_admin";
+    return {
+      role: session?.role,
+      isSuperAdmin,
+      effective: isSuperAdmin
+        ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+        : {},
+      restrictions: {},
+    };
+  }),
 }));
 jest.mock("@/services/ventures/permissions", () => ({
   hasAnyVentureAssignment: jest.fn(),

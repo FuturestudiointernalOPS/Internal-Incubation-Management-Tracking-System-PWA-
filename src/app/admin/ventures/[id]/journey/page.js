@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
-import JourneyManagerPanel from "@/components/ventures/JourneyManagerPanel";
+import JourneyManagerPanel from "@/components/shared/ventures/console/JourneyManagerPanel";
 
 /**
  * Admin → Ventures → [Venture] → Journey ("Journey" tab of the Venture hub)

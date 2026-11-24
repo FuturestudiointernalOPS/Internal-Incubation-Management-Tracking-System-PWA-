@@ -151,7 +151,7 @@ export async function listDealFlowForInvestor({ mode = "deal_flow_only" } = {}) 
 export async function getDeckForViewer({ deckId, session }) {
   const ctx = await resolveInvestorContext(session);
   if (!ctx.investorId) {
-    return { ok: false, status: 403, error: "An investor profile is required." };
+    return { ok: false, status: 403, error: "errors.investorProfileRequired" };
   }
 
   const result = await getDeckWithEntry(deckId);

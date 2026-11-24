@@ -1,6 +1,6 @@
 "use client";
 
-import VenturesView from "@/components/staff/VenturesView";
+import VenturesView from "@/spaces/staff/core/components/VenturesView";
 
 /**
  * Staff → Ventures — My Ventures (delegated).

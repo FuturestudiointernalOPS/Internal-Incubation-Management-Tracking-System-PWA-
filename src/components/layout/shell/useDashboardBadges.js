@@ -223,7 +223,7 @@ export function useDashboardBadges({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    if (!pathname || !pathname.startsWith("/pm/submissions")) return;
+    if (!pathname || !pathname.startsWith("/staff/program-manager/submissions")) return;
     if (!canManagePrograms) return;
     markSubmissionsSeen();
   }, [pathname, canManagePrograms, markSubmissionsSeen]);

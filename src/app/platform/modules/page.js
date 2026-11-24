@@ -1,8 +1,9 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { getRegisteredModules } from "@/models/platform/registry";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
+import { usePermissions } from "@/lib/PermissionProvider";
 import { useI18n } from "@/lib/i18n";
 import {
   FolderKanban,
@@ -24,13 +25,21 @@ const ICON_MAP = {
 
 export default function ModulesPage() {
   const { t } = useI18n();
-  // The list is a pure function of the connected role: no request, no effect and
-  // nothing copied into state. The role comes from the session the shell already
-  // publishes, and the registry itself fails CLOSED on an unknown role - so the
-  // first paint, before the session has arrived, shows nothing rather than every
-  // module.
+  // The catalogue offers an "open" link per module, so it is a DOOR list and
+  // must obey the same rule as the sidebar: a module appears when its right is
+  // held, never because a role table names the role. Fail closed until the
+  // matrix has answered, exactly like the sidebar.
   const { role } = useSessionUser();
-  const modules = getRegisteredModules(role);
+  const { can, loading } = usePermissions();
+  const modules = useMemo(
+    () =>
+      loading
+        ? []
+        : getRegisteredModules(role, ({ module, capability }) =>
+            can(module, capability),
+          ),
+    [role, loading, can],
+  );
 
   return (
     <div className="p-6 space-y-6 animate-in">
@@ -43,6 +52,11 @@ export default function ModulesPage() {
         </p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {modules.length === 0 && (
+          <p className="text-[11px] text-[var(--text-secondary)]">
+            {loading ? t("platformMisc.modules.loading") : t("platformMisc.modules.none")}
+          </p>
+        )}
         {modules.map((moduleItem) => {
           const Icon = ICON_MAP[moduleItem.icon] || Blocks;
           return (

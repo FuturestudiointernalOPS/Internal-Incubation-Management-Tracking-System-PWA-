@@ -8,7 +8,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const { I18nProvider } = require("@/lib/i18n");
-const VentureProfileReadOnly = require("@/components/ventures/VentureProfileReadOnly").default;
+const VentureProfileReadOnly = require("@/components/shared/ventures/console/VentureProfileReadOnly").default;
 
 const venture = {
   name: "AgroTech",
@@ -50,7 +50,7 @@ test("it is read-only: no input, no textarea, no save", () => {
 
 test("the Super Admin hub and the Venture Manager workspace both render it", () => {
   const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
-  expect(read("src/components/admin/ventures/VentureDetailView.js")).toContain("<VentureProfileReadOnly venture={venture} />");
+  expect(read("src/spaces/admin/components/ventures/VentureDetailView.js")).toContain("<VentureProfileReadOnly venture={venture} />");
   const staff = read("src/app/staff/ventures/[id]/page.js");
   expect(staff).toContain('id: "profile"');
   expect(staff).toMatch(/id: "profile".*leadManagerOnly: true/);

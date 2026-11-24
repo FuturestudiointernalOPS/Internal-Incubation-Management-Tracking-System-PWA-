@@ -18,8 +18,10 @@ import { getAssignmentScopes, hasVentureWideReach, isTaskInScope } from "@/servi
 import { canManageMilestones } from "@/services/ventures/milestoneEngine";
 
 /** Create / edit a deliverable's definition — Venture Manager or Super Admin. */
-export async function canDefineDeliverables({ id, cid, role }) {
-  return canManageMilestones({ id, cid, role });
+export async function canDefineDeliverables({ id, cid, session }) {
+  // The session carries the portfolio right, so a Super Admin whose `edit_all`
+  // right was revoked falls back to the assignment matrix like anyone else.
+  return canManageMilestones({ id, cid, session });
 }
 
 /**

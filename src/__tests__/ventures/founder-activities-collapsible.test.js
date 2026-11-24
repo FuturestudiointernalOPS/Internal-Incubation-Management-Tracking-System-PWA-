@@ -7,11 +7,11 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 
-jest.mock("@/components/ventures/journey/FounderSessionBooking", () => function Booking() { return <div data-testid="booking" />; });
-jest.mock("@/components/ventures/journey/DeliverableDetailDialog", () => () => null);
+jest.mock("@/components/shared/ventures/console/journey/FounderSessionBooking", () => function Booking() { return <div data-testid="booking" />; });
+jest.mock("@/components/shared/ventures/console/journey/DeliverableDetailDialog", () => () => null);
 
 const { I18nProvider } = require("@/lib/i18n");
-const FounderMilestoneDeliverables = require("@/components/ventures/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables").default;
+const FounderMilestoneDeliverables = require("@/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables").default;
 
 const activity = (id, ref, title) => ({ id, source_ref: ref, title, definition_of_done: `Done when ${title}`, owner_name: "Awa" });
 const milestone = {

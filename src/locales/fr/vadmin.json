@@ -744,6 +744,11 @@
     },
     "list": {
       "title": "Entreprises",
+      "allTitle": "Toutes les entreprises",
+      "allSubtitle": "Toutes les entreprises du portefeuille du studio. Ouvrez-en une pour y travailler — les droits d'écriture sont revérifiés pour cette entreprise.",
+      "kpiTotal": "Portefeuille",
+      "kpiActive": "Actives",
+      "kpiProspects": "Prospects",
       "ventureOs": "Venture OS",
       "searchPlaceholder": "Rechercher des entreprises par nom, ID ou secteur...",
       "noSearchResults": "Aucune entreprise ne correspond à votre recherche",

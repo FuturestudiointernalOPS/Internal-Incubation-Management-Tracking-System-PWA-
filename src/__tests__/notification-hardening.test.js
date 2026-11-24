@@ -119,12 +119,12 @@ describe("resolveNotificationTarget — deep-link registry", () => {
       href: "/admin/ventures/v-uuid/tasks", entity: "task", surface: "staff",
     });
     expect(resolveNotificationTarget(row, { role: "founder" })).toEqual({
-      href: "/participant/ventures/v-uuid/journey", entity: "task", surface: "member",
+      href: "/member/participant/ventures/v-uuid/journey", entity: "task", surface: "member",
     });
   });
 
   test("venture-only and session rows resolve; legacy rows degrade to null href", () => {
-    expect(resolveNotificationTarget({ entity_venture_id: "v1" }, { role: "founder" }).href).toBe("/participant/ventures/v1");
+    expect(resolveNotificationTarget({ entity_venture_id: "v1" }, { role: "founder" }).href).toBe("/member/participant/ventures/v1");
     expect(resolveNotificationTarget({ entity_venture_id: "v1", entity_session_id: "s9" }, { role: "staff" }).href).toBe("/admin/ventures/v1/sessions");
     const legacy = resolveNotificationTarget({ id: 5, title: "old" }, { role: "super_admin" });
     expect(legacy.href).toBeNull();

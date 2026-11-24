@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import PendingUsersView from "@/components/admin/pending-users/PendingUsersView";
+import PendingUsersView from "@/spaces/admin/components/pending-users/PendingUsersView";
 
 // The shape the screen renders from, so a failed or malformed payload never
 // reaches an `Object.keys` / `Object.entries` read. Module scope keeps both the

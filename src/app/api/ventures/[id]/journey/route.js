@@ -105,7 +105,12 @@ export async function GET(req, { params }) {
     // this is false. Never granted to members.
     let milestoneAuthority = false;
     if (viewer) {
-      milestoneAuthority = await canManageMilestones({ id, cid: viewer.cid, role: viewer.role });
+      milestoneAuthority = await canManageMilestones({
+        id,
+        cid: viewer.cid,
+        role: viewer.role,
+        session: viewer,
+      });
     }
 
     // Milestones, deliverables (signed evidence), task counts and template

@@ -5,7 +5,7 @@ import { useApi } from "@/lib/hooks/useApi";
 import { usePermissions } from "@/lib/PermissionProvider";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
-import { pickPaymentsBySubmission } from "@/components/platform/runs/helpers";
+import { pickPaymentsBySubmission } from "@/components/shared/platform/runs/helpers";
 import useRunResponseFilters from "./useRunResponseFilters";
 import useRunBulkActions from "./useRunBulkActions";
 import useRunsReferenceData from "./useRunsReferenceData";
@@ -126,6 +126,7 @@ export function useRunsState() {
   // Derived data
   const derived = useRunDerivedData({
     fieldLabels: responseFilters.fieldLabels,
+    runFormFields,
     emailLog,
     reviews,
     selectedRun,

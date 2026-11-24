@@ -64,7 +64,7 @@ export const GET = createHandler(async (req, { params }) => {
   const code = facts?.code || id;
   const workspaceHref = staff
     ? `/staff/ventures/${encodeURIComponent(code)}`
-    : `/participant/ventures/${encodeURIComponent(code)}`;
+    : `/member/participant/ventures/${encodeURIComponent(code)}`;
 
   const work = await buildMyWork({
     dbId,

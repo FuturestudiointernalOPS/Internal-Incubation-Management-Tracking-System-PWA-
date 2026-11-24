@@ -19,16 +19,19 @@ beforeEach(() => {
 
 describe("assignPlaybookToVenture", () => {
   it("skips when a playbook is already assigned to the venture", async () => {
-    db.execute.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // existing instance
+    db.execute
+      .mockResolvedValueOnce({ rows: [] }) // internal id resolution
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] }); // existing instance
 
     const result = await assignPlaybookToVenture({ templateId: 3, ventureId: "VNT-ABC", actorCid: "STAFF_1" });
 
     expect(result).toEqual({ skipped: true, reason: "A playbook is already assigned to this venture." });
-    expect(db.execute).toHaveBeenCalledTimes(1);
+    expect(db.execute).toHaveBeenCalledTimes(2);
   });
 
   it("snapshots stages, milestones and tasks into the venture's execution tables", async () => {
     db.execute
+      .mockResolvedValueOnce({ rows: [] }) // 0. internal id resolution
       .mockResolvedValueOnce({ rows: [] }) // 1. existing instance (none)
       .mockResolvedValueOnce({ rows: [{ id: 1, stage_order: 1, name: "Validate Market", description: null, objective: null, completion_criteria: null }] }) // 2. stages
       .mockResolvedValueOnce({ rows: [{ stage_id: 1, id: 10, name: "Validate Market", description: null, expected_outcome: null, default_due_days: 14 }] }) // 3. milestones
@@ -42,14 +45,14 @@ describe("assignPlaybookToVenture", () => {
 
     expect(result).toEqual({ success: true, instance_id: 1, stages: 1, milestones: 1, tasks: 1 });
 
+    const statements = db.execute.mock.calls.map(([statement]) => statement);
+
     // Instance snapshot carries provenance
-    const instanceCall = db.execute.mock.calls[4][0];
-    expect(instanceCall.sql).toContain("INSERT INTO venture_playbook_instances");
+    const instanceCall = statements.find((call) => call.sql.includes("INSERT INTO venture_playbook_instances"));
     expect(instanceCall.args).toEqual(["VNT-ABC", 3, "STAFF_1"]);
 
     // Milestone snapshot: venture-scoped + template_id provenance + due date
-    const msCall = db.execute.mock.calls[6][0];
-    expect(msCall.sql).toContain("INSERT INTO venture_milestones");
+    const msCall = statements.find((call) => call.sql.includes("INSERT INTO venture_milestones"));
     expect(msCall.sql).toContain("'not_started', 0");
     expect(msCall.args[0]).toBe("VNT-ABC");
     expect(msCall.args[1]).toBe(10); // template_id
@@ -57,8 +60,7 @@ describe("assignPlaybookToVenture", () => {
     expect(new Date(msCall.args[4]).getTime()).toBeGreaterThan(Date.now()); // target_date ~14 days
 
     // Task snapshot: template_id + milestone link + requirement type
-    const taskCall = db.execute.mock.calls[7][0];
-    expect(taskCall.sql).toContain("INSERT INTO venture_tasks");
+    const taskCall = statements.find((call) => call.sql.includes("INSERT INTO venture_tasks"));
     expect(taskCall.args[0]).toBe("VNT-ABC");
     expect(taskCall.args[1]).toBe(50); // milestone_id
     expect(taskCall.args[2]).toBe(100); // template_id
@@ -67,6 +69,7 @@ describe("assignPlaybookToVenture", () => {
 
   it("skips when the template has no stages", async () => {
     db.execute
+      .mockResolvedValueOnce({ rows: [] }) // internal id resolution
       .mockResolvedValueOnce({ rows: [] }) // existing instance
       .mockResolvedValueOnce({ rows: [] }); // stages (none)
 

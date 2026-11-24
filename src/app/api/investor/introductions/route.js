@@ -39,7 +39,7 @@ export async function POST(req) {
     const session = await getSession();
     const ctx = await resolveInvestorContext(session);
     if (!ctx.investorId) {
-      return NextResponse.json({ success: false, error: "No investor profile." }, { status: 403 });
+      return NextResponse.json({ success: false, error: "errors.investorProfileRequired" }, { status: 403 });
     }
 
     const { venture_id, pipeline_id, deal_flow_entry_id, message } = await req.json();

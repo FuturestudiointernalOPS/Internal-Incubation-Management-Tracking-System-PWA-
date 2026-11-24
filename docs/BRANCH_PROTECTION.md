@@ -5,11 +5,27 @@ Two merge directions are forbidden on this repository:
 | Direction | Rule |
 |---|---|
 | any branch → `main` | only `G` may be merged into `main` |
-| `white_label_os` → `interns` | never allowed |
+| `white_label_os` → `interns` | white-label work `main` has already published is tolerated; anything else is refused |
 
 `G` → `main` is the documented promotion path (see `docs/PRODUCTION_TEST.md`).
 Everything else reaching `main` — `interns`, a revert branch, a feature branch —
 is an accident and must be refused.
+
+### Why part of the white-label history is exempt
+
+`white_label_os` was merged into `main` (pull requests #22, #24, #25) and then
+reverted there (#26, #28, #30). Those commits remain in `main`'s history, so
+`G`, which merges `main`, carries them — and so does everything built on `G`.
+
+A strict “`white_label_os` is an ancestor → refuse” check therefore made it
+impossible to push **any** branch derived from `main` to `interns`, even with
+the white-label code long reverted. What the rule really protects against is
+white-label work reaching `interns` *before* the team has decided it should;
+history `main` has already published is not that.
+
+So the guard refuses white-label commits that `main` does not carry yet. To
+keep a white-label branch out of `interns`, simply do not merge a fresh
+`white_label_os` into it.
 
 The rule is enforced in three independent layers, because each one covers a
 different way the mistake can happen.
@@ -75,10 +91,13 @@ The hook refuses, before anything reaches GitHub:
 
 - a push to `main` whose commit is not reachable from the local `G` branch
   (fetch it first with `git fetch origin G:G` if needed);
-- a push to `interns` whose history contains `white_label_os`.
+- a push to `interns` that introduces white-label commits `main` has not
+  published yet (see “Why part of the white-label history is exempt”).
 
 It reads the refs Git passes on standard input and checks ancestry, so it
-catches a local merge that was made by mistake as well as a direct push.
+catches a local merge that was made by mistake as well as a direct push. The
+exemption base is `origin/main` when it exists, otherwise the local `main` — a
+local `main` cannot whitewash work the server has never seen.
 
 Undo with:
 
@@ -91,8 +110,9 @@ git config --unset core.hooksPath
 - Change the allowed source for `main` or the blocked source for `interns` in
   the `env` block of the workflow.
 - Keep the local hook in step: it looks for `refs/heads/G` (or
-  `refs/remotes/origin/G`) and `refs/heads/white_label_os` (or
-  `refs/remotes/origin/white_label_os`).
+  `refs/remotes/origin/G`), for `refs/heads/white_label_os` and
+  `refs/remotes/origin/white_label_os` (both are checked), and for the
+  exemption base `refs/remotes/origin/main` (or `refs/heads/main`).
 - Update the table at the top of this file.
 
 ## Limitations
@@ -104,3 +124,7 @@ git config --unset core.hooksPath
 - The workflow does not prevent a direct push to `interns` from a machine that
   has not installed the hook. There is no GitHub mechanism to restrict the
   source branch of a direct push; the hook is the measure there.
+- Because of the exemption, the hook lets a *deliberate* merge of
+  `white_label_os` into `interns` through once that branch's commits are in
+  `main`. Layer 1 still refuses a pull request whose source branch is literally
+  `white_label_os`, and reviewers still see the merge.

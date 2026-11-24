@@ -18,5 +18,5 @@ git config core.hooksPath "$hooks"
 
 printf 'Git hooks installed from %s\n' "$hooks"
 printf '  - main can only receive G\n'
-printf '  - interns can never receive white_label_os\n'
+printf '  - interns only receives white-label history main has published\n'
 printf 'Undo with: git config --unset core.hooksPath\n'

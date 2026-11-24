@@ -26,6 +26,7 @@ const {
   PROFILE_CATALOGUE_SEED,
   ensureProfileCatalogueSeed,
   ensureDelegatedCapabilityDefaults,
+  ensureVenturePortfolioCapabilityDefaults,
 } = require("@/models/authorization/profileCatalogueSeed");
 
 beforeEach(() => {
@@ -96,4 +97,19 @@ test("the delegated-capability backfill grants the profiles that already had the
   expect(rows).toContainEqual(["staff_default", "ventures", "my_assignments", 1]);
   expect(rows).toContainEqual(["program_manager", "programs", "groups", 2]);
   expect(rows).toContainEqual(["program_manager", "ventures", "kpis", 3]);
+});
+
+test("the portfolio backfill gives the platform owner's profile the perimeter rights", async () => {
+  await ensureVenturePortfolioCapabilityDefaults();
+  const inserts = callsMatching(/INSERT INTO profile_capabilities/i);
+  expect(inserts).toHaveLength(3);
+  expect(
+    inserts.every((call) =>
+      /ON CONFLICT \(profile_key, module, capability\) DO NOTHING/i.test(sqlOf(call)),
+    ),
+  ).toBe(true);
+  const rows = inserts.map(argsOf);
+  expect(rows).toContainEqual(["super_admin_default", "ventures", "view_all", 5]);
+  expect(rows).toContainEqual(["super_admin_default", "ventures", "edit_all", 5]);
+  expect(rows).toContainEqual(["staff_default", "ventures", "view_all", 1]);
 });

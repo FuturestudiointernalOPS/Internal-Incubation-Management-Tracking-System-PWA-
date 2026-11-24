@@ -135,7 +135,7 @@ describe("the payer's own tab", () => {
     expect(served.served).toBe(true);
     expect(served.url).toContain("/setup-password/");
     // The password link points the person at their course, not a home screen.
-    expect(served.url).toContain(`next=${encodeURIComponent("/participant/learning/crs-1")}`);
+    expect(served.url).toContain(`next=${encodeURIComponent("/member/participant/learning/crs-1")}`);
 
     // Age the payment past the window.
     mockFake.state.lms_registrations[0].paid_at = new Date(Date.now() - 60 * 60 * 1000).toISOString();

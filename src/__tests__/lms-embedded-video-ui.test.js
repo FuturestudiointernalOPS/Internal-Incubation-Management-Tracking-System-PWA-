@@ -18,7 +18,7 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 
-const EmbeddedVideo = require("@/components/lms/EmbeddedVideo").default;
+const EmbeddedVideo = require("@/components/shared/lms/EmbeddedVideo").default;
 
 const ID = "dQw4w9WgXcQ";
 

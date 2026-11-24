@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
-import { requireAuthorization } from "@/models/authorization/index";
+import {
+  requireAuthorization,
+  getAuthorizationContext,
+  authorize,
+} from "@/models/authorization/index";
 import {
   getCrmOpportunityById,
   updateCrmOpportunity,
@@ -70,9 +74,19 @@ export const PATCH = createHandler(
 
     const opp = existing.rows[0];
 
-    // Next action — the owner (or a platform owner) alone may set it.
+    // Next action — the record owner alone may set it, unless the caller holds
+    // `crm.next_action_any` (the support/repair exception).
     const plan = touchesNextAction(body)
-      ? planNextActionWrite({ body, existing: opp, session })
+      ? planNextActionWrite({
+          body,
+          existing: opp,
+          session,
+          canSetAny: authorize(
+            await getAuthorizationContext(session),
+            "crm",
+            "next_action_any",
+          ),
+        })
       : null;
     if (plan?.error) {
       return NextResponse.json(

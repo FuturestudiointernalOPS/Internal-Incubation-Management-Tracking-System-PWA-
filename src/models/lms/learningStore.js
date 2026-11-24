@@ -228,7 +228,178 @@ export function selectEnrollmentsByCourse(courseId) {
 /** Name + email for the given cids. */
 export function selectContactsByCids(cids) {
   return db.execute({
-    sql: `SELECT cid, name, email FROM contacts WHERE cid IN (${cids.map(() => "?").join(",")})`,
+    sql: `SELECT cid, name, email, image FROM contacts WHERE cid IN (${cids.map(() => "?").join(",")})`,
     args: cids,
+  });
+}
+
+/**
+ * Contacts matching a typed fragment (name, email or cid) who are not yet
+ * enrolled in the course. Prefix matches rank first, then name order.
+ */
+export function searchEnrollableContacts(courseId, term, limit = 8) {
+  const escaped = term.replace(/[\\%_]/g, (c) => "\\" + c);
+  const contains = `%${escaped}%`;
+  const prefix = `${escaped}%`;
+  return db.execute({
+    sql: `SELECT cid, name, email FROM contacts c
+          WHERE (c.name ILIKE ? OR c.email ILIKE ? OR c.cid ILIKE ?)
+            AND NOT EXISTS (
+              SELECT 1 FROM lms_enrollments e
+              WHERE e.course_id = ? AND e.user_cid = c.cid
+            )
+          ORDER BY (CASE WHEN c.name ILIKE ? OR c.email ILIKE ? THEN 0 ELSE 1 END), c.name
+          LIMIT ?`,
+    args: [contains, contains, contains, courseId, prefix, prefix, limit],
+  });
+}
+
+/** Lesson progress of several enrollments at once (admin roster). */
+export function selectLessonProgressByEnrollments(enrollmentIds) {
+  return db.execute({
+    sql: `SELECT enrollment_id, lesson_id, status FROM lms_lesson_progress
+            WHERE enrollment_id IN (${enrollmentIds.map(() => "?").join(",")})`,
+    args: enrollmentIds,
+  });
+}
+
+/** Attempts of several learners on the given assessments (admin roster). */
+export function selectAttemptsByLearners(userCids, assessmentIds) {
+  return db.execute({
+    sql: `SELECT user_cid, assessment_id, score, total_points, passed FROM lms_assessment_attempts
+            WHERE user_cid IN (${userCids.map(() => "?").join(",")})
+              AND assessment_id IN (${assessmentIds.map(() => "?").join(",")})`,
+    args: [...userCids, ...assessmentIds],
+  });
+}
+
+/** The course-level (final) assessments of a course. */
+export function selectCourseLevelAssessments(courseId) {
+  return db
+    .execute({
+      sql: "SELECT * FROM lms_assessments WHERE course_id = ? AND section_id IS NULL ORDER BY position, created_at",
+      args: [courseId],
+    })
+    .then((res) => res.rows);
+}
+
+/** One enrollment of a course. */
+export function selectEnrollmentOfCourse(courseId, enrollmentId) {
+  return db.execute({
+    sql: "SELECT * FROM lms_enrollments WHERE id = ? AND course_id = ? LIMIT 1",
+    args: [enrollmentId, courseId],
+  });
+}
+
+/** Full lesson-progress rows (with completion dates) of one enrollment. */
+export function selectLessonProgressDetail(enrollmentId) {
+  return db.execute({
+    sql: "SELECT lesson_id, status, completed_at FROM lms_lesson_progress WHERE enrollment_id = ?",
+    args: [enrollmentId],
+  });
+}
+
+/** Every attempt of one learner on the given assessments, with the answers given. */
+export function selectAttemptsDetail(userCid, assessmentIds) {
+  return db.execute({
+    sql: `SELECT assessment_id, attempt_number, score, total_points, passed, answers, completed_at
+            FROM lms_assessment_attempts
+            WHERE user_cid = ? AND assessment_id IN (${assessmentIds.map(() => "?").join(",")})
+            ORDER BY attempt_number ASC`,
+    args: [userCid, ...assessmentIds],
+  });
+}
+
+/** The questions of several assessments, in display order. */
+export function selectQuestionsByAssessments(assessmentIds) {
+  return db.execute({
+    sql: `SELECT * FROM lms_assessment_questions
+            WHERE assessment_id IN (${assessmentIds.map(() => "?").join(",")})
+            ORDER BY position, created_at`,
+    args: assessmentIds,
+  });
+}
+
+// ─── Program-sourced access (the program seat is the reason) ────────────────
+
+/**
+ * Suspend every PROGRAM-sourced enrollment whose program is no longer one of
+ * the learner's seats, provided no other seat still requires the same course.
+ *
+ * Enrollments obtained another way (purchase, self-subscription, admin grant)
+ * are never touched, and an enrollment whose program still holds the person is
+ * left alone. Idempotent: a repeated call changes nothing.
+ */
+export function suspendStaleProgramEnrollments(cids) {
+  const participants = (Array.isArray(cids) ? cids : [cids]).map(String).filter(Boolean);
+  if (participants.length === 0) return Promise.resolve({ rowsAffected: 0 });
+  return db.execute({
+    sql: `UPDATE lms_enrollments e
+             SET status = 'suspended'
+           WHERE e.user_cid = ANY(?)
+             AND e.source = 'program'
+             AND e.program_id IS NOT NULL
+             AND e.status <> 'suspended'
+             AND NOT EXISTS (
+                   SELECT 1
+                     FROM participant_programs pp
+                    WHERE pp.participant_id = e.user_cid
+                      AND pp.program_id::text = e.program_id
+                 )
+             AND NOT EXISTS (
+                   SELECT 1
+                     FROM participant_programs other
+                     JOIN lms_program_requirements r
+                       ON r.program_id::text = other.program_id::text
+                    WHERE other.participant_id = e.user_cid
+                      AND other.program_id::text <> e.program_id
+                      AND r.course_id::text = e.course_id::text
+                 )`,
+    args: [participants],
+  });
+}
+
+/**
+ * Program-sourced enrollments still granting access while no program seat
+ * justifies them (left behind by an old removal, a deleted program, or a
+ * membership recorded under another identity).
+ */
+export function listOrphanProgramEnrollments() {
+  return db.execute({
+    sql: `SELECT e.id, e.user_cid, e.course_id, e.program_id, e.source, e.status,
+                 e.enrolled_at,
+                 c.title AS course_title,
+                 p.name AS program_name,
+                 ct.name AS user_name, ct.email AS user_email
+            FROM lms_enrollments e
+            JOIN lms_courses c ON c.id = e.course_id
+            LEFT JOIN v2_programs p ON CAST(p.id AS TEXT) = e.program_id
+            LEFT JOIN contacts ct ON ct.cid = e.user_cid
+           WHERE e.source = 'program'
+             AND e.status <> 'suspended'
+             AND (
+                   e.program_id IS NULL
+                   OR NOT EXISTS (
+                        SELECT 1
+                          FROM participant_programs pp
+                         WHERE pp.participant_id = e.user_cid
+                           AND pp.program_id::text = e.program_id
+                      )
+                 )
+           ORDER BY e.enrolled_at DESC`,
+    args: [],
+  });
+}
+
+/** Suspend the given program-sourced enrollments by id (orphan repair). */
+export function suspendProgramEnrollmentsByIds(ids) {
+  const enrollmentIds = (ids || []).map(String).filter(Boolean);
+  if (enrollmentIds.length === 0) return Promise.resolve({ rowsAffected: 0 });
+  return db.execute({
+    sql: `UPDATE lms_enrollments
+             SET status = 'suspended'
+           WHERE source = 'program'
+             AND id::text = ANY(?)`,
+    args: [enrollmentIds],
   });
 }

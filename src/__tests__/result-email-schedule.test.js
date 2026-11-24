@@ -31,11 +31,11 @@ const ROUTE_SRC = readSurface("src/app/api/platform/form-runs/handlers/get.js") 
 const SERVICE_SRC = readSurface("src/services/platform/formRuns.js");
 const MODEL_SRC = readSurface("src/models/formRuns.js");
 // V2: the run-level template editors (RunTemplateEditor + the templates tab)
-// live in components/platform/runs/. Both screens are split across their own
+// live in components/shared/platform/runs/. Both screens are split across their own
 // component folders, so read each page's whole surface — a pin that still read
 // only the shim would go vacuously green once the code moved out.
-const RUNS_PAGE = readSurface("src/app/platform/runs/page.js", "src/components/platform/runs");
-const FORMS_PAGE = readSurface("src/app/platform/forms/page.js", "src/components/platform/forms");
+const RUNS_PAGE = readSurface("src/app/platform/runs/page.js", "src/components/shared/platform/runs");
+const FORMS_PAGE = readSurface("src/app/platform/forms/page.js", "src/components/shared/platform/forms");
 const DELAY_EDITOR = read("src/components/ui/ResultDelayEditor.js");
 
 const formWith = (entry) => ({ automation: { templates: { result: entry } } });

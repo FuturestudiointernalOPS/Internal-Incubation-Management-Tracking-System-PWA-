@@ -16,7 +16,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const shared = require("@/lib/investorOptions");
-const filters = require("@/components/investor/dashboard-page/constants");
+const filters = require("@/spaces/member/investor/components/dashboard-page/constants");
 
 const EN = require("@/locales/en/investor.json");
 const FR = require("@/locales/fr/investor.json");
@@ -53,7 +53,7 @@ describe("one list of investor options", () => {
   });
 
   test("the profile page and the application seed use the shared module", () => {
-    expect(read("src/app/investor/profile/page.js")).toContain(
+    expect(read("src/app/member/(contexts)/investor/profile/page.js")).toContain(
       'from "@/lib/investorOptions"',
     );
     expect(read("src/services/platform/seed/investorApplication.js")).toContain(

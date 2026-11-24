@@ -20,6 +20,7 @@
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
     "taskCreateFailed": "Impossible de créer la tâche.",
     "authRequired": "Authentification requise.",
+    "investorProfileRequired": "Un profil investisseur est requis pour cette action.",
     "insufficientPermissions": "Vous n'avez pas les permissions requises pour cette action. Contactez un administrateur pour demander l'accès.",
     "outOfAssignmentScope": "Cet élément appartient à une autre partie du venture. Vous pouvez le consulter, mais pas le modifier.",
     "forbidden": "Vous n'êtes pas autorisé à effectuer cette action.",

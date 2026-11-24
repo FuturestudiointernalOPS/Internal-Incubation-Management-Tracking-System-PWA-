@@ -24,17 +24,17 @@
  * the server-side route allowlists.
  */
 
-import { FEATURE_ELIGIBILITY_DEFAULTS } from "@/models/authorization/constants";
+import { RESPONSIBILITY_FEATURE_ROLES } from "@/models/authorization/seedData";
 import { BASELINE_IDENTITIES } from "@/lib/identity";
 import { PROFILE_KEYS } from "@/models/authorization/profile-catalog";
 
-// Initial defaults — used to seed the DB once and as fallback for
-// responsibilities that have not been configured yet.
+// MIGRATION SEED ONLY — the values the one-time responsibilities seed writes
+// into `responsibilities.allowed_roles`. NEVER read at runtime: the warning
+// helper below reads only the saved column, and stays silent when it is unset.
 //
-// SINGLE SOURCE: these ARE the canonical eligibility defaults, aliased (not
-// copied) so the two can never drift apart. `authorization-model.test.js`
-// still enforces the alignment.
-export const RESPONSIBILITY_FEATURE_ROLES = FEATURE_ELIGIBILITY_DEFAULTS;
+// SINGLE SOURCE: the value comes from the inert seed data module, aliased to
+// the eligibility defaults so the two can never drift apart.
+export { RESPONSIBILITY_FEATURE_ROLES };
 
 // Canonical identity vocabulary. The list is DERIVED, never hand-written:
 //   - a person's baseline role is one of the three identities;
@@ -54,14 +54,6 @@ export const ALL_FEATURE_IDENTITIES = [
  */
 const WARNING_BYPASS_ROLES = ["super_admin"];
 
-/**
- * Default allowed roles for a responsibility key (the seed). Returns null
- * for unknown keys.
- */
-export function defaultAllowedRoles(responsibilityKey) {
-  const allowed = RESPONSIBILITY_FEATURE_ROLES[responsibilityKey];
-  return allowed ? [...allowed] : null;
-}
 
 /**
  * The roles OFFERED for a feature in the Responsibility Access UI.
@@ -116,7 +108,7 @@ export function normalizeAllowedRoles(raw) {
  * @param {string|null|undefined} role
  * @param {string|null|undefined} responsibilityKey
  * @param {string|string[]|null} [savedAllowedRoles] — live config from the DB
- *   (array or JSON string). null/undefined means "not configured" → seed.
+ *   (array or JSON string). null/undefined means "not configured" → silence.
  */
 export function isResponsibilityBlockedForRole(
   role,
@@ -126,10 +118,10 @@ export function isResponsibilityBlockedForRole(
   if (!role || !responsibilityKey) return false;
   if (WARNING_BYPASS_ROLES.includes(role)) return false;
 
-  let allowed = normalizeAllowedRoles(savedAllowedRoles);
-  if (allowed === null) {
-    allowed = defaultAllowedRoles(responsibilityKey);
-  }
-  if (!allowed) return false; // unknown responsibility — don't warn
+  const allowed = normalizeAllowedRoles(savedAllowedRoles);
+  // Not configured in the database = no warning. The runtime never supplies a
+  // code default: the configuration is data, owned by the Permissions screen.
+  if (allowed === null) return false;
+  if (!allowed) return false; // malformed configuration — don't warn
   return !allowed.includes(role);
 }

@@ -5,6 +5,7 @@ import { getRegisteredModules } from "@/models/platform/registry";
 import { listServices } from "@/models/platform/services";
 import { useI18n } from "@/lib/i18n";
 import { Eye, EyeOff, ToggleLeft, ToggleRight } from "lucide-react";
+import { cn } from "@/lib/cn";
 
 /**
  * PLATFORM SETTINGS
@@ -12,9 +13,6 @@ import { Eye, EyeOff, ToggleLeft, ToggleRight } from "lucide-react";
  * Administrators can enable/disable modules, manage visibility, and view system status.
  */
 
-function cn(...classes) {
-  return classes.filter(Boolean).join(" ");
-}
 
 export default function PlatformSettings() {
   const { t } = useI18n();

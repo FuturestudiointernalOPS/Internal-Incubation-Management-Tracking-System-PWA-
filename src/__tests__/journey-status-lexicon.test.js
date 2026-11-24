@@ -37,15 +37,15 @@ const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relative
 const englishStatus = require("@/locales/en/status.json").status;
 const frenchStatus = require("@/locales/fr/status.json").status;
 
-const FOUNDER = "src/components/ventures/workspace/tabs/JourneyPlaybookTabs.js";
+const FOUNDER = "src/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs.js";
 // the Venture Manager panel and the factories its writes moved into: the surface
 // that renders the journey vocabulary
 const MANAGER = [
-  "src/components/ventures/JourneyManagerPanel.js",
-  "src/components/ventures/journey/actions/labels.js",
-  "src/components/ventures/journey/actions/deliverables.js",
+  "src/components/shared/ventures/console/JourneyManagerPanel.js",
+  "src/components/shared/ventures/console/journey/actions/labels.js",
+  "src/components/shared/ventures/console/journey/actions/deliverables.js",
 ];
-const ADMIN_TIMELINE = "src/components/ventures/timeline/VentureTimelineView.js";
+const ADMIN_TIMELINE = "src/components/shared/ventures/console/timeline/VentureTimelineView.js";
 const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
 const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
 

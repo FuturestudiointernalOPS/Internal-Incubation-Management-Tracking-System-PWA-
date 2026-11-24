@@ -5,11 +5,21 @@
  * without touching a database. That is what makes the permission rules testable
  * on their own, and it is why this module reads no session and no repository.
  *
- * The rules, unchanged:
- *   - Super Admin is DENIED only if explicitly restricted, or downgraded by an
- *     explicit grant below minLevel. Eligibility is bypassed entirely.
+ * The rules:
+ *   - EVERY identity — Super Admin included — is allowed only when the
+ *     capability is in its EFFECTIVE matrix at the required level. For a Super
+ *     Admin that matrix is the `super_admin_default` profile plus personal
+ *     grants minus personal restrictions, so every action is a right an
+ *     administrator can grant or revoke from the Permissions screen.
+ *   - Eligibility (the feature ceiling) is bypassed for a Super Admin: it says
+ *     which identities MAY receive a feature, never which right they hold.
  *   - Everyone else is ELIGIBLE (the feature, which fails closed) AND their
  *     effective level >= minLevel.
+ *
+ * The Super Admin role no longer carries an implicit "allow all" for any
+ * module. Its full rights live in the seeded `super_admin_default` profile, so
+ * the default behavior is unchanged while a revoked right takes effect for the
+ * owner exactly as it does for anyone else.
  *   - `buildPermissionExplanation` reports the identity rows that produced each
  *     eligibility verdict, because "why does this person have access" is a
  *     question an administrator asks with the data in front of them.
@@ -26,9 +36,9 @@ import { explainEligibility } from "./eligibility";
 /**
  * Pure decision: "Can this context perform ACTION on FEATURE?"
  *
- * Super Admin: DENY only if explicitly restricted (or downgraded by an
- * explicit grant below minLevel — V2 edge case, preserved).
- * Everyone else: ELIGIBLE (feature) AND effective level >= minLevel.
+ * Super Admin: its effective matrix decides (a restriction, a missing row or a
+ * level below minLevel denies). Everyone else: ELIGIBLE (feature) AND effective
+ * level >= minLevel.
  */
 export const AUTHZ_REASONS = {
   GRANTED: "granted",
@@ -52,17 +62,22 @@ export function explainAuthorization(ctx, module, capability, minLevel = 1) {
     return { allowed: false, reason: AUTHZ_REASONS.INVALID_INPUT, minLevel };
   }
 
-  if (ctx.isSuperAdmin) {
+  if (ctx.isSuperAdmin && !ctx.ownerThroughEngine) {
+    // The owner's rights are DATA too. `effective` is the default profile's
+    // rows + personal grants − personal restrictions, so a right removed from
+    // the Permissions screen (or blocked for this person) denies the owner just
+    // as it denies anyone else. A restriction still reports BLOCKED explicitly,
+    // because that is a different answer from "the row is missing".
     if (ctx.restrictions?.[module]?.has(capability)) {
       return { allowed: false, reason: AUTHZ_REASONS.BLOCKED, minLevel };
     }
-    const grantLevel = ctx.grants?.[module]?.[capability];
-    if (grantLevel !== undefined) {
-      return Number(grantLevel) >= minLevel
-        ? { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel }
-        : { allowed: false, reason: AUTHZ_REASONS.INSUFFICIENT_LEVEL, minLevel };
-    }
-    return { allowed: true, reason: AUTHZ_REASONS.SUPER_ADMIN, minLevel };
+    const level = Number(ctx.effective?.[module]?.[capability] ?? 0);
+    if (level >= minLevel) return { allowed: true, reason: AUTHZ_REASONS.GRANTED, minLevel };
+    return {
+      allowed: false,
+      reason: level > 0 ? AUTHZ_REASONS.INSUFFICIENT_LEVEL : AUTHZ_REASONS.MISSING_PERMISSION,
+      minLevel,
+    };
   }
 
   // Spec §11 — the account gate is the FIRST question after the Super Admin
@@ -136,7 +151,7 @@ export function effectivePermissionsFromContext(ctx) {
 export function buildPermissionExplanation(ctx) {
   if (!ctx) return null;
 
-  if (ctx.isSuperAdmin) {
+  if (ctx.isSuperAdmin && !ctx.ownerThroughEngine) {
     const eligibility = {};
     for (const featureKey of new Set(Object.values(MODULE_TO_FEATURE))) {
       eligibility[featureKey] = {

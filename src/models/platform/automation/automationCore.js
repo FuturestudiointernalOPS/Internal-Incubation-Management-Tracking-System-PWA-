@@ -266,7 +266,12 @@ const RULES = [
               ? "participant"
               : "member";
         const existingContact = await db.execute({
-          sql: "SELECT cid, name, email, password, role FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
+          // `status` is read because it IS the activation signal just below: a
+          // lookup that omits it makes every existing account look
+          // un-activated, and every approval then rewrites an already-activated
+          // account back to "approved" (which hides the person from the program
+          // participant lists and sends them a second password-setup email).
+          sql: "SELECT cid, name, email, password, role, status FROM contacts WHERE LOWER(email) = LOWER(?) AND deleted = 0 LIMIT 1",
           args: [contactEmail],
         });
 

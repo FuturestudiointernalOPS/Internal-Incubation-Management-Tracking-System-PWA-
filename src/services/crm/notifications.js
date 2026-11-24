@@ -46,7 +46,7 @@ const isoDay = (value) => {
 };
 
 const linkFor = (entity, id) =>
-  entity === "lead" ? `/crm/leads/${id}` : `/crm/opportunities/${id}`;
+  entity === "lead" ? `/staff/crm/leads/${id}` : `/staff/crm/opportunities/${id}`;
 
 /** Build the notification payload for one candidate. */
 function payloadFor(candidate) {

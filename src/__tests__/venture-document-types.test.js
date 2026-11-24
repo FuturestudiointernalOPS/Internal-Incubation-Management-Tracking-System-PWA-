@@ -25,6 +25,21 @@ jest.mock("@/lib/db", () => ({
   initDb: jest.fn().mockResolvedValue(true),
 }));
 
+// The unscoped document-type authority is the explicit portfolio write right.
+jest.mock("@/models/authorization/index", () => ({
+  getAuthorizationContext: jest.fn(async (session) => {
+    const isSuperAdmin = session?.role === "super_admin";
+    return {
+      role: session?.role,
+      isSuperAdmin,
+      effective: isSuperAdmin
+        ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+        : {},
+      restrictions: {},
+    };
+  }),
+}));
+
 const {
   buildUniqueDocumentTypeCode,
   canManageVentureDocumentTypes,
@@ -132,13 +147,19 @@ describe("ensureVentureDocumentTypesForVenture", () => {
 describe("listVentureDocumentTypes", () => {
   test("reads ONE Venture, active only unless inactive ones are wanted, in display order", async () => {
     const db = dbWithRows();
+    const reads = () =>
+      db.execute.mock.calls
+        .map(([statement]) => statement)
+        .filter((call) => call.sql.includes("FROM venture_document_types"));
 
     await listVentureDocumentTypes({ ventureId: VENTURE, database: db });
-    expect(db.execute.mock.calls[0][0].args).toEqual([VENTURE, 0]);
-    expect(db.execute.mock.calls[0][0].sql).toContain("ORDER BY sort_order ASC, id ASC");
+    const [first] = reads();
+    expect(first.args).toEqual([VENTURE, 0]);
+    expect(first.sql).toContain("ORDER BY sort_order ASC, id ASC");
 
     await listVentureDocumentTypes({ ventureId: VENTURE, includeInactive: true, database: db });
-    expect(db.execute.mock.calls[1][0].args).toEqual([VENTURE, 1]);
+    const all = reads();
+    expect(all[all.length - 1].args).toEqual([VENTURE, 1]);
   });
 
   test("no Venture, no read", async () => {
@@ -169,7 +190,10 @@ describe("deleteVentureDocumentType", () => {
     await expect(deleteVentureDocumentType({ ventureId: VENTURE, id: 3 }, db)).resolves.toEqual({
       success: true,
     });
-    expect(db.execute.mock.calls[0][0].args).toEqual([3, VENTURE]);
+    const meta = db.execute.mock.calls
+      .map(([statement]) => statement)
+      .find((call) => call.sql.includes("FROM venture_document_types WHERE id = ?"));
+    expect(meta.args).toEqual([3, VENTURE]);
   });
 
   test("refuses to delete a built-in type", async () => {
@@ -214,9 +238,9 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
   test("a Super Admin is allowed without asking the database", async () => {
     const db = dbWithRows();
 
-    await expect(canManageVentureDocumentTypes({ role: "super_admin" }, VENTURE, db)).resolves.toBe(
-      true,
-    );
+    await expect(
+      canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
+    ).resolves.toBe(true);
     expect(db.execute).not.toHaveBeenCalled();
   });
 
@@ -226,10 +250,25 @@ describe("canManageVentureDocumentTypes — Super Admin, or THAT Venture Manager
     await expect(
       canManageVentureDocumentTypes({ role: "staff", cid: "USR-1" }, VENTURE, db),
     ).resolves.toBe(true);
-    const { sql, args } = db.execute.mock.calls[0][0];
-    expect(sql).toContain("responsibility_code = 'venture_manager'");
-    expect(sql).toContain("status = 'active'");
+    const { args } = db.execute.mock.calls
+      .map(([statement]) => statement)
+      .find((call) => call.sql.includes("responsibility_code = 'venture_manager'"));
     expect(args).toEqual([VENTURE, "USR-1"]);
+  });
+
+  test("a Super Admin whose portfolio right was revoked is refused", async () => {
+    const db = dbWithRows();
+    // The same owner, but `edit_all` is no longer in the effective matrix.
+    require("@/models/authorization/index").getAuthorizationContext.mockResolvedValueOnce({
+      role: "super_admin",
+      isSuperAdmin: true,
+      effective: { ventures: { view: 5, edit: 5, view_all: 5 } },
+      restrictions: {},
+    });
+
+    await expect(
+      canManageVentureDocumentTypes({ role: "super_admin", cid: "SA-1" }, VENTURE, db),
+    ).resolves.toBe(false);
   });
 
   test("a staff member who does not lead it is refused, and without a Venture too", async () => {

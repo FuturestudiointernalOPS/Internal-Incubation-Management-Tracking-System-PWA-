@@ -10,24 +10,24 @@ import {
 } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { getCurrentWeek } from "@/components/staff/op-report/dates";
+import { getCurrentWeek } from "@/spaces/staff/core/components/op-report/dates";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import { useApi, useApiMulti } from "@/lib/hooks/useApi";
-import OpReportView from "@/components/staff/op-report/OpReportView";
-import OpReportLoading from "@/components/staff/op-report/OpReportLoading";
+import OpReportView from "@/spaces/staff/core/components/op-report/OpReportView";
+import OpReportLoading from "@/spaces/staff/core/components/op-report/OpReportLoading";
 import {
   NEW_TASK_FORM,
   buildReportUrl,
   buildTaskEndpoints,
   mergeTasks,
   resolveWeekInfo,
-} from "@/components/staff/op-report/opReportDerivations";
+} from "@/spaces/staff/core/components/op-report/opReportDerivations";
 import {
   draftKey,
   readDraft,
   removeDraft,
   writeDraft,
-} from "@/components/staff/op-report/draftStore";
+} from "@/spaces/staff/core/components/op-report/draftStore";
 import { EMPTY_LIST, EMPTY_REPORT, INITIAL_FORM, REPORT_TABS, TASK_STATUSES, hasDraftContent, pickAssignments, pickList, pickReport, pickStudioStaff, reportToForm } from "./readers";
 import { useOpReportNav } from "./useOpReportNav";
 import { toastActions } from "./actions/toast";

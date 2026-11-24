@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import UserAccessView from "@/components/admin/access/UserAccessView";
+import UserAccessView from "@/spaces/admin/components/access/UserAccessView";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

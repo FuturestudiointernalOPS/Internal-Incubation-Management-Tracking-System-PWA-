@@ -24,7 +24,7 @@ export async function POST(req, { params }) {
     const { session } = access;
 
     // Duplicating creates a milestone — Venture Manager or Super Admin only.
-    const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+    const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role, session });
     if (!allowed) {
       return NextResponse.json(
         { success: false, error: "errors.ventureManagerOnly" },

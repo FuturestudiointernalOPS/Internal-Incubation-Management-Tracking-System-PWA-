@@ -52,7 +52,13 @@ export async function GET() {
       // owner to show the owner-only actions (setting the next action). The
       // server re-checks; this is visibility only.
       cid: session.cid ?? null,
+      // The owner bypass, and whether it applies. `isSuperAdmin` is an IDENTITY
+      // fact (the platform owner); `ownerThroughEngine` says the owner is now
+      // resolved like everyone else (AUTHZ_OWNER_THROUGH_ENGINE). The UI must
+      // only short-circuit a capability when the owner still bypasses —
+      // otherwise a revoked right would keep looking granted on screen.
       isSuperAdmin: !!ctx?.isSuperAdmin,
+      ownerThroughEngine: !!ctx?.ownerThroughEngine,
       effective: effectivePermissionsFromContext(ctx),
       // Lot 7 — the contextual PROFILES the decision was resolved through. A
       // function layered on the baseline identity (D-1: a program manager is

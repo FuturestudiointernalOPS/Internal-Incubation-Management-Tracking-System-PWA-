@@ -26,7 +26,8 @@
  *     `ventures.view`, a failing scope resolution as 0. Neither failure is
  *     surfaced as an error: the whole point of the audit is to answer "who
  *     would be refused", and a probe that blew up means "refused".
- *   - A super admin short-circuits: `authorize()` is never consulted.
+ *   - A super admin is probed through the SAME rights matrix as anyone else;
+ *     its role is not a short-circuit, so a revoked right is reported.
  *   - `missing` reports the FIRST missing key only. Reading is the
  *     prerequisite, so a person who cannot read is not also told they cannot
  *     edit.
@@ -118,11 +119,11 @@ export function buildSyntheticSession(cid, contact) {
 export async function probeVentureGate(sessionLike) {
   try {
     const authorizationContext = await getAuthorizationContext(sessionLike);
-    // A super admin short-circuits: authorize() is never consulted.
-    const isSuperAdmin = authorizationContext?.isSuperAdmin;
+    // No role short-circuit: the owner's rights are in the effective matrix too,
+    // so a revoked Venture right is reported as the refusal the gate enforces.
     return {
-      viewAllowed: isSuperAdmin || authorize(authorizationContext, "ventures", "view"),
-      editAllowed: isSuperAdmin || authorize(authorizationContext, "ventures", "edit"),
+      viewAllowed: authorize(authorizationContext, "ventures", "view"),
+      editAllowed: authorize(authorizationContext, "ventures", "edit"),
     };
   } catch {
     return { viewAllowed: false, editAllowed: false };

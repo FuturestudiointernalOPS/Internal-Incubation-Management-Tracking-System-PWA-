@@ -10,5 +10,5 @@ export const dynamic = "force-dynamic";
  * as a server redirect for one release so old links and bookmarks keep working.
  */
 export default function LegacyContactsRedirect() {
-  redirect("/crm/contacts");
+  redirect("/staff/crm/contacts");
 }

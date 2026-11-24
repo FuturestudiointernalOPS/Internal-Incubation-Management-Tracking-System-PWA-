@@ -84,6 +84,11 @@ const ALLOWED_UNROUTED = new Set([
   "ventures.view",
   "ventures.create",
   "ventures.delete",
+  // ventures.edit_all — the portfolio WRITE perimeter is read by the venture
+  // gate (`resolveVentureScopedDecision`) and by the config services, not by a
+  // literal requireAuthorization call. Its sibling view_all has a literal guard
+  // on the portfolio roll-up.
+  "ventures.edit_all",
   "investor.delete",
   // users.* + remaining permissions.* — administered through the permissions
   // admin route's dynamic action dispatch / dedicated admin endpoints rather

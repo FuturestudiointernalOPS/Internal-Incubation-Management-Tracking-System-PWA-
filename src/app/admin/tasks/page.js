@@ -3,21 +3,21 @@
 import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 
-import AdminTasksHeader from "@/components/tasks/admin-tasks/AdminTasksHeader";
-import TaskStatsRow from "@/components/tasks/admin-tasks/TaskStatsRow";
-import TaskFilters from "@/components/tasks/admin-tasks/TaskFilters";
-import TasksTable from "@/components/tasks/admin-tasks/TasksTable";
-import TaskDetailModal from "@/components/tasks/admin-tasks/TaskDetailModal";
-import useAdminTaskFilters from "@/components/tasks/admin-tasks/hooks/useAdminTaskFilters";
-import useAdminTasksData from "@/components/tasks/admin-tasks/hooks/useAdminTasksData";
-import useAdminTaskDetail from "@/components/tasks/admin-tasks/hooks/useAdminTaskDetail";
-import useAdminTaskWrites from "@/components/tasks/admin-tasks/hooks/useAdminTaskWrites";
+import AdminTasksHeader from "@/components/shared/tasks/admin-tasks/AdminTasksHeader";
+import TaskStatsRow from "@/components/shared/tasks/admin-tasks/TaskStatsRow";
+import TaskFilters from "@/components/shared/tasks/admin-tasks/TaskFilters";
+import TasksTable from "@/components/shared/tasks/admin-tasks/TasksTable";
+import TaskDetailModal from "@/components/shared/tasks/admin-tasks/TaskDetailModal";
+import useAdminTaskFilters from "@/components/shared/tasks/admin-tasks/hooks/useAdminTaskFilters";
+import useAdminTasksData from "@/components/shared/tasks/admin-tasks/hooks/useAdminTasksData";
+import useAdminTaskDetail from "@/components/shared/tasks/admin-tasks/hooks/useAdminTaskDetail";
+import useAdminTaskWrites from "@/components/shared/tasks/admin-tasks/hooks/useAdminTaskWrites";
 import {
   taskOwners,
   projectNameMap,
   filterTasks,
   taskStats,
-} from "@/components/tasks/admin-tasks/derive";
+} from "@/components/shared/tasks/admin-tasks/derive";
 import { useI18n } from "@/lib/i18n";
 
 /**
@@ -34,7 +34,7 @@ import { useI18n } from "@/lib/i18n";
  *
  * The page is the wiring only: what is narrowed by, what is read, what is open,
  * and which part each of those renders. The parts are in
- * `src/components/tasks/admin-tasks/`.
+ * `src/components/shared/tasks/admin-tasks/`.
  */
 export default function AdminTasks() {
   const router = useRouter();

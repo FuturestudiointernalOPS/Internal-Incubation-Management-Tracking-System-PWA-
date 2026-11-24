@@ -2,14 +2,20 @@ import { refusalResponse } from "@/server/http/refusal";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
 import { isWithinScope, resolveVentureScopeId, ventureExists } from "@/services/authorization/scope";
+import {
+  holdsExplicitCapability,
+  holdsVenturePortfolioRight,
+} from "@/services/ventures/portfolioAccess";
 
 /**
  * PHASE 5c — VENTURE SCOPED ACCESS (the only venture gate).
  *
  * One decision path for routes that protect a SPECIFIC venture:
  *
- *     Super Admin bypass (resolver semantics — unscoped authority)
- *       → CAPABILITY (resolver: eligibility + profile/grants/restrictions)
+ *     CAPABILITY (resolver: eligibility + profile/grants/restrictions —
+ *                 Super Admin included: the right is not a role property)
+ *       → PORTFOLIO (ventures.view_all / ventures.edit_all — the whole
+ *                    portfolio, an assignable and revocable right)
  *       → SCOPE (venture_own — the venture is "theirs": active membership OR
  *                active delegated staff assignment, read live from data)
  *       → ALLOW
@@ -48,7 +54,7 @@ import { isWithinScope, resolveVentureScopeId, ventureExists } from "@/services/
  *
  * Returned decisions mirror the X-Authz-Decision header values exactly, so a
  * caller can surface the same vocabulary the routes already emit:
- *   unauthenticated | super-admin | capability+scope
+ *   unauthenticated | super-admin | portfolio | capability+scope
  *   capability-missing | out-of-scope | not-found
  * (Throw rather than return for infrastructure failure — the callers below
  * translate that into `system-failure`, so a broken resolver is never a silent
@@ -72,20 +78,33 @@ export async function resolveVentureScopedDecision({
 }) {
   if (!session) return { allowed: false, decision: "unauthenticated" };
 
-  // Super Admin — resolver semantics (no per-record scope).
   const authContext = await getAuthorizationContext(session);
-  if (authContext?.isSuperAdmin) {
-    return { allowed: true, path: "super-admin", decision: "super-admin" };
-  }
 
   // CAPABILITY — the resolver decides (eligibility, profile, grants…).
+  //
+  // A Super Admin is NOT short-circuited any more: the role keeps its
+  // eligibility bypass, but the RIGHT must be in the effective matrix. Reading
+  // the matrix explicitly is what makes a revoked Venture right effective for a
+  // Super Admin too. (For everyone else the resolver's own answer is the one
+  // that counts, eligibility included.)
   const capError = await requireAuthorization(module, capability, minLevel);
-  if (capError) {
+  const explicitAction = holdsExplicitCapability(authContext, module, capability, minLevel);
+  if (authContext?.isSuperAdmin ? !explicitAction : Boolean(capError)) {
     return {
       allowed: false,
       decision: "capability-missing",
       missing: { capability: `${module}.${capability}` },
     };
+  }
+
+  // PORTFOLIO — a right, not a role property. `view` reaches every Venture to
+  // read it; `edit` reaches every Venture to change it. The action capability
+  // above still applies, so `view_all` never implies `edit`.
+  const portfolioAction =
+    capability === "view" ? "view" : capability === "edit" ? "edit" : null;
+  if (portfolioAction && holdsVenturePortfolioRight(authContext, portfolioAction)) {
+    const decision = authContext?.isSuperAdmin ? "super-admin" : "portfolio";
+    return { allowed: true, path: decision, decision };
   }
 
   // SCOPE — the record must actually be theirs (live assignment data).

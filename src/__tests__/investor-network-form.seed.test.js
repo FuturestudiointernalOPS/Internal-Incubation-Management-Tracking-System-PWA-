@@ -112,10 +112,10 @@ describe("the investor network form definition", () => {
   test("the Forms & Runs workspace offers the button, labelled in both languages", () => {
     // The action lives where the form is USED — Forms & Runs — and its public
     // URL is copied from the run's Share tab like any other run.
-    expect(read("src/components/platform/forms/hooks/useFormBuilder.js")).toContain(
+    expect(read("src/components/shared/platform/forms/hooks/useFormBuilder.js")).toContain(
       "api/platform/seed/investor-network",
     );
-    expect(read("src/components/platform/forms/FormsListView.js")).toContain(
+    expect(read("src/components/shared/platform/forms/FormsListView.js")).toContain(
       "platformMisc.forms.seedInvestorNetwork",
     );
     // …and NOT on the Investors page.

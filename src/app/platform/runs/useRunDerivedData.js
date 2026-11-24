@@ -6,8 +6,8 @@ import {
   EMAIL_PAGE_SIZE,
   RETRYABLE_EMAIL_STATUSES,
   TRACKING_FILTERS,
-} from "@/components/platform/runs/constants";
-import { accountStatusOf, fmtAnswer } from "@/components/platform/runs/helpers";
+} from "@/components/shared/platform/runs/constants";
+import { accountStatusOf, fmtAnswer } from "@/components/shared/platform/runs/helpers";
 
 /**
  * Everything the open Execution DERIVES from its own reads and filter state:
@@ -20,6 +20,7 @@ import { accountStatusOf, fmtAnswer } from "@/components/platform/runs/helpers";
  */
 export default function useRunDerivedData({
   fieldLabels,
+  runFormFields = [],
   emailLog,
   reviews,
   selectedRun,
@@ -48,7 +49,18 @@ export default function useRunDerivedData({
   emailPage,
   retrySelected,
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+
+  // A country answer is stored as its ISO code; the type is what tells the
+  // formatter to show the flag + readable name instead of the raw code.
+  const fieldTypeById = useMemo(() => {
+    const byKey = {};
+    for (const field of runFormFields) {
+      byKey[String(field.id)] = field.field_type;
+      if (field.label) byKey[String(field.label)] = field.field_type;
+    }
+    return byKey;
+  }, [runFormFields]);
 
   // ─── RUN-SCOPED FILTERING (Overview) ───
   // Runs against ONLY this run's submissions + their AI evaluations.
@@ -57,10 +69,10 @@ export default function useRunDerivedData({
     const answers = {};
     for (const [key, value] of Object.entries(submissionData)) {
       if (key.startsWith("_")) continue;
-      answers[fieldLabels[key] || key] = fmtAnswer(value);
+      answers[fieldLabels[key] || key] = fmtAnswer(value, fieldTypeById[String(key)], lang);
     }
     return answers;
-  }, [fieldLabels]);
+  }, [fieldLabels, fieldTypeById, lang]);
 
   const latestEmailOf = useCallback(
     (submission, type) =>
@@ -349,14 +361,38 @@ export default function useRunDerivedData({
     return activationRows.some((emailRow) => emailRow.status === "sent");
   }, [submissions, activationLogBySubmission]);
 
-  // FIRST send: approved + activation email never sent yet
+  // Recipient-level truth: the server sends at most ONE activation email per
+  // address per run (its duplicate-recipient guard). A submission whose address
+  // already received one through another submission can therefore never be
+  // sent a first activation, so it must not be offered as a first send — the
+  // action would report a send for nothing.
+  const activationRecipientsAlreadySent = useMemo(() => {
+    const sent = new Set();
+    for (const submission of submissions) {
+      if (!submission?.activation_history?.first_sent_at) continue;
+      const address = String(submission.email || "").trim().toLowerCase();
+      if (address) sent.add(address);
+    }
+    for (const emailRow of emailLog) {
+      if (emailRow.email_type !== "activation" || emailRow.status !== "sent") continue;
+      const submission = submissions.find((candidate) => candidate.id === emailRow.submission_id);
+      const address = String(emailRow.recipient || submission?.email || "").trim().toLowerCase();
+      if (address) sent.add(address);
+    }
+    return sent;
+  }, [submissions, emailLog]);
+
+  // FIRST send: approved + activation email never sent yet, and the address has
+  // not already received one through another submission of this run.
   const eligibleSendActivationIds = useMemo(() => {
     return selectedIds.filter((id) => {
       const submission = submissions.find((candidate) => candidate.id === id);
       if (!submission || String(submission.status || "").toLowerCase() !== "approved") return false;
-      return !hasActivationEmailSent(id);
+      if (hasActivationEmailSent(id)) return false;
+      const address = String(submission.email || "").trim().toLowerCase();
+      return !(address && activationRecipientsAlreadySent.has(address));
     });
-  }, [selectedIds, submissions, hasActivationEmailSent]);
+  }, [selectedIds, submissions, hasActivationEmailSent, activationRecipientsAlreadySent]);
 
   // RESEND: approved + activation email already sent at least once
   const eligibleResendActivationIds = useMemo(() => {

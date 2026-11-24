@@ -6,7 +6,7 @@
  * 9 names this module reads into taskCreationActions().
  */
 
-import { getCurrentWeek } from "@/components/staff/op-report/dates";
+import { getCurrentWeek } from "@/spaces/staff/core/components/op-report/dates";
 
 export function taskCreationActions({
   newTaskForm,

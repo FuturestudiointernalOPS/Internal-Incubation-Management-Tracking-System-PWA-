@@ -14,6 +14,7 @@ import {
   selectActiveFounderMembership,
   selectVerificationFounderIdByEmail,
 } from "@/models/ventureVerificationStore";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 
 /**
  * The document types the Data bank asks for now live in `venture_document_types`
@@ -44,7 +45,10 @@ export async function resolveActiveDocumentTypeCodes(ventureId) {
  */
 export async function canManageVerification(ventureId, session) {
   if (!session) return { allowed: false };
-  if (session.role === "super_admin") return { allowed: true, isReviewer: true };
+  // The unscoped Data bank authority is the explicit `ventures.edit_all`
+  // right, not the Super Admin role: it can be revoked like any other right.
+  const portfolio = await resolveVenturePortfolioAccess({ session, action: "edit" });
+  if (portfolio.allowed) return { allowed: true, isReviewer: true };
   if (session.role === "verification_officer") return { allowed: true, isReviewer: true };
   // The Data bank sign-off belongs to whoever leads the WHOLE Venture — the
   // Super Admin, or its Venture Manager. This is the same rule that lets them
@@ -72,7 +76,8 @@ export async function canManageVerification(ventureId, session) {
  */
 export async function canSubmitVerification(ventureId, session) {
   if (!session) return false;
-  if (session.role === "super_admin") return true;
+  const portfolio = await resolveVenturePortfolioAccess({ session, action: "edit" });
+  if (portfolio.allowed) return true;
 
   const [memberRes, legacyRes] = await Promise.all([
     selectActiveFounderMembership(ventureId, session.cid),

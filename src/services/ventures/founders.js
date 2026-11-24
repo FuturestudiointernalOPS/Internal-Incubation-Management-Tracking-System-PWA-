@@ -15,6 +15,7 @@
  */
 
 import { v4 as uuidv4 } from "uuid";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 import {
   selectFounderForManage,
   selectFoundersForVenture,
@@ -91,11 +92,14 @@ export const MANAGEMENT_ROLES = ["founder", "co-founder"];
 
 /**
  * Check if a user can manage founders for a venture.
- * Only the owner (is_owner), founders, and super_admin can manage.
+ * Only the owner (is_owner), founders, and holders of the explicit
+ * `ventures.edit_all` right can manage.
  */
 export async function canManageFounders(ventureId, session) {
   if (!session) return { allowed: false };
-  if (session.role === "super_admin") return { allowed: true, isOwner: true };
+  if ((await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed) {
+    return { allowed: true, isOwner: true };
+  }
 
   const founderRes = await selectFounderForManage(ventureId, session.email || "");
 

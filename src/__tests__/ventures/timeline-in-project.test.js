@@ -5,7 +5,7 @@ import path from "node:path";
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 
 test("the hub no longer has a Timeline tab or route", () => {
-  const hub = read("src/components/admin/ventures/VentureDetailView.js");
+  const hub = read("src/spaces/admin/components/ventures/VentureDetailView.js");
   expect(hub).not.toContain('id: "timeline"');
   expect(hub).not.toContain("/timeline`");
 });
@@ -24,7 +24,7 @@ test("the old timeline address forwards to the Project page's Timeline view", ()
 });
 
 test("embedded drops the page header but keeps the view switch", () => {
-  const view = read("src/components/ventures/timeline/VentureTimelineView.js");
+  const view = read("src/components/shared/ventures/console/timeline/VentureTimelineView.js");
   expect(view).toContain("{!embedded && (");
   expect(view).toContain('["gantt", "progress", "delay"]');
 });

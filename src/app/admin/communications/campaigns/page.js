@@ -8,9 +8,9 @@ import { useI18n } from '@/lib/i18n';
 import { formatLocaleDate } from '@/lib/constants';
 import { useSafeBack } from '@/lib/useSafeBack';
 import { useDialogs } from '@/components/ui/DialogProvider';
-import CampaignsCreateModal from '@/components/admin/communications/campaigns/CampaignsCreateModal';
-import CampaignsDetailsModal from '@/components/admin/communications/campaigns/CampaignsDetailsModal';
-import CampaignsList from '@/components/admin/communications/campaigns/CampaignsList';
+import CampaignsCreateModal from '@/spaces/admin/components/communications/campaigns/CampaignsCreateModal';
+import CampaignsDetailsModal from '@/spaces/admin/components/communications/campaigns/CampaignsDetailsModal';
+import CampaignsList from '@/spaces/admin/components/communications/campaigns/CampaignsList';
 
 const GROUP_LABELS = { UNASSIGNED: 'crm.contacts.unassigned' };
 
@@ -22,7 +22,7 @@ const pickFamilies = (payload) => (payload?.success ? payload.families || [] : [
 export default function CampaignsPage() {
   const { t, lang } = useI18n();
   const { prompt } = useDialogs();
-  const goBack = useSafeBack('/crm');
+  const goBack = useSafeBack('/staff/crm');
 
   const { data: campaigns, loading: campaignsLoading, refresh: refreshCampaigns } = useApi(
     '/api/campaigns',
@@ -261,7 +261,7 @@ export default function CampaignsPage() {
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('crm.backToPrevious')}
           </button>
-          <Link href="/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
+          <Link href="/staff/crm" className="inline-flex items-center gap-2 text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-widest hover:text-[var(--brand-orange)] transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" />
             {t('crm.backToCrm')}
           </Link>

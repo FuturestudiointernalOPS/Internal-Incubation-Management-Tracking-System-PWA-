@@ -15,11 +15,11 @@ jest.mock("next/navigation", () => ({
   useSearchParams: () => ({ get: (key) => (key === "tab" ? mockTab : null) }),
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
 }));
-jest.mock("@/components/admin/ventures/AddLeadManagerModal", () => function AddLeadManagerModal() { return null; });
+jest.mock("@/spaces/admin/components/ventures/AddLeadManagerModal", () => function AddLeadManagerModal() { return null; });
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const VentureHubNav = require("@/components/admin/ventures/VentureHubNav").default;
+const VentureHubNav = require("@/spaces/admin/components/ventures/VentureHubNav").default;
 
 beforeEach(() => {
   clearResponseCache();

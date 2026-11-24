@@ -57,7 +57,17 @@ export function createContactsMutations({
         body: JSON.stringify({ action: "resend", email: contact.email }),
       });
       const payload = await response.json();
-      if (payload.success) {
+      if (payload.success && payload.email_sent === false) {
+        // The resend request was accepted (token issued) but the transport did
+        // not actually send the email — never report that as a success.
+        setNotification({
+          type: "error",
+          text: t("crm.contacts.inviteEmailFailed", {
+            error: payload.email_error || t("crm.contacts.inviteFailed"),
+          }),
+        });
+        refreshAll();
+      } else if (payload.success) {
         setNotification({ type: "success", text: t("crm.contacts.activationSent") || "Activation email sent" });
         refreshAll();
       } else {

@@ -77,7 +77,12 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
 
   // Adding a milestone is a STRUCTURE action: Venture Manager or Super Admin.
-  const allowed = await canManageMilestones({ id, cid: access.session?.cid, role: access.session?.role });
+  const allowed = await canManageMilestones({
+    id,
+    cid: access.session?.cid,
+    role: access.session?.role,
+    session: access.session,
+  });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "errors.ventureManagerOnly" },
@@ -177,7 +182,12 @@ export const PATCH = createHandler(async (req, { params }) => {
     const ventureDbId = ventureResult.rows?.[0]?.id;
     const code = ventureResult.rows?.[0]?.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
     if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const authorized = await isMilestoneLeadAuthority({ code, cid: session.cid, role: session.role });
+    const authorized = await isMilestoneLeadAuthority({
+      code,
+      cid: session.cid,
+      role: session.role,
+      session,
+    });
     if (!authorized) {
       return NextResponse.json({ success: false, error: "errors.milestoneCompleteDenied" }, { status: 403 });
     }

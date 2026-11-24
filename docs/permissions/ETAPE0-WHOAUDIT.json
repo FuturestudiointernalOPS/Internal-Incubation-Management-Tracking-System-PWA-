@@ -1,0 +1,2490 @@
+{
+  "generatedAt": "2026-11-12T11:02:46.074Z",
+  "scope": {
+    "note": "Inventaire statique des décisions « qui » encore écrites dans le code. Aucun accès n'est modifié.",
+    "sourceFilesScanned": 2676,
+    "engineExcluded": [
+      "src/server/authz",
+      "src/models/authorization",
+      "src/services/authorization"
+    ]
+  },
+  "counts": {
+    "rolesInMenuTable": 6,
+    "menuNodes": 73,
+    "menuNodesWithoutRequirement": 43,
+    "spaces": 3,
+    "landingEntries": 7,
+    "ownerMentions": 340,
+    "ownerDecisionLines": 101,
+    "ownerBypassFiles": 71,
+    "adHocRoleComparisons": 189,
+    "adHocFiles": 115,
+    "seedMarkers": 7
+  },
+  "menu": {
+    "byRole": {
+      "super_admin": {
+        "top": [
+          "dashboard",
+          "crm",
+          "communication",
+          "programs",
+          "ventures",
+          "investors",
+          "finance",
+          "operations",
+          "intelligence",
+          "reports",
+          "knowledge",
+          "lms",
+          "settings"
+        ],
+        "children": [
+          "crm",
+          "communication",
+          "programs",
+          "ventures",
+          "investors",
+          "operations",
+          "reports",
+          "knowledge",
+          "lms",
+          "settings"
+        ],
+        "hrefOverrides": [],
+        "iconOverrides": []
+      },
+      "staff": {
+        "top": [
+          "dashboard",
+          "weekly_ops",
+          "programs",
+          "my_projects",
+          "communication"
+        ],
+        "children": [
+          "communication"
+        ],
+        "hrefOverrides": [
+          "dashboard",
+          "programs",
+          "messages"
+        ],
+        "iconOverrides": []
+      },
+      "member": {
+        "top": [
+          "dashboard"
+        ],
+        "children": [],
+        "hrefOverrides": [
+          "dashboard"
+        ],
+        "iconOverrides": []
+      },
+      "team": {
+        "top": [
+          "dashboard",
+          "programs"
+        ],
+        "children": [],
+        "hrefOverrides": [
+          "dashboard",
+          "programs"
+        ],
+        "iconOverrides": []
+      },
+      "finance": {
+        "top": [
+          "dashboard",
+          "profile"
+        ],
+        "children": [],
+        "hrefOverrides": [
+          "dashboard",
+          "profile"
+        ],
+        "iconOverrides": [
+          "dashboard"
+        ]
+      },
+      "crm": {
+        "top": [
+          "crm",
+          "communication"
+        ],
+        "children": [
+          "crm",
+          "communication"
+        ],
+        "hrefOverrides": [
+          "crm_dashboard",
+          "all_contacts",
+          "crm_timeline",
+          "crm_membership",
+          "crm_duplicates"
+        ],
+        "iconOverrides": []
+      }
+    },
+    "nodesWithRequirement": [
+      "crm",
+      "crm_dashboard",
+      "all_contacts",
+      "crm_organizations",
+      "crm_leads",
+      "crm_opportunities",
+      "crm_pipelines",
+      "crm_activities",
+      "crm_segments",
+      "crm_automations",
+      "crm_timeline",
+      "crm_membership",
+      "crm_duplicates",
+      "pending_users",
+      "bulk_upload",
+      "communication",
+      "messages",
+      "programs",
+      "ventures",
+      "investors",
+      "finance",
+      "operations",
+      "reports",
+      "my_projects",
+      "knowledge",
+      "lms",
+      "settings",
+      "security",
+      "projects",
+      "weekly_ops"
+    ],
+    "nodesWithoutRequirement": [
+      "dashboard",
+      "announcements",
+      "forms",
+      "groups",
+      "all_programs",
+      "create_program",
+      "progress",
+      "all_ventures",
+      "investors_manage",
+      "investors_dashboard",
+      "investors_review",
+      "investors_campaigns",
+      "investors_relationships",
+      "investors_portfolio",
+      "investors_deal_flow",
+      "investors_introductions",
+      "investors_metrics",
+      "internal_ops_board",
+      "all_projects",
+      "create_project",
+      "tasks",
+      "blockers",
+      "standup",
+      "retro",
+      "intelligence",
+      "program_reports",
+      "internal_reports",
+      "metrics",
+      "knowledge_base",
+      "lms_courses",
+      "lms_registrations",
+      "system",
+      "audit_logs",
+      "access_summary",
+      "permissions",
+      "my_programs",
+      "reviews",
+      "profile",
+      "learning",
+      "certificates",
+      "timeline",
+      "portfolio",
+      "activity"
+    ],
+    "nonAdminHrefFallbacks": [
+      "finance",
+      "crm_dashboard",
+      "all_contacts",
+      "crm_organizations",
+      "crm_leads",
+      "crm_opportunities",
+      "crm_pipelines",
+      "crm_activities",
+      "crm_segments",
+      "crm_automations",
+      "crm_membership",
+      "crm_duplicates",
+      "crm_timeline",
+      "forms",
+      "lms_courses"
+    ]
+  },
+  "spaces": {
+    "operatingDenied": [
+      "member",
+      "participant",
+      "founder",
+      "investor"
+    ],
+    "byKey": {
+      "member": {
+        "home": "/member",
+        "identities": [
+          "member",
+          "participant",
+          "founder",
+          "investor",
+          "facilitator",
+          "team"
+        ],
+        "spaceForIdentity": {
+          "member": "member",
+          "participant": "member",
+          "founder": "member",
+          "investor": "member",
+          "facilitator": "member",
+          "team": "member"
+        }
+      },
+      "staff": {
+        "home": "/staff",
+        "identities": [
+          "staff",
+          "program_manager",
+          "finance",
+          "crm"
+        ],
+        "spaceForIdentity": {
+          "staff": "staff",
+          "program_manager": "staff",
+          "finance": "staff",
+          "crm": "staff"
+        }
+      },
+      "admin": {
+        "home": "/admin",
+        "identities": [
+          "super_admin"
+        ],
+        "spaceForIdentity": {
+          "super_admin": "admin"
+        }
+      }
+    }
+  },
+  "landing": {
+    "roleHome": {
+      "super_admin": "/admin",
+      "program_manager": "/staff/program-manager",
+      "staff": "/staff",
+      "facilitator": "/member/facilitator",
+      "participant": "/member/participant",
+      "finance": "/staff/finance",
+      "investor": "/member/investor/dashboard"
+    },
+    "internalOpsRoles": [
+      "super_admin",
+      "staff",
+      "program_manager"
+    ],
+    "needsRelationships": {
+      "super_admin": false,
+      "program_manager": false,
+      "staff": false,
+      "facilitator": false,
+      "participant": true,
+      "finance": false,
+      "investor": false
+    }
+  },
+  "codeDefaults": {
+    "eligibilityRoleDefaults": {
+      "crm": [
+        "super_admin",
+        "staff"
+      ],
+      "communication": [
+        "super_admin",
+        "staff"
+      ],
+      "programs": [
+        "super_admin",
+        "staff",
+        "member"
+      ],
+      "ventures": [
+        "super_admin",
+        "staff",
+        "member"
+      ],
+      "investors": [
+        "super_admin",
+        "staff",
+        "member"
+      ],
+      "finance": [
+        "super_admin",
+        "staff"
+      ],
+      "operations": [
+        "super_admin",
+        "staff"
+      ],
+      "reports": [
+        "super_admin",
+        "staff"
+      ],
+      "knowledge": [
+        "super_admin",
+        "staff"
+      ],
+      "lms": [
+        "super_admin",
+        "staff"
+      ],
+      "security": [
+        "super_admin",
+        "staff"
+      ],
+      "settings": [
+        "super_admin",
+        "staff"
+      ]
+    },
+    "eligibilityProfileDefaults": {
+      "communication": [
+        "program_manager",
+        "participant",
+        "investor"
+      ],
+      "programs": [
+        "program_manager",
+        "participant",
+        "facilitator"
+      ],
+      "ventures": [
+        "program_manager",
+        "investor",
+        "founder"
+      ],
+      "investors": [
+        "investor"
+      ],
+      "operations": [
+        "program_manager",
+        "participant",
+        "investor"
+      ],
+      "reports": [
+        "program_manager"
+      ],
+      "lms": [
+        "program_manager"
+      ]
+    },
+    "programAssignmentRows": {
+      "programs": [
+        "member"
+      ]
+    },
+    "responsibilityFeatureRoles": {
+      "aliasedToEligibilityDefaults": true,
+      "entries": {
+        "crm": [
+          "super_admin",
+          "staff"
+        ],
+        "communication": [
+          "super_admin",
+          "staff"
+        ],
+        "programs": [
+          "super_admin",
+          "staff",
+          "member"
+        ],
+        "ventures": [
+          "super_admin",
+          "staff",
+          "member"
+        ],
+        "investors": [
+          "super_admin",
+          "staff",
+          "member"
+        ],
+        "finance": [
+          "super_admin",
+          "staff"
+        ],
+        "operations": [
+          "super_admin",
+          "staff"
+        ],
+        "reports": [
+          "super_admin",
+          "staff"
+        ],
+        "knowledge": [
+          "super_admin",
+          "staff"
+        ],
+        "lms": [
+          "super_admin",
+          "staff"
+        ],
+        "security": [
+          "super_admin",
+          "staff"
+        ],
+        "settings": [
+          "super_admin",
+          "staff"
+        ]
+      }
+    },
+    "profileCatalogueSeed": [
+      {
+        "key": "participant",
+        "context": "program",
+        "allowedRoles": [
+          "member"
+        ]
+      },
+      {
+        "key": "learner",
+        "context": "lms",
+        "allowedRoles": [
+          "member"
+        ]
+      },
+      {
+        "key": "founder",
+        "context": "venture",
+        "allowedRoles": [
+          "member"
+        ]
+      },
+      {
+        "key": "investor",
+        "context": "investor",
+        "allowedRoles": [
+          "member"
+        ]
+      },
+      {
+        "key": "facilitator",
+        "context": "program",
+        "allowedRoles": [
+          "staff",
+          "member"
+        ]
+      },
+      {
+        "key": "program_manager",
+        "context": "program",
+        "allowedRoles": [
+          "staff"
+        ]
+      },
+      {
+        "key": "venture_manager",
+        "context": "venture",
+        "allowedRoles": [
+          "staff"
+        ]
+      },
+      {
+        "key": "course_manager",
+        "context": "staff",
+        "allowedRoles": [
+          "staff"
+        ]
+      }
+    ],
+    "profileBaselineRoles": [
+      "super_admin",
+      "staff",
+      "member"
+    ],
+    "profileRoleEnforcement": "block",
+    "allFeatureIdentities": [
+      "super_admin",
+      "staff",
+      "member",
+      "participant",
+      "learner",
+      "founder",
+      "investor",
+      "facilitator",
+      "program_manager",
+      "venture_manager",
+      "course_manager"
+    ]
+  },
+  "seedMarkers": [
+    "eligibility-bootstrap-seed",
+    "eligibility-lms-bootstrap-v2",
+    "eligibility-ventures-member-v1",
+    "eligibility-programs-assignment-v1",
+    "eligibility-profile-defaults-v1",
+    "eligibility-baseline-roles-only-v1",
+    "legacy-identities-normalization-v1"
+  ],
+  "owner": {
+    "byCategory": {
+      "label": 111,
+      "comment": 99,
+      "routing": 3,
+      "decision": 101,
+      "other": 5,
+      "default": 21
+    },
+    "bypassFiles": [
+      "src/app/api/admin/projects/[id]/reports/generate/route.js",
+      "src/app/api/attendance/route.js",
+      "src/app/api/auth/invite/route.js",
+      "src/app/api/contacts/full-state/route.js",
+      "src/app/api/deliverables/route.js",
+      "src/app/api/facilitators/invite-bulk/route.js",
+      "src/app/api/families/route.js",
+      "src/app/api/forensic/user-role/route.js",
+      "src/app/api/group-members/route.js",
+      "src/app/api/groups/route.js",
+      "src/app/api/investor/approval/route.js",
+      "src/app/api/investor/profile/route.js",
+      "src/app/api/invites/route.js",
+      "src/app/api/participants/route.js",
+      "src/app/api/platform/form-runs/handlers/get.js",
+      "src/app/api/pm/programs/[id]/route.js",
+      "src/app/api/pm/reports/route.js",
+      "src/app/api/programs/route.js",
+      "src/app/api/retros/submit/route.js",
+      "src/app/api/sessions/route.js",
+      "src/app/api/standups/submit/route.js",
+      "src/app/api/v2/program-staff/route.js",
+      "src/app/api/ventures/[id]/blockers/route.js",
+      "src/app/api/ventures/[id]/my-access/route.js",
+      "src/app/api/ventures/[id]/reporting/settings/route.js",
+      "src/app/api/ventures/assigned/route.js",
+      "src/app/api/ventures/lead-manager/home/route.js",
+      "src/app/login/page.js",
+      "src/components/shared/messaging/chat/messagingMode.js",
+      "src/lib/featureAccess.js",
+      "src/lib/masterNavigation/builders.js",
+      "src/lib/notificationLinks.js",
+      "src/lib/ventureDeliverables.js",
+      "src/models/investor/diligenceAndPipeline/pipeline.js",
+      "src/models/platform/roles.js",
+      "src/models/programs/core/programList.js",
+      "src/server/auth/session.js",
+      "src/services/authorization/contextResolver.js",
+      "src/services/authorization/profileCatalog.js",
+      "src/services/communications/announcements.js",
+      "src/services/communications/internal-comms/inbox.js",
+      "src/services/communications/internal-comms/read.js",
+      "src/services/communications/internal-comms/scope.js",
+      "src/services/communications/internal-comms/send.js",
+      "src/services/communications/ventureNotifications.js",
+      "src/services/contacts/alternativeEmails.js",
+      "src/services/contacts/registryRead.js",
+      "src/services/dashboard/opReports.js",
+      "src/services/dashboard/overview/build.js",
+      "src/services/dashboard/userAdmin.js",
+      "src/services/investor/diligence/requestActions.js",
+      "src/services/investor/pipeline.js",
+      "src/services/platform/intents/delete.js",
+      "src/services/platform/intents/detail.js",
+      "src/services/platform/intents/list.js",
+      "src/services/platform/intents/tasks.js",
+      "src/services/platform/intents/update.js",
+      "src/services/programs/participantPrograms.js",
+      "src/services/programs/programStaff.js",
+      "src/services/projects/collaboration.js",
+      "src/services/tasks/assignments.js",
+      "src/services/tasks/blockers.js",
+      "src/services/tasks/comments.js",
+      "src/services/tasks/create.js",
+      "src/services/tasks/query.js",
+      "src/services/tasks/remove.js",
+      "src/services/tasks/updateEffects.js",
+      "src/services/tasks/updateFields/assignment.js",
+      "src/services/tasks/updateGuards.js",
+      "src/services/ventures/dataRoom/access.js",
+      "src/spaces/staff/program-manager/components/programs/programTabs.js"
+    ],
+    "decisionLines": [
+      {
+        "file": "src/app/api/admin/projects/[id]/reports/generate/route.js",
+        "line": 18,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/app/api/attendance/route.js",
+        "line": 99,
+        "category": "decision",
+        "snippet": "session?.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/app/api/auth/invite/route.js",
+        "line": 36,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/contacts/full-state/route.js",
+        "line": 26,
+        "category": "decision",
+        "snippet": "if (![\"super_admin\", \"staff\", \"program_manager\"].includes(session?.role)) {"
+      },
+      {
+        "file": "src/app/api/deliverables/route.js",
+        "line": 40,
+        "category": "decision",
+        "snippet": "{ roles: [\"staff\", \"super_admin\", \"program_manager\", \"team\", \"member\"] },"
+      },
+      {
+        "file": "src/app/api/facilitators/invite-bulk/route.js",
+        "line": 84,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 155,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 187,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 214,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/forensic/user-role/route.js",
+        "line": 20,
+        "category": "decision",
+        "snippet": "if (user.role === \"super_admin\" || user.id === \"sa\") return \"super_admin\";"
+      },
+      {
+        "file": "src/app/api/group-members/route.js",
+        "line": 24,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/group-members/route.js",
+        "line": 74,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/groups/route.js",
+        "line": 22,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/app/api/investor/approval/route.js",
+        "line": 18,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/investor/profile/route.js",
+        "line": 89,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/invites/route.js",
+        "line": 14,
+        "category": "decision",
+        "snippet": "export const POST = createHandler({ roles: [\"staff\", \"super_admin\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/participants/route.js",
+        "line": 27,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/platform/form-runs/handlers/get.js",
+        "line": 259,
+        "category": "decision",
+        "snippet": "const targetSubmitter = session.role === \"super_admin\" ? submitterId : session.cid;"
+      },
+      {
+        "file": "src/app/api/pm/programs/[id]/route.js",
+        "line": 16,
+        "category": "decision",
+        "snippet": "{ roles: [\"super_admin\", \"program_manager\", \"staff\"] },"
+      },
+      {
+        "file": "src/app/api/pm/reports/route.js",
+        "line": 32,
+        "category": "decision",
+        "snippet": "const fullAccess = [\"staff\", \"super_admin\", \"program_manager\"].includes("
+      },
+      {
+        "file": "src/app/api/programs/route.js",
+        "line": 22,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/programs/route.js",
+        "line": 107,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/retros/submit/route.js",
+        "line": 73,
+        "category": "decision",
+        "snippet": "if (session.role !== \"super_admin\" && String(user_id) !== String(session.cid)) {"
+      },
+      {
+        "file": "src/app/api/sessions/route.js",
+        "line": 8,
+        "category": "decision",
+        "snippet": "export const POST = createHandler({ roles: [\"staff\", \"super_admin\", \"program_manager\", \"member\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/sessions/route.js",
+        "line": 53,
+        "category": "decision",
+        "snippet": "export const GET = createHandler({ roles: [\"staff\", \"super_admin\", \"program_manager\", \"member\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/standups/submit/route.js",
+        "line": 69,
+        "category": "decision",
+        "snippet": "if (session.role !== \"super_admin\" && String(user_id) !== String(session.cid)) {"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 30,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 48,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 64,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 80,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/blockers/route.js",
+        "line": 69,
+        "category": "decision",
+        "snippet": "if (blockerCreator.rows[0].user_id !== session.cid && ![\"staff\",\"super_admin\",\"program_manager\"].includes(session.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/my-access/route.js",
+        "line": 156,
+        "category": "decision",
+        "snippet": "is_super_admin: isSuperAdmin,"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/reporting/settings/route.js",
+        "line": 23,
+        "category": "decision",
+        "snippet": "export const PUT = createHandler({ roles: [\"super_admin\", \"staff\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/ventures/assigned/route.js",
+        "line": 26,
+        "category": "decision",
+        "snippet": "if ([\"super_admin\"].includes(session.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/lead-manager/home/route.js",
+        "line": 27,
+        "category": "decision",
+        "snippet": "if (session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/app/login/page.js",
+        "line": 72,
+        "category": "decision",
+        "snippet": "userRole === \"super_admin\" || userRole === \"staff\""
+      },
+      {
+        "file": "src/components/shared/messaging/chat/messagingMode.js",
+        "line": 32,
+        "category": "decision",
+        "snippet": "if (isSuperAdmin) return \"super_admin\";"
+      },
+      {
+        "file": "src/lib/featureAccess.js",
+        "line": 55,
+        "category": "decision",
+        "snippet": "const WARNING_BYPASS_ROLES = [\"super_admin\"];"
+      },
+      {
+        "file": "src/lib/masterNavigation/builders.js",
+        "line": 101,
+        "category": "decision",
+        "snippet": "const canOpenAdmin = role === \"super_admin\";"
+      },
+      {
+        "file": "src/lib/notificationLinks.js",
+        "line": 50,
+        "category": "decision",
+        "snippet": "[\"staff\", \"super_admin\", \"program_manager\"].includes(role);"
+      },
+      {
+        "file": "src/lib/ventureDeliverables.js",
+        "line": 33,
+        "category": "decision",
+        "snippet": "if (role === \"super_admin\") return true;"
+      },
+      {
+        "file": "src/models/investor/diligenceAndPipeline/pipeline.js",
+        "line": 250,
+        "category": "decision",
+        "snippet": "} else if (stage && (role === \"super_admin\" || role === \"staff\")) {"
+      },
+      {
+        "file": "src/models/platform/roles.js",
+        "line": 85,
+        "category": "decision",
+        "snippet": "if (normalizedRole === \"super_admin\" || legacySa) return \"super_admin\";"
+      },
+      {
+        "file": "src/models/programs/core/programList.js",
+        "line": 85,
+        "category": "decision",
+        "snippet": "![\"super_admin\", \"program_manager\", \"staff\"].includes(session.role)"
+      },
+      {
+        "file": "src/server/auth/session.js",
+        "line": 235,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/authorization/contextResolver.js",
+        "line": 133,
+        "category": "decision",
+        "snippet": "if (role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/authorization/profileCatalog.js",
+        "line": 173,
+        "category": "decision",
+        "snippet": "if (rawRole === \"super_admin\") return { allowed: true, reason: \"ok\" };"
+      },
+      {
+        "file": "src/services/communications/announcements.js",
+        "line": 35,
+        "category": "decision",
+        "snippet": "isSuperAdmin: session.role === \"super_admin\","
+      },
+      {
+        "file": "src/services/communications/announcements.js",
+        "line": 97,
+        "category": "decision",
+        "snippet": "if (existing.rows[0].author_id !== session.cid && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/announcements.js",
+        "line": 126,
+        "category": "decision",
+        "snippet": "if (existing.rows[0].author_id !== session.cid && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/inbox.js",
+        "line": 10,
+        "category": "decision",
+        "snippet": "return session.role === \"super_admin\" || cid === session.cid;"
+      },
+      {
+        "file": "src/services/communications/internal-comms/read.js",
+        "line": 23,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/communications/internal-comms/scope.js",
+        "line": 166,
+        "category": "decision",
+        "snippet": "if (session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/send.js",
+        "line": 29,
+        "category": "decision",
+        "snippet": "if (effectiveSenderId !== sessionCid && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/send.js",
+        "line": 34,
+        "category": "decision",
+        "snippet": "if (target_type === \"all\" && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/send.js",
+        "line": 40,
+        "category": "decision",
+        "snippet": "if (session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/ventureNotifications.js",
+        "line": 21,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/communications/ventureNotifications.js",
+        "line": 32,
+        "category": "decision",
+        "snippet": "session.role === \"super_admin\""
+      },
+      {
+        "file": "src/services/contacts/alternativeEmails.js",
+        "line": 27,
+        "category": "decision",
+        "snippet": "if (session?.role === \"super_admin\") return true;"
+      },
+      {
+        "file": "src/services/contacts/registryRead.js",
+        "line": 50,
+        "category": "decision",
+        "snippet": "} else if (statusFilter === \"archived\" && session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/contacts/registryRead.js",
+        "line": 55,
+        "category": "decision",
+        "snippet": "} else if (session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/dashboard/opReports.js",
+        "line": 57,
+        "category": "decision",
+        "snippet": "if (session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/dashboard/opReports.js",
+        "line": 71,
+        "category": "decision",
+        "snippet": "isSuperAdmin: session.role === \"super_admin\","
+      },
+      {
+        "file": "src/services/dashboard/overview/build.js",
+        "line": 49,
+        "category": "decision",
+        "snippet": "const isSessionAdmin = session.role === \"super_admin\" || session.role === \"admin\";"
+      },
+      {
+        "file": "src/services/dashboard/userAdmin.js",
+        "line": 106,
+        "category": "decision",
+        "snippet": "actor?.role === \"super_admin\""
+      },
+      {
+        "file": "src/services/investor/diligence/requestActions.js",
+        "line": 43,
+        "category": "decision",
+        "snippet": "const isAdmin = session?.role === \"super_admin\";"
+      },
+      {
+        "file": "src/services/investor/pipeline.js",
+        "line": 66,
+        "category": "decision",
+        "snippet": "return !ventureId && !(stage && (role === \"super_admin\" || role === \"staff\"));"
+      },
+      {
+        "file": "src/services/platform/intents/delete.js",
+        "line": 30,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/detail.js",
+        "line": 37,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/list.js",
+        "line": 24,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/list.js",
+        "line": 36,
+        "category": "decision",
+        "snippet": "isSuperAdmin: session.role === \"super_admin\","
+      },
+      {
+        "file": "src/services/platform/intents/tasks.js",
+        "line": 43,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/tasks.js",
+        "line": 92,
+        "category": "decision",
+        "snippet": "if (finalAssignedTo && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/platform/intents/update.js",
+        "line": 44,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/programs/participantPrograms.js",
+        "line": 76,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/services/programs/participantPrograms.js",
+        "line": 143,
+        "category": "decision",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 36,
+        "category": "decision",
+        "snippet": "if (session.role === \"super_admin\") return;"
+      },
+      {
+        "file": "src/services/projects/collaboration.js",
+        "line": 285,
+        "category": "decision",
+        "snippet": "if (!isInviter && role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/assignments.js",
+        "line": 101,
+        "category": "decision",
+        "snippet": "if (role !== \"super_admin\" && assignment.assigner_id !== userCid) {"
+      },
+      {
+        "file": "src/services/tasks/assignments.js",
+        "line": 160,
+        "category": "decision",
+        "snippet": "if (role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/blockers.js",
+        "line": 61,
+        "category": "decision",
+        "snippet": "if (session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/blockers.js",
+        "line": 119,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/blockers.js",
+        "line": 275,
+        "category": "decision",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/comments.js",
+        "line": 137,
+        "category": "decision",
+        "snippet": "role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/tasks/comments.js",
+        "line": 157,
+        "category": "decision",
+        "snippet": "role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/tasks/create.js",
+        "line": 85,
+        "category": "decision",
+        "snippet": "![\"super_admin\", \"staff\", \"program_manager\", \"team\"].includes(role)"
+      },
+      {
+        "file": "src/services/tasks/create.js",
+        "line": 203,
+        "category": "decision",
+        "snippet": "if (needsAssignment && role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 58,
+        "category": "decision",
+        "snippet": "if (role !== \"super_admin\" && userId && userId !== sessionCid) {"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 79,
+        "category": "decision",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 108,
+        "category": "decision",
+        "snippet": "if (role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 128,
+        "category": "decision",
+        "snippet": "isSuperAdmin: role === \"super_admin\","
+      },
+      {
+        "file": "src/services/tasks/remove.js",
+        "line": 40,
+        "category": "decision",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/updateEffects.js",
+        "line": 235,
+        "category": "decision",
+        "snippet": "if (role !== \"super_admin\" && !isTaskOwner && !isAssignee && !isOnlyStatusChange) {"
+      },
+      {
+        "file": "src/services/tasks/updateFields/assignment.js",
+        "line": 66,
+        "category": "decision",
+        "snippet": "if (role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/updateGuards.js",
+        "line": 45,
+        "category": "decision",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/updateGuards.js",
+        "line": 65,
+        "category": "decision",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/ventures/dataRoom/access.js",
+        "line": 141,
+        "category": "decision",
+        "snippet": "viewerType: isSuperAdmin ? \"super_admin\" : internalStaff ? \"staff\" : \"member\","
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 29,
+        "category": "decision",
+        "snippet": "roles: [\"super_admin\", \"program_manager\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 45,
+        "category": "decision",
+        "snippet": "roles: [\"super_admin\", \"program_manager\", \"staff\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 51,
+        "category": "decision",
+        "snippet": "roles: [\"super_admin\", \"program_manager\", \"staff\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 67,
+        "category": "decision",
+        "snippet": "roles: [\"super_admin\", \"program_manager\", \"staff\"],"
+      }
+    ]
+  },
+  "adHocRoleComparisons": {
+    "byMotif": {
+      "M3": 106,
+      "M1": 26,
+      "M4": 44,
+      "M2": 13
+    },
+    "byFile": {
+      "src/app/admin/communications/contacts/BulkProgramModal.js": 2,
+      "src/app/api/admin/projects/[id]/reports/generate/route.js": 1,
+      "src/app/api/attendance/route.js": 2,
+      "src/app/api/auth/invite/route.js": 1,
+      "src/app/api/auth/invite-family/route.js": 1,
+      "src/app/api/contacts/full-state/route.js": 1,
+      "src/app/api/deliverables/route.js": 1,
+      "src/app/api/engineering/permissions/profile-role-defaults/route.js": 1,
+      "src/app/api/facilitator-reviews/route.js": 1,
+      "src/app/api/facilitators/invite-bulk/route.js": 2,
+      "src/app/api/families/route.js": 4,
+      "src/app/api/forensic/user-role/route.js": 3,
+      "src/app/api/group-members/route.js": 2,
+      "src/app/api/groups/route.js": 1,
+      "src/app/api/investor/approval/route.js": 1,
+      "src/app/api/investor/profile/route.js": 1,
+      "src/app/api/invites/route.js": 1,
+      "src/app/api/participant-programs/bulk/route.js": 1,
+      "src/app/api/participants/route.js": 1,
+      "src/app/api/platform/form-runs/handlers/get.js": 1,
+      "src/app/api/pm/programs/[id]/route.js": 1,
+      "src/app/api/program-staff/route.js": 1,
+      "src/app/api/programs/route.js": 2,
+      "src/app/api/retros/submit/route.js": 1,
+      "src/app/api/sessions/route.js": 2,
+      "src/app/api/standups/submit/route.js": 2,
+      "src/app/api/teams/route.js": 5,
+      "src/app/api/v2/program-staff/route.js": 4,
+      "src/app/api/ventures/[id]/blockers/route.js": 1,
+      "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js": 1,
+      "src/app/api/ventures/[id]/documents/[docId]/transition/route.js": 1,
+      "src/app/api/ventures/[id]/founders/[founderId]/route.js": 1,
+      "src/app/api/ventures/[id]/founders/route.js": 1,
+      "src/app/api/ventures/[id]/members/route.js": 2,
+      "src/app/api/ventures/[id]/reporting/settings/route.js": 1,
+      "src/app/api/ventures/[id]/tasks/[taskId]/submissions/route.js": 1,
+      "src/app/api/ventures/[id]/tasks/route.js": 1,
+      "src/app/api/ventures/[id]/verification/route.js": 1,
+      "src/app/api/ventures/assigned/route.js": 1,
+      "src/app/api/ventures/lead-manager/home/route.js": 1,
+      "src/app/api/ventures/route.js": 1,
+      "src/app/member/(contexts)/investor/organizations/page.js": 3,
+      "src/app/staff/dashboard/page.js": 1,
+      "src/components/shared/crm/useMembershipState.js": 1,
+      "src/components/shared/dashboard/ProfileView.js": 1,
+      "src/components/shared/dashboard/unified-dashboard/MyProjectsCard.js": 1,
+      "src/lib/api/createHandler.js": 1,
+      "src/lib/featureAccess.js": 2,
+      "src/lib/identity.js": 2,
+      "src/lib/masterNavigation/builders.js": 1,
+      "src/lib/notificationLinks.js": 1,
+      "src/lib/ventureDeliverables.js": 1,
+      "src/models/investor/diligenceAndPipeline/pipeline.js": 1,
+      "src/models/platform/registry.js": 1,
+      "src/models/programs/core/programList.js": 1,
+      "src/server/auth/guards.js": 3,
+      "src/server/auth/session.js": 1,
+      "src/services/communications/announcements.js": 3,
+      "src/services/communications/inboxNotifications.js": 3,
+      "src/services/communications/internal-comms/inbox.js": 1,
+      "src/services/communications/internal-comms/read.js": 1,
+      "src/services/communications/internal-comms/scope.js": 2,
+      "src/services/communications/internal-comms/send.js": 3,
+      "src/services/communications/ventureNotifications.js": 2,
+      "src/services/contacts/alternativeEmails.js": 2,
+      "src/services/contacts/registration.js": 1,
+      "src/services/contacts/registryRead.js": 2,
+      "src/services/contacts/update.js": 1,
+      "src/services/dashboard/opReports.js": 3,
+      "src/services/dashboard/overview/build.js": 1,
+      "src/services/dashboard/userAdmin.js": 1,
+      "src/services/investor/campaigns.js": 1,
+      "src/services/investor/diligence/requestActions.js": 1,
+      "src/services/investor/organizations.js": 1,
+      "src/services/investor/pipeline.js": 2,
+      "src/services/participant/fullState.js": 1,
+      "src/services/participant/submissions.js": 5,
+      "src/services/platform/intents/delete.js": 1,
+      "src/services/platform/intents/detail.js": 1,
+      "src/services/platform/intents/list.js": 2,
+      "src/services/platform/intents/tasks.js": 2,
+      "src/services/platform/intents/update.js": 1,
+      "src/services/programs/participantPrograms.js": 2,
+      "src/services/programs/programStaff.js": 8,
+      "src/services/programs/teams.js": 1,
+      "src/services/projects/collaboration.js": 1,
+      "src/services/tasks/assignments.js": 2,
+      "src/services/tasks/blockers.js": 3,
+      "src/services/tasks/comments.js": 2,
+      "src/services/tasks/create.js": 2,
+      "src/services/tasks/query.js": 4,
+      "src/services/tasks/remove.js": 1,
+      "src/services/tasks/teamBoard.js": 1,
+      "src/services/tasks/updateEffects.js": 1,
+      "src/services/tasks/updateFields/assignment.js": 1,
+      "src/services/tasks/updateGuards.js": 2,
+      "src/services/ventures/founders.js": 3,
+      "src/services/ventures/memberRoster.js": 1,
+      "src/services/ventures/operatingPlans.js": 1,
+      "src/services/ventures/people.js": 1,
+      "src/services/ventures/scope.js": 1,
+      "src/services/ventures/submissions/createSubmission.js": 1,
+      "src/services/ventures/submissions/review.js": 1,
+      "src/services/ventures/submissions/scope.js": 5,
+      "src/services/ventures/verification/categories.js": 2,
+      "src/services/workspace/calendar.js": 1,
+      "src/services/workspace/navigation.js": 1,
+      "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js": 3,
+      "src/spaces/admin/permissions/center/personAccess.js": 1,
+      "src/spaces/staff/core/components/ProjectsView.js": 1,
+      "src/spaces/staff/core/components/op-report/SummaryOwnerCard.js": 1,
+      "src/spaces/staff/core/components/project-detail/TeamTab.js": 1,
+      "src/spaces/staff/program-manager/components/program-workspace/DeployTeamModal.js": 1,
+      "src/spaces/staff/program-manager/components/programs/programTabs.js": 4,
+      "src/spaces/staff/program-manager/components/programs/programWorkspaceSelectors.js": 1
+    },
+    "entries": [
+      {
+        "file": "src/app/admin/communications/contacts/BulkProgramModal.js",
+        "line": 102,
+        "motif": "M3",
+        "snippet": "contact.role === \"unassigned\","
+      },
+      {
+        "file": "src/app/admin/communications/contacts/BulkProgramModal.js",
+        "line": 149,
+        "motif": "M3",
+        "snippet": "contact.role === \"unassigned\","
+      },
+      {
+        "file": "src/app/api/admin/projects/[id]/reports/generate/route.js",
+        "line": 18,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/app/api/attendance/route.js",
+        "line": 99,
+        "motif": "M3",
+        "snippet": "session?.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/app/api/attendance/route.js",
+        "line": 152,
+        "motif": "M3",
+        "snippet": "session.role !== \"staff\""
+      },
+      {
+        "file": "src/app/api/auth/invite/route.js",
+        "line": 36,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/auth/invite-family/route.js",
+        "line": 50,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"staff\") {"
+      },
+      {
+        "file": "src/app/api/contacts/full-state/route.js",
+        "line": 26,
+        "motif": "M4",
+        "snippet": "if (![\"super_admin\", \"staff\", \"program_manager\"].includes(session?.role)) {"
+      },
+      {
+        "file": "src/app/api/deliverables/route.js",
+        "line": 40,
+        "motif": "M2",
+        "snippet": "{ roles: [\"staff\", \"super_admin\", \"program_manager\", \"team\", \"member\"] },"
+      },
+      {
+        "file": "src/app/api/engineering/permissions/profile-role-defaults/route.js",
+        "line": 76,
+        "motif": "M4",
+        "snippet": "if (!PROFILE_BASELINE_ROLES.includes(roleName)) {"
+      },
+      {
+        "file": "src/app/api/facilitator-reviews/route.js",
+        "line": 113,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth(["
+      },
+      {
+        "file": "src/app/api/facilitators/invite-bulk/route.js",
+        "line": 84,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/facilitators/invite-bulk/route.js",
+        "line": 107,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"staff\") {"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 155,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 167,
+        "motif": "M3",
+        "snippet": "if (body.default_role !== undefined) { updates.push(\"default_role = ?\"); args.push(body.default_role || null); }"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 187,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/families/route.js",
+        "line": 214,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/forensic/user-role/route.js",
+        "line": 20,
+        "motif": "M3",
+        "snippet": "if (user.role === \"super_admin\" || user.id === \"sa\") return \"super_admin\";"
+      },
+      {
+        "file": "src/app/api/forensic/user-role/route.js",
+        "line": 22,
+        "motif": "M3",
+        "snippet": "user.role === \"staff\" ||"
+      },
+      {
+        "file": "src/app/api/forensic/user-role/route.js",
+        "line": 23,
+        "motif": "M3",
+        "snippet": "user.role === \"project_manager\""
+      },
+      {
+        "file": "src/app/api/group-members/route.js",
+        "line": 24,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/group-members/route.js",
+        "line": 74,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/groups/route.js",
+        "line": 22,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/app/api/investor/approval/route.js",
+        "line": 18,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/investor/profile/route.js",
+        "line": 89,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/invites/route.js",
+        "line": 14,
+        "motif": "M2",
+        "snippet": "export const POST = createHandler({ roles: [\"staff\", \"super_admin\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/participant-programs/bulk/route.js",
+        "line": 28,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth(["
+      },
+      {
+        "file": "src/app/api/participants/route.js",
+        "line": 27,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/platform/form-runs/handlers/get.js",
+        "line": 259,
+        "motif": "M3",
+        "snippet": "const targetSubmitter = session.role === \"super_admin\" ? submitterId : session.cid;"
+      },
+      {
+        "file": "src/app/api/pm/programs/[id]/route.js",
+        "line": 16,
+        "motif": "M2",
+        "snippet": "{ roles: [\"super_admin\", \"program_manager\", \"staff\"] },"
+      },
+      {
+        "file": "src/app/api/program-staff/route.js",
+        "line": 130,
+        "motif": "M3",
+        "snippet": "if (role !== undefined) {"
+      },
+      {
+        "file": "src/app/api/programs/route.js",
+        "line": 22,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/programs/route.js",
+        "line": 107,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\"]);"
+      },
+      {
+        "file": "src/app/api/retros/submit/route.js",
+        "line": 73,
+        "motif": "M3",
+        "snippet": "if (session.role !== \"super_admin\" && String(user_id) !== String(session.cid)) {"
+      },
+      {
+        "file": "src/app/api/sessions/route.js",
+        "line": 8,
+        "motif": "M2",
+        "snippet": "export const POST = createHandler({ roles: [\"staff\", \"super_admin\", \"program_manager\", \"member\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/sessions/route.js",
+        "line": 53,
+        "motif": "M2",
+        "snippet": "export const GET = createHandler({ roles: [\"staff\", \"super_admin\", \"program_manager\", \"member\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/standups/submit/route.js",
+        "line": 69,
+        "motif": "M3",
+        "snippet": "if (session.role !== \"super_admin\" && String(user_id) !== String(session.cid)) {"
+      },
+      {
+        "file": "src/app/api/standups/submit/route.js",
+        "line": 105,
+        "motif": "M3",
+        "snippet": "const workspace = user_role === \"intern\" ? \"interns\" : \"main\";"
+      },
+      {
+        "file": "src/app/api/teams/route.js",
+        "line": 39,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"team\") {"
+      },
+      {
+        "file": "src/app/api/teams/route.js",
+        "line": 53,
+        "motif": "M3",
+        "snippet": "if (session?.role !== \"team\" && !canReadTeams) {"
+      },
+      {
+        "file": "src/app/api/teams/route.js",
+        "line": 97,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth(["
+      },
+      {
+        "file": "src/app/api/teams/route.js",
+        "line": 179,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth(["
+      },
+      {
+        "file": "src/app/api/teams/route.js",
+        "line": 231,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth(["
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 30,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 48,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 64,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/v2/program-staff/route.js",
+        "line": 80,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"super_admin\", \"program_manager\", \"staff\"]);"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/blockers/route.js",
+        "line": 69,
+        "motif": "M4",
+        "snippet": "if (blockerCreator.rows[0].user_id !== session.cid && ![\"staff\",\"super_admin\",\"program_manager\"].includes(session.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/documents/[docId]/permissions/route.js",
+        "line": 56,
+        "motif": "M4",
+        "snippet": "if (!PRIVILEGED.includes(session.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/documents/[docId]/transition/route.js",
+        "line": 31,
+        "motif": "M4",
+        "snippet": "if (!PRIVILEGED.includes(session.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/founders/[founderId]/route.js",
+        "line": 79,
+        "motif": "M3",
+        "snippet": "if (role && role !== founder.role) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/founders/route.js",
+        "line": 74,
+        "motif": "M4",
+        "snippet": "if (!VENTURE_ROLES.includes(role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/members/route.js",
+        "line": 266,
+        "motif": "M3",
+        "snippet": "if (role !== undefined && !(await isVentureStaffActor(id, session))) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/members/route.js",
+        "line": 270,
+        "motif": "M3",
+        "snippet": "if (role !== undefined) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/reporting/settings/route.js",
+        "line": 23,
+        "motif": "M2",
+        "snippet": "export const PUT = createHandler({ roles: [\"super_admin\", \"staff\"] }, async (req) => {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/tasks/[taskId]/submissions/route.js",
+        "line": 142,
+        "motif": "M4",
+        "snippet": "if (!REVIEWER_ROLES.includes(session?.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/tasks/route.js",
+        "line": 179,
+        "motif": "M4",
+        "snippet": "if (!reviewerRoles.includes(session?.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/[id]/verification/route.js",
+        "line": 156,
+        "motif": "M4",
+        "snippet": "authorType: staffRoles.includes(session.role) ? \"staff\" : \"founder\","
+      },
+      {
+        "file": "src/app/api/ventures/assigned/route.js",
+        "line": 26,
+        "motif": "M4",
+        "snippet": "if ([\"super_admin\"].includes(session.role)) {"
+      },
+      {
+        "file": "src/app/api/ventures/lead-manager/home/route.js",
+        "line": 27,
+        "motif": "M3",
+        "snippet": "if (session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/app/api/ventures/route.js",
+        "line": 73,
+        "motif": "M4",
+        "snippet": "if ([\"staff\", \"program_manager\"].includes(session.role)) {"
+      },
+      {
+        "file": "src/app/member/(contexts)/investor/organizations/page.js",
+        "line": 182,
+        "motif": "M3",
+        "snippet": "member.role === \"admin\" ? \"bg-amber-500/10 text-amber-400\" : \"bg-slate-500/10 text-slate-400\""
+      },
+      {
+        "file": "src/app/member/(contexts)/investor/organizations/page.js",
+        "line": 184,
+        "motif": "M3",
+        "snippet": "{member.role === \"admin\" ? <Crown className=\"w-3 h-3 inline mr-1\" /> : null}"
+      },
+      {
+        "file": "src/app/member/(contexts)/investor/organizations/page.js",
+        "line": 220,
+        "motif": "M3",
+        "snippet": "{organization.member_role === \"admin\" && ("
+      },
+      {
+        "file": "src/app/staff/dashboard/page.js",
+        "line": 159,
+        "motif": "M3",
+        "snippet": "className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase border ${assignment.role === \"group_leader\" ? \"bg-[#FF6600]/80/10 text-indigo-400 border-[#FF6600]/80/20\" : \"bg-[#FF6600]/10 text-[#FF6600] border-[#FF"
+      },
+      {
+        "file": "src/components/shared/crm/useMembershipState.js",
+        "line": 133,
+        "motif": "M3",
+        "snippet": "if (roleFilter !== \"all\" && member.role !== roleFilter) return false;"
+      },
+      {
+        "file": "src/components/shared/dashboard/ProfileView.js",
+        "line": 339,
+        "motif": "M3",
+        "snippet": "if (active.some((entry) => entry.role === role)) return role;"
+      },
+      {
+        "file": "src/components/shared/dashboard/unified-dashboard/MyProjectsCard.js",
+        "line": 42,
+        "motif": "M3",
+        "snippet": "{project.role === \"owner\""
+      },
+      {
+        "file": "src/lib/api/createHandler.js",
+        "line": 18,
+        "motif": "M2",
+        "snippet": "*   export const POST = createHandler({ roles: ['super_admin'] }, async (req) => {"
+      },
+      {
+        "file": "src/lib/featureAccess.js",
+        "line": 127,
+        "motif": "M4",
+        "snippet": "if (WARNING_BYPASS_ROLES.includes(role)) return false;"
+      },
+      {
+        "file": "src/lib/featureAccess.js",
+        "line": 134,
+        "motif": "M4",
+        "snippet": "return !allowed.includes(role);"
+      },
+      {
+        "file": "src/lib/identity.js",
+        "line": 66,
+        "motif": "M4",
+        "snippet": "return BASELINE_IDENTITIES.includes(normalizeRole(role));"
+      },
+      {
+        "file": "src/lib/identity.js",
+        "line": 124,
+        "motif": "M4",
+        "snippet": "return MEMBER_SURFACE_VALUES.includes(normalizeRole(role));"
+      },
+      {
+        "file": "src/lib/masterNavigation/builders.js",
+        "line": 101,
+        "motif": "M3",
+        "snippet": "const canOpenAdmin = role === \"super_admin\";"
+      },
+      {
+        "file": "src/lib/notificationLinks.js",
+        "line": 50,
+        "motif": "M4",
+        "snippet": "[\"staff\", \"super_admin\", \"program_manager\"].includes(role);"
+      },
+      {
+        "file": "src/lib/ventureDeliverables.js",
+        "line": 33,
+        "motif": "M3",
+        "snippet": "if (role === \"super_admin\") return true;"
+      },
+      {
+        "file": "src/models/investor/diligenceAndPipeline/pipeline.js",
+        "line": 250,
+        "motif": "M3",
+        "snippet": "} else if (stage && (role === \"super_admin\" || role === \"staff\")) {"
+      },
+      {
+        "file": "src/models/platform/registry.js",
+        "line": 111,
+        "motif": "M4",
+        "snippet": "return module.permissions.includes(role);"
+      },
+      {
+        "file": "src/models/programs/core/programList.js",
+        "line": 85,
+        "motif": "M4",
+        "snippet": "![\"super_admin\", \"program_manager\", \"staff\"].includes(session.role)"
+      },
+      {
+        "file": "src/server/auth/guards.js",
+        "line": 32,
+        "motif": "M4",
+        "snippet": "if (allowedRoles && !allowedRoles.includes(session.role)) {"
+      },
+      {
+        "file": "src/server/auth/guards.js",
+        "line": 43,
+        "motif": "M1",
+        "snippet": "*   const authError = await requireAuth(['super_admin']);"
+      },
+      {
+        "file": "src/server/auth/guards.js",
+        "line": 56,
+        "motif": "M4",
+        "snippet": "if (allowedRoles && !allowedRoles.includes(session.role)) {"
+      },
+      {
+        "file": "src/server/auth/session.js",
+        "line": 235,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/communications/announcements.js",
+        "line": 35,
+        "motif": "M3",
+        "snippet": "isSuperAdmin: session.role === \"super_admin\","
+      },
+      {
+        "file": "src/services/communications/announcements.js",
+        "line": 97,
+        "motif": "M3",
+        "snippet": "if (existing.rows[0].author_id !== session.cid && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/announcements.js",
+        "line": 126,
+        "motif": "M3",
+        "snippet": "if (existing.rows[0].author_id !== session.cid && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/inboxNotifications.js",
+        "line": 33,
+        "motif": "M4",
+        "snippet": "!INBOX_ADMIN_ROLES.includes(session.role)"
+      },
+      {
+        "file": "src/services/communications/inboxNotifications.js",
+        "line": 45,
+        "motif": "M4",
+        "snippet": "!INBOX_ADMIN_ROLES.includes(session.role)"
+      },
+      {
+        "file": "src/services/communications/inboxNotifications.js",
+        "line": 53,
+        "motif": "M4",
+        "snippet": "INBOX_ADMIN_ROLES.includes(session.role)"
+      },
+      {
+        "file": "src/services/communications/internal-comms/inbox.js",
+        "line": 10,
+        "motif": "M3",
+        "snippet": "return session.role === \"super_admin\" || cid === session.cid;"
+      },
+      {
+        "file": "src/services/communications/internal-comms/read.js",
+        "line": 23,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/communications/internal-comms/scope.js",
+        "line": 107,
+        "motif": "M4",
+        "snippet": "[\"staff\", \"intern\"].includes(contact.role);"
+      },
+      {
+        "file": "src/services/communications/internal-comms/scope.js",
+        "line": 166,
+        "motif": "M3",
+        "snippet": "if (session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/send.js",
+        "line": 29,
+        "motif": "M3",
+        "snippet": "if (effectiveSenderId !== sessionCid && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/send.js",
+        "line": 34,
+        "motif": "M3",
+        "snippet": "if (target_type === \"all\" && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/internal-comms/send.js",
+        "line": 40,
+        "motif": "M3",
+        "snippet": "if (session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/communications/ventureNotifications.js",
+        "line": 21,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/communications/ventureNotifications.js",
+        "line": 32,
+        "motif": "M3",
+        "snippet": "session.role === \"super_admin\""
+      },
+      {
+        "file": "src/services/contacts/alternativeEmails.js",
+        "line": 27,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"super_admin\") return true;"
+      },
+      {
+        "file": "src/services/contacts/alternativeEmails.js",
+        "line": 28,
+        "motif": "M4",
+        "snippet": "if (!PRIVILEGED.includes(session?.role)) return false;"
+      },
+      {
+        "file": "src/services/contacts/registration.js",
+        "line": 108,
+        "motif": "M3",
+        "snippet": "typeof contact.role === \"string\" ? contact.role.trim() : \"\","
+      },
+      {
+        "file": "src/services/contacts/registryRead.js",
+        "line": 50,
+        "motif": "M3",
+        "snippet": "} else if (statusFilter === \"archived\" && session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/contacts/registryRead.js",
+        "line": 55,
+        "motif": "M3",
+        "snippet": "} else if (session.role === \"super_admin\") {"
+      },
+      {
+        "file": "src/services/contacts/update.js",
+        "line": 140,
+        "motif": "M4",
+        "snippet": "const isRolePromotion = Boolean(data.role) && NON_PARTICIPANT_ROLES.includes(data.role);"
+      },
+      {
+        "file": "src/services/dashboard/opReports.js",
+        "line": 57,
+        "motif": "M3",
+        "snippet": "if (session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/dashboard/opReports.js",
+        "line": 71,
+        "motif": "M3",
+        "snippet": "isSuperAdmin: session.role === \"super_admin\","
+      },
+      {
+        "file": "src/services/dashboard/opReports.js",
+        "line": 138,
+        "motif": "M3",
+        "snippet": "const workspace = payload.user_role === \"intern\" ? \"interns\" : \"main\";"
+      },
+      {
+        "file": "src/services/dashboard/overview/build.js",
+        "line": 49,
+        "motif": "M3",
+        "snippet": "const isSessionAdmin = session.role === \"super_admin\" || session.role === \"admin\";"
+      },
+      {
+        "file": "src/services/dashboard/userAdmin.js",
+        "line": 106,
+        "motif": "M3",
+        "snippet": "actor?.role === \"super_admin\""
+      },
+      {
+        "file": "src/services/investor/campaigns.js",
+        "line": 115,
+        "motif": "M4",
+        "snippet": "const management = MANAGEMENT_ROLES.includes(session?.role);"
+      },
+      {
+        "file": "src/services/investor/diligence/requestActions.js",
+        "line": 43,
+        "motif": "M3",
+        "snippet": "const isAdmin = session?.role === \"super_admin\";"
+      },
+      {
+        "file": "src/services/investor/organizations.js",
+        "line": 99,
+        "motif": "M3",
+        "snippet": "isSameInvestor(member.investor_id, scope.profileId) && member.role === \"admin\","
+      },
+      {
+        "file": "src/services/investor/pipeline.js",
+        "line": 66,
+        "motif": "M3",
+        "snippet": "return !ventureId && !(stage && (role === \"super_admin\" || role === \"staff\"));"
+      },
+      {
+        "file": "src/services/investor/pipeline.js",
+        "line": 71,
+        "motif": "M4",
+        "snippet": "const management = MANAGEMENT_ROLES.includes(session?.role);"
+      },
+      {
+        "file": "src/services/participant/fullState.js",
+        "line": 31,
+        "motif": "M4",
+        "snippet": "if (FULL_STATE_ROLES.includes(role)) return true;"
+      },
+      {
+        "file": "src/services/participant/submissions.js",
+        "line": 24,
+        "motif": "M4",
+        "snippet": "if (PRIVILEGED_READ_ROLES.includes(role)) return { participantId, teamId };"
+      },
+      {
+        "file": "src/services/participant/submissions.js",
+        "line": 29,
+        "motif": "M3",
+        "snippet": "if (teamId && role !== \"team\") {"
+      },
+      {
+        "file": "src/services/participant/submissions.js",
+        "line": 41,
+        "motif": "M4",
+        "snippet": "if (PRIVILEGED_WRITE_ROLES.includes(role)) {"
+      },
+      {
+        "file": "src/services/participant/submissions.js",
+        "line": 48,
+        "motif": "M3",
+        "snippet": "if (teamId && role !== \"team\") {"
+      },
+      {
+        "file": "src/services/participant/submissions.js",
+        "line": 64,
+        "motif": "M4",
+        "snippet": "if (!programId || PRIVILEGED_WRITE_ROLES.includes(role)) return false;"
+      },
+      {
+        "file": "src/services/platform/intents/delete.js",
+        "line": 30,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/detail.js",
+        "line": 37,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/list.js",
+        "line": 24,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/list.js",
+        "line": 36,
+        "motif": "M3",
+        "snippet": "isSuperAdmin: session.role === \"super_admin\","
+      },
+      {
+        "file": "src/services/platform/intents/tasks.js",
+        "line": 43,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/platform/intents/tasks.js",
+        "line": 92,
+        "motif": "M3",
+        "snippet": "if (finalAssignedTo && session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/platform/intents/update.js",
+        "line": 44,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/programs/participantPrograms.js",
+        "line": 76,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/services/programs/participantPrograms.js",
+        "line": 143,
+        "motif": "M1",
+        "snippet": "const authError = await requireAuth([\"staff\", \"super_admin\", \"program_manager\"]);"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 36,
+        "motif": "M3",
+        "snippet": "if (session.role === \"super_admin\") return;"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 37,
+        "motif": "M3",
+        "snippet": "if (session.role === \"program_manager\") return;"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 38,
+        "motif": "M3",
+        "snippet": "if (session.role === \"staff\") {"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 94,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"staff\") {"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 113,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"staff\") {"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 173,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"staff\" && target.rows[0]?.program_id) {"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 186,
+        "motif": "M3",
+        "snippet": "if (role !== undefined) {"
+      },
+      {
+        "file": "src/services/programs/programStaff.js",
+        "line": 255,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"staff\" && row.rows[0]?.program_id) {"
+      },
+      {
+        "file": "src/services/programs/teams.js",
+        "line": 222,
+        "motif": "M3",
+        "snippet": "if (role === \"program_manager\" || eligibilityRow.is_program_pm) {"
+      },
+      {
+        "file": "src/services/projects/collaboration.js",
+        "line": 285,
+        "motif": "M3",
+        "snippet": "if (!isInviter && role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/assignments.js",
+        "line": 101,
+        "motif": "M3",
+        "snippet": "if (role !== \"super_admin\" && assignment.assigner_id !== userCid) {"
+      },
+      {
+        "file": "src/services/tasks/assignments.js",
+        "line": 160,
+        "motif": "M3",
+        "snippet": "if (role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/blockers.js",
+        "line": 61,
+        "motif": "M3",
+        "snippet": "if (session.role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/blockers.js",
+        "line": 119,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/blockers.js",
+        "line": 275,
+        "motif": "M3",
+        "snippet": "session.role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/comments.js",
+        "line": 137,
+        "motif": "M3",
+        "snippet": "role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/tasks/comments.js",
+        "line": 157,
+        "motif": "M3",
+        "snippet": "role !== \"super_admin\""
+      },
+      {
+        "file": "src/services/tasks/create.js",
+        "line": 85,
+        "motif": "M4",
+        "snippet": "![\"super_admin\", \"staff\", \"program_manager\", \"team\"].includes(role)"
+      },
+      {
+        "file": "src/services/tasks/create.js",
+        "line": 203,
+        "motif": "M3",
+        "snippet": "if (needsAssignment && role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 58,
+        "motif": "M3",
+        "snippet": "if (role !== \"super_admin\" && userId && userId !== sessionCid) {"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 79,
+        "motif": "M3",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 108,
+        "motif": "M3",
+        "snippet": "if (role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/query.js",
+        "line": 128,
+        "motif": "M3",
+        "snippet": "isSuperAdmin: role === \"super_admin\","
+      },
+      {
+        "file": "src/services/tasks/remove.js",
+        "line": 40,
+        "motif": "M3",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/teamBoard.js",
+        "line": 88,
+        "motif": "M3",
+        "snippet": "if (session.role === \"team\") {"
+      },
+      {
+        "file": "src/services/tasks/updateEffects.js",
+        "line": 235,
+        "motif": "M3",
+        "snippet": "if (role !== \"super_admin\" && !isTaskOwner && !isAssignee && !isOnlyStatusChange) {"
+      },
+      {
+        "file": "src/services/tasks/updateFields/assignment.js",
+        "line": 66,
+        "motif": "M3",
+        "snippet": "if (role !== \"super_admin\") {"
+      },
+      {
+        "file": "src/services/tasks/updateGuards.js",
+        "line": 45,
+        "motif": "M3",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/tasks/updateGuards.js",
+        "line": 65,
+        "motif": "M3",
+        "snippet": "role !== \"super_admin\" &&"
+      },
+      {
+        "file": "src/services/ventures/founders.js",
+        "line": 111,
+        "motif": "M4",
+        "snippet": "const allowed = founder.is_owner || MANAGEMENT_ROLES.includes(founder.role);"
+      },
+      {
+        "file": "src/services/ventures/founders.js",
+        "line": 168,
+        "motif": "M4",
+        "snippet": "if (!VENTURE_ROLES.includes(role)) {"
+      },
+      {
+        "file": "src/services/ventures/founders.js",
+        "line": 205,
+        "motif": "M4",
+        "snippet": "if (role && !VENTURE_ROLES.includes(role)) {"
+      },
+      {
+        "file": "src/services/ventures/memberRoster.js",
+        "line": 156,
+        "motif": "M3",
+        "snippet": "if (memberContactId && role !== undefined) {"
+      },
+      {
+        "file": "src/services/ventures/operatingPlans.js",
+        "line": 55,
+        "motif": "M4",
+        "snippet": "return GLOBAL_ROLES.includes(role);"
+      },
+      {
+        "file": "src/services/ventures/people.js",
+        "line": 157,
+        "motif": "M2",
+        "snippet": "roles: [...entry.roles],"
+      },
+      {
+        "file": "src/services/ventures/scope.js",
+        "line": 42,
+        "motif": "M4",
+        "snippet": "return GLOBAL_ROLES.includes(role);"
+      },
+      {
+        "file": "src/services/ventures/submissions/createSubmission.js",
+        "line": 66,
+        "motif": "M3",
+        "snippet": "} else if (session && role === \"team\") {"
+      },
+      {
+        "file": "src/services/ventures/submissions/review.js",
+        "line": 112,
+        "motif": "M4",
+        "snippet": "if (submission && FINAL_STATUSES.includes(submission.status) && submission.reviewed_by_role) {"
+      },
+      {
+        "file": "src/services/ventures/submissions/scope.js",
+        "line": 15,
+        "motif": "M3",
+        "snippet": "if (session?.role === \"team\") {"
+      },
+      {
+        "file": "src/services/ventures/submissions/scope.js",
+        "line": 39,
+        "motif": "M3",
+        "snippet": "session.role !== \"staff\" &&"
+      },
+      {
+        "file": "src/services/ventures/submissions/scope.js",
+        "line": 40,
+        "motif": "M3",
+        "snippet": "session.role !== \"team\""
+      },
+      {
+        "file": "src/services/ventures/submissions/scope.js",
+        "line": 70,
+        "motif": "M3",
+        "snippet": "session.role !== \"staff\" &&"
+      },
+      {
+        "file": "src/services/ventures/submissions/scope.js",
+        "line": 71,
+        "motif": "M3",
+        "snippet": "session.role !== \"team\","
+      },
+      {
+        "file": "src/services/ventures/verification/categories.js",
+        "line": 52,
+        "motif": "M3",
+        "snippet": "if (session.role === \"verification_officer\") return { allowed: true, isReviewer: true };"
+      },
+      {
+        "file": "src/services/ventures/verification/categories.js",
+        "line": 58,
+        "motif": "M3",
+        "snippet": "if (session.role === \"staff\") {"
+      },
+      {
+        "file": "src/services/workspace/calendar.js",
+        "line": 97,
+        "motif": "M4",
+        "snippet": "if (!sessionCid || PROGRAM_UNSCOPED_ROLES.includes(role)) return none;"
+      },
+      {
+        "file": "src/services/workspace/navigation.js",
+        "line": 262,
+        "motif": "M3",
+        "snippet": "session.role !== \"member\""
+      },
+      {
+        "file": "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js",
+        "line": 38,
+        "motif": "M2",
+        "snippet": "allowed_roles: [\"member\"],"
+      },
+      {
+        "file": "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js",
+        "line": 49,
+        "motif": "M4",
+        "snippet": "allowed_roles: current.allowed_roles.includes(role)"
+      },
+      {
+        "file": "src/spaces/admin/permissions/center/drawers/CreateProfileDrawer.js",
+        "line": 153,
+        "motif": "M4",
+        "snippet": "checked={draft.allowed_roles.includes(role)}"
+      },
+      {
+        "file": "src/spaces/admin/permissions/center/personAccess.js",
+        "line": 249,
+        "motif": "M4",
+        "snippet": "PROFILE_BASELINE_ROLES.includes(role),"
+      },
+      {
+        "file": "src/spaces/staff/core/components/ProjectsView.js",
+        "line": 83,
+        "motif": "M3",
+        "snippet": "const isLead = (project) => project.members?.some((member) => member.user_cid === cid && member.role === \"lead\");"
+      },
+      {
+        "file": "src/spaces/staff/core/components/op-report/SummaryOwnerCard.js",
+        "line": 8,
+        "motif": "M3",
+        "snippet": "(project) => project.member_role === \"lead\","
+      },
+      {
+        "file": "src/spaces/staff/core/components/project-detail/TeamTab.js",
+        "line": 39,
+        "motif": "M3",
+        "snippet": "className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${member.member_role === \"lead\" ? \"bg-brand-orange/10 text-[var(--brand-orange)]\" : \"bg-slate-500/10 text-slate-500\"}`}"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/program-workspace/DeployTeamModal.js",
+        "line": 229,
+        "motif": "M3",
+        "snippet": "{member.role === \"teacher\""
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 29,
+        "motif": "M2",
+        "snippet": "roles: [\"super_admin\", \"program_manager\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 45,
+        "motif": "M2",
+        "snippet": "roles: [\"super_admin\", \"program_manager\", \"staff\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 51,
+        "motif": "M2",
+        "snippet": "roles: [\"super_admin\", \"program_manager\", \"staff\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programTabs.js",
+        "line": 67,
+        "motif": "M2",
+        "snippet": "roles: [\"super_admin\", \"program_manager\", \"staff\"],"
+      },
+      {
+        "file": "src/spaces/staff/program-manager/components/programs/programWorkspaceSelectors.js",
+        "line": 116,
+        "motif": "M4",
+        "snippet": "tab.roles.includes(user.role) ||"
+      }
+    ]
+  }
+}

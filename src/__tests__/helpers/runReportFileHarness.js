@@ -35,10 +35,10 @@ const read = (rel) => {
   }
   if (rel === "src/services/platform/formRuns.js") return readSurface(rel);
   // V2: the run screen is split — the page keeps the state, the writes live in
-  // its own `actions/` and the JSX in components/platform/runs/. Read all three
+  // its own `actions/` and the JSX in components/shared/platform/runs/. Read all three
   // so a pin cannot go vacuously green when the code moves out again.
   if (rel === "src/app/platform/runs/page.js") {
-    return readSurface("src/app/platform/runs", "src/components/platform/runs");
+    return readSurface("src/app/platform/runs", "src/components/shared/platform/runs");
   }
   return text;
 };

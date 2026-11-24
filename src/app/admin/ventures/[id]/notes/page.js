@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Loader2, StickyNote } from "lucide-react";
-import VentureNotesPanel from "@/components/ventures/VentureNotesPanel";
+import VentureNotesPanel from "@/components/shared/ventures/console/VentureNotesPanel";
 
 /**
  * Admin → Ventures → [Venture] → Notes

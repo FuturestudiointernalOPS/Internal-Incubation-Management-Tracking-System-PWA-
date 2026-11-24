@@ -6,16 +6,16 @@
  */
 import { fireEvent, render, screen } from "@testing-library/react";
 
-jest.mock("@/components/ventures/journey/MilestoneDeliverables", () => function TasksContent() { return <div data-testid="tasks-content">TASKS CONTENT</div>; });
-jest.mock("@/components/ventures/journey/MilestoneReviewInbox", () => () => null);
-jest.mock("@/components/ventures/journey/MilestoneSessionsList", () => () => null);
-jest.mock("@/components/ventures/ScopedNotes", () => () => null);
-jest.mock("@/components/ventures/VenturePersonField", () => () => null);
-jest.mock("@/components/ventures/journey/JourneyReportSection", () => function ReportSection() { return <div data-testid="report-section" />; });
-jest.mock("@/components/ventures/journey/AddMilestoneForm", () => function AddMilestone() { return <div data-testid="add-milestone" />; });
+jest.mock("@/components/shared/ventures/console/journey/MilestoneDeliverables", () => function TasksContent() { return <div data-testid="tasks-content">TASKS CONTENT</div>; });
+jest.mock("@/components/shared/ventures/console/journey/MilestoneReviewInbox", () => () => null);
+jest.mock("@/components/shared/ventures/console/journey/MilestoneSessionsList", () => () => null);
+jest.mock("@/components/shared/ventures/console/ScopedNotes", () => () => null);
+jest.mock("@/components/shared/ventures/console/VenturePersonField", () => () => null);
+jest.mock("@/components/shared/ventures/console/journey/JourneyReportSection", () => function ReportSection() { return <div data-testid="report-section" />; });
+jest.mock("@/components/shared/ventures/console/journey/AddMilestoneForm", () => function AddMilestone() { return <div data-testid="add-milestone" />; });
 
 const { I18nProvider } = require("@/lib/i18n");
-const JourneyMilestoneRow = require("@/components/ventures/journey/JourneyMilestoneRow").default;
+const JourneyMilestoneRow = require("@/components/shared/ventures/console/journey/JourneyMilestoneRow").default;
 
 const noop = () => {};
 const milestone = {
@@ -68,7 +68,7 @@ test("another milestone being open does not open this one", () => {
 });
 
 describe("the journey card folds down to its header", () => {
-  const JourneyStageCard = require("@/components/ventures/journey/JourneyStageCard").default;
+  const JourneyStageCard = require("@/components/shared/ventures/console/journey/JourneyStageCard").default;
   const stage = {
     id: "s1", name: "Foundation to Investment Readiness", status: "active", description: "The foundation", objective: "Open the round",
     milestones: [milestone], milestone_counts: { completed: 0, total: 1 },

@@ -20,6 +20,21 @@ jest.mock("@/lib/ventureAuth", () => ({
   hasActiveVentureAssignment: jest.fn(),
 }));
 
+// The unscoped startup-profile authority is the explicit portfolio right.
+jest.mock("@/models/authorization/index", () => ({
+  getAuthorizationContext: jest.fn(async (session) => {
+    const isSuperAdmin = session?.role === "super_admin";
+    return {
+      role: session?.role,
+      isSuperAdmin,
+      effective: isSuperAdmin
+        ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+        : {},
+      restrictions: {},
+    };
+  }),
+}));
+
 import db from "@/lib/db";
 import { hasActiveVentureAssignment } from "@/lib/ventureAuth";
 import { canEditStartupProfile,
@@ -54,6 +69,21 @@ describe("Startup Profile Wizard — read access and writes", () => {
     // consumes (e.g. canEditStartupProfile short-circuits after the founder
     // check) leaks into the next test and shifts its db.execute queue.
     jest.resetAllMocks();
+    // resetAllMocks also drops the module mock's implementation, so it is
+    // re-stated here: the profile access helper asks for the portfolio right.
+    require("@/models/authorization/index").getAuthorizationContext.mockImplementation(
+      async (session) => {
+        const isSuperAdmin = session?.role === "super_admin";
+        return {
+          role: session?.role,
+          isSuperAdmin,
+          effective: isSuperAdmin
+            ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+            : {},
+          restrictions: {},
+        };
+      },
+    );
   });
 
 
@@ -64,6 +94,7 @@ describe("Startup Profile Wizard — read access and writes", () => {
       db.execute.mockResolvedValue({ rows: [] });
       const result = await canEditStartupProfile("VNT-001", {
         role: "super_admin",
+        cid: "admin-001",
         email: "admin@test.com",
       });
       expect(result).toBe(true);
@@ -102,6 +133,7 @@ describe("Startup Profile Wizard — read access and writes", () => {
       db.execute.mockResolvedValue({ rows: [] });
       const result = await canReadStartupProfile("VNT-001", {
         role: "super_admin",
+        cid: "admin-001",
       });
       expect(result).toBe(true);
     });

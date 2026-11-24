@@ -12,6 +12,8 @@ import {
   NON_ADMIN_HREF_FALLBACKS,
   requirementAlternatives,
 } from "./access";
+import { spaceForRole } from "@/spaces/registry";
+import { NAV_CAPABILITY_PROPOSAL } from "@/models/authorization/navData";
 
 // Fallback access for a role absent from ROLE_ACCESS (an unknown/legacy
 // identity). It is NOT a role: it only gives such an identity three neutral
@@ -49,6 +51,58 @@ export function hasCapability(effective, module, capability, minLevel = 1) {
   return Number(effective?.[module]?.[capability] ?? 0) >= minLevel;
 }
 
+/** Étape 3 — the menu derives from rights. Default OFF while the mapping is reviewed. */
+const navFromRightsEnabled = () =>
+  process.env.AUTHZ_NAV_FROM_RIGHTS === "true";
+
+/** Parse one proposal value: "public" | "module.capability" | "a OR b" (dotted caps allowed). */
+function proposalAlternatives(value) {
+  if (!value || value === "public") return null;
+  return String(value)
+    .split(" OR ")
+    .map((part) => {
+      const index = part.indexOf(".");
+      if (index < 0) return null;
+      return { module: part.slice(0, index), capability: part.slice(index + 1) };
+    })
+    .filter(Boolean);
+}
+
+/** A node's alternatives: declared first, then the step-3 proposal. */
+function rightsAlternatives(id) {
+  const declared = NAV_CAPABILITY_REQUIREMENTS[id];
+  if (declared) return requirementAlternatives(declared);
+  return proposalAlternatives(NAV_CAPABILITY_PROPOSAL[id]);
+}
+
+/**
+ * Public nodes pass; a capability node passes when one alternative is held.
+ *
+ * An UNLOADED matrix is treated as NO rights: in rights mode there is no role
+ * mask to fall back on, so hiding a gated door is the only honest answer. This
+ * is the same policy the platform sidebar already applies (`/platform`), and it
+ * is what makes "no right = no door" true while the matrix is still loading.
+ * The shell paints from the cached matrix, so the door reappears as soon as the
+ * answer is known.
+ */
+function passesRights(id, effective) {
+  const alternatives = rightsAlternatives(id);
+  if (!alternatives) return true; // public (explicit or no requirement)
+  if (!effective) return false; // not loaded yet: no right, no door
+  return alternatives.some((alternative) =>
+    hasCapability(effective, alternative.module, alternative.capability),
+  );
+}
+
+/** The space an address belongs to; unknown prefixes are shared. */
+function spaceOfHref(href) {
+  if (!href) return "shared";
+  if (href.startsWith("/admin")) return "admin";
+  if (href.startsWith("/staff")) return "staff";
+  if (href.startsWith("/member")) return "member";
+  return "shared";
+}
+
 /** Project one master section for a role (role child list + href/icon overrides). */
 function projectMasterSection(node, access) {
   // Child list precedence: the role's own list, then Super Admin's canonical
@@ -79,6 +133,89 @@ function projectMasterSection(node, access) {
 }
 
 /**
+ * Étape 3 — project the master tree through RIGHTS instead of a role mask.
+ *
+ * Only the staff and admin spaces use this mode for now: a member's personal
+ * doors (facilitator / investor / participant) are context-owned and are not
+ * safe to derive from a single right yet. The role tables are still used for
+ * ADDRESS overrides and icons, never for visibility.
+ */
+function buildRightsNav(role, effective) {
+  const access = accessForRole(role);
+  const roleSpace = spaceForRole(role) || "member";
+  const roleHrefs = access.hrefs || {};
+  const canOpenAdmin = roleSpace === "admin";
+
+  const resolveHref = (id, href) => {
+    if (canOpenAdmin || !href) return href;
+    if (roleHrefs[id]) return roleHrefs[id];
+    const fallback = NON_ADMIN_HREF_FALLBACKS[id];
+    if (fallback) return fallback;
+    return href.startsWith("/admin") ? null : href;
+  };
+
+  const allowsSpace = (id, href) => {
+    if (!href) return false;
+    // An explicit role address is a deliberate cross-space mapping (the finance
+    // role's profile page, for example) and always wins.
+    if (roleHrefs[id]) return true;
+    // The platform owner can open the admin and staff surfaces (and shared
+    // ones), but NOT the member context doors: those belong to a person's
+    // facilitator / investor / participant context, not to the owner.
+    // Staff stay inside the staff and shared surfaces; "/admin" nodes without
+    // a non-admin fallback are already dropped by `resolveHref`.
+    const nodeSpace = spaceOfHref(href);
+    if (roleSpace === "admin") {
+      return nodeSpace === "admin" || nodeSpace === "staff" || nodeSpace === "shared";
+    }
+    return nodeSpace === "shared" || nodeSpace === roleSpace;
+  };
+
+  const project = (node) => {
+    const isSection = Array.isArray(node.children) && node.children.length > 0;
+    const icon = (access.icons && access.icons[node.id]) || node.icon;
+
+    if (isSection) {
+      const subItems = node.children.map(project).filter(Boolean);
+      if (subItems.length > 0) {
+        return { id: node.id, name: node.name, icon, subItems };
+      }
+      // A section whose children are unreachable in this space collapses to
+      // the role's scoped address (staff programs, team programs, …).
+      const href = resolveHref(node.id, roleHrefs[node.id] || node.href);
+      if (href && allowsSpace(node.id, href) && passesRights(node.id, effective)) {
+        return { id: node.id, name: node.name, icon, href };
+      }
+      return null;
+    }
+
+    if (!passesRights(node.id, effective)) return null;
+    const rawHref = (access.hrefs && access.hrefs[node.id]) || node.href;
+    const href = resolveHref(node.id, rawHref);
+    if (!href || !allowsSpace(node.id, href)) return null;
+    return { id: node.id, name: node.name, icon, href };
+  };
+
+  const seen = new Set();
+  const dedupe = (items) =>
+    (items || [])
+      .map((item) => {
+        if (seen.has(item.id)) return null;
+        if (item.subItems) {
+          const kids = dedupe(item.subItems).filter(Boolean);
+          if (kids.length === 0) return null;
+          seen.add(item.id);
+          return { ...item, subItems: kids };
+        }
+        seen.add(item.id);
+        return item;
+      })
+      .filter(Boolean);
+
+  return dedupe(MASTER_NAVIGATION.map(project).filter(Boolean));
+}
+
+/**
  * The single source of sidebar truth: a role's navigation projected against the
  * user's effective capabilities.
  *
@@ -93,12 +230,22 @@ function projectMasterSection(node, access) {
  *   - drops a section left without children;
  *   - renders every id at most once (first occurrence wins).
  *
- * `effective === null` (capabilities not loaded yet) fails OPEN on visibility —
- * the server stays authoritative — but never on hrefs.
+ * In this ROLE-MASK mode an unloaded matrix (`effective === null`) keeps the
+ * role's own doors: that is the mask, not a right, and the server stays
+ * authoritative. The rights mode (`AUTHZ_NAV_FROM_RIGHTS`) is the opposite —
+ * there is no mask to fall back on, so it fails closed (see `passesRights`).
  */
 export function buildAccessNav(role, effective) {
+  const roleSpace = spaceForRole(role);
+  if (navFromRightsEnabled() && (roleSpace === "staff" || roleSpace === "admin")) {
+    return buildRightsNav(role, effective);
+  }
+
   const access = accessForRole(role);
-  const canOpenAdmin = role === "super_admin";
+  // The admin surface is a SPACE, not a role label: the registry is the only
+  // mapping from an identity to its space, so the gate asks it instead of
+  // comparing the role string here.
+  const canOpenAdmin = spaceForRole(role) === "admin";
   const roleHrefs = access.hrefs || {};
 
   const passes = (id) => {

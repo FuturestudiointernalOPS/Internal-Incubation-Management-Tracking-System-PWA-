@@ -42,7 +42,7 @@ export const TASK_PROCEED_STATUSES = ["in_progress", "review", ...TASK_COMPLETED
  */
 export async function syncMilestoneForTask(task, { id, dbId, session }) {
   if (!task?.milestone_id) return { changed: false, status: null };
-  const canComplete = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+  const canComplete = await canManageMilestones({ id, cid: session?.cid, role: session?.role, session });
   return syncMilestoneFromWork({
     dbId,
     milestoneId: String(task.milestone_id),

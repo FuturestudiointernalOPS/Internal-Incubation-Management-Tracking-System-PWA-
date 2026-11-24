@@ -104,12 +104,32 @@ beforeEach(() => {
 /** The scenarios the two paths must agree on, whatever the capability. */
 const SCENARIOS = [
   {
-    name: "a global role (resolver super-admin bypass)",
+    name: "a Super Admin holding the portfolio right (the default)",
     role: "super_admin",
     setup: () => {
-      mockCtx = { isSuperAdmin: true };
+      mockCtx = {
+        isSuperAdmin: true,
+        role: "super_admin",
+        effective: { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } },
+        restrictions: {},
+      };
     },
     expected: { allowed: true, decision: "super-admin" },
+  },
+  {
+    name: "a staff member granted the portfolio right",
+    role: "staff",
+    setup: () => {
+      mockCtx = {
+        isSuperAdmin: false,
+        role: "staff",
+        effective: { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } },
+        restrictions: {},
+      };
+      mockCapError = null;
+      mockWithin = false;
+    },
+    expected: { allowed: true, decision: "portfolio" },
   },
   {
     name: "a delegated staff member holding the capability inside their scope",
@@ -282,13 +302,19 @@ describe("the enforced cell is reported truthfully", () => {
     expect(read.body.matrix["calendar.schedule"].allowed).toBe(true);
   });
 
-  test("a global role reads true even holding no assignment row", async () => {
+  test("a portfolio right holder reads true even holding no assignment row", async () => {
     mockSession = { cid: "SA", role: "super_admin" };
-    mockCtx = { isSuperAdmin: true };
+    mockCtx = {
+      isSuperAdmin: true,
+      role: "super_admin",
+      effective: { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } },
+      restrictions: {},
+    };
     mockAssignments = [];
     mockMatrixAllowed = false; // the matrix says no...
     const read = await callRead();
-    // ...but the gate bypasses, so an under-claim here would hide a working button.
+    // ...but the portfolio right is unscoped, so an under-claim here would hide
+    // a working button.
     expect(read.body.matrix["calendar.schedule"].allowed).toBe(true);
     expect(read.body.is_super_admin).toBe(true);
   });

@@ -12,8 +12,8 @@ import { runFilterActions } from "./actions/filters";
 import { runExportActions } from "./actions/exportRun";
 import { messagingActions } from "./actions/messaging";
 import { runEmailActions } from "./actions/emails";
-import RunListView from "@/components/platform/runs/RunListView";
-import RunDetailView from "@/components/platform/runs/RunDetailView";
+import RunListView from "@/components/shared/platform/runs/RunListView";
+import RunDetailView from "@/components/shared/platform/runs/RunDetailView";
 import { useRunsState } from "./useRunsState";
 
 /**

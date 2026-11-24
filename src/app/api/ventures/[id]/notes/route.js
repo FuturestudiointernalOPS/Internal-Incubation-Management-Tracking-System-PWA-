@@ -3,6 +3,7 @@ import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
 import { hasVentureCapability } from "@/services/ventures/permissions";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 import {
   getVentureCodeByDbId,
   getInternalNotesViewPermission,
@@ -31,8 +32,6 @@ import {
  * venture-wide only see unscoped notes + notes matching their scope.
  */
 
-const GLOBAL_ROLES = ["super_admin"];
-
 async function resolveCode(ventureId) {
   let code = ventureId;
   if (typeof ventureId === "string" && ventureId.includes("-") && !ventureId.startsWith("VNT-")) {
@@ -44,12 +43,6 @@ async function resolveCode(ventureId) {
   return code;
 }
 
-// Synchronous on purpose — callers use it as a plain boolean in gates.
-// (It was accidentally declared async before, which made every gate treat
-// non-global users as global — founders could read/create internal notes.)
-function isGlobal(session) {
-  return !!session && GLOBAL_ROLES.includes(session.role);
-}
 
 async function scopeMatchesAssignment(assignment, note) {
   if (assignment.scope_type === "venture_wide") return true;
@@ -88,13 +81,13 @@ export const GET = createHandler(
     const code = await resolveCode(id);
 
     const assignments = await resolveStaffAssignment(code, session.cid);
+    // The unscoped notes authority is the explicit portfolio READ right.
+    const global = (await resolveVenturePortfolioAccess({ session, action: "view" })).allowed;
 
-    // Founders/members (no assignment, no global role): internal notes do not exist for them.
-    if (!isGlobal(session) && assignments.length === 0) {
+    // Founders/members (no assignment, no portfolio right): internal notes do not exist for them.
+    if (!global && assignments.length === 0) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
-
-    const global = isGlobal(session);
 
     // Delegated staff must have internal_notes:view under at least one of
     // their responsibilities (GLOBAL matrix; scope filter applies after).
@@ -120,7 +113,9 @@ export const GET = createHandler(
       ? allNotes
       : allNotes.filter((note) => assignments.some((assignment) => scopeMatchesAssignment(assignment, note)));
 
-    const canPost = global || (await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "create" }));
+    // Posting is a WRITE: the portfolio READ right does not offer the form.
+    const canManage = (await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed;
+    const canPost = canManage || (await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "create" }));
 
     return NextResponse.json({ success: true, notes: visible, can_post: !!canPost, is_global: global });
   },
@@ -134,8 +129,10 @@ export const POST = createHandler(
     const { id } = await params;
     const code = await resolveCode(id);
     const assignments = await resolveStaffAssignment(code, session.cid);
+    // Writing internal notes requires the explicit portfolio WRITE right.
+    const global = (await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed;
 
-    if (!isGlobal(session) && assignments.length === 0) {
+    if (!global && assignments.length === 0) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
 
@@ -166,7 +163,7 @@ export const POST = createHandler(
         .map((attachment) => ({ name: String(attachment.name || "").slice(0, 255), url: String(attachment.url || "").slice(0, 2000), type: attachment.type ? String(attachment.type).slice(0, 100) : null, size: attachment.size || null }));
     }
 
-    if (!isGlobal(session)) {
+    if (!global) {
       // Scope integrity: scoped notes may only be created inside the writer's scope.
       if (scopeRefType || scopeRefId) {
         const inScope = assignments.some(
@@ -209,7 +206,9 @@ export const DELETE = createHandler(
     const { id } = await params;
     const code = await resolveCode(id);
     const assignments = await resolveStaffAssignment(code, session.cid);
-    if (!isGlobal(session) && assignments.length === 0) {
+    // Deleting any note requires the explicit portfolio WRITE right.
+    const global = (await resolveVenturePortfolioAccess({ session, action: "edit" })).allowed;
+    if (!global && assignments.length === 0) {
       return NextResponse.json({ success: false, error: "errors.notFound" }, { status: 404 });
     }
     const body = await req.json();
@@ -220,7 +219,7 @@ export const DELETE = createHandler(
     const note = noteResult.rows?.[0];
     if (!note) return NextResponse.json({ success: false, error: "Note not found." }, { status: 404 });
 
-    if (!isGlobal(session)) {
+    if (!global) {
       // Author may retract their own note; otherwise the matrix must grant delete.
       const isAuthor = String(note.author_cid || "") === String(session.cid);
       const allowed = isAuthor || (await hasVentureCapability({ ventureId: code, contactId: session.cid, area: "internal_notes", action: "delete" }));

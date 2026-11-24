@@ -87,6 +87,14 @@ export const FEATURE_MODULE_CAPABILITY = {
         delete: { label: "Delete", risk: "high", description: "Remove CRM organizations and relationships (soft delete)" },
         assign: { label: "Assign", risk: "medium", description: "Assign ownership of CRM records" },
         manage: { label: "Manage", risk: "high", description: "Administer CRM configuration, module capabilities, and pipeline (Phase 2+)" },
+        // The next action of a record belongs to its owner. This right is the
+        // support/repair exception, so it replaces the former platform-owner
+        // role check: grantable, restrictable, and revocable like any other.
+        next_action_any: {
+          label: "Set Any Next Action",
+          risk: "medium",
+          description: "Set or clear the next action on a CRM record the caller does not own",
+        },
       },
     },
     org_membership: {
@@ -182,6 +190,21 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "medium", description: "Register ventures" },
         edit: { label: "Edit", risk: "medium", description: "Edit ventures" },
         delete: { label: "Delete", risk: "high", description: "Delete ventures" },
+        // The PORTFOLIO perimeter. `view`/`edit` say WHAT the caller may do;
+        // these say WHERE — every Venture, not only the ones they belong to or
+        // are assigned to. They replace the old Super Admin bypass on Venture
+        // routes, so the perimeter is a right like any other: grantable,
+        // restrictable, and revocable even from a Super Admin.
+        view_all: {
+          label: "View All Ventures",
+          risk: "medium",
+          description: "See every Venture, not only the ones the caller belongs to or is assigned to",
+        },
+        edit_all: {
+          label: "Manage All Ventures",
+          risk: "high",
+          description: "Act on every Venture, not only the ones the caller is assigned to",
+        },
         // Venture Setup — taxonomies and playbooks. The route comment already
         // anticipated this key; it keeps the right separate from editing a
         // Venture's own content.
@@ -234,10 +257,24 @@ export const FEATURE_MODULE_CAPABILITY = {
       risk: "medium",
       capabilities: {
         view: { label: "View", risk: "low", description: "See projects" },
-        create: { label: "Create", risk: "medium", description: "Create projects" },
+        create: { label: "Create", risk: "low", description: "Create projects" },
         edit: { label: "Edit", risk: "medium", description: "Edit projects" },
         delete: { label: "Delete", risk: "high", description: "Delete projects" },
-        archive: { label: "Archive", risk: "medium", parent: "edit", description: "Archive projects" },
+        // The cross-member read: every project, not only the ones the caller owns
+        // or belongs to. It replaces the staff-side `seesWholePortfolio(role)`
+        // rule in the project listing and object-check bypass.
+        view_all: {
+          label: "View All Projects",
+          risk: "medium",
+          description: "See every project, not only the ones the caller owns or belongs to",
+        },
+        // Support/repair moderation on another person's project record: cancelling
+        // their invitation. It replaces the platform-owner role check.
+        moderate: {
+          label: "Moderate Any Project",
+          risk: "high",
+          description: "Cancel another person's project invitation",
+        },
       },
     },
     tasks: {
@@ -248,6 +285,31 @@ export const FEATURE_MODULE_CAPABILITY = {
         create: { label: "Create", risk: "low", description: "Create tasks" },
         edit: { label: "Edit", risk: "low", description: "Edit tasks" },
         delete: { label: "Delete", risk: "medium", description: "Delete tasks" },
+        // The cross-person read: every user's tasks and blockers, not only the
+        // caller's own. It replaces the platform-owner role check in the task
+        // and blocker listing scopes.
+        view_all: {
+          label: "View All Tasks",
+          risk: "medium",
+          description: "See every user's tasks and blockers, not only the caller's own",
+        },
+        // The staff-side cohort's power: act on a task the caller does not own
+        // (comments, resources, logs, discussion, carry-over, reconciliation,
+        // supervisor field). It replaces `seesWholePortfolio(role)`.
+        act_any: {
+          label: "Act On Any Task",
+          risk: "medium",
+          description: "Work on tasks the caller does not own: comments, resources, logs, discussion, carry-over, reconciliation and the supervisor field",
+        },
+        // Support/repair moderation on somebody else's task: update it, move its
+        // status, reassign it, edit or delete their comment, raise or delete a
+        // blocker on it, and waive the assignment group check. It replaces the
+        // platform-owner role checks.
+        moderate: {
+          label: "Moderate Any Task",
+          risk: "high",
+          description: "Moderate any task: update it, change its status, reassign it, edit or delete another person's comment, raise or delete a blocker on it, and assign outside the caller's group",
+        },
       },
     },
   },
@@ -326,6 +388,11 @@ export const FEATURE_MODULE_CAPABILITY = {
       capabilities: {
         view: { label: "View", risk: "medium", description: "See system settings" },
         edit: { label: "Edit", risk: "high", description: "Modify system settings" },
+        // Applying the platform's schema is a distinct, critical action: a
+        // delegated settings editor must not be able to write the database
+        // structure. It is a right like any other, so the platform owner can
+        // grant it to a chosen account — or have it revoked from their own.
+        manage_schema: { label: "Run Schema Migrations", risk: "critical", description: "Apply outstanding platform schema migrations" },
       },
     },
     engineering: {

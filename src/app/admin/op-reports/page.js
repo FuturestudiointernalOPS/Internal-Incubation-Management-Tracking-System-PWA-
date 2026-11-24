@@ -11,17 +11,17 @@ import {
   pickProjects,
   pickReports,
   pickTasks,
-} from "@/components/admin/op-reports/constants";
-import ReportsHeader from "@/components/admin/op-reports/ReportsHeader";
-import ReportsTabs from "@/components/admin/op-reports/ReportsTabs";
-import ReportsFilters from "@/components/admin/op-reports/ReportsFilters";
-import FeedTab from "@/components/admin/op-reports/FeedTab";
-import MonthlyBreakdown from "@/components/admin/op-reports/MonthlyBreakdown";
-import TasksTab from "@/components/admin/op-reports/TasksTab";
-import BlockersTab from "@/components/admin/op-reports/BlockersTab";
-import TrendsDashboard from "@/components/admin/op-reports/TrendsDashboard";
-import UserTimelineModal from "@/components/admin/op-reports/UserTimelineModal";
-import ReportDetailModal from "@/components/admin/op-reports/ReportDetailModal";
+} from "@/spaces/admin/components/op-reports/constants";
+import ReportsHeader from "@/spaces/admin/components/op-reports/ReportsHeader";
+import ReportsTabs from "@/spaces/admin/components/op-reports/ReportsTabs";
+import ReportsFilters from "@/spaces/admin/components/op-reports/ReportsFilters";
+import FeedTab from "@/spaces/admin/components/op-reports/FeedTab";
+import MonthlyBreakdown from "@/spaces/admin/components/op-reports/MonthlyBreakdown";
+import TasksTab from "@/spaces/admin/components/op-reports/TasksTab";
+import BlockersTab from "@/spaces/admin/components/op-reports/BlockersTab";
+import TrendsDashboard from "@/spaces/admin/components/op-reports/TrendsDashboard";
+import UserTimelineModal from "@/spaces/admin/components/op-reports/UserTimelineModal";
+import ReportDetailModal from "@/spaces/admin/components/op-reports/ReportDetailModal";
 
 /**
  * SUPER ADMIN OPERATIONAL REPORTS DASHBOARD

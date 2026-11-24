@@ -41,13 +41,22 @@ const PermissionContext = createContext(null); // null = no provider above
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
 
-const EMPTY_PERMISSIONS_READ = { permissions: null, isSuperAdmin: false, profiles: [] };
+const EMPTY_PERMISSIONS_READ = {
+  permissions: null,
+  isSuperAdmin: false,
+  ownerThroughEngine: false,
+  profiles: [],
+};
 
 const pickPermissions = (response) =>
   response?.success
     ? {
         permissions: response.effective || null,
         isSuperAdmin: Boolean(response.isSuperAdmin),
+        // The owner is resolved through the engine when this is true: a
+        // capability the owner no longer holds must read as denied, exactly
+        // like anyone else's.
+        ownerThroughEngine: Boolean(response.ownerThroughEngine),
         // The contextual profiles the matrix was resolved through (Lot 7).
         profiles: Array.isArray(response.profiles) ? response.profiles : [],
       }
@@ -89,6 +98,10 @@ function usePermissionSource(enabled = true) {
       ? data.permissions
       : cached;
   const isSuperAdmin = answered && !error ? data.isSuperAdmin : false;
+  // The owner's bypass stops applying the moment the server says the owner is
+  // resolved through the engine. Until the read answers, `isSuperAdmin` is
+  // false anyway, so nothing is short-circuited on a guess.
+  const ownerThroughEngine = answered && !error ? data.ownerThroughEngine : false;
   // The profiles array is part of the context value, so it must keep its
   // identity between renders: an inline `[]` would rebuild every consumer's
   // memo on every render.
@@ -119,22 +132,33 @@ function usePermissionSource(enabled = true) {
 
   /**
    * Check if the current user has a specific capability.
-   * A Super Admin returns true unless explicitly restricted (the resolver
-   * already removed those capabilities from their matrix).
+   *
+   * The owner is short-circuited ONLY while the owner bypass is active. Once
+   * the owner is resolved through the engine, a revoked right removes the
+   * capability here too — the matrix is the answer for everyone.
    */
   const can = useCallback(
     (module, capability, minLevel = 1) => {
-      if (isSuperAdmin) return true;
+      if (isSuperAdmin && !ownerThroughEngine) return true;
       const modCaps = permissions?.[module];
       if (!modCaps) return false;
       return Number(modCaps[capability] || 0) >= minLevel;
     },
-    [permissions, isSuperAdmin],
+    [permissions, isSuperAdmin, ownerThroughEngine],
   );
 
   return useMemo(
-    () => ({ permissions, isSuperAdmin, profiles, loading, error, can, refresh }),
-    [permissions, isSuperAdmin, profiles, loading, error, can, refresh],
+    () => ({
+      permissions,
+      isSuperAdmin,
+      ownerThroughEngine,
+      profiles,
+      loading,
+      error,
+      can,
+      refresh,
+    }),
+    [permissions, isSuperAdmin, ownerThroughEngine, profiles, loading, error, can, refresh],
   );
 }
 

@@ -466,8 +466,16 @@ describe("§13 — anti-escalade (séparation des devoirs)", () => {
     expect(res.status).toBe(403);
   });
 
-  test("attribuer le rôle super_admin via set_role est refusé hors super admin → 403", async () => {
+  test("attribuer le rôle super_admin via set_role exige le droit promote_super_admin → 403", async () => {
     getSession.mockResolvedValueOnce({ cid: "PM-1", name: "Manager", role: "staff" });
+    // `assign_capabilities` still passes (the first gate); the DEDICATED right
+    // is what refuses the role change.
+    requireAuthorization
+      .mockImplementationOnce(async () => null)
+      .mockImplementationOnce(async () => ({
+        status: 403,
+        body: { success: false, error: "errors.insufficientPermissions" },
+      }));
     const res = await permissionsRoute.PUT(
       jsonReq({
         action: "set_role",
@@ -478,9 +486,13 @@ describe("§13 — anti-escalade (séparation des devoirs)", () => {
       }),
     );
     expect(res.status).toBe(403);
+    expect(requireAuthorization).toHaveBeenCalledWith(
+      "permissions",
+      "promote_super_admin",
+    );
   });
 
-  test("un super admin garde le droit d'attribuer super_admin via set_role", async () => {
+  test("un détenteur de promote_super_admin peut attribuer super_admin via set_role", async () => {
     getSession.mockResolvedValueOnce({ cid: "SA-1", name: "Super Admin", role: "super_admin" });
     const res = await permissionsRoute.PUT(
       jsonReq({

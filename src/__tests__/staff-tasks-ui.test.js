@@ -18,9 +18,9 @@ jest.mock("@/components/ui/TaskDetailModal", () => ({
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const TasksView = require("@/components/staff/TasksView").default;
-const model = require("@/components/staff/tasksModel");
-const { isoWeek } = require("@/components/staff/calendarModel");
+const TasksView = require("@/spaces/staff/core/components/TasksView").default;
+const model = require("@/spaces/staff/core/components/tasksModel");
+const { isoWeek } = require("@/components/shared/calendar/calendarModel");
 
 const NOW = new Date();
 const pad = (value) => String(value).padStart(2, "0");

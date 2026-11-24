@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import VentureDataDashboard from "@/components/ventures/reporting/VentureDataDashboard";
+import VentureDataDashboard from "@/components/shared/ventures/console/reporting/VentureDataDashboard";
 
 /**
  * /admin/ventures/[id]/reporting/dashboard

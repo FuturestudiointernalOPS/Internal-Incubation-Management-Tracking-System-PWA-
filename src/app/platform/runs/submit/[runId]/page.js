@@ -5,14 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
 import { useSafeBack } from "@/lib/useSafeBack";
 import { useApi } from "@/lib/hooks/useApi";
-import SubmitHeader from "@/components/platform/runs/submit/SubmitHeader";
-import RunInfoCard from "@/components/platform/runs/submit/RunInfoCard";
-import SubmissionNotices from "@/components/platform/runs/submit/SubmissionNotices";
-import SubmitFormSections from "@/components/platform/runs/submit/SubmitFormSections";
-import SubmitFooterActions from "@/components/platform/runs/submit/SubmitFooterActions";
-import SubmitSuccess from "@/components/platform/runs/submit/SubmitSuccess";
-import SubmitLoading from "@/components/platform/runs/submit/SubmitLoading";
-import SubmitError from "@/components/platform/runs/submit/SubmitError";
+import SubmitHeader from "@/components/shared/platform/runs/submit/SubmitHeader";
+import RunInfoCard from "@/components/shared/platform/runs/submit/RunInfoCard";
+import SubmissionNotices from "@/components/shared/platform/runs/submit/SubmissionNotices";
+import SubmitFormSections from "@/components/shared/platform/runs/submit/SubmitFormSections";
+import SubmitFooterActions from "@/components/shared/platform/runs/submit/SubmitFooterActions";
+import SubmitSuccess from "@/components/shared/platform/runs/submit/SubmitSuccess";
+import SubmitLoading from "@/components/shared/platform/runs/submit/SubmitLoading";
+import SubmitError from "@/components/shared/platform/runs/submit/SubmitError";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
