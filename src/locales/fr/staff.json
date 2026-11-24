@@ -182,6 +182,7 @@
       "unavailableHint": "Vous ne pouvez accéder qu'aux Ventures qui vous sont explicitement assignées.",
       "backToMyVentures": "Retour à mes Ventures",
       "myRole": "Mon rôle sur cette Venture",
+      "portfolioAuthority": "Autorité de portefeuille — aucune affectation requise",
       "noAssignment": "Aucune affectation active trouvée.",
       "needsAttention": "Requiert votre attention ({count})",
       "nothingToReview": "Rien n'attend votre revue.",

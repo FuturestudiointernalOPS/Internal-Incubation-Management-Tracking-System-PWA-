@@ -182,6 +182,7 @@
       "unavailableHint": "You can only access Ventures you are explicitly assigned to.",
       "backToMyVentures": "Back to My Ventures",
       "myRole": "My role on this Venture",
+      "portfolioAuthority": "Portfolio authority — no assignment needed",
       "noAssignment": "No active assignment found.",
       "needsAttention": "Needs your attention ({count})",
       "nothingToReview": "Nothing awaiting your review.",

@@ -742,6 +742,24 @@
       "cancel": "Annuler",
       "create": "Créer"
     },
+    "adminHome": {
+      "kicker": "Venture OS",
+      "title": "Administration des entreprises",
+      "subtitle": "Voir et opérer sur toutes les entreprises du studio. Cet espace n'apparaît que tant que votre profil détient les droits du portefeuille.",
+      "sectionPortfolio": "Portefeuille",
+      "sectionPortfolioHint": "Les chiffres de toutes les entreprises.",
+      "kpiTotal": "Entreprises",
+      "kpiActive": "Actives",
+      "kpiProspects": "Prospects",
+      "tools": "Outils",
+      "toolsHint": "Tout ce que l'autorité de portefeuille ouvre.",
+      "allVenturesTitle": "Toutes les entreprises",
+      "allVenturesText": "Le répertoire complet. Ouvrez une entreprise pour y travailler.",
+      "portfolioTitle": "Consolidation du portefeuille",
+      "portfolioText": "Rapports et santé de l'ensemble du portefeuille.",
+      "reportingTitle": "Réglages des rapports",
+      "reportingText": "Configurez les règles de reporting du studio."
+    },
     "list": {
       "title": "Entreprises",
       "allTitle": "Toutes les entreprises",

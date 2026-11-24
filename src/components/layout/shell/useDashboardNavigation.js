@@ -32,6 +32,7 @@ import {
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
 import { isPlatformOwnerRole } from "@/lib/identity";
+import { spaceForRole } from "@/spaces/registry";
 import { composeMemberNav } from "@/spaces/member/contexts";
 import { hasStaffContext } from "@/spaces/staff/contexts";
 import { useApi } from "@/lib/hooks/useApi";
@@ -169,7 +170,9 @@ export function useDashboardNavigation({
         "lead-manager",
       );
       const canViewAll = hasCapability(effectiveCaps, "ventures", "view_all");
+      const canOperateAll = hasCapability(effectiveCaps, "ventures", "edit_all");
       const canConfigure = hasCapability(effectiveCaps, "ventures", "setup", 3);
+      const isStaffSurface = spaceForRole(activeRole) === "staff";
       if (!leadManager && !canViewAll) return list;
       const next = list.slice();
       const insertAfter = (afterId, item) => {
@@ -193,6 +196,50 @@ export function useDashboardNavigation({
           href: "/staff/ventures",
         });
       }
+      // THE DEDICATED VENTURE ADMINISTRATION AREA.
+      //
+      // A staff-only group whose presence follows the portfolio WRITE right
+      // (`ventures.edit_all`) — the same right the server reads. Revoking it in
+      // the permissions matrix removes the door on the next load; the API stays
+      // the authority, so hiding the door is convenience, never security.
+      //
+      // The read perimeter is also required: the area's screens read every
+      // Venture, and a write-only grant would open a door onto refusals.
+      if (isStaffSurface && canViewAll && canOperateAll) {
+        insertAfter(leadManager ? "ventures" : "dashboard", {
+          id: "venture_admin",
+          name: "VENTURE ADMIN",
+          icon: Rocket,
+          subItems: [
+            {
+              id: "venture_admin_home",
+              name: "OVERVIEW",
+              href: "/staff/venture-admin",
+            },
+            {
+              id: "all_ventures",
+              name: "ALL VENTURES",
+              href: "/staff/venture-admin/ventures",
+            },
+            {
+              id: "portfolio",
+              name: "PORTFOLIO",
+              href: "/staff/venture-admin/portfolio",
+            },
+            ...(canConfigure
+              ? [
+                  {
+                    id: "venture_reporting_settings",
+                    name: "REPORTING SETTINGS",
+                    href: "/staff/venture-admin/reporting-settings",
+                  },
+                ]
+              : []),
+          ],
+        });
+        return next;
+      }
+
       if (canViewAll) {
         insertAfter("ventures", {
           id: "all_ventures",
