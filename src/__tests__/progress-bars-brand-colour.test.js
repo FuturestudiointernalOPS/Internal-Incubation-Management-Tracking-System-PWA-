@@ -16,9 +16,9 @@ test("the kit's progress bar (journeys, dashboards, projects, all roles) fills w
 
 test("the Super Admin venture screens use it too, whatever the percentage", () => {
   for (const file of [
-    "src/app/admin/ventures/[id]/knowledge/page.js",
-    "src/app/admin/ventures/[id]/reports/page.js",
-    "src/app/admin/ventures/[id]/fundraising/page.js",
+    "src/spaces/admin/components/ventures/views/VentureKnowledgeView.js",
+    "src/spaces/admin/components/ventures/views/VentureReportsView.js",
+    "src/spaces/admin/components/ventures/views/VentureFundraisingView.js",
     "src/components/shared/ventures/console/timeline/VentureTimelineView.js",
     "src/components/shared/ventures/console/workspace/tabs/GrowthTabs.js",
   ]) {

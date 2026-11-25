@@ -21,13 +21,13 @@ export default function QuickActions({ id }) {
         <Zap className="w-3.5 h-3.5 text-[var(--brand-orange)]" /> {t("vadmin.dashboard.quickActions")}
       </h3>
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => router.push(`/admin/ventures/${id}/edit`)} className="px-3 py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+        <button onClick={() => router.push(`/admin/ventures/${id}?tab=edit`)} className="px-3 py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
           <Layers className="w-3 h-3" /> {t("vadmin.dashboard.profileWizard")}
         </button>
-        <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+        <button onClick={() => router.push(`/admin/ventures/${id}?tab=verification`)} className="px-3 py-2 bg-emerald-500/10 text-emerald-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
           <Shield className="w-3 h-3" /> {t("vadmin.dashboard.uploadDocuments")}
         </button>
-        <button onClick={() => router.push(`/admin/ventures/${id}/edit`)} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
+        <button onClick={() => router.push(`/admin/ventures/${id}?tab=edit`)} className="px-3 py-2 bg-amber-500/10 text-amber-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">
           <Building2 className="w-3 h-3" /> {t("vadmin.dashboard.editVenture")}
         </button>
         <button onClick={() => router.push(`/admin/knowledge`)} className="px-3 py-2 bg-purple-500/10 text-purple-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all flex items-center gap-1.5">

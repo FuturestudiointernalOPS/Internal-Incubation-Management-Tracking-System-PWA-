@@ -184,7 +184,7 @@ export default function VentureQuarterlyReview({ ventureId }) {
         title={t("venture.reporting.quarterly.title")}
         subtitle={t("venture.reporting.review.subtitle")}
         action={
-          <Link href={`/admin/ventures/${ventureId}/reporting`} className="stf-link-btn">
+          <Link href={`/admin/ventures/${ventureId}?tab=reporting`} className="stf-link-btn">
             {t("venture.reporting.review.switchToMonthly")}
           </Link>
         }

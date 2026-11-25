@@ -202,7 +202,7 @@ export default function AddLeadManagerModal({ onClose, ventureId }) {
         <div className="border-t border-[var(--border-primary)] pt-3">
           <button
             type="button"
-            onClick={() => router.push(`/admin/ventures/${ventureId}/permissions`)}
+            onClick={() => router.push(`/admin/ventures/${ventureId}?tab=permissions`)}
             className="text-[10px] font-bold uppercase tracking-widest hover:text-[var(--text-primary)] transition-colors"
             style={{ color: "var(--text-secondary)" }}
           >

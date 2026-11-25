@@ -12,10 +12,10 @@
 
 const STAFF_SURFACE = {
   venture: (ventureId) => `/admin/ventures/${ventureId}`,
-  journey_stage: (ventureId) => `/admin/ventures/${ventureId}/journey`,
-  milestone: (ventureId) => `/admin/ventures/${ventureId}/milestones`,
-  task: (ventureId) => `/admin/ventures/${ventureId}/tasks`,
-  session: (ventureId) => `/admin/ventures/${ventureId}/sessions`,
+  journey_stage: (ventureId) => `/admin/ventures/${ventureId}?tab=journey`,
+  milestone: (ventureId) => `/admin/ventures/${ventureId}?tab=journey`,
+  task: (ventureId) => `/admin/ventures/${ventureId}?tab=tasks`,
+  session: (ventureId) => `/admin/ventures/${ventureId}?tab=sessions`,
 };
 
 const MEMBER_SURFACE = {

@@ -263,6 +263,8 @@
       "ventureLoadError": "The venture could not be loaded.",
       "backToVentures": "Back to Ventures",
       "edit": "Edit",
+      "documentTypes": "Document types",
+      "history": "History",
       "registered": "Registered {date}",
       "dashboard": "Dashboard",
       "investment": "Investment",

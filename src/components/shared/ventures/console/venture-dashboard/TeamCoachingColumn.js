@@ -62,7 +62,7 @@ export default function TeamCoachingColumn({ id, data, widgetState, refreshWidge
               </div>
             ))}
           </div>
-          <button onClick={() => router.push(`/admin/ventures/${id}/founders`)} className="w-full py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
+          <button onClick={() => router.push(`/admin/ventures/${id}?tab=founders`)} className="w-full py-2 bg-blue-500/10 text-blue-400 rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
             {t("vadmin.dashboard.manageTeam")}
           </button>
         </div>
