@@ -45,7 +45,7 @@ export default function MetricsColumn({ id, data, widgetState, refreshWidget, ve
               </div>
             ))}
           </div>
-          <button onClick={() => router.push(`/admin/ventures/${id}/verification`)} className="w-full py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
+          <button onClick={() => router.push(`/admin/ventures/${id}?tab=verification`)} className="w-full py-2 bg-brand-orange/10 text-[var(--brand-orange)] rounded-xl text-[10px] font-bold uppercase tracking-wider hover:brightness-110 transition-all">
             {t("vadmin.dashboard.openVerification")}
           </button>
         </div>

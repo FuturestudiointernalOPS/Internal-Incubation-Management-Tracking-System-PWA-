@@ -81,12 +81,12 @@ export default function VentureDashboard({ id, embedded = false }) {
   const { items: reviewQueue, loading: queueLoading, decide } = useReviewQueue(id);
 
   // A KPI card is a filter link: on this surface the work lives in the hub's
-  // own sections, so "journey" and "tasks" are routes, not query tabs.
+  // own tabs, so each destination is the hub address with `?tab=`.
   const goTo = (section) => {
     const base = `/admin/ventures/${id}`;
-    if (section === "journey") router.push(`${base}/journey`);
-    else if (section === "tasks") router.push(`${base}/tasks`);
-    else if (section === "sessions") router.push(`${base}/sessions`);
+    if (section === "journey") router.push(`${base}?tab=journey`);
+    else if (section === "tasks") router.push(`${base}?tab=tasks`);
+    else if (section === "sessions") router.push(`${base}?tab=sessions`);
   };
 
   // Three shapes of failure reach the screen: the server refusing (a status),
