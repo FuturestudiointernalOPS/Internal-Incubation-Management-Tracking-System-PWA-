@@ -46,6 +46,32 @@ import {
   resolveProjectPortfolio,
   resolveOwnScope,
 } from "./workspace";
+import {
+  isInternalStaffRole,
+  isLegacyProgramManagerRole,
+  isPlatformOwnerRole,
+} from "@/lib/identity";
+
+/**
+ * WHO MAY PICK FROM THE WHOLE PROJECT LIST (the task/stand-up dropdown).
+ *
+ * Selecting the project a piece of work belongs to is not a portfolio PRIVILEGE:
+ * the studio's projects are one list, and every internal person picks from it,
+ * whatever they own or belong to. Ownership (`owner_id`) and membership still
+ * exist — they drive the project screens, the leads and the notifications — but
+ * they no longer decide what a dropdown offers.
+ *
+ * Members stay out: the dropdown belongs to internal surfaces (stand-up, retro,
+ * tasks), and a participant or an investor has no business listing the studio's
+ * whole project catalogue.
+ */
+export function seesProjectCatalog(role) {
+  return (
+    isPlatformOwnerRole(role) ||
+    isInternalStaffRole(role) ||
+    isLegacyProgramManagerRole(role)
+  );
+}
 
 /** The members of a project, with their contact names. */
 export async function listProjectMembers(projectId) {
@@ -88,8 +114,12 @@ export async function removeProjectMember(projectId, userCid) {
 
 /**
  * The projects a caller is related to, grouped: the ones they own, the ones they
- * collaborate on, a deduplicated union, and — for portfolio roles only — every
- * active project (the unlinked dropdown).
+ * collaborate on, a deduplicated union, and every active project (the dropdown).
+ *
+ * THE DROPDOWN IS NOT A PRIVILEGE. `all_active` is served to every INTERNAL
+ * caller — not only to holders of `projects.view_all` — because choosing the
+ * project a task belongs to must never depend on owning or joining it. A project
+ * created without a lead therefore still appears for everyone.
  *
  * The three reads fail OPEN: a failing list becomes an empty list, because a
  * dropdown that cannot be built must not turn a page into an error.
@@ -119,7 +149,7 @@ export async function listProjectAssignments({ role, sessionCid, requestedCid })
 
   const owned = await readRows(() => getOwnedProjectsByUser(userCid));
   const collab = await readRows(() => getCollaboratingProjectsByUser(userCid));
-  const all_active = seesAll
+  const all_active = seesProjectCatalog(role)
     ? await readRows(() => getAllActiveProjects())
     : [];
 
