@@ -19,6 +19,27 @@ import VentureWizardTab from "./VentureWizardTab";
 import VentureTeamTab from "./VentureTeamTab";
 import VentureActivityTab from "./VentureActivityTab";
 import VentureProfileReadOnly from "@/components/shared/ventures/console/VentureProfileReadOnly";
+import VentureAnalyticsView from "./views/VentureAnalyticsView";
+import VentureCoachesView from "./views/VentureCoachesView";
+import VentureDataRoomView from "./views/VentureDataRoomView";
+import VentureDocumentTypesView from "./views/VentureDocumentTypesView";
+import VentureEditView from "./views/VentureEditView";
+import VentureFeedbackView from "./views/VentureFeedbackView";
+import VentureFoundersTab from "./views/VentureFoundersTab";
+import VentureFundraisingView from "./views/VentureFundraisingView";
+import VentureHistoryView from "./views/VentureHistoryView";
+import VentureInvestmentView from "./views/VentureInvestmentView";
+import VentureInvestorsView from "./views/VentureInvestorsView";
+import VentureJourneyView from "./views/VentureJourneyView";
+import VentureKnowledgeView from "./views/VentureKnowledgeView";
+import VentureNotesView from "./views/VentureNotesView";
+import VentureProjectsView from "./views/VentureProjectsView";
+import VentureReportingView from "./views/VentureReportingView";
+import VentureReportsView from "./views/VentureReportsView";
+import VentureSessionsView from "./views/VentureSessionsView";
+import VentureStaffAssignmentsView from "./views/VentureStaffAssignmentsView";
+import VentureTasksView from "./views/VentureTasksView";
+import VentureVerificationView from "./views/VentureVerificationView";
 
 const WIZARD_STEPS = [
   { step: 1, name: "vadmin.detail.startupIdentity", icon: Building2 },
@@ -29,6 +50,15 @@ const WIZARD_STEPS = [
   { step: 6, name: "vadmin.detail.reviewAndSubmit", icon: CheckCircle2 },
 ];
 
+/**
+ * THE VENTURE RECORD — every view is a tab of ONE address.
+ *
+ * `/admin/ventures/[id]?tab=…` is the only address of this record: the panes
+ * below are the views that used to answer to their own path segments. Each pane
+ * is the former screen, moved out of `src/app` unchanged, so a tab shows exactly
+ * what its retired address showed. Old addresses are generated as redirects
+ * from the address catalogue (docs/ADDRESS_CONTRACT.md, wave W3).
+ */
 export default function VentureDetailView({ ctx }) {
   const {
     loading,
@@ -45,6 +75,10 @@ export default function VentureDetailView({ ctx }) {
     t,
     venture,
   } = ctx;
+
+  // `documents` was the path segment of the Data Room; accept it as a synonym
+  // of the canonical tab so a stale in-app link still lands on the right pane.
+  const tab = activeTab === "documents" ? "dataRoom" : activeTab;
 
   if (loading) {
     return (
@@ -81,13 +115,13 @@ export default function VentureDetailView({ ctx }) {
     <>
       <div className="space-y-8 pb-20">
         {/* Tab Content */}
-        {activeTab === "dashboard" && (
+        {tab === "dashboard" && (
           /* Full Dashboard is the first view when opening a Venture (merged
              with the former standalone dashboard page content). */
           <VentureDashboard id={id} embedded />
         )}
 
-        {(activeTab === "profile" || activeTab === "overview") && (
+        {(tab === "profile" || tab === "overview") && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main Info */}
             <div className="lg:col-span-2 space-y-6">
@@ -212,7 +246,7 @@ export default function VentureDetailView({ ctx }) {
           </div>
         )}
 
-{(activeTab === "founders" || activeTab === "team") && (
+        {tab === "team" && (
           <VentureTeamTab
             t={t}
             memberSummary={memberSummary}
@@ -223,7 +257,10 @@ export default function VentureDetailView({ ctx }) {
           />
         )}
 
-{activeTab === "activity" && (
+        {/* The founder ledger (invitations, ownership) — the former /founders page. */}
+        {tab === "founders" && <VentureFoundersTab />}
+
+        {tab === "activity" && (
           <VentureActivityTab
             t={t}
             venture={venture}
@@ -234,7 +271,7 @@ export default function VentureDetailView({ ctx }) {
           />
         )}
 
-        {activeTab === "wizard" && (
+        {tab === "wizard" && (
           <VentureWizardTab
             t={t}
             venture={venture}
@@ -244,6 +281,28 @@ export default function VentureDetailView({ ctx }) {
             wizardSteps={WIZARD_STEPS}
           />
         )}
+
+        {/* The retired record views, each now a tab of this one address. */}
+        {tab === "journey" && <VentureJourneyView />}
+        {tab === "investment" && <VentureInvestmentView />}
+        {tab === "reports" && <VentureReportsView />}
+        {tab === "reporting" && <VentureReportingView />}
+        {tab === "dataRoom" && <VentureDataRoomView />}
+        {tab === "document-types" && <VentureDocumentTypesView />}
+        {tab === "verification" && <VentureVerificationView />}
+        {tab === "tasks" && <VentureTasksView />}
+        {tab === "sessions" && <VentureSessionsView />}
+        {tab === "investors" && <VentureInvestorsView />}
+        {tab === "fundraising" && <VentureFundraisingView />}
+        {tab === "analytics" && <VentureAnalyticsView />}
+        {tab === "coaches" && <VentureCoachesView />}
+        {tab === "feedback" && <VentureFeedbackView />}
+        {tab === "knowledge" && <VentureKnowledgeView />}
+        {tab === "history" && <VentureHistoryView />}
+        {tab === "notes" && <VentureNotesView />}
+        {tab === "permissions" && <VentureStaffAssignmentsView />}
+        {tab === "edit" && <VentureEditView />}
+        {tab === "projects" && <VentureProjectsView />}
 
       </div>
 
