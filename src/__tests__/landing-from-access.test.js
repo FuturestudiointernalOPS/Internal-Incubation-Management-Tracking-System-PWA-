@@ -79,12 +79,12 @@ describe("landing from access — one member home", () => {
     "investor",
     "security_officer",
   ])("%s lands on the dashboard", (role) => {
-    expect(resolveLandingFromAccess({ role })).toBe("/dashboard");
+    expect(resolveLandingFromAccess({ role })).toBe("/member/dashboard");
   });
 
   test("profiles do not open a separate destination any more", () => {
     for (const profiles of [["investor"], ["founder"], ["facilitator"], ["participant"]]) {
-      expect(resolveLandingFromAccess({ role: "member", profiles })).toBe("/dashboard");
+      expect(resolveLandingFromAccess({ role: "member", profiles })).toBe("/member/dashboard");
     }
   });
 });

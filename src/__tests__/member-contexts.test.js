@@ -90,7 +90,7 @@ describe("the sidebar they compose", () => {
   test("no relationship at all — dashboard only, on the one address", () => {
     const items = composeMemberNav({ role: "member", rel: rel() });
     expect(ids(items)).toEqual(["dashboard"]);
-    expect(href(items, "dashboard")).toBe("/dashboard");
+    expect(href(items, "dashboard")).toBe("/member/dashboard");
   });
 
   test("team accounts keep their own home", () => {
@@ -104,7 +104,7 @@ describe("the sidebar they compose", () => {
       role: "member",
       rel: rel({ isFounder: true, isProgramParticipant: true }),
     });
-    expect(href(items, "dashboard")).toBe("/dashboard");
+    expect(href(items, "dashboard")).toBe("/member/dashboard");
   });
 
   test("the learner door follows the dashboard", () => {
@@ -169,7 +169,7 @@ describe("the sidebar they compose", () => {
       rel: rel({ isInvestor: true }),
     });
     expect(ids(items)).toEqual(["dashboard", "investor", "investor_portfolio"]);
-    expect(href(items, "dashboard")).toBe("/dashboard");
+    expect(href(items, "dashboard")).toBe("/member/dashboard");
     // The main investor door opens the workspace browser; the portfolio is the
     // second door. There is no third "deal flow" alias any more: that page IS
     // the browser.
@@ -231,7 +231,7 @@ describe("active profiles open the member contexts", () => {
   test("founder profile opens the founder door, on the one dashboard", () => {
     expect(contextKeys(["founder"])).toEqual(["founder"]);
     const items = composeMemberNav({ role: "member", rel: rel(), profiles: ["founder"] });
-    expect(href(items, "dashboard")).toBe("/dashboard");
+    expect(href(items, "dashboard")).toBe("/member/dashboard");
     expect(ids(items)).toContain("founder_meetings");
   });
 

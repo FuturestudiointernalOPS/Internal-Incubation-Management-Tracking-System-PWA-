@@ -1,7 +1,7 @@
 /**
  * The platform-forms screen wiring.
  *
- * The screen (`src/app/platform/forms/page.js`) keeps the state, the reads and
+ * The screen (`src/app/admin/communication/forms/list/page.js`) keeps the state, the reads and
  * the handlers; its two returns - the forms list and the builder - live in
  * `src/components/shared/platform/forms/PlatformFormsView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No type connects the two
@@ -14,7 +14,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const PARENT = path.join(ROOT, "app", "platform", "forms", "page.js");
+const PARENT = path.join(ROOT, "app", "admin", "communication", "forms", "list", "page.js");
 const VIEW = path.join(ROOT, "components", "shared", "platform", "forms", "PlatformFormsView.js");
 const HOOK = path.join(ROOT, "components", "shared", "platform", "forms", "hooks", "useFormBuilder.js");
 

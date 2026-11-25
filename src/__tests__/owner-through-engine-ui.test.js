@@ -94,10 +94,14 @@ describe("the same rule reaches every capability surface", () => {
     );
   });
 
-  // The Forms workspace has no sidebar of its own any more: it renders in the
-  // main shell, whose rights come from the shared permission provider below.
-  test("the platform workspace uses the shared shell, not a private bypass", () => {
-    const layout = read("src/app/platform/layout.js");
+  // The Forms workspace has no sidebar or frame of its own any more: it lives
+  // under /admin and inherits that section's shell, whose rights come from the
+  // shared permission provider below.
+  test("the forms workspace inherits the admin shell, not a private bypass", () => {
+    expect(
+      fs.existsSync(path.join(process.cwd(), "src/app/admin/communication/forms/layout.js")),
+    ).toBe(false);
+    const layout = read("src/app/admin/layout.js");
     expect(layout).toContain("DashboardLayout");
     expect(layout).not.toContain("isSuperAdmin");
   });
@@ -159,20 +163,20 @@ describe("display shortcuts are rights, not identities", () => {
   });
 
   test("the admin blockers board opens on the cross-person task right", () => {
-    const page = read("src/app/admin/blockers/page.js");
+    const page = read("src/app/admin/operations/blockers/page.js");
     expect(page).toContain('can("tasks", "view_all")');
     expect(page).not.toContain("isPlatformOwnerRole");
   });
 
   test("the work board deletes on the task-delete right", () => {
     for (const file of [
-      "src/app/admin/work/page.js",
+      "src/app/admin/operations/board/page.js",
       "src/spaces/admin/components/work/KanbanBoard.js",
       "src/spaces/admin/components/work/KanbanTaskCard.js",
     ]) {
       expect(read(file)).not.toContain("isSuperAdmin");
     }
-    expect(read("src/app/admin/work/page.js")).toContain('can("tasks", "delete")');
+    expect(read("src/app/admin/operations/board/page.js")).toContain('can("tasks", "delete")');
   });
 
   test("the investors screen opens its add link on the rights its API enforces", () => {

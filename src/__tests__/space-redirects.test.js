@@ -98,7 +98,7 @@ describe("the retired dashboards", () => {
 
   test("they all lead to the ONE dashboard, never to another dashboard", () => {
     for (const entry of RETIRED_DASHBOARD_REDIRECTS) {
-      expect(entry.destination).toBe("/dashboard");
+      expect(entry.destination).toBe("/member/dashboard");
     }
   });
 

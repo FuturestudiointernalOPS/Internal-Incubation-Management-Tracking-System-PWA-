@@ -26,7 +26,7 @@ jest.mock("@/lib/i18n", () => ({
 const mockReplace = jest.fn();
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockReplace, push: jest.fn() }),
-  usePathname: () => "/dashboard",
+  usePathname: () => "/member/dashboard",
 }));
 
 let mockRole = "member";

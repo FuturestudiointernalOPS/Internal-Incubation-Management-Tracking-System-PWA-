@@ -54,7 +54,7 @@ function readPath(rel) {
  * The base file plus its same-named folder, plus any extra paths.
  *
  * @param {...string} rels e.g. `readSurface("src/services/platform/formRuns.js")`
- *   or `readSurface("src/app/platform/runs/page.js", "src/components/shared/platform/runs")`
+ *   or `readSurface("src/app/admin/communication/forms/runs/page.js", "src/components/shared/platform/runs")`
  * @returns {string}
  */
 function readSurface(...rels) {

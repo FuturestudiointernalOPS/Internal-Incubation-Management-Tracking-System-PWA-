@@ -61,7 +61,7 @@ describe("sidebar additions — the doors live in the sidebar", () => {
   test("assigned staff get the ventures door, opening ALL ventures", () => {
     expect(src).toContain("withVentureConsole");
     expect(src).toContain('name: "MY VENTURES"');
-    expect(src).toContain('href: "/staff/ventures"');
+    expect(src).toContain('href: "/staff/lead-manager/ventures"');
     // …and it is conditional: no assignment, no door. The condition lives in
     // the staff context that owns it.
     expect(read(STAFF_CONTEXTS)).toContain("ventureAssignCount > 0");
@@ -142,12 +142,12 @@ describe("landing — one member dashboard, decided by the space", () => {
     // answers the same page; the SECTIONS come from the relationships.
     expect(ROLE_HOME.member).toBeUndefined();
     expect(roleHomeHref("member")).toBeNull();
-    expect(resolveLanding({ role: "member" })).toBe("/dashboard");
-    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/dashboard");
+    expect(resolveLanding({ role: "member" })).toBe("/member/dashboard");
+    expect(resolveLanding({ role: "member", isProgramParticipant: true })).toBe("/member/dashboard");
   });
 
   test("the member sidebar Dashboard door points at the dashboard", () => {
-    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/dashboard");
+    expect(ROLE_ACCESS.member.hrefs.dashboard).toBe("/member/dashboard");
   });
 
   test("the sidebar never keys the dashboard href off sessionRole", () => {
@@ -159,14 +159,14 @@ describe("landing — one member dashboard, decided by the space", () => {
     // The home is the ONE member address; only an entity account has its own.
     expect(src).toContain('normalizeRole(role) === "team"');
     expect(src).toContain('"/member/team"');
-    expect(src).toContain('"/dashboard"');
+    expect(src).toContain('"/member/dashboard"');
   });
 
   test("the other surfaces are unchanged", () => {
     expect(roleHomeHref("staff")).toBe("/staff");
     expect(roleHomeHref("super_admin")).toBe("/admin");
     // The retired member labels all answer the one dashboard.
-    expect(roleHomeHref("participant")).toBe("/dashboard");
+    expect(roleHomeHref("participant")).toBe("/member/dashboard");
   });
 });
 

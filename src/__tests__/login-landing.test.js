@@ -3,7 +3,7 @@
  *
  * The product decision this locks:
  *
- *   every member-space identity opens THE SAME dashboard (`/dashboard`); what
+ *   every member-space identity opens THE SAME dashboard (`/member/dashboard`); what
  *   differs is which SECTIONS it shows, and that is decided from the
  *   relationships the person holds (see member-dashboard.test.js).
  *
@@ -35,39 +35,39 @@ const venture = (overrides = {}) => ({
 });
 
 describe("the one member home", () => {
-  test("it is /dashboard", () => {
-    expect(MEMBER_HOME).toBe("/dashboard");
+  test("it is /member/dashboard", () => {
+    expect(MEMBER_HOME).toBe("/member/dashboard");
   });
 
   test.each(["member", "participant", "founder", "facilitator", "investor"])(
     "%s lands on the dashboard",
     (role) => {
-      expect(resolveLanding({ role })).toBe("/dashboard");
+      expect(resolveLanding({ role })).toBe("/member/dashboard");
     },
   );
 
   test("an identity the map does not know is a member too", () => {
-    expect(resolveLanding({ role: "security_officer" })).toBe("/dashboard");
-    expect(resolveLanding({ role: "" })).toBe("/dashboard");
+    expect(resolveLanding({ role: "security_officer" })).toBe("/member/dashboard");
+    expect(resolveLanding({ role: "" })).toBe("/member/dashboard");
   });
 
   test("NO relationship moves the landing any more", () => {
     // Every signal that used to choose a different page is now just content for
     // the same page: an owned venture, an investor profile, a program seat.
-    expect(resolveLanding({ role: "member", ventures: [venture()] })).toBe("/dashboard");
+    expect(resolveLanding({ role: "member", ventures: [venture()] })).toBe("/member/dashboard");
     expect(
       resolveLanding({ role: "member", ventures: [venture(), venture({ venture_id: "VNT-2" })] }),
-    ).toBe("/dashboard");
+    ).toBe("/member/dashboard");
     expect(resolveLanding({ role: "member", isInvestor: true, isProgramParticipant: true })).toBe(
-      "/dashboard",
+      "/member/dashboard",
     );
-    expect(resolveLanding({ role: "member", profiles: ["investor", "founder"] })).toBe("/dashboard");
+    expect(resolveLanding({ role: "member", profiles: ["investor", "founder"] })).toBe("/member/dashboard");
   });
 
   test("the retired context labels answer the same page", () => {
-    expect(ROLE_HOME.participant).toBe("/dashboard");
-    expect(ROLE_HOME.facilitator).toBe("/dashboard");
-    expect(ROLE_HOME.investor).toBe("/dashboard");
+    expect(ROLE_HOME.participant).toBe("/member/dashboard");
+    expect(ROLE_HOME.facilitator).toBe("/member/dashboard");
+    expect(ROLE_HOME.investor).toBe("/member/dashboard");
   });
 });
 
@@ -120,11 +120,11 @@ describe("an entity login keeps its own space", () => {
 describe("landing from access — the member rule does not depend on the matrix", () => {
   test("every member identity lands on the dashboard, with or without rights", () => {
     for (const role of ["member", "participant", "founder", "facilitator", "investor"]) {
-      expect(resolveLandingFromAccess({ role })).toBe("/dashboard");
-      expect(resolveLandingFromAccess({ role, effective: {} })).toBe("/dashboard");
+      expect(resolveLandingFromAccess({ role })).toBe("/member/dashboard");
+      expect(resolveLandingFromAccess({ role, effective: {} })).toBe("/member/dashboard");
       expect(
         resolveLandingFromAccess({ role, profiles: ["investor", "founder"], effective: null }),
-      ).toBe("/dashboard");
+      ).toBe("/member/dashboard");
     }
   });
 
@@ -203,26 +203,31 @@ describe("every caller uses that one rule", () => {
 
   test("the member sidebar's dashboard door is the one address", () => {
     const contexts = src("src/spaces/member/contexts.js");
-    expect(contexts).toContain('"/dashboard"');
+    expect(contexts).toContain('"/member/dashboard"');
     expect(contexts).not.toContain('"/member/participant"');
     expect(contexts).not.toContain('"/member/founder"');
     // The navigation contract must agree with it.
     const access = src("src/lib/masterNavigation/access.js");
-    expect(access).toContain('hrefs: { dashboard: "/dashboard" }');
+    expect(access).toContain('hrefs: { dashboard: "/member/dashboard" }');
   });
 
   test("the retired dashboards lead to the one dashboard instead of drawing their own", () => {
     const redirects = src("src/spaces/redirects.js");
-    expect(redirects).toContain('source: "/member/participant", destination: "/dashboard"');
-    expect(redirects).toContain('source: "/member/founder", destination: "/dashboard"');
-    expect(redirects).toContain('source: "/member/facilitator", destination: "/dashboard"');
-    expect(redirects).toContain('source: "/member/investor/dashboard", destination: "/dashboard"');
+    expect(redirects).toContain('source: "/member/participant", destination: "/member/dashboard"');
+    expect(redirects).toContain('source: "/member/founder", destination: "/member/dashboard"');
+    expect(redirects).toContain('source: "/member/facilitator", destination: "/member/dashboard"');
+    expect(redirects).toContain('source: "/member/investor/dashboard", destination: "/member/dashboard"');
     const config = src("next.config.mjs");
     expect(config).toContain("retiredDashboardRedirects()");
-    // …and the address itself is served by the member space's shell group.
-    expect(config).toContain("spaceRewrites()");
-    expect(config).not.toContain('source: "/dashboard"');
-    const rewrites = src("src/spaces/redirects.js");
-    expect(rewrites).toContain('{ source: "/dashboard", destination: "/member/dashboard" }');
+    // `/dashboard` is no longer a rewrite: it is a retired address of the
+    // canonical member dashboard, redirected by the address catalogue.
+    expect(config).not.toContain("spaceRewrites()");
+    expect(config).not.toContain('source: "/member/dashboard"');
+    const { screenRedirects } = require("@/lib/routes");
+    expect(screenRedirects()).toContainEqual({
+      source: "/dashboard",
+      destination: "/member/dashboard",
+      permanent: false,
+    });
   });
 });

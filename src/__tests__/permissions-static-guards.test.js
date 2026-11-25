@@ -90,7 +90,7 @@ const ROLE_MOTIFS = {
  * d'ajouter ici sans revue.
  */
 const ROLE_MOTIF_EXCEPTIONS = new Set([
-  "src/app/admin/communications/contacts/BulkProgramModal.js#M3",
+  "src/app/admin/communication/contacts/BulkProgramModal.js#M3",
 
   "src/app/api/admin/projects/[id]/reports/generate/route.js#M1",
   "src/app/api/attendance/route.js#M3",

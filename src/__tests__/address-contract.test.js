@@ -29,10 +29,10 @@ const {
 const { MASTER_NAVIGATION } = require("@/lib/masterNavigation/nodes");
 
 const APP = path.join(process.cwd(), "src", "app");
-const ROLE_ROOTS = ["member", "staff", "admin", "platform"];
+const ROLE_ROOTS = ["member", "staff", "admin"];
 
 /** Addresses served by something other than a page folder (a rewrite). */
-const SERVED_ALIASES = new Set(["/dashboard"]);
+const SERVED_ALIASES = new Set();
 
 const ROLE_CONTEXTS = {
   member: ["participant", "founder", "investor", "facilitator", "team"],
@@ -47,6 +47,10 @@ const ROLE_CONTEXTS = {
 function pageRoutes() {
   const routes = new Set();
   const walk = (dir) => {
+    // A role root may have no page of its own (e.g. the forms area left
+    // /platform for /admin/communication/forms): an absent root is simply no
+    // routes, never a crash.
+    if (!fs.existsSync(dir)) return;
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
@@ -151,16 +155,16 @@ describe("the redirects", () => {
       role: "staff",
       path: "/staff/lead-manager/ventures/[id]",
       tab: "journey",
-      legacy: ["/staff/ventures/[id]/journey", "/staff/ventures/[id]/plan"],
+      legacy: ["/staff/lead-manager/ventures/[id]/journey", "/staff/lead-manager/ventures/[id]/plan"],
     };
     expect(redirectsFor(row)).toEqual([
       {
-        source: "/staff/ventures/:id/journey",
+        source: "/staff/lead-manager/ventures/:id/journey",
         destination: "/staff/lead-manager/ventures/:id?tab=journey",
         permanent: false,
       },
       {
-        source: "/staff/ventures/:id/plan",
+        source: "/staff/lead-manager/ventures/:id/plan",
         destination: "/staff/lead-manager/ventures/:id?tab=journey",
         permanent: false,
       },
@@ -171,7 +175,7 @@ describe("the redirects", () => {
     const row = {
       id: "synthetic.pending",
       path: "/admin/operations/tasks",
-      legacy: ["/admin/tasks"],
+      legacy: ["/admin/operations/tasks"],
       pending: true,
     };
     expect(redirectsFor(row)).toEqual([]);

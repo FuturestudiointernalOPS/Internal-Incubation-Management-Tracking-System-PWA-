@@ -85,15 +85,15 @@ describe("menu derived from rights — staff space", () => {
     }
   });
 
-  test("the flag off keeps the role-mask Forms door while the matrix loads", () => {
-    // The Forms screens carry their own rights (forms_*), so a LOADED matrix
-    // without them closes the door in both modes; what the role mask keeps is
-    // its own doors while the matrix is still unknown.
+  test("the flag off keeps the role-mask Communication door while the matrix loads", () => {
+    // Forms belongs to the admin space now, so the staff mask keeps its own
+    // Communication doors (messages) while the matrix is still unknown.
     process.env[FLAG] = "false";
     try {
       const ids = flattenIds(buildAccessNav("staff", null));
-      expect(ids).toContain("forms");
-      expect(ids).toContain("forms_list");
+      expect(ids).toContain("communication");
+      expect(ids).toContain("messages");
+      expect(ids).not.toContain("forms");
     } finally {
       process.env[FLAG] = "true";
     }

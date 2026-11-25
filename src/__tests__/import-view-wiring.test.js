@@ -1,7 +1,7 @@
 /**
  * The platform-import screen wiring.
  *
- * The screen (`src/app/admin/platform/import/page.js`) keeps the state, the
+ * The screen (`src/app/admin/communication/forms/import/page.js`) keeps the state, the
  * file parsing and the handlers; its wizard markup lives in
  * `src/spaces/admin/components/shared/platform/import/ImportView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No type connects the two
@@ -14,7 +14,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const PARENT = path.join(ROOT, "app", "admin", "platform", "import", "page.js");
+const PARENT = path.join(ROOT, "app", "admin", "communication", "forms", "import", "page.js");
 const VIEW = path.join(ROOT, "spaces", "admin", "components", "platform", "import", "ImportView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");

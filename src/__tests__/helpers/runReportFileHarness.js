@@ -37,15 +37,15 @@ const read = (rel) => {
   // V2: the run screen is split — the page keeps the state, the writes live in
   // its own `actions/` and the JSX in components/shared/platform/runs/. Read all three
   // so a pin cannot go vacuously green when the code moves out again.
-  if (rel === "src/app/platform/runs/page.js") {
-    return readSurface("src/app/platform/runs", "src/components/shared/platform/runs");
+  if (rel === "src/app/admin/communication/forms/runs/page.js") {
+    return readSurface("src/app/admin/communication/forms/runs", "src/components/shared/platform/runs");
   }
   return text;
 };
 
 const REPORT_FILE_ROUTE = "src/app/api/platform/form-runs/report-file/route.js";
 const FORM_RUNS_DETAIL_SERVICE = "src/services/platform/formRuns.js";
-const RUNS_PAGE = "src/app/platform/runs/page.js";
+const RUNS_PAGE = "src/app/admin/communication/forms/runs/page.js";
 
 const storedReports = [];
 const insertedReports = [];

@@ -48,7 +48,7 @@ describe("taskToGoogleEvent", () => {
     expect(body.end).toEqual({ date: "2026-10-11" });
     expect(body.summary).toBe("Prepare demo day");
     expect(body.extendedProperties.private).toEqual({ fs_source: "impactos", fs_task_id: "7" });
-    expect(body.description).toContain("https://app.test/admin/tasks");
+    expect(body.description).toContain("https://app.test/admin/operations/tasks");
   });
 
   it("uses the single known date when only one is set", () => {
