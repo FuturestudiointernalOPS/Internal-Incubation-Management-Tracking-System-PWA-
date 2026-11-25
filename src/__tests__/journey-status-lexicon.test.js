@@ -46,8 +46,8 @@ const MANAGER = [
   "src/components/shared/ventures/console/journey/actions/deliverables.js",
 ];
 const ADMIN_TIMELINE = "src/components/shared/ventures/console/timeline/VentureTimelineView.js";
-const ADMIN_REPORTS = "src/app/admin/ventures/[id]/reports/page.js";
-const ADMIN_SESSIONS = "src/app/admin/ventures/[id]/sessions/page.js";
+const ADMIN_REPORTS = "src/spaces/admin/components/ventures/views/VentureReportsView.js";
+const ADMIN_SESSIONS = "src/spaces/admin/components/ventures/views/VentureSessionsView.js";
 
 describe("the vocabulary — every word exists in both languages", () => {
   test("the ladder is the eight agreed words", () => {

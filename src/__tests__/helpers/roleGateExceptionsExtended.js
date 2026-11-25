@@ -22,7 +22,7 @@ module.exports = {
 
   ],
   display: [
-    "src/app/admin/ventures/[id]/founders/page.js#M5",
+    "src/spaces/admin/components/ventures/views/VentureFoundersTab.js#M5",
     "src/app/api/kpis/route.js#M5",
 
     "src/app/api/ventures/[id]/advisors/route.js#M5",

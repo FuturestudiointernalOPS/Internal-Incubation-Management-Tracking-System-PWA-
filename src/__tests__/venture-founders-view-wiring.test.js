@@ -14,7 +14,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const PARENT = path.join(ROOT, "app", "admin", "ventures", "[id]", "founders", "page.js");
+const PARENT = path.join(ROOT, "spaces", "admin", "components", "ventures", "views", "VentureFoundersTab.js");
 const VIEW = path.join(ROOT, "spaces", "admin", "components", "ventures", "VentureFoundersView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");

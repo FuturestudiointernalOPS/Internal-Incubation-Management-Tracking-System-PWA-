@@ -23,5 +23,5 @@ test("the Staff menu offers Add Venture Manager and Invite Founder", () => {
   const source = fs.readFileSync(path.join(process.cwd(), "src/spaces/admin/components/ventures/VentureHubNav.js"), "utf8");
   expect(source).toContain('t("vadmin.detail.addLeadManager")');
   expect(source).toContain('t("vadmin.dashboard.inviteFounder")');
-  expect(source).toContain("${base}/founders");
+  expect(source).toContain('${base}?tab=founders');
 });
