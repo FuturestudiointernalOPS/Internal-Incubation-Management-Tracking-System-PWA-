@@ -19,6 +19,8 @@
  * default is temporary.
  */
 
+import { screenRedirects } from "../lib/routes/index.js";
+
 /** Whether the migration redirects answer permanently (308). */
 export const SPACE_REDIRECTS_PERMANENT =
   process.env.SPACE_REDIRECTS_PERMANENT === "1" ||
@@ -106,4 +108,16 @@ export const SPACE_REWRITES = [
 /** The rewrite list expected by Next. */
 export function spaceRewrites() {
   return SPACE_REWRITES.map((entry) => ({ ...entry }));
+}
+
+/**
+ * THE SCREEN ADDRESSES.
+ *
+ * Generated from the address catalogue (`src/lib/routes/`), not written here:
+ * a screen that has finished its move lists its old addresses, and every one of
+ * them redirects to the screen's canonical address. Empty while every move is
+ * still pending, so adding this module changes no behaviour.
+ */
+export function screenRedirectsForNext() {
+  return screenRedirects({ permanent: SPACE_REDIRECTS_PERMANENT });
 }
