@@ -190,8 +190,9 @@
     "deleteSuccess": "Annonce archivée.",
     "showAll": "Tout afficher",
     "showActive": "Actives uniquement",
-    "groupPlaceholder": "Entrez le nom du groupe",
+    "groupPlaceholder": "Sélectionnez un groupe...",
     "projectPlaceholder": "Entrez l'ID ou le nom du projet",
-    "programPlaceholder": "Entrez l'ID ou le nom du programme"
+    "programPlaceholder": "Sélectionnez un programme...",
+    "targetRequired": "Choisissez le groupe ou le programme concerné par cette annonce."
   }
 }
