@@ -2,6 +2,11 @@
 
 import { useI18n } from "@/lib/i18n";
 import { INDUSTRY_OPTIONS, COUNTRY_OPTIONS, STAGE_OPTIONS } from "./constants";
+import {
+  countryLabelKey,
+  industryLabelKey,
+  stageLabelKey,
+} from "@/lib/investorOptions";
 
 /**
  * The advanced discovery filters panel (industry, country, stage, funding range).
@@ -30,7 +35,7 @@ export default function VentureFilters({
             <button key={industryOption} onClick={() => onToggleIndustry(industryOption)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
                 filterIndustry.includes(industryOption) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}>{industryOption}</button>
+              }`}>{t(industryLabelKey(industryOption))}</button>
           ))}
         </div>
       </div>
@@ -41,7 +46,7 @@ export default function VentureFilters({
             <button key={countryOption} onClick={() => onToggleCountry(countryOption)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
                 filterCountry.includes(countryOption) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}>{countryOption}</button>
+              }`}>{t(countryLabelKey(countryOption))}</button>
           ))}
         </div>
       </div>
@@ -52,7 +57,7 @@ export default function VentureFilters({
             <button key={stageOption} onClick={() => onToggleStage(stageOption)}
               className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all ${
                 filterStage.includes(stageOption) ? "bg-[var(--brand-orange)] text-white" : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-              }`}>{stageOption}</button>
+              }`}>{t(stageLabelKey(stageOption))}</button>
           ))}
         </div>
       </div>

@@ -1,11 +1,12 @@
 import NextLink from "next/link";
-import { Plus, Search, Loader2, FolderKanban } from "lucide-react";
+import { Plus, Search, Loader2, FolderKanban, FileText } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import FormCard from "./FormCard";
 
 export default function FormsListView({
   forms, loading, collections, search, onSearch,
   statusFilter, onStatusFilterChange, onNew,
+  onSeedInvestorNetwork, seeding,
   onOpen, onDuplicate, onArchive, onUnarchive, onDelete,
 }) {
   const { t } = useI18n();
@@ -20,6 +21,14 @@ export default function FormsListView({
           <NextLink href="/platform/collections" className="flex items-center gap-2 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-xl text-[10px] font-black uppercase hover:text-[var(--text-primary)] transition-all">
             <FolderKanban className="w-3.5 h-3.5" /> {t("platformMisc.forms.collectionsLink")}
           </NextLink>
+          <button
+            onClick={onSeedInvestorNetwork}
+            disabled={seeding}
+            className="flex items-center gap-2 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-[var(--text-primary)] transition-all disabled:opacity-50"
+          >
+            {seeding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileText className="w-3.5 h-3.5" />}
+            {t("platformMisc.forms.seedInvestorNetwork")}
+          </button>
           <button onClick={onNew} className="flex items-center gap-2 px-4 py-2.5 bg-[var(--brand-orange)] text-black rounded-xl text-[10px] font-black uppercase tracking-widest hover:brightness-110 transition-all">
             <Plus className="w-3.5 h-3.5" /> {t("platformMisc.forms.newForm")}
           </button>

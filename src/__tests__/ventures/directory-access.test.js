@@ -189,14 +189,16 @@ describe("the predicates that were already settled stay settled", () => {
     );
   });
 
-  test("a Super Admin WITHOUT the right is scoped to their own Ventures", async () => {
+  test("a Super Admin sees the whole directory by ROLE, whatever the matrix says", async () => {
+    // The role is authoritative: without it, a database whose one-time grant
+    // has not been applied yet shows the owner an empty Ventures directory.
     getSession.mockResolvedValue({ cid: "sa-1", role: "super_admin" });
     mockAuthzContext = contextFor("super_admin", false);
 
     await callRoute("?contact_id=USR_X");
 
     expect(mockList).toHaveBeenCalledWith(
-      expect.objectContaining({ effectiveContactId: "sa-1", assignedStaffId: null }),
+      expect.objectContaining({ effectiveContactId: "USR_X", assignedStaffId: null }),
     );
   });
 

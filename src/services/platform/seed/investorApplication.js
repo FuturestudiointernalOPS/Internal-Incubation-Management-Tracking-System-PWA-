@@ -15,6 +15,11 @@
 
 import { resolveAppUrl } from "@/lib/appUrl";
 import {
+  INVESTOR_COUNTRIES,
+  INVESTOR_INDUSTRIES,
+  INVESTOR_STAGES,
+} from "@/lib/investorOptions";
+import {
   createInvestorApplicationForm,
   createInvestorApplicationRun,
   findActiveInvestorRun,
@@ -32,10 +37,6 @@ import { assertSingleInvestorForm, ensureSingleInvestorFormIndex } from "@/model
 
 const INVESTOR_FORM_NAME = "Investor Application";
 const INVESTOR_RUN_NAME = "Investor Application";
-
-const INVESTOR_INDUSTRIES = ["EdTech", "AI/ML", "FinTech", "HealthTech", "AgriTech", "CleanTech", "Logistics", "E-Commerce", "SaaS", "Renewable Energy"];
-const INVESTOR_COUNTRIES = ["CD", "KE", "NG", "ZA", "GH", "RW", "UG", "TZ", "EG", "MA", "SN", "CI", "CM"];
-const INVESTOR_STAGES = ["Pre-Seed", "Seed", "Series A", "Series B", "Growth"];
 
 const INVESTOR_FORM_SECTIONS = [
   {

@@ -262,6 +262,31 @@ export function useFormBuilder({ refreshForms, forms, collections, loading }) {
     setAiEvalText,
   });
 
+  // One-click seed: the public "Join our investors network" form, created
+  // inside THIS engine and then listed beside every other form. Idempotent —
+  // the server returns the form that already exists. The public URL is copied
+  // from the run's Share tab, like any other run.
+  const [seeding, setSeeding] = useState(false);
+  const seedInvestorNetwork = useCallback(async () => {
+    setSeeding(true);
+    try {
+      const response = await fetch("/api/platform/seed/investor-network", { method: "POST" });
+      const payload = await response.json().catch(() => ({}));
+      if (!payload.success) {
+        notify(t("platformMisc.forms.seedInvestorNetworkFailed"));
+        return payload;
+      }
+      if (refreshForms) await refreshForms();
+      notify(t("platformMisc.forms.seedInvestorNetworkDone"));
+      return payload;
+    } catch (_) {
+      notify(t("platformMisc.forms.seedInvestorNetworkFailed"));
+      return { success: false };
+    } finally {
+      setSeeding(false);
+    }
+  }, [notify, refreshForms, t]);
+
   const ctx = {
     activeSectionId,
     addField,
@@ -319,6 +344,8 @@ export function useFormBuilder({ refreshForms, forms, collections, loading }) {
     scoringConfig,
     search,
     sections,
+    seedInvestorNetwork,
+    seeding,
     selectedFieldId,
     setActiveSectionId,
     setAiEvalFramework,

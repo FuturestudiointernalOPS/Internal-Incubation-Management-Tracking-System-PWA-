@@ -25,6 +25,7 @@ import {
   ensureFacilitatorProfileSeed,
   ensureVentureMemberEditBackfill,
   ensureVentureOpsProfileSeed,
+  ensureLmsAuthorProfileSeed,
   ensureVentureAdminProfileSeed,
   ensureDelegatedCapabilityDefaults,
   ensureVenturePortfolioCapabilityDefaults,
@@ -188,6 +189,11 @@ export function ensureCapabilityBackfills() {
           // The delegable Venture Ops Contributor profile (LMS + Programs +
           // Ventures, create/edit only). Same one-time-seed reason as above.
           runAuthzMigration("venture-ops-profile-seed-v1", ensureVentureOpsProfileSeed),
+          // The delegable LMS AUTHOR profile (create + publish). Same one-time
+          // seed reason: the catalogue seed is recorded once per database, so a
+          // profile added later never reaches an existing one. Also writes the
+          // profile's eligibility row, so its grants are not inert.
+          runAuthzMigration("lms-author-profile-seed-v1", ensureLmsAuthorProfileSeed),
           // The portfolio-wide Venture Admin profile (staff-only). It carries the
           // Staff Default bundle plus the two portfolio rights, so a database
           // seeded before it existed receives it (insert-only).

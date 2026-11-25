@@ -11,6 +11,14 @@ import AppCard from "@/components/ui/AppCard";
 import AppButton from "@/components/ui/AppButton";
 import GlobalToast from "@/components/ui/GlobalToast";
 import { useApi } from "@/lib/hooks/useApi";
+import {
+  COUNTRY_OPTIONS,
+  INDUSTRY_OPTIONS,
+  STAGE_OPTIONS,
+  countryLabelKey,
+  industryLabelKey,
+  stageLabelKey,
+} from "@/lib/investorOptions";
 
 // ─── Read shaping (module scope: built once, never per render) ───────────
 
@@ -49,13 +57,6 @@ const profileToForm = (storedProfile) =>
         philosophy: storedProfile.investment_philosophy || "",
       }
     : EMPTY_PROFILE_FORM;
-
-const INDUSTRY_OPTIONS = [
-  "FinTech", "HealthTech", "AgriTech", "EdTech", "CleanTech",
-  "Logistics", "E-Commerce", "SaaS", "AI/ML", "Renewable Energy",
-];
-const STAGE_OPTIONS = ["Pre-Seed", "Seed", "Series A", "Series B", "Growth"];
-const COUNTRY_OPTIONS = ["CD", "KE", "NG", "ZA", "GH", "RW", "UG", "TZ", "EG", "MA"];
 
 export default function InvestorProfilePage() {
   const { t } = useI18n();
@@ -258,7 +259,7 @@ export default function InvestorProfilePage() {
                             ? "bg-[var(--brand-orange)] text-white"
                             : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>
-                        {industry}
+                        {t(industryLabelKey(industry))}
                       </button>
                     ))}
                   </div>
@@ -277,7 +278,7 @@ export default function InvestorProfilePage() {
                             ? "bg-[var(--brand-orange)] text-white"
                             : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>
-                        {country}
+                        {t(countryLabelKey(country))}
                       </button>
                     ))}
                   </div>
@@ -296,7 +297,7 @@ export default function InvestorProfilePage() {
                             ? "bg-[var(--brand-orange)] text-white"
                             : "bg-[var(--surface-3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                         }`}>
-                        {stage}
+                        {t(stageLabelKey(stage))}
                       </button>
                     ))}
                   </div>

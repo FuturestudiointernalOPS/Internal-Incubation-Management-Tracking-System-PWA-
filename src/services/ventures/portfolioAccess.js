@@ -15,11 +15,15 @@
  *
  * Two properties are deliberate:
  *
- *   1. The decision is read from the EFFECTIVE capability matrix, never from
- *      the role string. A Super Admin is allowed by default because their
- *      default profile holds the rights, not because of who they are; removing
- *      the right from that profile (or restricting it on the person) removes
- *      the access. A staff member can be granted the same rights.
+ *   1. The platform owner KEEPS the perimeter BY ROLE. A Super Admin reaches
+ *      every Venture because of who they are, exactly as the decision engine
+ *      already answers for them — the gate must never contradict the resolver.
+ *      Making the owner's access depend on a profile row means a database whose
+ *      one-time grants have not been applied yet locks the owner out of its own
+ *      platform (this happened in production on 2026-11-24: nine Ventures,
+ *      empty directory). Everyone ELSE reaches the perimeter through the right:
+ *      `ventures.view_all` / `ventures.edit_all`, which stay assignable and
+ *      revocable.
  *
  *   2. Only an INTERNAL identity can hold the perimeter. A Venture member may
  *      be granted anything else, but the portfolio views are staff surfaces:
@@ -71,7 +75,13 @@ export function holdsExplicitCapability(ctx, module, capability, minLevel = 1) {
 export function holdsVenturePortfolioRight(ctx, action) {
   const capability = portfolioCapabilityFor(action);
   if (!capability) return false;
-  if (!isInternalVentureIdentity(ctx?.role)) return false;
+  const role = ctx?.role;
+  if (!isInternalVentureIdentity(role)) return false;
+  // THE PLATFORM OWNER RETAINS THE PERIMETER BY ROLE. Their session may carry
+  // the flag, the role, or both — either is enough, and no profile row, grant
+  // or migration is consulted. This is the same authority the decision engine
+  // gives them; the gate follows it instead of contradicting it.
+  if (ctx?.isSuperAdmin || isPlatformOwnerRole(role)) return true;
   return holdsExplicitCapability(ctx, "ventures", capability, 1);
 }
 
@@ -101,6 +111,11 @@ export async function resolveVenturePortfolioAccess({ session, action, ctx = nul
 
   if (!isInternalVentureIdentity(resolved?.role || session.role)) {
     return { allowed: false, capability, reason: "not-internal" };
+  }
+  // The platform owner short-circuits with its ROLE — see
+  // `holdsVenturePortfolioRight`: the owner never depends on a profile row.
+  if (resolved?.isSuperAdmin || isPlatformOwnerRole(resolved?.role || session.role)) {
+    return { allowed: true, capability, reason: "platform-owner" };
   }
   if (!holdsExplicitCapability(resolved, "ventures", capability, 1)) {
     return { allowed: false, capability, reason: "capability-missing" };

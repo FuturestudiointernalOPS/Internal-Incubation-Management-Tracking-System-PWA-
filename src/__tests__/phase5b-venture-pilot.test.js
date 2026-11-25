@@ -92,7 +92,9 @@ describe("Phase 5c — the venture gate (strict only)", () => {
     expect(isWithinScope).not.toHaveBeenCalled();
   });
 
-  test("a Super Admin WITHOUT the portfolio right is limited to their own Ventures", async () => {
+  test("a Super Admin reaches every Venture by ROLE, with no portfolio right", async () => {
+    // The role is authoritative: a database whose one-time grant has not been
+    // applied yet must never lock the platform owner out of its own data.
     mockCtx = {
       isSuperAdmin: true,
       role: "super_admin",
@@ -100,9 +102,7 @@ describe("Phase 5c — the venture gate (strict only)", () => {
       restrictions: {},
     };
     const out = await callHelper();
-    expect(out.error.status).toBe(403);
-    expect(out.error.headers.get("X-Authz-Decision")).toBe("out-of-scope");
-    expect(isWithinScope).toHaveBeenCalled();
+    expect(out.path).toBe("super-admin");
   });
 
   test("unauthenticated → 401, nothing else evaluated", async () => {

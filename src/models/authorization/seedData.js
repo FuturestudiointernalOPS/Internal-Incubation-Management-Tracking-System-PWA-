@@ -42,7 +42,11 @@ export const FEATURE_ELIGIBILITY_PROFILE_DEFAULTS = {
   investors: ["investor"],
   operations: ["program_manager", "participant", "investor"],
   reports: ["program_manager"],
-  lms: ["program_manager"],
+  // `lms_author` joins `program_manager`: a person holding the delegated
+  // authoring profile is eligible for the LMS feature through the profile they
+  // hold. Eligibility is a CEILING, never a grant — the capabilities come from
+  // the profile itself.
+  lms: ["program_manager", "lms_author"],
 };
 
 /** Assignment-derived program access on databases seeded before it existed. */
@@ -166,6 +170,14 @@ export const PROFILE_CATALOGUE_SEED = [
   } },
   { key: "course_manager", label: "Course Manager", context: "staff", allowedRoles: ["staff"], capabilities: {
     lms: { view: 1, edit: 3 },
+  } },
+  // DELEGATED LMS AUTHORING. `course_manager` above manages and publishes
+  // existing courses (D6: manage-only, no create). This profile is for the
+  // person the studio entrusts with BUILDING and PUBLISHING courses, so it
+  // carries create + edit. Neither a Program Manager nor any default profile
+  // holds it: publishing stays a delegated right, never an implicit one.
+  { key: "lms_author", label: "LMS Author", context: "staff", allowedRoles: ["staff"], capabilities: {
+    lms: { view: 1, create: 2, edit: 3 },
   } },
   { key: "venture_ops_contributor", label: "Venture Ops Contributor", context: "global", allowedRoles: ["staff"], capabilities: {
     lms: { view: 1, create: 2, edit: 3 },
