@@ -18,6 +18,10 @@ const mockState = {
   newCaps: [],
   eligibility: { valid: true, violations: [] },
   roleDefaultRow: null,
+  // Optional per-role stubs for the GET path: a role with no entry here reads
+  // as "no default", exactly like an unmapped stored label.
+  roleDefaultByRole: null,
+  roleMappingByRole: null,
 };
 
 function mockRows(sql, args = []) {
@@ -38,8 +42,20 @@ function mockRows(sql, args = []) {
   if (sql.includes("FROM role_profile_defaults rpd") && sql.includes("UNION ALL"))
     return { rows: [] };
   if (sql.includes("FROM profiles p") && sql.includes("UNION ALL")) return { rows: [] };
-  if (sql.includes("FROM role_profile_defaults rpd"))
+  if (sql.includes("FROM role_profile_defaults rpd")) {
+    if (mockState.roleDefaultByRole) {
+      const row = mockState.roleDefaultByRole[args[0]];
+      return { rows: row ? [row] : [] };
+    }
     return { rows: mockState.roleDefaultRow ? [mockState.roleDefaultRow] : [] };
+  }
+  // getRoleProfileDefault — the RAW mapping, before the active-profile join.
+  // Used to tell "no mapping at all" (fall back to member) apart from "mapped
+  // but deactivated" (a real configuration gap).
+  if (sql.includes("FROM role_profile_defaults WHERE role_name = ?")) {
+    const row = mockState.roleMappingByRole?.[args[0]];
+    return { rows: row ? [row] : [] };
+  }
   if (sql.includes("FROM profile_capabilities WHERE profile_key")) {
     return {
       rows:
@@ -188,4 +204,53 @@ test("a null profile removes the override and reports the fallback", async () =>
   expect(res.status).toBe(200);
   expect(body.roleDefaultName).toBe("Staff Default");
   expect(sawClear()).toBe(true);
+});
+
+// ── GET — the profile the screen shows for a person ──────────────────────────
+
+const getReq = (cid) => ({
+  url: `http://localhost/api/engineering/permissions/profile-override?user_cid=${cid}`,
+});
+
+test("the GET reports the mapped default profile of the stored role", async () => {
+  mockState.contact = { cid: "U-2", name: "Target", role: "member", profile_key: null };
+  mockState.roleDefaultByRole = { member: { key: "venture_member", label: "Venture Member" } };
+
+  const res = await route.GET(getReq("U-2"));
+  const body = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(body.roleDefault).toEqual({ key: "venture_member", name: "Venture Member" });
+  expect(body.effectiveSource).toBe("role");
+});
+
+test("a stored label with NO mapping falls back to the member default", async () => {
+  // `applicant` is what the public join form writes; sign-in resolves it to the
+  // member baseline, so the screen must show the member default rather than
+  // reporting that the person has no profile at all.
+  mockState.contact = { cid: "U-9", name: "Applicant", role: "applicant", profile_key: null };
+  mockState.roleDefaultByRole = { member: { key: "venture_member", label: "Venture Member" } };
+  mockState.roleMappingByRole = {}; // no mapping for `applicant`
+
+  const res = await route.GET(getReq("U-9"));
+  const body = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(body.roleDefault).toEqual({ key: "venture_member", name: "Venture Member" });
+  expect(body.effectiveSource).toBe("role");
+});
+
+test("a mapped but deactivated default stays absent (no silent fallback)", async () => {
+  // The role HAS a default; its profile was deactivated. That is a real
+  // configuration gap and must not be masked by the member default.
+  mockState.contact = { cid: "U-9", name: "Applicant", role: "applicant", profile_key: null };
+  mockState.roleDefaultByRole = { member: { key: "venture_member", label: "Venture Member" } };
+  mockState.roleMappingByRole = { applicant: { role_name: "applicant", profile_key: "legacy" } };
+
+  const res = await route.GET(getReq("U-9"));
+  const body = await res.json();
+
+  expect(res.status).toBe(200);
+  expect(body.roleDefault).toBeNull();
+  expect(body.effectiveSource).toBe("none");
 });

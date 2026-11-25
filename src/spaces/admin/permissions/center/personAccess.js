@@ -12,6 +12,7 @@
 
 import { deriveUserCapState } from "../matrixHelpers/state";
 import { PROFILE_BASELINE_ROLES } from "@/models/authorization/profile-catalog";
+import { ENTITY_IDENTITIES, normalizeRole } from "@/lib/identity";
 
 /** Feature eligibility is the outer gate: fail closed, Super Admin bypasses. */
 export function isFeatureEligible(ctx, feature) {
@@ -191,6 +192,31 @@ export function profileFeatureCaps(profileCaps = {}, feature, moduleToFeature = 
 /** Does this profile grant ANY capability inside the feature? */
 export function profileGrantsFeature(profileCaps = {}, feature, moduleToFeature = {}) {
   return Object.keys(profileFeatureCaps(profileCaps, feature, moduleToFeature)).length > 0;
+}
+
+/**
+ * The role key whose DEFAULT PROFILE applies to a person's stored label.
+ *
+ * `contacts.role` can still carry a label that predates the three-identity
+ * model: the public join form writes `applicant`, and a retired contextual
+ * label can survive on a row that never signed in again. Sign-in resolves every
+ * such label to the member baseline, so the centre looks the default profile up
+ * under `member` when the stored label has no entry of its own. Without this the
+ * person reads as having no profile at all, although one applies to them.
+ *
+ * A label that already has a mapping keeps it (founder, investor, a legacy
+ * program-manager row), and an entity account (`team`) is left alone — it is an
+ * account, not a person's contextual function.
+ *
+ * @param {string|null|undefined} storedRole
+ * @param {Record<string, unknown>} roleDefaults
+ * @returns {string}
+ */
+export function defaultProfileRoleKey(storedRole, roleDefaults = {}) {
+  const value = normalizeRole(storedRole);
+  if (value && roleDefaults[value]) return value;
+  if (ENTITY_IDENTITIES.includes(value)) return value;
+  return "member";
 }
 
 /**

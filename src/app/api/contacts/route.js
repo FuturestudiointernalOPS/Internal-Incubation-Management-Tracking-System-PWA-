@@ -8,6 +8,7 @@ import {
   normalizeGroupName,
   INTERNAL_GROUP,
 } from "@/models/authorization/membership";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import { readRegistryContacts } from "@/services/contacts/registryRead";
 import { softDeleteRegistryContact } from "@/services/contacts/deletion";
 import { registerContacts } from "@/services/contacts/registration";
@@ -107,6 +108,13 @@ export async function PUT(req) {
     const assignRoleError = await requireAuthorization("permissions", "assign_capabilities");
     const canAssignRole = !assignRoleError;
     const session = await getSession();
+
+    // The role column holds a BASELINE identity. An intake label (`applicant`)
+    // or a retired contextual label is translated BEFORE the write and the
+    // audit, so the stored value and the trace always agree.
+    if (canAssignRole && "role" in data) {
+      data.role = normalizeIdentityForStorage(data.role);
+    }
 
     // `archived_at` / `archived_by` record WHO archived and WHEN — the caller
     // sends only the `archived` intent; the server fills both from the session.

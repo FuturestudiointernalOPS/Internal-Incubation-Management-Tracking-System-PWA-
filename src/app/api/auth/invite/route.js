@@ -13,6 +13,7 @@ import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { enforceRateLimit, getClientIp } from "@/lib/rate-limit";
 import { addContactToGroup } from "@/models/contact-groups";
 import { isValidEmail, normalizeEmail } from "@/lib/email-utils";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import {
   getContactBriefByEmailForResend,
   expirePasswordSetupTokensForResend,
@@ -132,7 +133,9 @@ export async function POST(req) {
         contactCid,
         displayName,
         cleanEmail,
-        role || "member",
+        // An intake label (`applicant`) is a stage, not an identity: the write
+        // stores the member baseline, exactly like registration does.
+        normalizeIdentityForStorage(role || "member"),
         normalizedGroup,
       );
     }

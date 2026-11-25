@@ -33,8 +33,10 @@ async function syncCrmContact(submission) {
     const phone = values.find(value => typeof value === "string" && /^[\d\s+\-()]{7,}$/.test(value));
     const cid = submission.submitter_id || "USR_" + Math.random().toString(36).substring(2, 10).toUpperCase();
     await db.execute({
+      // The account's global identity is a baseline identity: the intake stage
+      // is carried by the account status, never by the role label.
       sql: `INSERT INTO contacts (cid, name, email, phone, role, status)
-            VALUES (?, ?, ?, ?, 'applicant', 'active')
+            VALUES (?, ?, ?, ?, 'member', 'active')
             ON CONFLICT(email) DO UPDATE SET
               name = COALESCE(NULLIF(EXCLUDED.name, ''), contacts.name),
               phone = COALESCE(EXCLUDED.phone, contacts.phone)`,

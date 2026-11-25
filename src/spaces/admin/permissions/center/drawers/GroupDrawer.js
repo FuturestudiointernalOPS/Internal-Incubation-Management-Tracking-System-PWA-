@@ -15,6 +15,7 @@ import { useI18n } from "@/lib/i18n";
 import AppDrawer from "@/components/ui/AppDrawer";
 import AppButton from "@/components/ui/AppButton";
 import { Cell, EmptyRow, HeadCell, Kpi, KpiRow, Pill, CenterTable } from "../centerUi";
+import { defaultProfileRoleKey } from "../personAccess";
 
 export default function GroupDrawer({ group, data, onClose, onOpenPerson }) {
   const { t } = useI18n();
@@ -97,7 +98,7 @@ export default function GroupDrawer({ group, data, onClose, onOpenPerson }) {
             >
               <Cell className="font-bold">{contact.name || contact.email || contact.cid}</Cell>
               <Cell>{contact.role || t("engineering.permissions.center.emptyValue")}</Cell>
-              <Cell>{roleDefaults[contact.role]?.profileName || t("engineering.permissions.center.emptyValue")}</Cell>
+              <Cell>{roleDefaults[defaultProfileRoleKey(contact.role, roleDefaults)]?.profileName || t("engineering.permissions.center.emptyValue")}</Cell>
             </tr>
           ))}
         </tbody>

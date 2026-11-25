@@ -24,6 +24,7 @@ import {
   MODULE_TO_FEATURE,
 } from "@/models/authorization/index";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import { evaluateEligibility } from "./eligibility";
 import {
   contactExistsById,
@@ -248,9 +249,13 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
       if (!payload.role) {
         return { status: 400, body: { success: false, error: "role is required" } };
       }
+      // The column holds a BASELINE identity: an intake label (`applicant`) or a
+      // retired contextual label is translated, exactly like every creation and
+      // approval write. The audit records the value that was actually stored.
+      const nextRole = normalizeIdentityForStorage(payload.role);
       const priorContact = await getContactForAssignment(userCid);
       const priorRole = priorContact.rows[0]?.role;
-      await setUserRole(payload.role, userCid);
+      await setUserRole(nextRole, userCid);
       await logPermissionAudit({
         actorCid: actor.cid,
         actorName: actor.name,
@@ -258,8 +263,8 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         targetName,
         action: "role_changed",
         previousValue: priorRole || "none",
-        newValue: payload.role,
-        details: `Role changed to ${payload.role}`,
+        newValue: nextRole,
+        details: `Role changed to ${nextRole}`,
       });
       break;
     }

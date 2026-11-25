@@ -117,7 +117,7 @@ export default function JoinGroupPage() {
         await fetch("/api/contacts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, group_name: group.name, role: "applicant" }),
+          body: JSON.stringify({ name, email, group_name: group.name, role: "member" }),
         });
       }
 

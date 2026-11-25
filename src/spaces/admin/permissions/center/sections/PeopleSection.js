@@ -16,7 +16,7 @@ import { useI18n } from "@/lib/i18n";
 import { isPlatformOwnerRole } from "@/lib/identity";
 import AppButton from "@/components/ui/AppButton";
 import AppPagination from "@/components/ui/AppPagination";
-import { buildRightRows, countRights } from "../personAccess";
+import { buildRightRows, countRights, defaultProfileRoleKey } from "../personAccess";
 import {
   Cell,
   ClickRow,
@@ -95,7 +95,10 @@ function PeopleTab({ data, onOpenPerson, openDrawer }) {
     // The contextual profiles come first (a founder reads "Founder", not just
     // the baseline member default), the role default completes the line.
     const labels = (activeProfileKeys[person.cid] || []).map((key) => names.get(key) || key);
-    const baseline = roleDefaults[role]?.profileName;
+    // A stored label without a default of its own (`applicant`, a legacy row)
+    // resolves to the member baseline, exactly as sign-in does — so the person
+    // always shows at least the profile that actually applies to them.
+    const baseline = roleDefaults[defaultProfileRoleKey(role, roleDefaults)]?.profileName;
     if (baseline) labels.push(baseline);
     const distinct = [...new Set(labels)];
     return distinct.length ? distinct.join(" · ") : t("engineering.permissions.center.emptyValue");

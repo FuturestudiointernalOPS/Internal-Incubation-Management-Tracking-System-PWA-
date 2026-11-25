@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { hashPassword } from "@/server/auth/password";
 import { hashToken, ensureTokenHashColumns } from "@/lib/token-hashing";
 import { assertNoParticipantFacilitatorConflict } from "@/server/authz/guards";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import {
   resolveInviteToken,
   backfillInviteTokenHashOnValidate,
@@ -87,7 +88,7 @@ export async function POST(req, { params }) {
     const contact = contactResult.rows[0] || {};
     const contactEmail = (email || contact.email || "").trim().toLowerCase();
     const contactName = (name || contact.name || "").trim();
-    const contactRole = contact.role || "participant";
+    const contactRole = normalizeIdentityForStorage(contact.role || "participant");
 
     // Hash password
     const hashedPassword = await hashPassword(password, { rounds: 12 });

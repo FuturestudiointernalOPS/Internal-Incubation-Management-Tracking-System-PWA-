@@ -44,6 +44,20 @@ export const RETIRED_CONTEXTUAL_LABELS = [
   "founder",
 ];
 
+/**
+ * Labels that name an INTAKE STAGE, never an identity.
+ *
+ * `applicant` is written by the public join form, self-service registration,
+ * CSV import and the CRM automation. None of them should store it as the
+ * account's global identity: the column holds the three baseline identities,
+ * sign-in already resolves the label to `member`, and the stage itself is
+ * carried by the account status (`pending` / `approved`).
+ *
+ * The write is TRANSLATED, never refused, so an older client that still sends
+ * `applicant` keeps working — it just stores `member`.
+ */
+export const NON_IDENTITY_ROLE_LABELS = ["applicant"];
+
 /** Every value the sign-in resolver can produce in the current vocabulary. */
 export const LOGIN_IDENTITIES = [
   ...BASELINE_IDENTITIES,
@@ -102,12 +116,20 @@ export function carriesContextualValue(role, value) {
  * migration just removed (the profile is only assignable to `member`). Every
  * creation and approval path runs the value through here.
  *
- * Values that are not retired identities (member, staff, super_admin, team,
- * applicant, unassigned…) pass through unchanged.
+ * An intake label (`applicant`) is a STAGE, not an identity: it is translated to
+ * `member` for the same reason — the stage lives on the account status.
+ *
+ * Values that are neither (member, staff, super_admin, team, unassigned…)
+ * pass through unchanged.
  */
 export function normalizeIdentityForStorage(role) {
   const value = normalizeRole(role);
-  if (RETIRED_CONTEXTUAL_LABELS.includes(value)) return "member";
+  if (
+    RETIRED_CONTEXTUAL_LABELS.includes(value) ||
+    NON_IDENTITY_ROLE_LABELS.includes(value)
+  ) {
+    return "member";
+  }
   return role;
 }
 

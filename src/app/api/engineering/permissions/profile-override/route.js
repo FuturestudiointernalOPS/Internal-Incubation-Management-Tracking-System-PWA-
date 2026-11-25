@@ -1,6 +1,7 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
+import { ENTITY_IDENTITIES, normalizeRole } from "@/lib/identity";
 import { logPermissionAudit } from "@/models/authorization/accessQueries";
 import {
   requireAuthorization,
@@ -16,7 +17,7 @@ import {
   getProfileSummaryByKey,
   getRoleDefaultProfileSummary,
 } from "@/models/authorization";
-import { listProfileCapabilities } from "@/models/authorization/profileCapabilitiesStore";
+import { listProfileCapabilities, getRoleProfileDefault } from "@/models/authorization/profileCapabilitiesStore";
 import { resolveCurrentBaseCapabilities } from "@/services/authorization/baseCapabilities";
 import {
   isSelfAssignment,
@@ -232,11 +233,29 @@ export async function GET(req) {
     }
 
     let roleDefault = null;
-    const roleDefaultResult = await getRoleDefaultProfileSummary(userRow.role);
-    if (roleDefaultResult.rows.length > 0) {
+    // The default profile of the identity the account ACTUALLY resolves to.
+    //
+    // A stored label can predate the three-identity model: the public join form
+    // writes `applicant`, and a retired contextual label can survive on a row
+    // that never signed in again. Sign-in resolves every such label to the
+    // member baseline, so this screen does too when the stored label has no
+    // mapping of its own. Without it the person reads as having no profile at
+    // all, although one applies to them.
+    const storedRole = normalizeRole(userRow.role);
+    let roleDefaultRow = (await getRoleDefaultProfileSummary(storedRole)).rows[0] || null;
+    if (!roleDefaultRow && !ENTITY_IDENTITIES.includes(storedRole)) {
+      // Distinguish "no mapping" from "mapped but the profile was deactivated":
+      // only the former falls back. A deactivated default is a real
+      // configuration gap and must stay visible as one.
+      const mapping = (await getRoleProfileDefault(storedRole)).rows[0] || null;
+      if (!mapping) {
+        roleDefaultRow = (await getRoleDefaultProfileSummary("member")).rows[0] || null;
+      }
+    }
+    if (roleDefaultRow) {
       roleDefault = {
-        key: roleDefaultResult.rows[0].key,
-        name: roleDefaultResult.rows[0].label || roleDefaultResult.rows[0].key,
+        key: roleDefaultRow.key,
+        name: roleDefaultRow.label || roleDefaultRow.key,
       };
     }
 
