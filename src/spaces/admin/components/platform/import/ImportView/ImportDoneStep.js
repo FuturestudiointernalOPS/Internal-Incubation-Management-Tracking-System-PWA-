@@ -112,7 +112,7 @@ export default function ImportDoneStep({ importResult, handleReset, t }) {
 
       {importResult.needs_review > 0 && (
         <Link
-          href="/admin/platform/import/review?status=pending"
+          href="/admin/communication/forms/import/review?status=pending"
           className="btn btn-primary w-full py-4 uppercase tracking-widest text-xs flex items-center justify-center gap-3"
         >
           <AlertTriangle className="w-4 h-4" />

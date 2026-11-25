@@ -215,7 +215,7 @@ export default function ShellHeader({
                               if (notification.type === "message") {
                                 const role = user?.role || "";
                                 if (isPlatformOwnerRole(role))
-                                  router.push("/admin/internal-comms");
+                                  router.push("/admin/communication/messages");
                                 else if (isLegacyProgramManagerRole(role))
                                   router.push("/staff/program-manager/messages");
                                 else if (isInternalStaffRole(role))
@@ -234,7 +234,7 @@ export default function ShellHeader({
                               if (notification.type === "blocker_discussion") {
                                 const role = user?.role || "";
                                 if (isPlatformOwnerRole(role))
-                                  router.push("/admin/blockers");
+                                  router.push("/admin/operations/blockers");
                                 else router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }

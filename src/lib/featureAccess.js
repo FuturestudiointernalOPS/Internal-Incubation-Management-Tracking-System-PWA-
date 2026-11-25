@@ -17,7 +17,7 @@
  * feature API rejects the user's role, the nav item appears and clicking it
  * fails (redirect to login / 403). This module powers the amber warnings in:
  *   - /admin/security/permissions  (Responsibilities tab, assignment UI)
- *   - /admin/access                   (User Access Summary)
+ *   - /admin/security/access                   (User Access Summary)
  *
  * NOTE: This is informational. It NEVER blocks an assignment. To change what
  * a role can actually do, edit the runtime config (or these defaults), not

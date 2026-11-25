@@ -342,7 +342,7 @@ export async function seedFounderAssessment() {
       sections: sectionsRows.rows.length,
       fields: fieldsRows.rows.length,
       status: "published",
-      url: `/platform/forms`,
+      url: `/admin/communication/forms/list`,
     },
   };
 }

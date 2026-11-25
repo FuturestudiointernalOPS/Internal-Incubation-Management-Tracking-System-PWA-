@@ -16,7 +16,7 @@
 
 export const MEMBER_SCREENS = [
   { id: "member.home", role: "member", context: null, feature: null, path: "/member" },
-  { id: "member.dashboard", role: "member", context: null, feature: "dashboard", path: "/member/dashboard", legacy: ["/dashboard"], pending: true },
+  { id: "member.dashboard", role: "member", context: null, feature: "dashboard", path: "/member/dashboard", legacy: ["/dashboard"] },
   { id: "member.facilitator.profile", role: "member", context: "facilitator", feature: "profile", path: "/member/facilitator/profile" },
   { id: "member.facilitator.program.detail", role: "member", context: "facilitator", feature: "program", path: "/member/facilitator/program/[id]" },
   { id: "member.facilitator.programs", role: "member", context: "facilitator", feature: "programs", path: "/member/facilitator/programs" },

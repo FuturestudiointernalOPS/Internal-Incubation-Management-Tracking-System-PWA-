@@ -130,7 +130,7 @@ export default function ProgramDetailView({ ctx }) {
                       <div className="flex flex-col items-end gap-1">
                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest">{t("adminMisc.programs.noFormYet")}</p>
                          <a
-                            href="/platform/forms"
+                            href="/admin/communication/forms/list"
                             className="text-[10px] font-bold text-blue-400 hover:underline uppercase"
                          >
                             {t("adminMisc.programs.goToCrmForms")}

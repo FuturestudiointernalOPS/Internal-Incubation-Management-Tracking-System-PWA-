@@ -30,8 +30,8 @@ export const ADMIN_NODES = [
       { id: "crm_timeline", name: "TIMELINE", href: "/staff/crm/timeline" },
       { id: "crm_membership", name: "MEMBERSHIP", href: "/staff/crm/membership" },
       { id: "crm_duplicates", name: "DUPLICATES", href: "/staff/crm/duplicates" },
-      { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/pending-users" },
-      { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/bulk-upload" },
+      { id: "pending_users", name: "PENDING APPROVALS", href: "/admin/security/pending-users" },
+      { id: "bulk_upload", name: "BULK IMPORT", href: "/admin/crm/bulk-upload" },
     ],
   },
 
@@ -41,8 +41,8 @@ export const ADMIN_NODES = [
     name: "COMMUNICATION",
     icon: "messageSquare",
     children: [
-      { id: "messages", name: "MESSAGES", icon: "send", href: "/admin/internal-comms" },
-      { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/announcements" },
+      { id: "messages", name: "MESSAGES", icon: "send", href: "/admin/communication/messages" },
+      { id: "announcements", name: "ANNOUNCEMENTS", href: "/admin/communication/announcements" },
       // The Forms workspace unfolds in the main sidebar: its screens render in
       // the same shell instead of a second one. Each child mirrors a module of
       // the forms registry.
@@ -50,14 +50,14 @@ export const ADMIN_NODES = [
         id: "forms",
         name: "FORMS",
         icon: "fileText",
-        href: "/platform",
+        href: "/admin/communication/forms",
         children: [
-          { id: "forms_dashboard", name: "DASHBOARD", href: "/platform" },
-          { id: "forms_list", name: "FORMS", href: "/platform/forms" },
-          { id: "forms_runs", name: "RUNS", href: "/platform/runs" },
-          { id: "forms_import", name: "HISTORICAL IMPORT", href: "/admin/platform/import" },
-          { id: "forms_identity_review", name: "IDENTITY REVIEW", href: "/admin/platform/import/review" },
-          { id: "forms_scores", name: "SCORES", href: "/admin/platform/scores" },
+          { id: "forms_dashboard", name: "DASHBOARD", href: "/admin/communication/forms" },
+          { id: "forms_list", name: "FORMS", href: "/admin/communication/forms/list" },
+          { id: "forms_runs", name: "RUNS", href: "/admin/communication/forms/runs" },
+          { id: "forms_import", name: "HISTORICAL IMPORT", href: "/admin/communication/forms/import" },
+          { id: "forms_identity_review", name: "IDENTITY REVIEW", href: "/admin/communication/forms/import/review" },
+          { id: "forms_scores", name: "SCORES", href: "/admin/communication/forms/scores" },
         ],
       },
       { id: "groups", name: "GROUPS", href: "/staff/program-manager/communications/contacts" },
@@ -71,7 +71,7 @@ export const ADMIN_NODES = [
     children: [
       { id: "all_programs", name: "ALL PROGRAMS", href: "/admin/programs" },
       { id: "create_program", name: "CREATE PROGRAM", href: "/admin/programs/new" },
-      { id: "progress", name: "PROGRESS", href: "/admin/progress" },
+      { id: "progress", name: "PROGRESS", href: "/admin/programs/progress" },
     ],
   },
 
@@ -108,11 +108,11 @@ export const ADMIN_NODES = [
     name: "OPERATIONS",
     icon: "listTodo",
     children: [
-      { id: "internal_ops_board", name: "OPS BOARD", href: "/admin/work" },
-      { id: "all_projects", name: "PROJECTS", href: "/admin/projects" },
-      { id: "create_project", name: "CREATE PROJECT", href: "/admin/projects?action=create" },
-      { id: "tasks", name: "TASKS", href: "/admin/tasks" },
-      { id: "blockers", name: "BLOCKERS", href: "/admin/blockers" },
+      { id: "internal_ops_board", name: "OPS BOARD", href: "/admin/operations/board" },
+      { id: "all_projects", name: "PROJECTS", href: "/admin/operations/projects" },
+      { id: "create_project", name: "CREATE PROJECT", href: "/admin/operations/projects?action=create" },
+      { id: "tasks", name: "TASKS", href: "/admin/operations/tasks" },
+      { id: "blockers", name: "BLOCKERS", href: "/admin/operations/blockers" },
       standupNode,
       retroNode,
     ],
@@ -126,8 +126,8 @@ export const ADMIN_NODES = [
     icon: "fileText",
     children: [
       { id: "program_reports", name: "PROGRAM REPORTS", href: "/admin/reports/responses" },
-      { id: "internal_reports", name: "OP REPORTS", href: "/admin/op-reports" },
-      { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/metrics" },
+      { id: "internal_reports", name: "OP REPORTS", href: "/admin/reports/op-reports" },
+      { id: "metrics", name: "PROGRAM HEALTH", href: "/admin/reports/metrics" },
       myProjectsNode,
     ],
   },
@@ -160,15 +160,15 @@ export const ADMIN_NODES = [
     name: "SETTINGS",
     icon: "wrench",
     children: [
-      { id: "system", name: "SYSTEM MONITORING", href: "/admin/system" },
+      { id: "system", name: "SYSTEM MONITORING", href: "/admin/settings/system" },
       { id: "security", name: "SECURITY", href: "/admin/security" },
-      { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/audit-logs" },
-      { id: "access_summary", name: "USER ACCESS", href: "/admin/access" },
+      { id: "audit_logs", name: "AUDIT LOGS", href: "/admin/security/audit-logs" },
+      { id: "access_summary", name: "USER ACCESS", href: "/admin/security/access" },
       { id: "permissions", name: "PERMISSIONS", href: "/admin/security/permissions" },
     ],
   },
 
   // Additional top-level surfaces owned by other roles (kept in the master
   // tree so every concept has exactly one definition).
-  { id: "projects", name: "PROJECTS", icon: "rocket", href: "/admin/projects" },
+  { id: "projects", name: "PROJECTS", icon: "rocket", href: "/admin/operations/projects" },
 ];

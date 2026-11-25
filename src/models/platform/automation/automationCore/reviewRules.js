@@ -35,7 +35,7 @@ export const reviewRules = [
         userId: submission.submitter_id,
         title: `Submission ${decisionLabel}`,
         body: `Your submission for "${run?.name || run?.id}" was ${decisionLabel} by ${review.reviewer_name || "a reviewer"}.`,
-        actionUrl: `/platform/runs/submit/${run?.id}`,
+        actionUrl: `/admin/communication/forms/runs/submit/${run?.id}`,
         type: "review",
       });
     },

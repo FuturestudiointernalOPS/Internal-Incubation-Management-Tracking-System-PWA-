@@ -123,7 +123,7 @@ export function resolveEffectiveRole({
  * page is the same one for all of them; the SECTIONS it shows are decided from
  * the relationships the person actually holds, never from the badge.
  */
-export const MEMBER_HOME = "/dashboard";
+export const MEMBER_HOME = "/member/dashboard";
 
 /**
  * Where each GLOBAL role lands after login. Single source of truth shared by
@@ -259,7 +259,8 @@ export function isFounderMembership(row) {
  *      to own (a Venture is one of their doors, not their desk).
  *
  * Everyone else belongs to the member space, and the member space has ONE home:
- * `/dashboard`. The page is identical for a participant, a facilitator, a
+ * `/member/dashboard` (the short `/member/dashboard` redirects there). The page is
+ * identical for a participant, a facilitator, a
  * venture member, a founder, a learner and an investor — what changes is which
  * SECTIONS it shows, and that is decided by the dashboard's own read from the
  * relationships the person really holds.

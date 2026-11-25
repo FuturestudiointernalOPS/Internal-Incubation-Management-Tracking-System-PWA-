@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 /**
  * CRM WORKSPACE — the single people directory.
  *
- * The old /admin/communications/contacts route now redirects here. The screen
+ * The old /admin/communication/contacts route now redirects here. The screen
  * chooses by RIGHT, not by role:
  *   - a caller who may create or edit a contact gets the full contacts screen
  *     (create, edit, invite, groups, bulk assignment);

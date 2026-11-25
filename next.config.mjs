@@ -1,7 +1,6 @@
 import {
   spaceRedirects,
   retiredDashboardRedirects,
-  spaceRewrites,
   screenRedirectsForNext,
 } from "./src/spaces/redirects.js";
 
@@ -66,16 +65,6 @@ const nextConfig = {
         destination: "/admin",
         permanent: true,
       },
-    ];
-  },
-
-  async rewrites() {
-    return [
-      // THE member dashboard has ONE address (`/dashboard`) but lives inside the
-      // member space's shell group, so the sidebar is mounted once for the whole
-      // space instead of a second time for this page. A rewrite keeps the
-      // address the person sees while serving the screen the space layout owns.
-      ...spaceRewrites(),
     ];
   },
 };

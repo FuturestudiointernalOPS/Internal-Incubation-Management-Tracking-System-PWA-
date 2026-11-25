@@ -191,7 +191,7 @@ export default function VenturesView() {
                         type="button"
                         className="stf-pc"
                         style={{ width: "100%", textAlign: "left" }}
-                        onClick={() => router.push(item.href || `/staff/ventures/${item.venture_id}`)}
+                        onClick={() => router.push(item.href || `/staff/lead-manager/ventures/${item.venture_id}`)}
                       >
                         <h4>
                           <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -277,7 +277,7 @@ export default function VenturesView() {
                   key={venture.venture_id}
                   type="button"
                   className="stf-pc"
-                  onClick={() => router.push(venture.href || `/staff/ventures/${venture.venture_id}`)}
+                  onClick={() => router.push(venture.href || `/staff/lead-manager/ventures/${venture.venture_id}`)}
                 >
                   <h4>
                     <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{venture.name}</span>
@@ -371,7 +371,7 @@ export default function VenturesView() {
               key={assignment.id}
               type="button"
               className="stf-pc"
-              onClick={() => router.push(`/staff/ventures/${assignment.venture_id}`)}
+              onClick={() => router.push(`/staff/lead-manager/ventures/${assignment.venture_id}`)}
             >
               <h4>
                 <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>

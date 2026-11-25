@@ -3,7 +3,7 @@ import db from "@/lib/db";
 /**
  * Member dashboard model — data access for the ONE personal dashboard.
  *
- * The unified member dashboard (`/dashboard`) composes blocks that already have
+ * The unified member dashboard (`/member/dashboard`) composes blocks that already have
  * their own repository (participation, ventures, learning, investor). Only the
  * facilitation block needed a NEW statement: "which programs does this person
  * actually facilitate?". It lives here, in the model layer, so the service that

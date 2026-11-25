@@ -63,7 +63,7 @@ export default function RegistrationLinkField({ formUrl, formName }) {
         {t("adminMisc.programs.noFormYetHint")}
       </p>
       <a
-        href="/platform/forms"
+        href="/admin/communication/forms/list"
         className="inline-block text-[10px] font-bold uppercase tracking-wide text-blue-400 hover:underline"
       >
         {t("adminMisc.programs.goToCrmForms")}

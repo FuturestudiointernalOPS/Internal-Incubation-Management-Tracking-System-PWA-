@@ -291,8 +291,8 @@ export function useFormActions({
       } else {
         notify(t("platformMisc.forms.runAlreadyActive"));
       }
-      router.push("/platform/runs");
-    } catch (_) { router.push("/platform/runs"); }
+      router.push("/admin/communication/forms/runs");
+    } catch (_) { router.push("/admin/communication/forms/runs"); }
     setSaving(false);
   }, [editingForm, router, notify, t]);
 

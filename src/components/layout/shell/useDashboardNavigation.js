@@ -193,7 +193,7 @@ export function useDashboardNavigation({
           id: "ventures",
           name: "MY VENTURES",
           icon: Rocket,
-          href: "/staff/ventures",
+          href: "/staff/lead-manager/ventures",
         });
       }
       // THE DEDICATED VENTURE ADMINISTRATION AREA.
@@ -245,20 +245,20 @@ export function useDashboardNavigation({
           id: "all_ventures",
           name: "ALL VENTURES",
           icon: Rocket,
-          href: "/staff/ventures/all",
+          href: "/staff/venture-admin/ventures",
         });
         insertAfter("all_ventures", {
           id: "portfolio",
           name: "PORTFOLIO",
           icon: BarChart3,
-          href: "/staff/ventures/portfolio",
+          href: "/staff/venture-admin/portfolio",
         });
         if (canConfigure) {
           insertAfter("portfolio", {
             id: "venture_reporting_settings",
             name: "REPORTING SETTINGS",
             icon: FileText,
-            href: "/staff/ventures/reporting-settings",
+            href: "/staff/venture-admin/reporting-settings",
           });
         }
       }

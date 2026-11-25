@@ -8,7 +8,7 @@ import { levelLabel } from "./constants";
  * The current blockers: the five most recent active ones, each with its task,
  * the task's owner and when it was raised, and how many are active in all. A
  * Super Admin monitors blockers but cannot resolve them (only their creator
- * can — see /admin/blockers), so the card links to the list instead.
+ * can — see /admin/operations/blockers), so the card links to the list instead.
  */
 export function LatestBlockersCard({ blockers, lang, onOpenAll }) {
   const { t } = useI18n();
@@ -87,7 +87,7 @@ export function QuickActionsCard({ onNavigate }) {
         </h4>
         <div className="space-y-2">
           <button
-            onClick={() => onNavigate("/admin/blockers")}
+            onClick={() => onNavigate("/admin/operations/blockers")}
             className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-rose-500/30 transition-all"
           >
             <span className="text-[10px] font-bold uppercase tracking-wide">
@@ -96,7 +96,7 @@ export function QuickActionsCard({ onNavigate }) {
             <Eye className="w-3.5 h-3.5 text-rose-500" />
           </button>
           <button
-            onClick={() => onNavigate("/admin/op-reports")}
+            onClick={() => onNavigate("/admin/reports/op-reports")}
             className="w-full flex items-center justify-between p-3 rounded-lg bg-primary border border-[var(--border-primary)] hover:border-amber-500/30 transition-all"
           >
             <span className="text-[10px] font-bold uppercase tracking-wide">

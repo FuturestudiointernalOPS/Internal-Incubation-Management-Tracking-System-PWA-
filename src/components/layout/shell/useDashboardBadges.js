@@ -242,16 +242,16 @@ export function useDashboardBadges({
     const currentPath = pathname;
 
     const messagesPage =
-      currentPath === "/admin/internal-comms" || currentPath.endsWith("/messages");
+      currentPath === "/admin/communication/messages" || currentPath.endsWith("/messages");
     if (messagesPage) {
       writeSeenWatermark(SEEN_KEYS.messages);
       fetchUnreadMessageCount();
     }
-    if (currentPath.startsWith("/admin/pending-users")) {
+    if (currentPath.startsWith("/admin/security/pending-users")) {
       writeSeenWatermark(SEEN_KEYS.pendingUsers);
       fetchPendingUsersCount();
     }
-    if (currentPath.startsWith("/admin/communications/announcements")) {
+    if (currentPath.startsWith("/admin/communication/announcements")) {
       writeSeenWatermark(SEEN_KEYS.announcements);
       fetchNotifications();
     }

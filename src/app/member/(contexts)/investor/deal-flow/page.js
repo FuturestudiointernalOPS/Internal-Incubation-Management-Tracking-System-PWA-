@@ -60,7 +60,7 @@ const pickInvestorDashboard = (response) =>
  * comparison and introduction requests — so retiring the per-profile dashboard
  * took nothing away from an investor.
  *
- * The personal dashboard (`/dashboard`) is a different page: it SUMMARISES the
+ * The personal dashboard (`/member/dashboard`) is a different page: it SUMMARISES the
  * investor figures and links here. This one is where the browsing happens.
  */
 export default function InvestorSpacePage() {

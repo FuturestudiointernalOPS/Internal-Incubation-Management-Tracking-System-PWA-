@@ -165,7 +165,7 @@ export default function OverviewTab({
                     {t("pmMisc.workspace.noFormYetHint")}
                   </p>
                   <a
-                    href="/platform/runs"
+                    href="/admin/communication/forms/runs"
                     className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all border border-blue-500/20 text-[10px] font-bold uppercase tracking-wide"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />{" "}

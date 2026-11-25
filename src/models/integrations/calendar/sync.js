@@ -40,7 +40,7 @@ export async function syncRunDeadlines(runId) {
         description: runRow.description || `Form run opens for submissions.`,
         startTime: runRow.opens_at,
         endTime: runRow.opens_at,
-        location: `/platform/runs/submit/${runRow.id}`,
+        location: `/admin/communication/forms/runs/submit/${runRow.id}`,
       });
 
       if (result.externalId) {
@@ -59,7 +59,7 @@ export async function syncRunDeadlines(runId) {
         description: runRow.description || `Form run submission deadline.`,
         startTime: runRow.closes_at,
         endTime: runRow.closes_at,
-        location: `/platform/runs?id=${runRow.id}`,
+        location: `/admin/communication/forms/runs?id=${runRow.id}`,
       });
 
       if (closesResult.externalId) {

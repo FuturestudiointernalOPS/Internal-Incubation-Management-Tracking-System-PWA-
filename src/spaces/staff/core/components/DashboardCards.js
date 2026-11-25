@@ -446,7 +446,7 @@ export function ShortcutsSection({ onGo }) {
         {link(t("staffMisc.front.sectionD.projects"), t("staffMisc.front.sectionD.projectsText"), "/staff/projects", "g")}
         {link(t("staffMisc.front.sectionD.history"), t("staffMisc.front.sectionD.historyText"), "/staff/op-report?tab=summary", "b")}
         {link(t("staffMisc.front.sectionD.tasks"), t("staffMisc.front.sectionD.tasksText"), "/staff/tasks", "b")}
-        {link(t("staffMisc.front.sectionD.forms"), t("staffMisc.front.sectionD.formsText"), "/platform", "b")}
+        {link(t("staffMisc.front.sectionD.forms"), t("staffMisc.front.sectionD.formsText"), "/admin/communication/forms", "b")}
         {link(t("staffMisc.front.sectionD.messages"), t("staffMisc.front.sectionD.messagesText"), "/staff/messages")}
       </div>
     </section>

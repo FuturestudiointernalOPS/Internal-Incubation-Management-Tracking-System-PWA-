@@ -22,7 +22,7 @@ export default function SubmitSuccess({ t, run, submission, router }) {
             <p className="text-[10px] font-medium text-[var(--text-secondary)]">{t("platformMisc.runSubmitDetail.submittedOn", { date: new Date(submission.submitted_at || submission.updated_at).toLocaleString() })}</p>
           </div>
         )}
-        <button onClick={() => router.push("/platform/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">
+        <button onClick={() => router.push("/admin/communication/forms/runs/submit")} className="px-6 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-sm font-bold uppercase tracking-wide hover:brightness-110">
           {t("platformMisc.runSubmitDetail.backToSubmissions")}
         </button>
       </div>

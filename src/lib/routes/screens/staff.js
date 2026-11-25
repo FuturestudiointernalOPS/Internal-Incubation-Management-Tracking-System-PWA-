@@ -56,12 +56,14 @@ export const STAFF_SCREENS = [
   { id: "staff.projects.detail", role: "staff", context: null, feature: "projects", path: "/staff/projects/[id]" },
   { id: "staff.tasks", role: "staff", context: null, feature: "tasks", path: "/staff/tasks" },
   { id: "staff.venture-admin", role: "staff", context: "venture-admin", feature: null, path: "/staff/venture-admin" },
-  { id: "staff.venture-admin.portfolio", role: "staff", context: "venture-admin", feature: "portfolio", path: "/staff/venture-admin/portfolio", legacy: ["/staff/ventures/portfolio"], pending: true },
-  { id: "staff.venture-admin.reporting-settings", role: "staff", context: "venture-admin", feature: "reporting-settings", path: "/staff/venture-admin/reporting-settings", legacy: ["/staff/ventures/reporting-settings"], pending: true },
-  { id: "staff.venture-admin.ventures", role: "staff", context: "venture-admin", feature: "ventures", path: "/staff/venture-admin/ventures", legacy: ["/staff/ventures/all"], pending: true },
-  { id: "staff.ventures", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures", legacy: ["/staff/ventures"], pending: true },
-  { id: "staff.ventures.detail", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/[id]", legacy: ["/staff/ventures/[id]"], pending: true },
-  { id: "staff.ventures.detail.document-types", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/[id]", tab: "document-types", legacy: ["/staff/ventures/[id]/document-types"], pending: true },
-  { id: "staff.ventures.detail.emails", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/[id]", tab: "emails", legacy: ["/staff/ventures/[id]/emails"], pending: true },
-  { id: "staff.ventures.document-types", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/document-types", legacy: ["/staff/ventures/document-types"], pending: true },
+  { id: "staff.venture-admin.portfolio", role: "staff", context: "venture-admin", feature: "portfolio", path: "/staff/venture-admin/portfolio", legacy: ["/staff/ventures/portfolio"] },
+  { id: "staff.venture-admin.reporting-settings", role: "staff", context: "venture-admin", feature: "reporting-settings", path: "/staff/venture-admin/reporting-settings", legacy: ["/staff/ventures/reporting-settings"] },
+  { id: "staff.venture-admin.ventures", role: "staff", context: "venture-admin", feature: "ventures", path: "/staff/venture-admin/ventures", legacy: ["/staff/ventures/all"] },
+  { id: "staff.ventures", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures", legacy: ["/staff/ventures"] },
+  { id: "staff.ventures.detail", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/[id]", legacy: ["/staff/ventures/[id]"] },
+  // A5 — carried along the rename in the SAME shape so the addresses keep
+  // serving until B6 renders them as `?tab=` views of the hub above.
+  { id: "staff.ventures.detail.document-types", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/[id]/document-types", legacy: ["/staff/ventures/[id]/document-types"] },
+  { id: "staff.ventures.detail.emails", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/[id]/emails", legacy: ["/staff/ventures/[id]/emails"] },
+  { id: "staff.ventures.document-types", role: "staff", context: "lead-manager", feature: "ventures", path: "/staff/lead-manager/ventures/document-types", legacy: ["/staff/ventures/document-types"] },
 ];

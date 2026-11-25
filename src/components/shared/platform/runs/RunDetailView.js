@@ -34,7 +34,7 @@ export default function RunDetailView({ bulkAbortRef, filterRowRef, runBulkAppro
     { id: "analytics", label: t("platformMisc.runs.tabAnalytics"), icon: Sparkles },
     { id: "share", label: t("platformMisc.runs.tabShare"), icon: Link2 },
     { id: "assignments", label: t("platformMisc.runs.tabAssignments", { count: assignments.length }), icon: Users },
-    { id: "responses", label: t("platformMisc.runs.tabAllResponses"), icon: FileText, href: `/platform/responses?run_id=${selectedRun?.id || ""}` },
+    { id: "responses", label: t("platformMisc.runs.tabAllResponses"), icon: FileText, href: `/admin/communication/forms/responses?run_id=${selectedRun?.id || ""}` },
     { id: "templates", label: t("platformMisc.runs.tabTemplates"), icon: Mail },
     { id: "emails", label: t("platformMisc.runs.tabEmails"), icon: Send },
     { id: "settings", label: t("platformMisc.runs.tabSettings"), icon: Settings },

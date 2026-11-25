@@ -136,7 +136,7 @@ function tnav(key) {
 // Map last path segment -> translation key for the topbar breadcrumb.
 // Keys must be unique: a duplicated key silently wins over the earlier one.
 // When one segment means different things under different parents (e.g.
-// /admin/reports/responses vs /platform/responses) disambiguate in
+// /admin/reports/responses vs /admin/communication/forms/responses) disambiguate in
 // CRUMB_FULL_PATH_MAP below instead of adding a second entry here.
 const CRUMB_PATH_MAP = {
   admin: "navigation.dashboard",
@@ -211,7 +211,7 @@ const CRUMB_PATH_MAP = {
 // different things in different sections still resolves to the right crumb.
 const CRUMB_FULL_PATH_MAP = {
   "/admin/reports/responses": "navigation.reportResponses",
-  "/platform/responses": "navigation.forms",
+  "/admin/communication/forms/responses": "navigation.forms",
 };
 
 // A record id in the address (a UUID or a number) is never a label: the crumb

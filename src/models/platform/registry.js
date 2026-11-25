@@ -14,7 +14,7 @@ const REGISTERED_MODULES = [
     name: "Dashboard",
     description: "Forms overview and recent activity",
     icon: "LayoutDashboard",
-    href: "/platform",
+    href: "/admin/communication/forms",
     enabled: true,
     visible: true,
     // Mirrors the API the screen calls (`form-runs?dashboard=true`, which
@@ -29,7 +29,7 @@ const REGISTERED_MODULES = [
     name: "Forms",
     description: "Create and manage forms, collections, and AI evaluation",
     icon: "FileText",
-    href: "/platform/forms",
+    href: "/admin/communication/forms/list",
     enabled: true,
     visible: true,
     // Mirrors the backing API: /api/platform/forms + /api/platform/collections
@@ -44,7 +44,7 @@ const REGISTERED_MODULES = [
     name: "Runs",
     description: "Launch runs, view submissions, review and decide",
     icon: "Play",
-    href: "/platform/runs",
+    href: "/admin/communication/forms/runs",
     enabled: true,
     visible: true,
     // Governance: the `runs.view` capability (Communication feature). When a
@@ -60,7 +60,7 @@ const REGISTERED_MODULES = [
     name: "Historical Import",
     description: "Import past submissions from CSV with field mapping and CRM resolution",
     icon: "Upload",
-    href: "/admin/platform/import",
+    href: "/admin/communication/forms/import",
     enabled: true,
     visible: true,
     // The import endpoints require settings.edit.
@@ -74,7 +74,7 @@ const REGISTERED_MODULES = [
     name: "Identity Review",
     description: "Verify identity flags raised during historical import",
     icon: "User",
-    href: "/admin/platform/import/review",
+    href: "/admin/communication/forms/import/review",
     enabled: true,
     visible: true,
     // The review-flags endpoints require settings.edit.
@@ -88,7 +88,7 @@ const REGISTERED_MODULES = [
     name: "Scores",
     description: "Filter evaluated applicants by AI score threshold",
     icon: "BarChart3",
-    href: "/admin/platform/scores",
+    href: "/admin/communication/forms/scores",
     enabled: true,
     visible: true,
     // The scores screen reads evaluations through the runs API.

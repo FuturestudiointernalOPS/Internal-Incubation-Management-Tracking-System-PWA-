@@ -21,10 +21,10 @@ export function InternalOpsNavCards({ onNavigate }) {
   const { t } = useI18n();
   return (
     <div className="stf-grid c4">
-      <LINK icon={LayoutGrid} tone="" label={t("admin.workManagement")} text={t("admin.descriptions.workHub")} onClick={() => onNavigate("/admin/work")} />
-      <LINK icon={ListTodo} tone="b" label={t("reports.tasks")} text={t("admin.descriptions.trackTasks")} onClick={() => onNavigate("/admin/tasks")} />
-      <LINK icon={Shield} tone="" label={t("reports.blockers")} text={t("admin.descriptions.monitorBlockers")} onClick={() => onNavigate("/admin/blockers")} />
-      <LINK icon={Briefcase} tone="g" label={t("reports.companyReports")} text={t("admin.descriptions.viewProjects")} onClick={() => onNavigate("/admin/projects")} />
+      <LINK icon={LayoutGrid} tone="" label={t("admin.workManagement")} text={t("admin.descriptions.workHub")} onClick={() => onNavigate("/admin/operations/board")} />
+      <LINK icon={ListTodo} tone="b" label={t("reports.tasks")} text={t("admin.descriptions.trackTasks")} onClick={() => onNavigate("/admin/operations/tasks")} />
+      <LINK icon={Shield} tone="" label={t("reports.blockers")} text={t("admin.descriptions.monitorBlockers")} onClick={() => onNavigate("/admin/operations/blockers")} />
+      <LINK icon={Briefcase} tone="g" label={t("reports.companyReports")} text={t("admin.descriptions.viewProjects")} onClick={() => onNavigate("/admin/operations/projects")} />
     </div>
   );
 }

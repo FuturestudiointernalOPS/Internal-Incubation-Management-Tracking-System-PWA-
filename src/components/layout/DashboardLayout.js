@@ -101,7 +101,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const participantSurface =
     pathname?.startsWith("/member/participant") ||
     pathname?.startsWith("/member/founder") ||
-    pathname === "/dashboard" ||
+    pathname === "/member/dashboard" ||
     pathname?.startsWith("/member/dashboard");
   const participantCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readParticipantCollapse, expandedServerSnapshot);
   const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
@@ -448,7 +448,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const isFullWidth =
     fullWidth ||
     (typeof pathname === "string" &&
-      (pathname.startsWith("/admin/communications/contacts") ||
+      (pathname.startsWith("/admin/communication/contacts") ||
         pathname.startsWith("/staff/crm/contacts")));
 
   if (!authChecked) {
@@ -510,7 +510,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               pinnedAnnouncements={participantSurface ? [] : pinnedAnnouncements}
               pendingInvites={pendingInvites}
               pendingAssignments={pendingAssignments}
-              onOpenAnnouncements={() => router.push("/admin/announcements")}
+              onOpenAnnouncements={() => router.push("/admin/communication/announcements")}
               onAcceptInvite={() => respondToProjectInvite("accept")}
               onDeclineInvite={() => respondToProjectInvite("decline")}
               onAcceptAssignment={() => respondToTaskAssignment("accept")}

@@ -14,7 +14,7 @@
  * list and stops at the first entry whose condition holds.
  *
  * ── The member space has ONE home ────────────────────────────────────────────
- * Every member-space identity resolves to `/dashboard`. The page no longer
+ * Every member-space identity resolves to `/member/dashboard`. The page no longer
  * changes with a membership: a founder, an investor, a facilitator and a
  * learner all open the SAME dashboard, and the sections inside it are decided
  * by the dashboard's own read (see `services/member/dashboard.js`). There is
@@ -57,5 +57,5 @@ export const LANDING_PRIORITY = [
   // ── Member space ─────────────────────────────────────────────────────────
   { key: "team", kind: "team", space: "member", role: "team" },
   // THE one member dashboard, for every member.
-  { key: "member_home", href: "/dashboard", space: "member" },
+  { key: "member_home", href: "/member/dashboard", space: "member" },
 ];

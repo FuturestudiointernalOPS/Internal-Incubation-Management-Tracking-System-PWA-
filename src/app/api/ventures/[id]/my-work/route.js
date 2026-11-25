@@ -63,7 +63,7 @@ export const GET = createHandler(async (req, { params }) => {
   const facts = await getVentureFacts(id).catch(() => null);
   const code = facts?.code || id;
   const workspaceHref = staff
-    ? `/staff/ventures/${encodeURIComponent(code)}`
+    ? `/staff/lead-manager/ventures/${encodeURIComponent(code)}`
     : `/member/participant/ventures/${encodeURIComponent(code)}`;
 
   const work = await buildMyWork({

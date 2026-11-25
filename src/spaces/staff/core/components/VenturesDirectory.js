@@ -126,7 +126,7 @@ export default function VenturesDirectory() {
                 return (
                   <tr
                     key={venture.id || venture.venture_id}
-                    onClick={() => router.push(`/staff/ventures/${venture.venture_id}`)}
+                    onClick={() => router.push(`/staff/lead-manager/ventures/${venture.venture_id}`)}
                     style={{ cursor: "pointer" }}
                   >
                     <td>

@@ -112,7 +112,7 @@ export default function ProgramsTable({
 
         <div className="flex gap-3">
           <button
-            onClick={() => router.push("/admin/standardization")}
+            onClick={() => router.push("/admin/settings/standardization")}
             className="btn btn-secondary gap-2"
           >
             <Settings className="w-4 h-4" /> {t("navigation.settings")}

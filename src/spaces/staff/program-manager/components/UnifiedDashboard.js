@@ -300,23 +300,23 @@ export default function UnifiedDashboard({ role: propRole }) {
   const openStaffReport = () => router.push("/staff/op-report");
   const openTasksOrReport = () =>
     router.push(
-      isPlatformOwnerRole(effectiveRole) ? "/admin/tasks" : "/staff/op-report",
+      isPlatformOwnerRole(effectiveRole) ? "/admin/operations/tasks" : "/staff/op-report",
     );
   const openProjectsOrListing = () =>
     router.push(
-      isPlatformOwnerRole(effectiveRole) ? "/admin/projects" : "/staff/projects",
+      isPlatformOwnerRole(effectiveRole) ? "/admin/operations/projects" : "/staff/projects",
     );
   const openProgram = (program) => router.push(`/staff/program-manager/programs/${program.id}`);
   const openFacilitatorProgram = (program) =>
     router.push(`/member/facilitator/program/${program.id}`);
   const openProject = (project) =>
-    router.push(`/admin/projects/${project.id}`);
+    router.push(`/admin/operations/projects/${project.id}`);
   const openProjectFromEvent = (projectId) => {
     setSelectedEvent(null);
-    router.push(`/admin/projects/${projectId}`);
+    router.push(`/admin/operations/projects/${projectId}`);
   };
   const openAllPrograms = () => router.push("/staff/program-manager/programs");
-  const openAllActivity = () => router.push("/admin/op-reports");
+  const openAllActivity = () => router.push("/admin/reports/op-reports");
 
   // A task on the month grid is read first, so the drawer shows the whole task;
   // anything else opens the event drawer.

@@ -80,7 +80,7 @@ function rightsAlternatives(id) {
  *
  * An UNLOADED matrix is treated as NO rights: in rights mode there is no role
  * mask to fall back on, so hiding a gated door is the only honest answer. This
- * is the same policy the platform sidebar already applies (`/platform`), and it
+ * is the same policy the platform sidebar already applies (`/admin/communication/forms`), and it
  * is what makes "no right = no door" true while the matrix is still loading.
  * The shell paints from the cached matrix, so the door reappears as soon as the
  * answer is known.

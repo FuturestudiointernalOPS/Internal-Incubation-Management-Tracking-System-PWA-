@@ -4,22 +4,22 @@ import React, { Suspense } from "react";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 
 // The screen is shared by /crm/contacts (canonical) and the old
-// /admin/communications/contacts route, which now redirects here. The pieces
+// /admin/communication/contacts route, which now redirects here. The pieces
 // still live beside the old route during the merge; moving them is the phase 5
 // cleanup, not a behaviour change.
-import { useContactsState } from "@/app/admin/communications/contacts/useContactsState";
-import { ContactsNotification } from "@/app/admin/communications/contacts/ContactsNotification";
-import { ContactsHeader } from "@/app/admin/communications/contacts/ContactsHeader";
-import { ContactsSegmentsSidebar } from "@/app/admin/communications/contacts/ContactsSegmentsSidebar";
-import { ContactsToolbar } from "@/app/admin/communications/contacts/ContactsToolbar";
-import { ContactsTeamTabs } from "@/app/admin/communications/contacts/ContactsTeamTabs";
-import { ContactsTable } from "@/app/admin/communications/contacts/ContactsTable";
-import { ContactsPagination } from "@/app/admin/communications/contacts/ContactsPagination";
-import { ContactFormModal } from "@/app/admin/communications/contacts/ContactFormModal";
-import { SegmentFormModal } from "@/app/admin/communications/contacts/SegmentFormModal";
-import { GroupInviteModal } from "@/app/admin/communications/contacts/GroupInviteModal";
-import { BulkProgramModal } from "@/app/admin/communications/contacts/BulkProgramModal";
-import { ContactsConfirmDialog } from "@/app/admin/communications/contacts/ContactsConfirmDialog";
+import { useContactsState } from "@/app/admin/communication/contacts/useContactsState";
+import { ContactsNotification } from "@/app/admin/communication/contacts/ContactsNotification";
+import { ContactsHeader } from "@/app/admin/communication/contacts/ContactsHeader";
+import { ContactsSegmentsSidebar } from "@/app/admin/communication/contacts/ContactsSegmentsSidebar";
+import { ContactsToolbar } from "@/app/admin/communication/contacts/ContactsToolbar";
+import { ContactsTeamTabs } from "@/app/admin/communication/contacts/ContactsTeamTabs";
+import { ContactsTable } from "@/app/admin/communication/contacts/ContactsTable";
+import { ContactsPagination } from "@/app/admin/communication/contacts/ContactsPagination";
+import { ContactFormModal } from "@/app/admin/communication/contacts/ContactFormModal";
+import { SegmentFormModal } from "@/app/admin/communication/contacts/SegmentFormModal";
+import { GroupInviteModal } from "@/app/admin/communication/contacts/GroupInviteModal";
+import { BulkProgramModal } from "@/app/admin/communication/contacts/BulkProgramModal";
+import { ContactsConfirmDialog } from "@/app/admin/communication/contacts/ContactsConfirmDialog";
 import RecentContacts from "@/components/shared/contacts/RecentContacts";
 import ContactStats from "@/components/shared/contacts/ContactStats";
 

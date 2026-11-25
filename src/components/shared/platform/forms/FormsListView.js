@@ -18,7 +18,7 @@ export default function FormsListView({
           <p className="text-[10px] text-[var(--text-secondary)] mt-1">{t("platformMisc.forms.listSubtitle")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <NextLink href="/platform/collections" className="flex items-center gap-2 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-xl text-[10px] font-black uppercase hover:text-[var(--text-primary)] transition-all">
+          <NextLink href="/admin/communication/forms/collections" className="flex items-center gap-2 px-4 py-2.5 bg-tertiary border border-[var(--border-primary)] text-[var(--text-secondary)] rounded-xl text-[10px] font-black uppercase hover:text-[var(--text-primary)] transition-all">
             <FolderKanban className="w-3.5 h-3.5" /> {t("platformMisc.forms.collectionsLink")}
           </NextLink>
           <button

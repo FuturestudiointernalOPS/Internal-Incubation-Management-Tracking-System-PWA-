@@ -35,7 +35,7 @@ export const EMPTY_RELATIONSHIPS = {
  * The contexts, in the order their doors appear.
  *
  * No context replaces the dashboard any more. Every member opens the SAME page
- * (`/dashboard`); each context only adds its own doors beside it. The investor
+ * (`/member/dashboard`); each context only adds its own doors beside it. The investor
  * space used to own the person's home — that is exactly what the unified
  * dashboard replaces.
  */
@@ -172,11 +172,11 @@ function doorsOf(contexts, key) {
 
 /**
  * The person's home. One address for everyone in the space: a team account
- * keeps its own workspace, every other member opens `/dashboard`.
+ * keeps its own workspace, every other member opens `/member/dashboard`.
  */
 function dashboardDoor(role) {
   const href =
-    normalizeRole(role) === "team" ? "/member/team" : "/dashboard";
+    normalizeRole(role) === "team" ? "/member/team" : "/member/dashboard";
   return { id: "dashboard", name: "DASHBOARD", icon: "layoutDashboard", href };
 }
 

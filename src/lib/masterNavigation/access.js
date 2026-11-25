@@ -58,9 +58,9 @@ export const ROLE_ACCESS = {
   staff: {
     top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
     children: {
-      communication: ["messages", "forms"],
-      // The /admin screens of the Forms workspace stay with the owner.
-      forms: ["forms_dashboard", "forms_list", "forms_runs"],
+      // The Forms workspace lives in the admin Communication section now, so a
+      // staff mask keeps only the messages door.
+      communication: ["messages"],
     },
     hrefs: {
       dashboard: "/staff",
@@ -73,10 +73,10 @@ export const ROLE_ACCESS = {
   member: {
     top: ["dashboard"],
     children: {},
-    // Every member opens the SAME dashboard (`/dashboard`). The page shows the
+    // Every member opens the SAME dashboard (`/member/dashboard`). The page shows the
     // sections of the profiles the person actually holds; it never becomes a
     // program seat or an investor-only page.
-    hrefs: { dashboard: "/dashboard" },
+    hrefs: { dashboard: "/member/dashboard" },
     icons: {},
   },
 
@@ -103,18 +103,16 @@ export const ROLE_ACCESS = {
     // (duplicates, pending approvals, bulk import arrive through capabilities
     // or stay in the Super Admin shell).
     //
-    // Forms and runs are NOT CRM: they belong to the Communication feature, so
-    // they open through the Communication section like they do for every other
-    // role. The Forms workspace unfolds there (dashboard, forms, runs).
-    top: ["crm", "communication"],
+    // Forms are NOT CRM, and they have no non-admin address any more: the
+    // workspace lives under the admin Communication section, so this mask does
+    // not show a door it could not open.
+    top: ["crm"],
     children: {
       crm: [
         "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
         "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
         "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
       ],
-      communication: ["forms"],
-      forms: ["forms_dashboard", "forms_list", "forms_runs"],
     },
     hrefs: {
       crm_dashboard: "/staff/crm",
@@ -256,6 +254,5 @@ export const NON_ADMIN_HREF_FALLBACKS = {
   crm_membership: "/staff/crm/membership",
   crm_duplicates: "/staff/crm/duplicates",
   crm_timeline: "/staff/crm/timeline",
-  forms: "/platform",
   lms_courses: "/staff/program-manager/lms/courses",
 };

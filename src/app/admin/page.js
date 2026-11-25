@@ -117,8 +117,8 @@ export default function AdminDashboard() {
 
         <div className="stf-grid g3">
           <UpcomingWidget calendarTasks={widgetData.calendarTasks} onSelectTask={selectCalendarItem} />
-          <TasksSummaryWidget tasks={widgetData.tasks} onOpen={() => router.push("/admin/tasks")} />
-          <BlockersSummaryWidget blockers={widgetData.activeBlockers} onOpen={() => router.push("/admin/blockers")} />
+          <TasksSummaryWidget tasks={widgetData.tasks} onOpen={() => router.push("/admin/operations/tasks")} />
+          <BlockersSummaryWidget blockers={widgetData.activeBlockers} onOpen={() => router.push("/admin/operations/blockers")} />
         </div>
 
         <AssignmentsPanel
@@ -181,7 +181,7 @@ export default function AdminDashboard() {
               icon={Briefcase}
               color="text-purple-500"
               subtitle={t("admin.sectionSubtitles.activeInternalProjects")}
-              onClick={() => router.push("/admin/projects")}
+              onClick={() => router.push("/admin/operations/projects")}
               loading={dashboardData.loading}
             />
           </div>
@@ -213,7 +213,7 @@ export default function AdminDashboard() {
             color="bg-indigo-500/10 text-indigo-500"
             action={
               <button
-                onClick={() => router.push("/admin/op-reports")}
+                onClick={() => router.push("/admin/reports/op-reports")}
                 className="text-[10px] font-bold text-indigo-400 uppercase hover:underline"
               >
                 {t("admin.viewAllReports")}
@@ -228,7 +228,7 @@ export default function AdminDashboard() {
               color="text-[var(--brand-orange)]"
               subtitle={t("admin.accountability.thisWeek", { week: accountability.week.week })}
               loading={dashboardData.loading}
-              onClick={() => router.push("/admin/op-reports")}
+              onClick={() => router.push("/admin/reports/op-reports")}
             />
             <StatCard
               title={t("admin.fridayRetros")}
@@ -241,7 +241,7 @@ export default function AdminDashboard() {
                   : t("admin.accountability.dueFriday")
               }
               loading={dashboardData.loading}
-              onClick={() => router.push("/admin/op-reports")}
+              onClick={() => router.push("/admin/reports/op-reports")}
             />
             <StatCard
               title={t("admin.accountability.activeBlockers")}
@@ -250,13 +250,13 @@ export default function AdminDashboard() {
               color="text-rose-500"
               badge={widgetData.activeBlockers.length > 0 ? t("status.action") : ""}
               loading={dashboardData.loading}
-              onClick={() => router.push("/admin/blockers")}
+              onClick={() => router.push("/admin/operations/blockers")}
             />
           </div>
 
           <BlockerRateCard
             accountability={accountability}
-            onOpen={() => router.push("/admin/op-reports")}
+            onOpen={() => router.push("/admin/reports/op-reports")}
           />
         </div>
 
@@ -310,7 +310,7 @@ export default function AdminDashboard() {
             <LatestBlockersCard
               blockers={widgetData.activeBlockers}
               lang={lang}
-              onOpenAll={() => router.push("/admin/blockers")}
+              onOpenAll={() => router.push("/admin/operations/blockers")}
             />
 
             <QuickActionsCard onNavigate={(path) => router.push(path)} />

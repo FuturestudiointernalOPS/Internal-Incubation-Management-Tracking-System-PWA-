@@ -29,7 +29,7 @@ function ventureHrefForRole(role, code) {
     case "super_admin":
       return `/admin/ventures/projects/${encoded}`;
     case "staff":
-      return `/staff/ventures/${encoded}`;
+      return `/staff/lead-manager/ventures/${encoded}`;
     case "participant":
     case "member":
     case "founder":

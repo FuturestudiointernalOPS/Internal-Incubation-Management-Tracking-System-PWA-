@@ -1,7 +1,7 @@
 /**
  * Member dashboard — the ONE personal dashboard's assembly (SERVICE layer).
  *
- * `/dashboard` is the same page for every member. What differs is which blocks
+ * `/member/dashboard` is the same page for every member. What differs is which blocks
  * exist, and that is decided HERE, from the relationships the person actually
  * holds — never from a role label, and never by hiding data the caller already
  * sent.
