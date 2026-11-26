@@ -8,7 +8,7 @@ import AppSelect from "../AppSelect";
 import AppTable from "../AppTable";
 import { useDialogs } from "../DialogProvider";
 import CompanyFields from "./CompanyFields";
-import { dateInput,statuses } from "./forms";
+import { dateInput,statuses,prepareCompanyPayload } from "./forms";
 
 export default function Configuration({data,brandingOnly,mutate,busy,locked}) {
   const { t } = useI18n(); const label = (key) => t(`admin.whiteLabel.${key}`);
@@ -18,11 +18,17 @@ export default function Configuration({data,brandingOnly,mutate,busy,locked}) {
     modules:data.modules.filter((row) => ["enabled","trial"].includes(row.status)).map((row) => row.module_key),
     contract:agreement ? {...agreement,starts_at:dateInput(agreement.starts_at),ends_at:dateInput(agreement.ends_at),signed_at:dateInput(agreement.signed_at)} : null});
   const [branding,setBranding] = useState({display_name:data.branding.display_name || "",logo_url:data.branding.logo_url || "",primary_color:data.branding.primary_color || ""});
+  const [clientError,setClientError] = useState("");
   const setContract = (key,value) => setForm({...form,contract:{...form.contract,[key]:value}});
   async function save(e) {
     e.preventDefault();
+    setClientError("");
+    let payload;
+    try { payload = prepareCompanyPayload(form); }
+    catch (err) { setClientError(err.message); return; }
+    setForm((current) => ({...current,...payload,profile:{...current.profile,...payload.profile}}));
     if (form.status !== data.organization.status && !await confirm({message:label("statusConfirmation"),tone:["suspended","closed","archived"].includes(form.status) ? "danger" : undefined})) return;
-    await mutate({action:"configuration",...form});
+    await mutate({action:"configuration",...form,...payload,profile:payload.profile});
   }
   async function newContract() {
     const plan = await prompt({message:label("newContractPrompt"),inputLabel:label("plan"),required:true});
@@ -43,10 +49,21 @@ export default function Configuration({data,brandingOnly,mutate,busy,locked}) {
         <fieldset disabled={form.contract.status === "ended" && agreement?.status === "ended"} className="grid gap-4 md:grid-cols-2">
           <AppInput label={label("plan")} value={form.contract.plan_key} required maxLength={100} onChange={(e) => setContract("plan_key",e.target.value)} />
           <AppSelect label={label("contractStatus")} value={form.contract.status} options={["draft","active","suspended","ended"].map((key) => ({value:key,label:label(`statuses.${key}`)}))} onChange={(e) => setContract("status",e.target.value)} />
-          {["starts_at","ends_at","signed_at"].map((key) => <AppInput key={key} type="date" label={label(key)} value={form.contract[key]} onChange={(e) => setContract(key,e.target.value)} />)}
+          {["starts_at","ends_at","signed_at"].map((key) => (
+            <AppInput
+              key={key}
+              type="date"
+              label={label(key)}
+              value={form.contract[key] || ""}
+              max={key === "signed_at" ? new Date().toISOString().slice(0,10) : undefined}
+              hint={key === "signed_at" ? label("signedAtHint") : undefined}
+              onChange={(e) => setContract(key,e.target.value)}
+            />
+          ))}
         </fieldset>
       </div>}
     </fieldset>
+    {clientError && <p role="alert" className="text-sm font-medium text-[var(--status-danger)]">{t(clientError)}</p>}
     <div className="flex flex-wrap gap-3"><AppButton type="submit" loading={busy} disabled={locked || !form.contract || !form.modules.length}>{t("common.save")}</AppButton>
       <AppButton variant="secondary" disabled={busy || locked || data.contracts.some((row) => row.status === "active")} onClick={newContract}>{label("newContract")}</AppButton></div>
   </form></AppCard>

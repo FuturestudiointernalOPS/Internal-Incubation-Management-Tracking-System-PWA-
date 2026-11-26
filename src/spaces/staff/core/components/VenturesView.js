@@ -31,6 +31,13 @@ function formatShortDate(value) {
   return date.toLocaleDateString();
 }
 
+/** Milestone titles that are empty or punctuation-only (e.g. ";!") → fallback label. */
+function deadlineTitleLabel(title, untitled) {
+  const raw = String(title || "").trim();
+  if (!raw || !/[A-Za-z0-9\u00C0-\u024F]/.test(raw)) return untitled;
+  return raw;
+}
+
 /**
  * Staff → Ventures.
  *
@@ -301,7 +308,10 @@ export default function VenturesView() {
                   <p className="stf-small" style={{ marginTop: 8 }}>
                     {venture.next_deadline
                       ? t("staff.leadHome.nextDeadline", {
-                          title: venture.next_deadline.title,
+                          title: deadlineTitleLabel(
+                            venture.next_deadline.title,
+                            t("staff.leadHome.untitledMilestone"),
+                          ),
                           date: formatShortDate(venture.next_deadline.target_date),
                         })
                       : t("staff.leadHome.noDeadline")}

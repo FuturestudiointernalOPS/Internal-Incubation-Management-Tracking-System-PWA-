@@ -22,6 +22,26 @@ import { resolveOrganizationPortalBranding } from "./organizationPortalBranding"
 const CHANGE_KEY = "impactos_organization_changed";
 const privateRead = { cache: false, fetchOptions: { cache: "no-store" } };
 
+async function switchOrganizationContext(organizationId, expectedOrganizationId) {
+  const response = await fetch("/api/org/context", {
+    method: "POST",
+    cache: "no-store",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      organization_id: organizationId,
+      expected_organization_id: expectedOrganizationId ?? null,
+    }),
+  });
+  const result = await response.json();
+  if (!response.ok || !result.success) {
+    const error = new Error(result.error || "errors.somethingWrong");
+    error.key = result.error || "errors.somethingWrong";
+    throw error;
+  }
+  try { localStorage.setItem(CHANGE_KEY, String(Date.now())); } catch { /* Storage-disabled tabs recheck on focus. */ }
+  return result;
+}
+
 export default function OrganizationProgramPortal({ organizationCode, programId, view = "programs" }) {
   const [epoch, setEpoch] = useState(0);
   useEffect(() => {
@@ -45,20 +65,76 @@ function OrganizationContextView({ organizationCode, programId, view }) {
   const [selected, setSelected] = useState("");
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(null);
-  async function switchTo() {
+  const [autoTried, setAutoTried] = useState(false);
+
+  async function enterOrganization(organizationId, { replacePath } = {}) {
     setBusy(true); setFailure(null);
     try {
-      const response = await fetch("/api/org/context", { method: "POST", cache: "no-store",
-        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ organization_id: selected, expected_organization_id: data.activeOrganizationId ?? null }) });
-      const result = await response.json();
-      if (!response.ok || !result.success) { setFailure(result.error || "errors.somethingWrong"); return; }
-      try { localStorage.setItem(CHANGE_KEY, String(Date.now())); } catch { /* Storage-disabled tabs recheck on focus. */ }
-      window.location.assign(`/o/${encodeURIComponent(result.organization.code)}`);
-    } catch { setFailure("errors.somethingWrong"); }
-    finally { setBusy(false); }
+      const result = await switchOrganizationContext(organizationId, data.activeOrganizationId ?? null);
+      const code = result.organization?.code;
+      const target = code
+        ? (replacePath || `/o/${encodeURIComponent(code)}`)
+        : "/o/select";
+      window.location.assign(target);
+    } catch (err) {
+      setFailure(err.key || err.message || "errors.somethingWrong");
+      setBusy(false);
+    }
   }
-  if (loading || !data) return <AppEmptyState title={t(error ? "errors.somethingWrong" : "common.loading")} action={error ? <AppButton onClick={refresh}>{t("common.retry")}</AppButton> : null} />;
-  if (!data.success) return <AppEmptyState title={t(data.error || "errors.insufficientPermissions")} description={t("common.organizationPortal.denied")} action={data.error === "errors.authRequired" ? <AppButton onClick={() => router.push(`/login?next=${encodeURIComponent(window.location.pathname)}`)}>{t("common.organizationPortal.signIn")}</AppButton> : <AppButton onClick={refresh}>{t("common.retry")}</AppButton>} />;
+
+  const organizations = data?.success ? (data.organizations || []) : [];
+  const matchByCode = organizationCode
+    ? organizations.find((item) => item.code === organizationCode)
+    : null;
+  const alreadyInRequestedOrg = Boolean(
+    organizationCode && data?.organization?.code === organizationCode
+  );
+  // Auto-enter whenever the destination is unambiguous — never flash the chooser.
+  const shouldAutoEnter = Boolean(data?.success && !failure && (
+    (organizationCode && matchByCode && !alreadyInRequestedOrg)
+    || (!organizationCode && (data.organization?.code || organizations.length === 1))
+  ));
+
+  useEffect(() => {
+    if (!data?.success || busy || autoTried || failure) return;
+
+    if (organizationCode && data.organization?.code === organizationCode) return;
+
+    if (organizationCode) {
+      const match = (data.organizations || []).find((item) => item.code === organizationCode);
+      if (match) {
+        setAutoTried(true);
+        // Stay on the requested URL (home / programmes / lms / …) after switch.
+        const replacePath = typeof window !== "undefined" ? window.location.pathname : undefined;
+        void enterOrganization(match.id, { replacePath });
+      }
+      return;
+    }
+
+    // /o/select — skip the chooser whenever access is already unambiguous.
+    if (data.organization?.code) {
+      setAutoTried(true);
+      router.replace(`/o/${encodeURIComponent(data.organization.code)}`);
+      return;
+    }
+    if ((data.organizations || []).length === 1) {
+      setAutoTried(true);
+      void enterOrganization(data.organizations[0].id);
+    }
+  // enterOrganization closes over latest data; autoTried prevents loops.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, organizationCode, busy, autoTried, failure, router]);
+
+  // Show loading only while context is unread, or while an auto-enter is still
+  // in flight. Once the attempt finishes (autoTried && !busy), fall through to
+  // the portal / chooser / error UI — never spin forever on a failed switch.
+  const awaitingAutoEnter = shouldAutoEnter && (!autoTried || busy);
+  if (loading || !data || awaitingAutoEnter || (busy && !failure)) {
+    return <AppEmptyState title={t(error ? "errors.somethingWrong" : "common.loading")} action={error ? <AppButton onClick={refresh}>{t("common.retry")}</AppButton> : null} />;
+  }
+  if (!data.success) {
+    return <AppEmptyState title={t(data.error || "errors.insufficientPermissions")} description={t("common.organizationPortal.denied")} action={data.error === "errors.authRequired" ? <AppButton onClick={() => router.push(`/login?redirect=${encodeURIComponent(window.location.pathname)}`)}>{t("common.organizationPortal.signIn")}</AppButton> : <AppButton onClick={refresh}>{t("common.retry")}</AppButton>} />;
+  }
   const organization = data.organization;
   if (organizationCode && organization?.code === organizationCode) {
     const requestedModule = view === "lms-course" || view === "lms" ? "lms"
@@ -81,18 +157,68 @@ function OrganizationContextView({ organizationCode, programId, view }) {
             ? <OrganizationVenturePortal key={organization.id} organization={organization} onBrandChanged={refresh} />
             : <OrganizationPrograms key={organization.id} organization={organization} programId={programId} onBrandChanged={refresh} />;
   }
+
+  const pendingOrganizations = data.pendingOrganizations || [];
+  const showContextMismatch = Boolean(organizationCode && !matchByCode);
+  if (!organizations.length) {
+    return <div className="space-y-6">
+      <PageHero
+        kicker={t("common.organizationPortal.brand")}
+        title={t("common.organizationPortal.clientSpace")}
+        subtitle={pendingOrganizations.length
+          ? t("common.organizationPortal.pendingOrganizationsHint")
+          : t("common.organizationPortal.noOrganizations")}
+      />
+      {showContextMismatch && <p role="alert">{t("errors.organizationContextChanged")}</p>}
+      {failure && <p role="alert">{t(failure)}</p>}
+      {pendingOrganizations.length > 0 ? (
+        <AppCard>
+          <ul className="space-y-3">
+            {pendingOrganizations.map((item) => (
+              <li key={item.id} className="rounded-xl border border-[var(--border-primary)] p-4">
+                <p className="font-bold text-[var(--text-primary)]">{item.branding?.displayName || item.name}</p>
+                <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                  {t(`common.organizationPortal.blocked.${item.blockedReason || "organization-inactive"}`)}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </AppCard>
+      ) : (
+        <AppEmptyState
+          title={t("common.organizationPortal.noOrganizations")}
+          description={t("common.organizationPortal.noOrganizationsHint")}
+          action={<AppButton onClick={refresh}>{t("common.retry")}</AppButton>}
+        />
+      )}
+    </div>;
+  }
+
   return <div className="space-y-6">
     <PageHero kicker={t("common.organizationPortal.brand")} title={t("common.organizationPortal.choose")} subtitle={t("common.organizationPortal.chooseHint")} />
-    {organizationCode && <p role="alert">{t("errors.organizationContextChanged")}</p>}
+    {showContextMismatch && <p role="alert">{t("errors.organizationContextChanged")}</p>}
     <AppCard>
       <div className="space-y-4">
-        <AppSelect label={t("common.organizationPortal.organization")} placeholder={t("common.organizationPortal.choose")} value={selected} onChange={(event) => setSelected(event.target.value)} options={data.organizations.map((item) => ({ value: item.id, label: item.name }))} />
+        <AppSelect label={t("common.organizationPortal.organization")} placeholder={t("common.organizationPortal.choose")} value={selected} onChange={(event) => setSelected(event.target.value)} options={organizations.map((item) => ({ value: item.id, label: item.name }))} />
         {failure && <p role="alert">{t(failure)}</p>}
-        {!data.organizations.length && <p>{t("common.organizationPortal.noOrganizations")}</p>}
         {data.truncated && <p>{t("common.organizationPortal.truncated")}</p>}
-        <AppButton loading={busy} disabled={!selected} onClick={switchTo}>{t("common.organizationPortal.open")}</AppButton>
+        <AppButton loading={busy} disabled={!selected} onClick={() => void enterOrganization(selected)}>{t("common.organizationPortal.open")}</AppButton>
       </div>
     </AppCard>
+    {pendingOrganizations.length > 0 && (
+      <AppCard>
+        <p className="mb-3 text-sm font-bold">{t("common.organizationPortal.pendingOrganizations")}</p>
+        <ul className="space-y-2 text-sm text-[var(--text-secondary)]">
+          {pendingOrganizations.map((item) => (
+            <li key={item.id}>
+              <span className="font-medium text-[var(--text-primary)]">{item.branding?.displayName || item.name}</span>
+              {" — "}
+              {t(`common.organizationPortal.blocked.${item.blockedReason || "organization-inactive"}`)}
+            </li>
+          ))}
+        </ul>
+      </AppCard>
+    )}
     <p className="text-sm text-[var(--text-secondary)]">{t("common.organizationPortal.accessHint")}</p>
   </div>;
 }

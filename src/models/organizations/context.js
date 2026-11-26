@@ -16,12 +16,14 @@ export async function withOrganizationSession(credentials, callback, { readOnly 
         return result.rows[0] || null;
       },
       async memberships() {
-        return (await query(`SELECT o.id,o.code,o.name FROM organizations o
+        // Include draft/suspended clients so the portal can explain why a
+        // membership is not yet openable, instead of looking "missing".
+        return (await query(`SELECT o.id,o.code,o.name,o.status AS organization_status FROM organizations o
           JOIN organization_memberships m ON m.organization_id=o.id
           WHERE m.person_id=? AND m.status='active' AND m.ended_at IS NULL
             AND (m.started_at IS NULL OR m.started_at<=clock_timestamp())
             AND (m.expires_at IS NULL OR m.expires_at>clock_timestamp())
-            AND o.is_platform=FALSE AND o.status='active'
+            AND o.is_platform=FALSE AND o.status IN ('draft','active','suspended')
           ORDER BY o.name,o.id LIMIT 51`, [credentials.cid])).rows;
       },
       access: (candidate) => readProgramAccessSnapshot(query, credentials, candidate),

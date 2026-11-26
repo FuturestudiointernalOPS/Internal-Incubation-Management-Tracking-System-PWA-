@@ -3,7 +3,7 @@ import { hashToken } from "@/lib/token-hashing";
 import { getRequestId, newRequestId } from "@/lib/request-context";
 import { withWhiteLabelAdministration } from "@/models/organizations/administration";
 import { validateOrganizationBranding } from "./branding";
-import { WhiteLabelAdminError, MODULES, CLIENT_ROLES, invalid, requireId, string, selection, company, profile, contract } from "./adminValidation";
+import { WhiteLabelAdminError, MODULES, CLIENT_ROLES, PORTAL_CODE, invalid, requireId, string, selection, company, profile, contract } from "./adminValidation";
 import { inviteWhiteLabelMember, updateWhiteLabelMembership, createWhiteLabelSupervision } from "./adminMemberships";
 
 const version = (detail) => createHash("sha256").update(JSON.stringify(detail)).digest("hex");
@@ -33,7 +33,7 @@ export async function createWhiteLabelClient({session,body}) {
   if (!body || typeof body !== "object") invalid();
   const values = company(body);
   values.code = string(body.code,40,true).toLowerCase();
-  if (!/^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(values.code)) invalid();
+  if (!PORTAL_CODE.test(values.code)) throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidCode");
   const contact = profile(body.profile);
   const modules = selection(body.modules,MODULES);
   return asWhiteLabelOwner(session, async (repository) => {
@@ -56,6 +56,8 @@ export async function mutateWhiteLabelClient({session,id,body}) {
     let extra = {};
     if (body.action === "configuration") {
       const values = {...company(body),status:body.status};
+      values.code = string(body.code,40,true).toLowerCase();
+      if (!PORTAL_CODE.test(values.code)) throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidCode");
       if (!["draft","active","suspended","archived","closed"].includes(values.status)) invalid();
       const contact = profile(body.profile);
       const modules = selection(body.modules,MODULES);

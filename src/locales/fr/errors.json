@@ -18,6 +18,7 @@
     "memberRoleStaffOnly": "Les rôles sont fixés par l'équipe de la Venture, pas par ses membres.",
     "contactNotDelivered": "Le message n'a pas pu être délivré. Réessayez plus tard.",
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
+    "organizationContextChanged": "Votre espace organisation a changé. Choisissez un espace de travail disponible pour continuer.",
     "taskCreateFailed": "Impossible de créer la tâche.",
     "authRequired": "Authentification requise.",
     "investorProfileRequired": "Un profil investisseur est requis pour cette action.",

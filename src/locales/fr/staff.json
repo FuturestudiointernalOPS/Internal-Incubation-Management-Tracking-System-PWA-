@@ -218,6 +218,7 @@
       "progress": "Avancement {done}/{total}",
       "blockedCount": "{count} bloqué(s)",
       "nextDeadline": "Prochaine : {title} · {date}",
+      "untitledMilestone": "Jalon sans titre",
       "noDeadline": "Aucune échéance à venir",
       "lastActivity": "Dernière activité : {date}",
       "kind": {

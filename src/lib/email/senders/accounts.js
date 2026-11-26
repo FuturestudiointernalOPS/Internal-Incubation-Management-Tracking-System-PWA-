@@ -236,6 +236,99 @@ export async function sendWelcomeEmail({ to, name, language, contact_cid }) {
 }
 
 /**
+ * White-label client workspace invitation.
+ * Uses the password-setup (or login) URL the admin flow already minted —
+ * not /activate — so the token and the link stay aligned.
+ */
+export async function sendClientWorkspaceInviteEmail({
+  to,
+  name,
+  organizationName,
+  inviteUrl,
+  needsPasswordSetup = true,
+  contact_cid,
+  language = "en",
+}) {
+  const greetingName = resolveGreetingName(name);
+  const greeting = greetingName ? `Hello ${greetingName},` : "Hello,";
+  const org = organizationName || "your organisation workspace";
+  const isFr = String(language || "en").toLowerCase().startsWith("fr");
+  const copy = isFr
+    ? {
+        subject: needsPasswordSetup
+          ? `Invitation — espace client ${org}`
+          : `Accès — espace client ${org}`,
+        body: needsPasswordSetup
+          ? `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greetingName ? `Bonjour ${greetingName},` : "Bonjour,"}</p>
+             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Vous êtes invité(e) à rejoindre l’espace client <strong style="color:#ff6600;">${org}</strong> sur ImpactOS.</p>
+             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Utilisez le bouton ci-dessous pour définir votre mot de passe et ouvrir l’espace.</p>`
+          : `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greetingName ? `Bonjour ${greetingName},` : "Bonjour,"}</p>
+             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Vous avez accès à l’espace client <strong style="color:#ff6600;">${org}</strong> sur ImpactOS.</p>
+             <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">Connectez-vous avec votre compte existant.</p>`,
+        cta: needsPasswordSetup ? "Définir mon mot de passe" : "Ouvrir l’espace",
+        expiry: "Ce lien expire dans <strong style=\"color:#f8fafc;\">48 heures</strong>.",
+      }
+    : {
+        subject: needsPasswordSetup
+          ? `Invitation — ${org} client workspace`
+          : `Access — ${org} client workspace`,
+        body: `<p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 8px;">${greeting}</p>
+           <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">You have been invited to the <strong style="color:#ff6600;">${org}</strong> client workspace on ImpactOS.</p>
+           <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 24px;">${needsPasswordSetup
+             ? "Use the button below to set your password and open the workspace."
+             : "Sign in with your existing account to open the workspace."}</p>`,
+        cta: needsPasswordSetup ? "Set my password" : "Open workspace",
+        expiry: "This link expires in <strong style=\"color:#f8fafc;\">48 hours</strong>.",
+      };
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #020617; color: #f8fafc; margin: 0; padding: 0;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background: #020617;">
+        <tr><td align="center" style="padding: 40px 20px;">
+          <table width="480" cellpadding="0" cellspacing="0" style="background: #0f172a; border-radius: 16px; border: 1px solid #334155;">
+            <tr><td style="padding: 40px;">
+              <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">
+                <span style="color: #ff6600;">Impact</span><span style="color: #f8fafc;"> OS</span>
+              </h1>
+              <p style="color: #64748b; font-size: 13px; margin: 0 0 24px;">Future Studio Platform</p>
+              <h2 style="color: #f8fafc; font-size: 18px; margin: 0 0 8px;">${copy.subject}</h2>
+              ${copy.body}
+              <table cellpadding="0" cellspacing="0" style="margin: 0 0 24px;">
+                <tr>
+                  <td align="center" style="background: #ff6600; border-radius: 12px; padding: 14px 32px;">
+                    <a href="${inviteUrl}" style="color: #000; text-decoration: none; font-size: 14px; font-weight: 800; letter-spacing: 0.5px;">
+                      ${copy.cta}
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              ${needsPasswordSetup ? `<p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">${copy.expiry}</p>` : ""}
+              <p style="color:#64748b;font-size:12px;line-height:1.5;margin:0 0 4px;">If the button does not work, copy this URL:</p>
+              <p style="color:#ff6600;font-size:11px;word-break:break-all;margin:0 0 24px;">${inviteUrl}</p>
+              <hr style="border:none;border-top:1px solid #1e293b;margin:24px 0;" />
+              <p style="color:#475569;font-size:11px;line-height:1.5;margin:0;">If you did not expect this invitation, please ignore this email.</p>
+              ${FUTURE_STUDIO_FOOTER}
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+  `;
+
+  return sendAndRecord({
+    to,
+    subject: copy.subject,
+    html,
+    contact_cid,
+    email_type: needsPasswordSetup ? "activation" : "access",
+  });
+}
+
+/**
  * Send a password reset email
  */
 export async function sendPasswordResetEmail({ to, name, resetUrl, contact_cid }) {

@@ -8,6 +8,7 @@ import { useI18n, SUPPORTED_LANGUAGES } from "@/lib/i18n";
 import { roleHomeHref } from "@/models/platform/roles";
 import { safeNextPath } from "@/lib/safeNextPath";
 import { clearResponseCache } from "@/lib/hooks/useApi";
+import { resolveOrganizationPortalHome, singleOrganizationCandidate } from "@/lib/organizationPortalHome";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -48,6 +49,32 @@ export default function LoginPage() {
               ? safeNextPath(new URLSearchParams(window.location.search).get("next"))
               : null;
           if (requested) {
+            // Invite / setup links land on /o/{code}. Activate that workspace
+            // before navigation so the portal never flashes the chooser.
+            const orgMatch = requested.match(/^\/o\/([^/]+)/);
+            const requestedCode = orgMatch && orgMatch[1] !== "select" && orgMatch[1] !== "profile"
+              ? decodeURIComponent(orgMatch[1])
+              : null;
+            if (requestedCode) {
+              try {
+                const contextResponse = await fetch("/api/org/context", { cache: "no-store" });
+                const context = await contextResponse.json();
+                if (contextResponse.ok && context.success && context.organization?.code !== requestedCode) {
+                  const match = (context.organizations || []).find((item) => item.code === requestedCode);
+                  if (match) {
+                    await fetch("/api/org/context", {
+                      method: "POST",
+                      cache: "no-store",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        organization_id: match.id,
+                        expected_organization_id: context.activeOrganizationId ?? null,
+                      }),
+                    });
+                  }
+                }
+              } catch { /* Portal will still auto-enter if activation failed here. */ }
+            }
             router.replace(requested);
             return;
           }
@@ -63,11 +90,39 @@ export default function LoginPage() {
           // A client organisation is not an internal programme assignment.
           // The private context endpoint checks current membership, contract,
           // module and capability; the portal independently checks them again.
+          // Prefer the client home directly — only keep /o/select when several
+          // workspaces are available and none is already active.
           if (["/member", "/member/dashboard", "/workspaces"].includes(target)) {
             try {
               const contextResponse = await fetch("/api/org/context", { cache: "no-store" });
               const context = await contextResponse.json();
-              if (contextResponse.ok && context.success && context.organizations?.length) target = "/o/select";
+              if (contextResponse.ok && context.success) {
+                const portalHome = resolveOrganizationPortalHome(context);
+                const only = singleOrganizationCandidate(context);
+                if (portalHome && portalHome !== "/o/select") {
+                  if (only && !context.organization?.code) {
+                    const switched = await fetch("/api/org/context", {
+                      method: "POST",
+                      cache: "no-store",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        organization_id: only.id,
+                        expected_organization_id: context.activeOrganizationId ?? null,
+                      }),
+                    });
+                    const switchedBody = await switched.json();
+                    if (switched.ok && switchedBody.success && switchedBody.organization?.code) {
+                      target = `/o/${encodeURIComponent(switchedBody.organization.code)}`;
+                    } else {
+                      target = portalHome;
+                    }
+                  } else {
+                    target = portalHome;
+                  }
+                } else if (portalHome) {
+                  target = portalHome;
+                }
+              }
             } catch { /* Keep the neutral hub available when context cannot load. */ }
           }
 

@@ -96,7 +96,9 @@ function MilestoneItem({ milestone }) {
             : milestone.title}
         </p>
         <p className="text-[10px] font-medium text-[var(--text-secondary)] mt-0.5">
-          {t("participantMisc.progress.week", { week: milestone.week || "?" })}
+          {Number(milestone.week) > 0
+            ? t("participantMisc.progress.week", { week: milestone.week })
+            : t("participantMisc.progress.unscheduledWeek")}
           {milestone.score > 0
             ? t("participantMisc.progress.scoreSuffix", {
                 score: milestone.score,

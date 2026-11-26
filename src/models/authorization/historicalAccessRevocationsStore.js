@@ -52,31 +52,45 @@ export function ensureHistoricalRevocationsSchema() {
 }
 
 /** The revocation row for one (person, context), or an empty set. */
-export function getHistoricalRevocation(cid, context) {
-  return db.execute({
-    sql: `SELECT id, contact_cid, context, revoked_at, revoked_by, reason
-          FROM historical_access_revocations
-          WHERE contact_cid = ? AND context = ?`,
-    args: [String(cid), String(context)],
-  });
+export async function getHistoricalRevocation(cid, context) {
+  await ensureHistoricalRevocationsSchema();
+  try {
+    return await db.execute({
+      sql: `SELECT id, contact_cid, context, revoked_at, revoked_by, reason
+            FROM historical_access_revocations
+            WHERE contact_cid = ? AND context = ?`,
+      args: [String(cid), String(context)],
+    });
+  } catch (error) {
+    // Fail-soft: missing table mid-heal must not break permissions reconcile.
+    console.warn("[Authz] getHistoricalRevocation failed:", error.message);
+    return { rows: [] };
+  }
 }
 
 /** Every revocation of one person, most recent first. */
-export function listHistoricalRevocations(cid) {
-  return db.execute({
-    sql: `SELECT id, context, revoked_at, revoked_by, reason
-          FROM historical_access_revocations
-          WHERE contact_cid = ?
-          ORDER BY revoked_at DESC, id DESC`,
-    args: [String(cid)],
-  });
+export async function listHistoricalRevocations(cid) {
+  await ensureHistoricalRevocationsSchema();
+  try {
+    return await db.execute({
+      sql: `SELECT id, context, revoked_at, revoked_by, reason
+            FROM historical_access_revocations
+            WHERE contact_cid = ?
+            ORDER BY revoked_at DESC, id DESC`,
+      args: [String(cid)],
+    });
+  } catch (error) {
+    console.warn("[Authz] listHistoricalRevocations failed:", error.message);
+    return { rows: [] };
+  }
 }
 
 /**
  * Record (or refresh) the revocation — idempotent. A second revoke updates the
  * stamp/actor/reason instead of inserting a duplicate.
  */
-export function upsertHistoricalRevocation({ cid, context, revokedBy = null, reason = "" }) {
+export async function upsertHistoricalRevocation({ cid, context, revokedBy = null, reason = "" }) {
+  await ensureHistoricalRevocationsSchema();
   return db.execute({
     sql: `INSERT INTO historical_access_revocations (contact_cid, context, revoked_by, reason)
           VALUES (?, ?, ?, ?)
@@ -89,7 +103,8 @@ export function upsertHistoricalRevocation({ cid, context, revokedBy = null, rea
 }
 
 /** Remove a revocation (the "restore" path) — idempotent. */
-export function deleteHistoricalRevocation(cid, context) {
+export async function deleteHistoricalRevocation(cid, context) {
+  await ensureHistoricalRevocationsSchema();
   return db.execute({
     sql: "DELETE FROM historical_access_revocations WHERE contact_cid = ? AND context = ?",
     args: [String(cid), String(context)],

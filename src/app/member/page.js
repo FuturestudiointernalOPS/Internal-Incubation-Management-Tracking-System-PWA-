@@ -92,7 +92,15 @@ export default function WorkspacesPage() {
     cache: false, fetchOptions: { cache: "no-store" },
   });
   const clientOrganizations = clientContext?.success ? clientContext.organizations || [] : [];
-  const clientHome = clientOrganizations.length ? "/o/select" : null;
+  const clientHome = clientContext?.success
+    ? (clientContext.organization?.code
+      ? `/o/${encodeURIComponent(clientContext.organization.code)}`
+      : clientOrganizations.length === 1 && clientOrganizations[0]?.code
+        ? `/o/${encodeURIComponent(clientOrganizations[0].code)}`
+        : clientOrganizations.length > 1
+          ? "/o/select"
+          : null)
+    : null;
   const dashboardHref = ["/member", "/member/dashboard", "/workspaces"].includes(data?.home) && clientHome ? clientHome : data?.home;
 
   useEffect(() => {
@@ -224,7 +232,8 @@ export default function WorkspacesPage() {
               <Group icon={Building2} label={t("common.organizationPortal.clientWorkspaces")}>
                 {clientOrganizations.map((organization) => (
                   <ContextCard key={organization.id} title={organization.branding?.displayName || organization.name}
-                    role={t("common.organizationPortal.clientSpace")} href="/o/select" />
+                    role={t("common.organizationPortal.clientSpace")}
+                    href={organization.code ? `/o/${encodeURIComponent(organization.code)}` : "/o/select"} />
                 ))}
               </Group>
             )}

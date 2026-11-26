@@ -21,13 +21,51 @@ export function email(value, required = false) {
   if (result && !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(result)) invalid();
   return result;
 }
+export function todayUtcDate() {
+  return new Date().toISOString().slice(0,10);
+}
+
 export function date(value) {
-  if (value === "" || value === null) return null;
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) invalid();
-  const parsed = new Date(value);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0,10) !== value) invalid();
+  if (value === "" || value === null || value === undefined) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidDate");
+  }
+  const [year, month, day] = value.split("-").map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  if (
+    parsed.getUTCFullYear() !== year
+    || parsed.getUTCMonth() !== month - 1
+    || parsed.getUTCDate() !== day
+  ) {
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidDate");
+  }
   return value;
 }
+export const PORTAL_CODE = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/;
+
+/** Trim and add https:// when the value has no scheme (keeps empty as empty). */
+export function normalizeWebsite(value) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+export function assertHttpsWebsite(value) {
+  if (!value) return "";
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" || url.username || url.password || !url.hostname) {
+      throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidWebsite");
+    }
+    return url.toString();
+  } catch (error) {
+    if (error instanceof WhiteLabelAdminError) throw error;
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidWebsite");
+  }
+}
+
 export function company(body) {
   const result = { name:string(body.name,160,true),kind:body.kind,default_locale:body.default_locale,timezone:string(body.timezone,80,true) };
   if (!["company","university","incubator","ngo","public_body","other"].includes(result.kind) || !["fr","en"].includes(result.default_locale)) invalid();
@@ -36,20 +74,35 @@ export function company(body) {
 }
 export function profile(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) invalid();
-  const result = {contact_name:string(body.contact_name,160),contact_email:email(body.contact_email),contact_phone:string(body.contact_phone,60),website:string(body.website,2048)};
-  if (result.website) {
-    try { const url = new URL(result.website); if (url.protocol !== "https:" || url.username || url.password) invalid(); }
-    catch { invalid(); }
-  }
+  const result = {
+    contact_name:string(body.contact_name,160),
+    contact_email:email(body.contact_email),
+    contact_phone:string(body.contact_phone,60),
+    website:assertHttpsWebsite(normalizeWebsite(string(body.website,2048))),
+  };
   return result;
 }
 export function contract(body) {
   if (!body || typeof body !== "object") invalid();
-  const result = {id:body.id ? requireId(body.id) : null,plan_key:string(body.plan_key,100,true),status:body.status,
-    starts_at:date(body.starts_at),ends_at:date(body.ends_at),signed_at:date(body.signed_at)};
-  if (!["draft","active","suspended","ended"].includes(result.status)
-    || (result.starts_at && result.ends_at && result.starts_at > result.ends_at)
-    || (result.signed_at && result.signed_at > new Date().toISOString().slice(0,10))) invalid();
-  if (result.status === "active" && !result.signed_at) throw new WhiteLabelAdminError("admin.whiteLabel.errors.contractRequired");
+  const result = {
+    id: body.id ? requireId(body.id) : null,
+    plan_key: string(body.plan_key, 100, true),
+    status: body.status,
+    starts_at: date(body.starts_at),
+    ends_at: date(body.ends_at),
+    signed_at: date(body.signed_at),
+  };
+  if (!["draft", "active", "suspended", "ended"].includes(result.status)) {
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidContractStatus");
+  }
+  if (result.starts_at && result.ends_at && result.starts_at > result.ends_at) {
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidContractRange");
+  }
+  if (result.signed_at && result.signed_at > todayUtcDate()) {
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.invalidSignedAt");
+  }
+  if (result.status === "active" && !result.signed_at) {
+    throw new WhiteLabelAdminError("admin.whiteLabel.errors.contractRequired");
+  }
   return result;
 }

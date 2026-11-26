@@ -18,6 +18,7 @@
     "memberRoleStaffOnly": "Roles are set by the Venture's team, not by its members.",
     "contactNotDelivered": "The message could not be delivered. Please try again later.",
     "somethingWrong": "Something went wrong. Please try again.",
+    "organizationContextChanged": "Your organisation workspace changed. Choose an available workspace to continue.",
     "taskCreateFailed": "Could not create the task.",
     "authRequired": "Authentication required.",
     "investorProfileRequired": "An investor profile is required for this action.",

@@ -39,7 +39,9 @@
     "moduleNameMapper": {
       "^@/(.*)$": "<rootDir>/src/$1",
       "^uuid$": "<rootDir>/src/__tests__/__mocks__/uuid.js",
-      "^lucide-react$": "<rootDir>/node_modules/lucide-react/dist/cjs/lucide-react.js"
+      "^lucide-react$": "<rootDir>/node_modules/lucide-react/dist/cjs/lucide-react.js",
+      "\\.module\\.css$": "<rootDir>/src/__tests__/__mocks__/styleMock.js",
+      "\\.css$": "<rootDir>/src/__tests__/__mocks__/styleMock.js"
     },
     "transform": {
       "^.+\\.jsx?$": [

@@ -44,6 +44,7 @@ export {
   sendInviteEmail,
   sendLoginEmail,
   sendWelcomeEmail,
+  sendClientWorkspaceInviteEmail,
   sendPasswordResetEmail,
 } from "./email/senders/accounts";
 

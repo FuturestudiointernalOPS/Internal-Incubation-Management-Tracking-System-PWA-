@@ -70,6 +70,7 @@
     },
     "progress": {
       "week": "Week {week}",
+      "unscheduledWeek": "Unscheduled",
       "scoreSuffix": " · Score: {score}",
       "deliverables": "Deliverables",
       "attendance": "Attendance",

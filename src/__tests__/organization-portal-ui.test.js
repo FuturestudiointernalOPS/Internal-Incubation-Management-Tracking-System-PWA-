@@ -10,7 +10,7 @@ const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 let context, programmes, lms, lmsCourse, ventures;
 beforeEach(() => {
   useApi.mockClear();
-  useRouter.mockReturnValue({ push: jest.fn() });
+  useRouter.mockReturnValue({ push: jest.fn(), replace: jest.fn() });
   context = { success: true, activeOrganizationId: id, organization: { id, name: "Synthetic Alpha", code: "alpha", modules: ["programs"] }, organizations: [{ id, name: "Synthetic Alpha", code: "alpha" }] };
   programmes = { success: true, organizationId: id, programs: [{ id: "program", name: "Synthetic private programme", status: "planned" }], pagination: { hasMore: false } };
   lms = { success: true, organizationId: id, permissions: { catalog: true, learning: true },
@@ -43,10 +43,38 @@ test("the route code does not select an organisation", () => {
   expect(screen.queryByText("Synthetic private programme")).toBeNull();
   expect(screen.getByText("errors.organizationContextChanged")).toBeTruthy();
 });
+
+test("a matching route code auto-enters without flashing the workspace chooser", () => {
+  context = {
+    success: true,
+    activeOrganizationId: null,
+    organization: null,
+    organizations: [{ id, name: "Synthetic Alpha", code: "alpha" }],
+  };
+  global.fetch = jest.fn(() => new Promise(() => {}));
+  render(<OrganizationProgramPortal organizationCode="alpha" view="home" />);
+  expect(screen.queryByText("common.organizationPortal.choose")).toBeNull();
+  expect(screen.queryByText("errors.organizationContextChanged")).toBeNull();
+  expect(screen.getByText("common.loading")).toBeTruthy();
+});
+
+test("/o/select with a single membership skips the chooser", () => {
+  context = {
+    success: true,
+    activeOrganizationId: null,
+    organization: null,
+    organizations: [{ id, name: "Synthetic Alpha", code: "alpha" }],
+  };
+  global.fetch = jest.fn(() => new Promise(() => {}));
+  render(<OrganizationProgramPortal />);
+  expect(screen.queryByText("common.organizationPortal.choose")).toBeNull();
+  expect(screen.getByText("common.loading")).toBeTruthy();
+});
+
 test("client reads bypass shared caches and bind only a freshness header", () => {
   render(<OrganizationProgramPortal organizationCode="alpha" view="programs" />);
   expect(screen.getByText("Synthetic private programme")).toBeTruthy();
-  expect(screen.getByText("Synthetic Alpha")).toBeTruthy();
+  expect(screen.getAllByText("Synthetic Alpha").length).toBeGreaterThan(0);
   expect(useApi).toHaveBeenCalledWith(expect.stringContaining("/api/org/programs?"), expect.objectContaining({ cache: false, fetchOptions: { cache: "no-store", headers: { "X-Organization-Id": id } } }));
 });
 
@@ -54,7 +82,7 @@ test("the client header applies validated organisation branding with a readable 
   context.organization.branding = { displayName: "Alpha Academy", primaryColor: "#123456", logoUrl: "https://assets.example.test/logo.png" };
   render(<OrganizationProgramPortal organizationCode="alpha" view="programs" />);
   const header = screen.getByRole("banner");
-  expect(screen.getByText("Alpha Academy")).toBeTruthy();
+  expect(screen.getAllByText("Alpha Academy").length).toBeGreaterThan(0);
   expect(screen.getByAltText("Alpha Academy").getAttribute("src")).toBe("https://assets.example.test/logo.png");
   expect(header.parentElement.style.getPropertyValue("--brand-orange")).toBe("#123456");
 });
@@ -70,7 +98,7 @@ test("only an organisation with the branding capability gets the branding editor
 test("unsafe logo URLs and low-contrast brand colors fall back to the organization identity", () => {
   context.organization.branding = { displayName: "  ", logoUrl: "javascript:alert(1)", primaryColor: "#ffffff" };
   render(<OrganizationProgramPortal organizationCode="alpha" view="programs" />);
-  expect(screen.getByText("Synthetic Alpha")).toBeTruthy();
+  expect(screen.getAllByText("Synthetic Alpha").length).toBeGreaterThan(0);
   expect(screen.queryByRole("img", { name: "Synthetic Alpha" })).toBeNull();
   expect(screen.getByRole("banner").parentElement.style.getPropertyValue("--brand-orange")).toBe("");
 });
@@ -84,7 +112,7 @@ test("revocation in another tab invalidates the entire current view", () => {
   context = { success: true, organization: null, organizations: [], activeOrganizationId: id };
   fireEvent(window, new StorageEvent("storage", { key: "impactos_organization_changed", newValue: "changed" }));
   expect(screen.queryByText("Synthetic private programme")).toBeNull();
-  expect(screen.getByText("common.organizationPortal.noOrganizations")).toBeTruthy();
+  expect(screen.getAllByText("common.organizationPortal.noOrganizations").length).toBeGreaterThan(0);
 });
 
 test("programme navigation has a stable URL without selecting an organisation from it", () => {
@@ -103,9 +131,8 @@ test("the organisation home shows only server-enabled modules as open", () => {
   context.organization.modules = ["programs"];
   render(<OrganizationProgramPortal organizationCode="alpha" view="home" />);
   expect(screen.getByText("common.organizationPortal.module.programs")).toBeTruthy();
-  expect(screen.getByText("common.organizationPortal.module.lms")).toBeTruthy();
-  expect(screen.getByText("common.organizationPortal.module.venture")).toBeTruthy();
-  expect(screen.getAllByText("common.organizationPortal.comingSoon")).toHaveLength(2);
+  expect(screen.queryByText("common.organizationPortal.module.lms")).toBeNull();
+  expect(screen.queryByText("common.organizationPortal.module.venture")).toBeNull();
   expect(useApi.mock.calls.some(([url]) => url.startsWith("/api/org/programs"))).toBe(false);
 });
 

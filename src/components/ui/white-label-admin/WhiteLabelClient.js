@@ -27,7 +27,19 @@ export default function WhiteLabelClient({organizationId}) {
   async function mutate(body) {
     if (busy || !data) return null;
     setBusy(true);setError("");setSaved(false);
-    try { const result = await saveClient(url,{...body,version:data.version});if (result.setupPath) setInvitation(result.setupPath);setSaved(true);await api.refresh();return result; }
+    try {
+      const result = await saveClient(url,{...body,version:data.version});
+      if (result.setupPath) {
+        setInvitation({
+          path: result.setupPath,
+          emailSent: result.email_sent === true,
+          emailError: result.email_error || "",
+        });
+      }
+      setSaved(true);
+      await api.refresh();
+      return result;
+    }
     catch (err) { setError(err.message);return null; } finally { setBusy(false); }
   }
   if (api.loading && !data) return <AppEmptyState title={t("common.loading")} />;
@@ -43,10 +55,20 @@ export default function WhiteLabelClient({organizationId}) {
     {locked && <AppCard><p className="text-sm">{label("closedHint")}</p></AppCard>}
     {error && <AppCard><p role="alert">{t(error)}</p></AppCard>}
     {saved && <p role="status" className="text-sm text-[var(--text-secondary)]">{label("saved")}</p>}
-    {invitation && <AppCard><p className="mb-3 text-sm" role="status">{label("inviteReady")}</p>
-      <AppInput label={label("inviteLink")} value={typeof window !== "undefined" ? new URL(invitation,window.location.origin).toString() : invitation} readOnly onFocus={(e) => e.target.select()} />
+    {invitation && <AppCard>
+      <p className="mb-3 text-sm" role="status">{label(invitation.emailSent ? "inviteEmailSent" : "inviteReady")}</p>
+      {!invitation.emailSent && invitation.emailError && (
+        <p className="mb-3 text-sm text-[var(--status-danger)]" role="alert">{label("inviteEmailFailed")}: {invitation.emailError}</p>
+      )}
+      <AppInput
+        label={label("inviteLink")}
+        value={typeof window !== "undefined" ? new URL(invitation.path,window.location.origin).toString() : invitation.path}
+        readOnly
+        onFocus={(e) => e.target.select()}
+      />
       <p className="my-3 text-sm text-[var(--text-secondary)]">{label("invitePrivate")}</p>
-      <AppButton variant="secondary" onClick={() => setInvitation(null)}>{t("common.close")}</AppButton></AppCard>}
+      <AppButton variant="secondary" onClick={() => setInvitation(null)}>{t("common.close")}</AppButton>
+    </AppCard>}
     <AppTabs activeTab={tab} onTabChange={(key) => {setTab(key);setError("");setSaved(false);if (key==="history") void api.refresh();}}
       tabs={["configuration","branding","users","supervision","history"].map((id) => ({id,label:label(`tabs.${id}`)}))} />
     <div key={`${tab}:${data.version}`}>

@@ -12,10 +12,10 @@ export default function CompanyFields({value,onChange,creating=false}) {
   return <div className="space-y-5">
     <div className="grid gap-4 md:grid-cols-2">
       {field("name",{required:true,maxLength:160})}
-      {creating && field("code",{required:true,pattern:"[a-z0-9][a-z0-9-]{1,38}[a-z0-9]",maxLength:40})}
+      {field("code",{required:true,pattern:"[a-z0-9][a-z0-9-]{1,38}[a-z0-9]",maxLength:40,title:label("codeHint"),hint:label(creating ? "codeHint" : "codeEditHint")})}
       <AppSelect label={label("kind")} value={value.kind} options={kinds.map((key) => ({value:key,label:label(`kinds.${key}`)}))} onChange={(e) => onChange({...value,kind:e.target.value})} />
       {contact("contact_name",{maxLength:160})}{contact("contact_email",{type:"email",maxLength:254})}
-      {contact("contact_phone",{type:"tel",maxLength:60})}{contact("website",{type:"url",maxLength:2048})}
+      {contact("contact_phone",{type:"tel",maxLength:60})}{contact("website",{maxLength:2048,placeholder:"https://example.com",hint:label("websiteHint"),title:label("websiteHint")})}
       <AppSelect label={label("language")} value={value.default_locale} options={[{value:"fr",label:label("french")},{value:"en",label:label("english")}]} onChange={(e) => onChange({...value,default_locale:e.target.value})} />
       {field("timezone",{required:true,maxLength:80})}
     </div>

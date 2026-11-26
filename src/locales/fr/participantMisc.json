@@ -70,6 +70,7 @@
     },
     "progress": {
       "week": "Semaine {week}",
+      "unscheduledWeek": "Non planifié",
       "scoreSuffix": " · Score : {score}",
       "deliverables": "Livrables",
       "attendance": "Présences",

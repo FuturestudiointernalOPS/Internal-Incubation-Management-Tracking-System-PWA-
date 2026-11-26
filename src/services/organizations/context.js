@@ -12,18 +12,35 @@ import {
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail = (reason, errorKey = "errors.insufficientPermissions") => ({ success: false, reason, errorKey });
 const credentials = (session) => ({ cid: session.cid, token: session.token, tokenHash: hashToken(session.token) });
-const project = (snapshot, modules) => ({
+const project = (snapshot, modules, extra = {}) => ({
   id: snapshot.organization_id,
   code: snapshot.code,
   name: snapshot.name,
   modules,
+  organizationStatus: snapshot.organization_status || null,
   branding: {
     displayName: snapshot.brand_display_name || snapshot.name,
     logoUrl: snapshot.brand_logo_url || null,
     primaryColor: snapshot.brand_primary_color || null,
   },
   brandingEditable: snapshot.branding_editable === true,
+  ...extra,
 });
+
+function modulesForSnapshot(snapshot) {
+  const modules = [];
+  if (evaluateProgramReadAccess(snapshot).allowed) modules.push("programs");
+  if (evaluateLmsReadAccess(snapshot).allowed) modules.push("lms");
+  if (evaluateVentureReadAccess(snapshot).allowed) modules.push("venture");
+  return modules;
+}
+
+function accessBlockReason(snapshot) {
+  return evaluateProgramReadAccess(snapshot).reason
+    || evaluateLmsReadAccess(snapshot).reason
+    || evaluateVentureReadAccess(snapshot).reason
+    || "organization-inactive";
+}
 
 export async function getOrganizationContext({ session }) {
   if (!session?.cid || !session?.token) return fail("no-session", "errors.authRequired");
@@ -33,26 +50,42 @@ export async function getOrganizationContext({ session }) {
     if (!isClientOrganizationActor(current.actor_role)) return fail("supervision-required");
     const memberships = await reader.memberships();
     const organizations = [];
+    const pendingOrganizations = [];
     for (const membership of memberships.slice(0, 50)) {
       const snapshot = await reader.access(membership.id);
-      const modules = [];
-      if (evaluateProgramReadAccess(snapshot).allowed) modules.push("programs");
-      if (evaluateLmsReadAccess(snapshot).allowed) modules.push("lms");
-      if (evaluateVentureReadAccess(snapshot).allowed) modules.push("venture");
+      if (!snapshot?.organization_id) {
+        pendingOrganizations.push({
+          id: membership.id,
+          code: membership.code,
+          name: membership.name,
+          organizationStatus: membership.organization_status,
+          modules: [],
+          blockedReason: membership.organization_status === "draft"
+            ? "organization-inactive"
+            : "no-organization",
+        });
+        continue;
+      }
+      const modules = modulesForSnapshot(snapshot);
       if (modules.length) organizations.push(project(snapshot, modules));
+      else {
+        pendingOrganizations.push(project(snapshot, [], {
+          blockedReason: accessBlockReason(snapshot),
+        }));
+      }
     }
     const active = await reader.access();
-    const programDecision = evaluateProgramReadAccess(active);
-    const lmsDecision = evaluateLmsReadAccess(active);
-    const modules = [];
-    if (programDecision.allowed) modules.push("programs");
-    if (lmsDecision.allowed) modules.push("lms");
-    if (evaluateVentureReadAccess(active).allowed) modules.push("venture");
-    return { success: true, organizations, truncated: memberships.length > 50,
+    const modules = modulesForSnapshot(active);
+    return {
+      success: true,
+      organizations,
+      pendingOrganizations,
+      truncated: memberships.length > 50,
       // The persisted ID is only a compare-and-swap precondition, never authority.
       activeOrganizationId: current.active_organization_id,
       organization: modules.length ? project(active, modules) : null,
-      accessIssue: modules.length ? null : programDecision.reason || lmsDecision.reason };
+      accessIssue: modules.length ? null : accessBlockReason(active),
+    };
   }, { readOnly: true });
 }
 

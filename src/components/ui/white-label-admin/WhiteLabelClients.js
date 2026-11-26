@@ -17,7 +17,7 @@ import AppEmptyState from "../AppEmptyState";
 import PageHero from "../PageHero";
 import KpiCard from "../KpiCard";
 import CompanyFields from "./CompanyFields";
-import { emptyCompany,statuses,saveClient } from "./forms";
+import { emptyCompany,statuses,saveClient,prepareCompanyPayload } from "./forms";
 
 export default function WhiteLabelClients() {
   const { t } = useI18n(); const router = useRouter();
@@ -29,7 +29,12 @@ export default function WhiteLabelClients() {
   const api = useApi(`/api/admin/white-label/clients?${new URLSearchParams({search,status,page:String(page)})}`,{cache:false,fetchOptions:{cache:"no-store"}});
   async function create(e) {
     e.preventDefault();setBusy(true);setError("");
-    try { const result = await saveClient("/api/admin/white-label/clients",form,"POST");router.push(`/admin/white-label/${result.id}`); }
+    try {
+      const payload = prepareCompanyPayload(form,{creating:true});
+      setForm((current) => ({...current,...payload,profile:{...current.profile,...payload.profile}}));
+      const result = await saveClient("/api/admin/white-label/clients",payload,"POST");
+      router.push(`/admin/white-label/${result.id}`);
+    }
     catch (err) { setError(err.message); } finally { setBusy(false); }
   }
   const summary = api.data?.success ? api.data.summary : null;

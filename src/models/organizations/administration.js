@@ -67,7 +67,10 @@ export async function withWhiteLabelAdministration(credentials, callback, { writ
           VALUES (?,?,?,'draft',?,?) RETURNING id`, [v.code,v.name,v.kind,v.default_locale,v.timezone])).rows[0].id;
       },
       async updateOrganization(id,v) {
-        await query("UPDATE organizations SET name=?,kind=?,status=?,default_locale=?,timezone=?,updated_at=clock_timestamp() WHERE id=? AND NOT is_platform", [v.name,v.kind,v.status,v.default_locale,v.timezone,id]);
+        await query(
+          "UPDATE organizations SET code=?,name=?,kind=?,status=?,default_locale=?,timezone=?,updated_at=clock_timestamp() WHERE id=? AND NOT is_platform",
+          [v.code,v.name,v.kind,v.status,v.default_locale,v.timezone,id],
+        );
       },
       async touch(id) { await query("UPDATE organizations SET updated_at=clock_timestamp() WHERE id=? AND NOT is_platform", [id]); },
       async setProfile(id,v) {
