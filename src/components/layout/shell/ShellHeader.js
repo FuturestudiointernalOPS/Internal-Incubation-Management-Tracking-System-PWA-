@@ -130,10 +130,9 @@ export default function ShellHeader({
               <div className="relative">
                 <button
                   onClick={() => {
-                    // Opening the panel re-asks, so the list it shows agrees with
-                    // the badge the bell displayed a moment ago.
-                    if (!showNotifications) fetchNotifications();
-                    setShowNotifications((prev) => !prev);
+                    // The bell leads to the Announcements page, where the
+                    // notifications are read in full.
+                    router.push(isMemberSurfaceRole(user?.role) ? "/member/participant/announcements" : "/admin/communication/announcements");
                   }}
                   aria-label={
                     unreadCount > 0
