@@ -84,7 +84,8 @@ describe("the bell — a glance, on a live number", () => {
     expect(src).toMatch(/visibilitychange/);
   });
 
-  test("opening the panel re-asks, so list and badge agree", () => {
-    expect(src).toMatch(/if \(!showNotifications\) fetchNotifications\(\)/);
+  test("the bell leads to the Announcements page, where the list is read in full", () => {
+    expect(src).toMatch(/\/member\/participant\/announcements/);
+    expect(src).toMatch(/\/admin\/communication\/announcements/);
   });
 });
