@@ -21,7 +21,7 @@
 export const ROLE_ACCESS = {
   super_admin: {
     top: [
-      "dashboard", "crm", "communication", "programs", "ventures", "investors",
+      "dashboard", "white_label", "crm", "communication", "programs", "ventures", "investors",
       "finance", "operations", "intelligence", "reports", "knowledge", "lms", "settings",
     ],
     children: {

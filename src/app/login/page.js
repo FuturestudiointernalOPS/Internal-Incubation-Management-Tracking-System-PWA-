@@ -63,7 +63,7 @@ export default function LoginPage() {
           // A client organisation is not an internal programme assignment.
           // The private context endpoint checks current membership, contract,
           // module and capability; the portal independently checks them again.
-          if (["/member", "/workspaces"].includes(target)) {
+          if (["/member", "/member/dashboard", "/workspaces"].includes(target)) {
             try {
               const contextResponse = await fetch("/api/org/context", { cache: "no-store" });
               const context = await contextResponse.json();

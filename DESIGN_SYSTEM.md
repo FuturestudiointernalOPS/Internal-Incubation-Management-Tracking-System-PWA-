@@ -1,5 +1,19 @@
 # ImpactOS Design System — Developer Guide
 
+The super-admin White Label section at `/admin/white-label` uses the shared hero,
+KPI, table, modal, select and confirmation components. Its client detail provides
+configuration/contract, branding, membership, supervision and audit tabs. It
+does not render a second dashboard shell. All labels are available in English
+and French. Client metadata is distinct from CRM companies and operational data.
+Invitations are prepared explicitly as private, single-use setup links (or an
+ordinary login link for an activated account); no email is sent automatically.
+An active contract with a signature date is required before activating a client.
+Module periods follow the saved contract dates. Ended contracts, closed clients
+and ended memberships retain history. Reads and writes use private responses;
+configuration revisions reject stale saves. A current personal read mandate is
+still required to view client programmes, including for the platform owner.
+The additive client-profile migration must be installed before using the section.
+
 Client home cards and sidebar links show only modules in the authenticated
 organisation context's `modules` list (organisation entitlement AND member
 capability). There are no disabled-module promotional cards. Direct module URLs

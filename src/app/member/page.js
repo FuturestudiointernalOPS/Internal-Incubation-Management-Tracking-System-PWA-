@@ -93,7 +93,7 @@ export default function WorkspacesPage() {
   });
   const clientOrganizations = clientContext?.success ? clientContext.organizations || [] : [];
   const clientHome = clientOrganizations.length ? "/o/select" : null;
-  const dashboardHref = ["/member", "/workspaces"].includes(data?.home) && clientHome ? clientHome : data?.home;
+  const dashboardHref = ["/member", "/member/dashboard", "/workspaces"].includes(data?.home) && clientHome ? clientHome : data?.home;
 
   useEffect(() => {
     const loadWorkspaces = async (bypassCache = false) => {

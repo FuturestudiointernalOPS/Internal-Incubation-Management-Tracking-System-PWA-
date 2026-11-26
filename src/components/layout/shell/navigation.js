@@ -25,6 +25,7 @@ function profileHrefFor(role, profiles = []) {
 
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
+  white_label: "admin.whiteLabel.title",
   dashboard: "navigation.dashboard",
   programs: "navigation.programs",
   all_programs: "navigation.allPrograms",
@@ -139,6 +140,7 @@ function tnav(key) {
 // /admin/reports/responses vs /admin/communication/forms/responses) disambiguate in
 // CRUMB_FULL_PATH_MAP below instead of adding a second entry here.
 const CRUMB_PATH_MAP = {
+  "white-label": "admin.whiteLabel.title",
   admin: "navigation.dashboard",
   crm: "navigation.crm",
   organizations: "navigation.crmOrganizations",

@@ -11,6 +11,7 @@ import { standupNode, retroNode, myProjectsNode } from "./shared";
 
 export const ADMIN_NODES = [
   { id: "dashboard", name: "DASHBOARD", icon: "layoutDashboard", href: "/admin" },
+  { id: "white_label", name: "WHITE LABEL", icon: "building", href: "/admin/white-label" },
 
   // CRM — people data and the records layer (communication is its own section)
   {

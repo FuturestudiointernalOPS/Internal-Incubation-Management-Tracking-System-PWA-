@@ -1,7 +1,7 @@
 import { hashToken } from "@/lib/token-hashing";
 import { getRequestId, newRequestId } from "@/lib/request-context";
 import { withOrganizationBranding } from "@/models/organizations/branding";
-import { evaluateProgramReadAccess } from "./programAccess";
+import { evaluateProgramReadAccess, evaluateLmsReadAccess, evaluateVentureReadAccess } from "./programAccess";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HEX_COLOR = /^#[\da-f]{6}$/i;
@@ -29,7 +29,7 @@ function normalizeLogoUrl(value) {
   }
 }
 
-function validate(body) {
+export function validateOrganizationBranding(body) {
   const fields = ["display_name", "logo_url", "primary_color"];
   if (!body || typeof body !== "object" || Array.isArray(body)
     || !Object.keys(body).length || Object.keys(body).some((key) => !fields.includes(key))) return null;
@@ -57,7 +57,7 @@ export async function updateOrganizationBranding({ session, expectedOrganization
   if (typeof expectedOrganizationId !== "string" || !UUID.test(expectedOrganizationId)) {
     return fail("invalid-query", "errors.invalidRequest");
   }
-  const values = validate(body);
+  const values = validateOrganizationBranding(body);
   if (!values) return fail("invalid-query", "errors.invalidRequest");
 
   const credentials = {
@@ -68,7 +68,8 @@ export async function updateOrganizationBranding({ session, expectedOrganization
   };
   return withOrganizationBranding(credentials, async (reader) => {
     if (!reader) return fail("no-session", "errors.authRequired");
-    const decision = evaluateProgramReadAccess(reader.snapshot);
+    const decision = [evaluateProgramReadAccess(reader.snapshot), evaluateLmsReadAccess(reader.snapshot), evaluateVentureReadAccess(reader.snapshot)].find((candidate) => candidate.allowed)
+      || evaluateProgramReadAccess(reader.snapshot);
     if (!decision.allowed) return fail(decision.reason);
     if (reader.snapshot.organization_id.toLowerCase() !== expectedOrganizationId.toLowerCase()) {
       return fail("context-changed", "errors.organizationContextChanged");

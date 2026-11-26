@@ -168,6 +168,9 @@ const SELF_SCOPED_PREFIXES = ["src/app/api/me/", "src/app/api/profile/"];
 
 /** Mechanisms that ARE a permission decision (exclude a route from "open"). */
 const DECISION_MECHANISMS = [
+  // White-label client administration is reserved to a fresh platform-owner
+  // identity; its service rechecks the current session/contact in the DB.
+  "whiteLabelAdminHandler(",
   "requireAuthorization(",
   // The "any of these rights" variant of the same gate. A route that accepts
   // two rights (e.g. program vocabulary readable with programs.view OR

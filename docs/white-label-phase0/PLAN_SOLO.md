@@ -1,5 +1,16 @@
 # ImpactOS White-Label OS — Solo Work Plan and Progress Report
 
+> **26 November 2026 — Super-admin client management:** An administration section
+> is implemented at `/admin/white-label`: client search/registration, contact
+> details, module offer, contract lifecycle, branding, external memberships and
+> scoped roles, private activation links, temporary read supervision and audit
+> history. The additive commercial-profile migration was committed on staging
+> project `mbpaxrfhqqclzyiefuab`. No client data was seeded, no emails were sent,
+> and no build or automated tests were run. Runtime/browser acceptance remains
+> pending. Prepared invitations are manual links, not automatic email delivery.
+> Administrative metadata access does not grant access to client programmes;
+> the existing explicit read-mandate boundary remains in force.
+
 > **20 November 2026 update:** At the owner's request, nine white-label migrations
 > were committed together on staging project `mbpaxrfhqqclzyiefuab`, including
 > removal of the blanket client activation/programme-creation lock. The inventory
