@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-11-06T12:43:02.665Z",
+  "note": "Sandbox file capture only — no Gmail/Resend delivery. Subjects/bodies match product EN/FR copy.",
+  "count": 12,
+  "evidence": [
+    {
+      "language": "en",
+      "email_type": "investor_intro_submitted",
+      "subject": "Future Studio — Introduction request received"
+    },
+    {
+      "language": "en",
+      "email_type": "investor_intro_approved",
+      "subject": "Future Studio — Introduction request approved"
+    },
+    {
+      "language": "en",
+      "email_type": "investor_intro_declined",
+      "subject": "Future Studio — Introduction request update"
+    },
+    {
+      "language": "en",
+      "email_type": "investor_meeting_confirmation",
+      "subject": "Future Studio — Meeting confirmed"
+    },
+    {
+      "language": "en",
+      "email_type": "investor_meeting_reminder",
+      "subject": "Future Studio — Meeting reminder"
+    },
+    {
+      "language": "en",
+      "email_type": "investor_workspace_message_reminder",
+      "subject": "Future Studio — Unread message"
+    },
+    {
+      "language": "fr",
+      "email_type": "investor_intro_submitted",
+      "subject": "Future Studio — Demande d’introduction reçue"
+    },
+    {
+      "language": "fr",
+      "email_type": "investor_intro_approved",
+      "subject": "Future Studio — Demande d’introduction approuvée"
+    },
+    {
+      "language": "fr",
+      "email_type": "investor_intro_declined",
+      "subject": "Future Studio — Mise à jour de votre demande d’introduction"
+    },
+    {
+      "language": "fr",
+      "email_type": "investor_meeting_confirmation",
+      "subject": "Future Studio — Réunion confirmée"
+    },
+    {
+      "language": "fr",
+      "email_type": "investor_meeting_reminder",
+      "subject": "Future Studio — Rappel de réunion"
+    },
+    {
+      "language": "fr",
+      "email_type": "investor_workspace_message_reminder",
+      "subject": "Future Studio — Message non lu"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Full program update — all lifecycle/visibility columns plus materials,
@@ -32,7 +33,7 @@ export async function updateProgram({
   return db.execute({
     sql: `UPDATE v2_programs
                 SET name = ?, description = ?, concept_note = ?, vision = ?, objectives = ?, expected_outcomes = ?, success_metrics = ?, program_type = ?, visibility = ?, language = ?, note_id = ?, assigned_pm_id = ?, assigned_assistant_id = ?, duration_weeks = ?, status = ?, is_archived = ?, materials = ?, start_date = ?, end_date = ?, grading_mode = ?, facilitator_default_permissions = ?, facilitator_scope = ?
-                WHERE id = ?`,
+                WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [
       name,
       description,

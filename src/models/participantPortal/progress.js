@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Participant progress model — data access for GET /api/participant/progress
@@ -13,7 +14,7 @@ export async function getProgressContactByCid(cid) {
 
 export async function getProgressProgramById(programId) {
   return db.execute({
-    sql: "SELECT * FROM v2_programs WHERE id::text = ?",
+    sql: `SELECT * FROM v2_programs WHERE id::text = ? AND ${platformProgramPredicate()}`,
     args: [programId],
   });
 }

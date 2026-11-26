@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Bulk participant programs model — data access for POST /api/participant-programs/bulk
@@ -6,7 +7,7 @@ import db from "@/lib/db";
 
 export async function getBulkProgramById(programId) {
   return db.execute({
-    sql: "SELECT id FROM v2_programs WHERE id = ?",
+    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [programId],
   });
 }

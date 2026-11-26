@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Auth flows model — family member invites (REPOSITORY layer).
@@ -13,7 +14,7 @@ import db from "@/lib/db";
 /** Program existence check by id (invite-family program gate). */
 export async function getProgramById(programId) {
   return db.execute({
-    sql: "SELECT id FROM v2_programs WHERE id = ?",
+    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [programId],
   });
 }

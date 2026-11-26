@@ -14,13 +14,17 @@
  */
 
 import db from "@/lib/db";
+import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
+
+const PLATFORM_ORGANIZATION = `'${PLATFORM_ORGANIZATION_ID}'::uuid`;
 
 // ─── Completion finaliser ────────────────────────────────────────────────────
 
 /** Move an enrollment to 'completed', preserving the first completed_at. */
 export function updateEnrollmentCompleted(enrollmentId) {
   return db.execute({
-    sql: "UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW()) WHERE id = ?",
+    sql: `UPDATE lms_enrollments SET status = 'completed', completed_at = COALESCE(completed_at, NOW())
+          WHERE id = ? AND organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [enrollmentId],
   });
 }
@@ -30,7 +34,9 @@ export function updateEnrollmentCompleted(enrollmentId) {
 /** Every lesson-progress row of an enrollment. */
 export function selectLessonProgressRows(enrollmentId) {
   return db.execute({
-    sql: "SELECT * FROM lms_lesson_progress WHERE enrollment_id = ?",
+    sql: `SELECT progress.* FROM lms_lesson_progress progress
+          JOIN lms_enrollments enrollment ON enrollment.id = progress.enrollment_id
+          WHERE progress.enrollment_id = ? AND enrollment.organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [enrollmentId],
   });
 }
@@ -38,7 +44,10 @@ export function selectLessonProgressRows(enrollmentId) {
 /** A course's sections, in display order. */
 export function selectCourseSections(courseId) {
   return db.execute({
-    sql: "SELECT * FROM lms_course_sections WHERE course_id = ? ORDER BY position, created_at",
+    sql: `SELECT section.* FROM lms_course_sections section
+          JOIN lms_courses course ON course.id = section.course_id
+          WHERE section.course_id = ? AND course.owner_organization_id = ${PLATFORM_ORGANIZATION}
+          ORDER BY section.position, section.created_at`,
     args: [courseId],
   });
 }
@@ -46,9 +55,13 @@ export function selectCourseSections(courseId) {
 /** The lessons of the given sections, in display order. */
 export function selectLessonsBySectionIds(sectionIds) {
   return db.execute({
-    sql: `SELECT * FROM lms_lessons WHERE section_id IN (${sectionIds
+    sql: `SELECT lesson.* FROM lms_lessons lesson
+          JOIN lms_course_sections section ON section.id = lesson.section_id
+          JOIN lms_courses course ON course.id = section.course_id
+          WHERE lesson.section_id IN (${sectionIds
       .map(() => "?")
-      .join(",")}) ORDER BY position, created_at`,
+      .join(",")}) AND course.owner_organization_id = ${PLATFORM_ORGANIZATION}
+          ORDER BY lesson.position, lesson.created_at`,
     args: sectionIds,
   });
 }
@@ -56,7 +69,10 @@ export function selectLessonsBySectionIds(sectionIds) {
 /** A course's assessments, in display order. */
 export function selectAssessmentsByCourse(courseId) {
   return db.execute({
-    sql: "SELECT * FROM lms_assessments WHERE course_id = ? ORDER BY position, created_at",
+    sql: `SELECT assessment.* FROM lms_assessments assessment
+          JOIN lms_courses course ON course.id = assessment.course_id
+          WHERE assessment.course_id = ? AND course.owner_organization_id = ${PLATFORM_ORGANIZATION}
+          ORDER BY assessment.position, assessment.created_at`,
     args: [courseId],
   });
 }
@@ -64,7 +80,8 @@ export function selectAssessmentsByCourse(courseId) {
 /** One learner's enrollment for a course (or none). */
 export function selectEnrollment(courseId, userCid) {
   return db.execute({
-    sql: "SELECT * FROM lms_enrollments WHERE course_id = ? AND user_cid = ? LIMIT 1",
+    sql: `SELECT * FROM lms_enrollments WHERE course_id = ? AND user_cid = ?
+          AND organization_id = ${PLATFORM_ORGANIZATION} LIMIT 1`,
     args: [courseId, userCid],
   });
 }
@@ -73,7 +90,8 @@ export function selectEnrollment(courseId, userCid) {
 export function selectAssessmentAttemptStates(userCid, assessmentIds) {
   return db.execute({
     sql: `SELECT assessment_id, score, total_points, passed FROM lms_assessment_attempts
-            WHERE user_cid = ? AND assessment_id IN (${assessmentIds.map(() => "?").join(",")})`,
+            WHERE user_cid = ? AND organization_id = ${PLATFORM_ORGANIZATION}
+              AND assessment_id IN (${assessmentIds.map(() => "?").join(",")})`,
     args: [userCid, ...assessmentIds],
   });
 }
@@ -82,7 +100,8 @@ export function selectAssessmentAttemptStates(userCid, assessmentIds) {
 export function selectUsableEnrollment(userCid) {
   return db.execute({
     sql: `SELECT 1 FROM lms_enrollments
-          WHERE user_cid = ? AND status <> 'suspended'
+          WHERE user_cid = ? AND organization_id = ${PLATFORM_ORGANIZATION}
+            AND status <> 'suspended'
           LIMIT 1`,
     args: [userCid],
   });
@@ -92,7 +111,8 @@ export function selectUsableEnrollment(userCid) {
 export function selectEnrollmentsByUser(userCid) {
   return db.execute({
     sql: `SELECT * FROM lms_enrollments
-          WHERE user_cid = ? AND status <> 'suspended'
+          WHERE user_cid = ? AND organization_id = ${PLATFORM_ORGANIZATION}
+            AND status <> 'suspended'
           ORDER BY enrolled_at DESC`,
     args: [userCid],
   });
@@ -101,7 +121,8 @@ export function selectEnrollmentsByUser(userCid) {
 /** The courses with the given ids. */
 export function selectCoursesByIds(courseIds) {
   return db.execute({
-    sql: `SELECT * FROM lms_courses WHERE id IN (${courseIds.map(() => "?").join(",")})`,
+    sql: `SELECT * FROM lms_courses WHERE owner_organization_id = ${PLATFORM_ORGANIZATION}
+          AND id IN (${courseIds.map(() => "?").join(",")})`,
     args: courseIds,
   });
 }
@@ -111,7 +132,10 @@ export function selectCoursesByIds(courseIds) {
 /** One lesson by id (or none). */
 export function selectLessonById(lessonId) {
   return db.execute({
-    sql: "SELECT * FROM lms_lessons WHERE id = ?",
+    sql: `SELECT lesson.* FROM lms_lessons lesson
+          JOIN lms_course_sections section ON section.id = lesson.section_id
+          JOIN lms_courses course ON course.id = section.course_id
+          WHERE lesson.id = ? AND course.owner_organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [lessonId],
   });
 }
@@ -119,7 +143,9 @@ export function selectLessonById(lessonId) {
 /** One section by id (or none). */
 export function selectSectionById(sectionId) {
   return db.execute({
-    sql: "SELECT * FROM lms_course_sections WHERE id = ?",
+    sql: `SELECT section.* FROM lms_course_sections section
+          JOIN lms_courses course ON course.id = section.course_id
+          WHERE section.id = ? AND course.owner_organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [sectionId],
   });
 }
@@ -127,7 +153,10 @@ export function selectSectionById(sectionId) {
 /** The existing progress row for an enrollment + lesson (or none). */
 export function selectLessonProgressRow(enrollmentId, lessonId) {
   return db.execute({
-    sql: "SELECT * FROM lms_lesson_progress WHERE enrollment_id = ? AND lesson_id = ?",
+    sql: `SELECT progress.* FROM lms_lesson_progress progress
+          JOIN lms_enrollments enrollment ON enrollment.id = progress.enrollment_id
+          WHERE progress.enrollment_id = ? AND progress.lesson_id = ?
+            AND enrollment.organization_id = ${PLATFORM_ORGANIZATION}`,
     args: [enrollmentId, lessonId],
   });
 }
@@ -153,7 +182,11 @@ export function updateLessonProgressCompleted(progressId) {
 /** The questions of an assessment, in display order. */
 export function selectAssessmentQuestions(assessmentId) {
   return db.execute({
-    sql: "SELECT * FROM lms_assessment_questions WHERE assessment_id = ? ORDER BY position, created_at",
+    sql: `SELECT question.* FROM lms_assessment_questions question
+          JOIN lms_assessments assessment ON assessment.id = question.assessment_id
+          JOIN lms_courses course ON course.id = assessment.course_id
+          WHERE question.assessment_id = ? AND course.owner_organization_id = ${PLATFORM_ORGANIZATION}
+          ORDER BY question.position, question.created_at`,
     args: [assessmentId],
   });
 }
@@ -163,6 +196,7 @@ export function selectAssessmentAttempts(userCid, assessmentId) {
   return db.execute({
     sql: `SELECT attempt_number, score, total_points, passed, completed_at
           FROM lms_assessment_attempts WHERE user_cid = ? AND assessment_id = ?
+            AND organization_id = ${PLATFORM_ORGANIZATION}
           ORDER BY attempt_number ASC`,
     args: [userCid, assessmentId],
   });
@@ -177,14 +211,15 @@ export function insertAssessmentAttempt(userCid, assessmentId, result, passed, s
   return db.transaction(async (query) => {
     const maxRes = await query(
       `SELECT COALESCE(MAX(attempt_number), 0) + 1 AS next
-       FROM lms_assessment_attempts WHERE user_cid = ? AND assessment_id = ?`,
+       FROM lms_assessment_attempts WHERE user_cid = ? AND assessment_id = ?
+         AND organization_id = ${PLATFORM_ORGANIZATION}`,
       [userCid, assessmentId],
     );
     const attemptNumber = maxRes.rows[0].next;
     const ins = await query(
       `INSERT INTO lms_assessment_attempts
-         (user_cid, assessment_id, attempt_number, score, total_points, passed, answers, completed_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?::jsonb, NOW()) RETURNING *`,
+         (organization_id, user_cid, assessment_id, attempt_number, score, total_points, passed, answers, completed_at)
+       VALUES (${PLATFORM_ORGANIZATION}, ?, ?, ?, ?, ?, ?, ?::jsonb, NOW()) RETURNING *`,
       [
         userCid,
         assessmentId,
@@ -212,7 +247,9 @@ export function selectContactCidByEmail(email) {
 /** Enroll a learner (idempotent). */
 export function insertEnrollment(courseId, cid, source) {
   return db.execute({
-    sql: "INSERT INTO lms_enrollments (course_id, user_cid, source) VALUES (?, ?, ?) ON CONFLICT (course_id, user_cid) DO NOTHING",
+    sql: `INSERT INTO lms_enrollments (course_id, user_cid, source, organization_id)
+          VALUES (?, ?, ?, ${PLATFORM_ORGANIZATION})
+          ON CONFLICT (organization_id, course_id, user_cid) DO NOTHING`,
     args: [courseId, cid, source || "admin"],
   });
 }
@@ -220,7 +257,8 @@ export function insertEnrollment(courseId, cid, source) {
 /** A course's enrollments, newest first. */
 export function selectEnrollmentsByCourse(courseId) {
   return db.execute({
-    sql: "SELECT * FROM lms_enrollments WHERE course_id = ? ORDER BY enrolled_at DESC",
+    sql: `SELECT * FROM lms_enrollments WHERE course_id = ?
+          AND organization_id = ${PLATFORM_ORGANIZATION} ORDER BY enrolled_at DESC`,
     args: [courseId],
   });
 }

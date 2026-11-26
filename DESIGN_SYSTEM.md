@@ -1,5 +1,75 @@
 # ImpactOS Design System — Developer Guide
 
+Client home cards and sidebar links show only modules in the authenticated
+organisation context's `modules` list (organisation entitlement AND member
+capability). There are no disabled-module promotional cards. Direct module URLs
+are refused by the portal before mounting the module view; the existing API
+services independently recheck module activation and capabilities. Organisation
+module configuration remains an operator action, not a client branding permission.
+The staging operator script `scripts/white-label/configure-staging-modules.mjs`
+supports any non-empty combination of programs/lms/venture and retains existing
+roles, content, date windows and audit history.
+
+`OrganizationPortalHeader` renders the client portal's vertical navigation at
+desktop widths, with the organisation identity above the module links and profile
+and settings below. Branding and workspace switching are grouped under the native
+Settings disclosure. Below 1024px, a labelled menu button expands the same vertical
+links in normal flow. `organization-sidebar.module.css` offsets the client content
+only when its sidebar is present, so organisation selection keeps its centred form.
+The client profile also retains this navigation when an active context exists.
+
+The client portal has a top toolbar with a compact FR/EN toggle and a theme icon
+opening dark/light/system choices, using existing i18n and ThemeProvider preferences.
+Theme choices close on selection, outside pointer interaction or Escape. The
+toolbar is fixed beside the desktop sidebar and remains available on mobile.
+Logout stays in the sidebar and uses the existing
+session revocation endpoint, clears response and identity caches after success,
+and retains only the language and theme preferences in local storage. Failed
+logout remains visible with a retryable inline message. Preview mode omits logout.
+
+The neutral workspace hub lists client organisations from the private organisation
+context endpoint, separately from internal assignments. Client-only sign-ins open
+`/o/select`; `/o/profile` displays the current user's basic profile through the
+existing self-profile API without loading the participant dashboard shell. The
+client header links to this read-only profile. Neither link grants internal roles.
+
+The separate client entry at `/o/select` and `/o/[organizationCode]` uses
+`OrganizationProgramPortal` from `components/ui/`. Its `OrganizationLmsPortal`
+and `OrganizationVenturePortal` views reuse the shared cards, inputs, selects,
+hero and status components without the internal dashboard shell. Requests use
+`useApi(..., { cache: false })` to avoid the shared SWR cache. Changing
+organisation reloads the portal; other tabs invalidate their view on the storage
+signal, window focus or restored browser pages. Organisation IDs in request
+headers are freshness preconditions only, never access authority.
+
+The client LMS catalogue and own-learning view include search and course
+thumbnails. An enrolled learner can open `/o/[organizationCode]/lms/[courseId]`
+to view course sections, lesson content/video and read-only progress; the
+course-content endpoint independently verifies the current organisation,
+learner capability, active enrollment and course ownership or licence. The
+client Venture view searches only the server-returned assigned ventures and
+opens a read-only details dialog. Both remain disabled until client activation
+and staging isolation validation are approved.
+
+For visual review without staging credentials, local development supports
+`?preview=1` on the client portal pages (for example
+`/o/alpha/lms?preview=1` and `/o/alpha/venture?preview=1`). This renders
+translated, fictitious sample content without calling client APIs. The preview
+is explicitly enabled only in development; it does not provision an account or
+enable access in staging or production.
+
+The client Programme workspace also uses `OrganizationProgramWorkspace`,
+`OrganizationProgramEditor`, `OrganizationProgramEnrollments` and
+`OrganizationProgramSessions` from `components/ui/`. They reuse the shared modal,
+form, card, badge and button kit, with translated labels and no internal shell.
+Buttons reflect server-provided capabilities; the server independently authorises
+all operations. Mutation bodies include current record revisions. Closing records
+uses `useDialogs()` and explains that history becomes read-only. Session form
+inputs explicitly use UTC; displayed timestamps use the viewer's browser timezone.
+All client reads bypass shared response caches. Errors remain inline and cannot
+fall back to an internal API. Account provisioning and full browser validation
+remain outside this local Programme increment.
+
 ## 1. Theme Architecture
 
 ImpactOS uses a **CSS custom property (variable) system** with a `data-theme` attribute on `<html>`.

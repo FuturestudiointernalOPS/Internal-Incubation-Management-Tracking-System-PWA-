@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-fr@sandbox.local",
+  "subject": "Future Studio — Mise à jour de votre demande d’introduction",
+  "language": "fr",
+  "email_type": "investor_intro_declined",
+  "body": "Nous avons examiné votre demande d’introduction auprès de DEMO Gate Venture et ne pouvons pas y donner suite pour le moment.\n\nMotif : Levée suspendue (données fictives)\n\nRelations investisseurs — Future Studio",
+  "captured_at": "2026-11-06T12:43:02.665Z",
+  "provider": "file"
+}

@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-fr@sandbox.local",
+  "subject": "Future Studio — Message non lu",
+  "language": "fr",
+  "email_type": "investor_workspace_message_reminder",
+  "body": "Vous avez un message non lu concernant DEMO Gate Venture.\n\nRelations investisseurs — Future Studio",
+  "captured_at": "2026-11-06T12:43:02.665Z",
+  "provider": "file"
+}

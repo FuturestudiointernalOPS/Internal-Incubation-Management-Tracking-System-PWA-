@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-en@sandbox.local",
+  "subject": "Future Studio — Introduction request approved",
+  "language": "en",
+  "email_type": "investor_intro_approved",
+  "body": "Your request for an introduction to DEMO Gate Venture has been approved. A Relationship Manager will coordinate the next steps with you.\n\nFuture Studio Investor Relations",
+  "captured_at": "2026-11-06T12:43:02.664Z",
+  "provider": "file"
+}

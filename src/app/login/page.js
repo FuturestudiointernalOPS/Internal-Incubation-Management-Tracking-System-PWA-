@@ -60,9 +60,20 @@ export default function LoginPage() {
           let target =
             data.user.home || roleHomeHref(data.user.role) || "/member";
 
+          // A client organisation is not an internal programme assignment.
+          // The private context endpoint checks current membership, contract,
+          // module and capability; the portal independently checks them again.
+          if (["/member", "/workspaces"].includes(target)) {
+            try {
+              const contextResponse = await fetch("/api/org/context", { cache: "no-store" });
+              const context = await contextResponse.json();
+              if (contextResponse.ok && context.success && context.organizations?.length) target = "/o/select";
+            } catch { /* Keep the neutral hub available when context cannot load. */ }
+          }
+
           // Profile completion gate: only enforce on the FIRST login. After
           // that the user is not repeatedly redirected, even if they skip it.
-          if (data.user.is_first_login) {
+          if (data.user.is_first_login && !target.startsWith("/o/")) {
             try {
               const profileResponse = await fetch("/api/profile");
               const profileData = await profileResponse.json();

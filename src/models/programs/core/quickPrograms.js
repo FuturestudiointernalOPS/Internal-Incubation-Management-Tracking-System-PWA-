@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/programs — quick program create / list / update (11 queries)
@@ -64,13 +65,13 @@ export async function ensureSystemFacilitatorsGroup(programId) {
 
 /** Every v2 program, newest first. Used by GET /api/programs. */
 export async function getAllPrograms() {
-  return db.execute("SELECT * FROM v2_programs ORDER BY created_at DESC");
+  return db.execute(`SELECT * FROM v2_programs WHERE ${platformProgramPredicate()} ORDER BY created_at DESC`);
 }
 
 /** Program existence probe (SELECT id). Used by PUT /api/programs. */
 export async function getProgramExists(id) {
   return db.execute({
-    sql: "SELECT id FROM v2_programs WHERE id = ?",
+    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [id],
   });
 }
@@ -82,7 +83,7 @@ export async function getProgramExists(id) {
  */
 export async function updateProgramFields(fieldsToUpdate, args) {
   return db.execute({
-    sql: `UPDATE v2_programs SET ${fieldsToUpdate.join(", ")} WHERE id = ?`,
+    sql: `UPDATE v2_programs SET ${fieldsToUpdate.join(", ")} WHERE id = ? AND ${platformProgramPredicate()}`,
     args: args,
   });
 }

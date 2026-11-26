@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-en@sandbox.local",
+  "subject": "Future Studio — Unread message",
+  "language": "en",
+  "email_type": "investor_workspace_message_reminder",
+  "body": "You have an unread message about DEMO Gate Venture.\n\nFuture Studio Investor Relations",
+  "captured_at": "2026-11-06T12:43:02.665Z",
+  "provider": "file"
+}

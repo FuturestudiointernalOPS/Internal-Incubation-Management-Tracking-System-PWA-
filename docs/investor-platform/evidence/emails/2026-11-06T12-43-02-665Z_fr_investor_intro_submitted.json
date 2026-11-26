@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-fr@sandbox.local",
+  "subject": "Future Studio — Demande d’introduction reçue",
+  "language": "fr",
+  "email_type": "investor_intro_submitted",
+  "body": "Nous avons reçu votre demande d’introduction auprès de DEMO Gate Venture. Notre équipe va l’examiner et vous informera de sa décision.\n\nRelations investisseurs — Future Studio",
+  "captured_at": "2026-11-06T12:43:02.665Z",
+  "provider": "file"
+}

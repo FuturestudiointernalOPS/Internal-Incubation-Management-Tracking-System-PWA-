@@ -54,7 +54,19 @@ const TABLES = [
 // Column defaults applied when an INSERT omits a column (mirrors the real
 // schema's DEFAULT clauses so inserted rows look like real-DB rows).
 const TABLE_DEFAULTS = {
-  lms_certificates: { status: "valid" },
+  lms_courses: {
+    owner_organization_id: "00000000-0000-4000-8000-000000000001",
+  },
+  lms_enrollments: {
+    organization_id: "00000000-0000-4000-8000-000000000001",
+  },
+  lms_assessment_attempts: {
+    organization_id: "00000000-0000-4000-8000-000000000001",
+  },
+  lms_certificates: {
+    organization_id: "00000000-0000-4000-8000-000000000001",
+    status: "valid",
+  },
   lms_coaching_requests: { status: "pending", timing: "during" },
   lms_registrations: {
     status: "pending",
@@ -198,35 +210,44 @@ export function createFakeDb() {
 
   function update(sql, args) {
     const table = /^update (\w+)/i.exec(sql)[1];
-    const id = args[args.length - 1];
-    const row = state[table].find((existingRow) => String(existingRow.id) === String(id));
-    if (!row) return { rows: [], rowsAffected: 0 };
-
-    // Immutable snapshot: never mutate the object a service may still hold.
-    const updated = { ...row };
     const setMatch = /set (.+?) where/i.exec(sql);
     const parts = setMatch ? setMatch[1].split(",").map((part) => part.trim()) : [];
     let argIndex = 0;
-    for (const part of parts) {
+    const assignments = parts.map((part) => {
       const assignmentMatch = /^(\w+)\s*=\s*\?/.exec(part);
-      if (assignmentMatch) {
-        updated[assignmentMatch[1]] = args[argIndex++];
-        continue;
+      return { part, value: assignmentMatch ? args[argIndex++] : undefined };
+    });
+    const whereArgs = args.slice(
+      assignments.reduce((count, assignment) => count + (assignment.part.match(/\?/g) || []).length, 0),
+    );
+    const rows = state[table].filter((row) => evalWhere(sql, whereArgs, row));
+    if (rows.length === 0) return { rows: [], rowsAffected: 0 };
+
+    // Immutable snapshots: never mutate objects a service may still hold.
+    const updatedRows = rows.map((row) => {
+      const updated = { ...row };
+      for (const { part, value } of assignments) {
+        const assignmentMatch = /^(\w+)\s*=\s*\?/.exec(part);
+        if (assignmentMatch) {
+          updated[assignmentMatch[1]] = value;
+          continue;
+        }
+        const literalMatch = /^(\w+)\s*=\s*'([^']+)'/.exec(part);
+        if (literalMatch) updated[literalMatch[1]] = literalMatch[2];
+        else if (/updated_at\s*=\s*now\(\)/i.test(part)) updated.updated_at = "2026-08-27T01:00:00Z";
+        else if (/position\s*=\s*-1/.test(part)) updated.position = -1;
+        else if (/completed_at\s*=\s*coalesce/i.test(part))
+          updated.completed_at = "2026-08-27T02:00:00Z";
+        else if (/revoked_at\s*=\s*now\(\)/i.test(part))
+          updated.revoked_at = "2026-08-27T03:00:00Z";
+        else if (/^(\w+)\s*=\s*now\(\)/i.test(part))
+          updated[/^(\w+)\s*=\s*now\(\)/i.exec(part)[1]] = "2026-08-27T04:00:00Z";
       }
-      const literalMatch = /^(\w+)\s*=\s*'([^']+)'/.exec(part);
-      if (literalMatch) updated[literalMatch[1]] = literalMatch[2];
-      else if (/updated_at\s*=\s*now\(\)/i.test(part)) updated.updated_at = "2026-08-27T01:00:00Z";
-      else if (/position\s*=\s*-1/.test(part)) updated.position = -1;
-      else if (/completed_at\s*=\s*coalesce/i.test(part))
-        updated.completed_at = "2026-08-27T02:00:00Z";
-      else if (/revoked_at\s*=\s*now\(\)/i.test(part))
-        updated.revoked_at = "2026-08-27T03:00:00Z";
-      else if (/^(\w+)\s*=\s*now\(\)/i.test(part))
-        // Generic `<col> = NOW()` (e.g. handled_at on a coaching decision).
-        updated[/^(\w+)\s*=\s*now\(\)/i.exec(part)[1]] = "2026-08-27T04:00:00Z";
-    }
-    state[table] = state[table].map((existingRow) => (existingRow === row ? updated : existingRow));
-    return { rows: [updated], rowsAffected: 1 };
+      return updated;
+    });
+    const updatedById = new Map(updatedRows.map((row) => [String(row.id), row]));
+    state[table] = state[table].map((row) => updatedById.get(String(row.id)) || row);
+    return { rows: updatedRows, rowsAffected: updatedRows.length };
   }
 
   function remove(sql, args) {
@@ -287,7 +308,13 @@ export function createFakeDb() {
         // col <> 'literal' / col != 'literal' (negation; consumes no args)
         if (String(row[conditionMatch[3]]) === conditionMatch[4]) return false;
       } else if (conditionMatch[5]) {
-        if (String(row[conditionMatch[5]]) !== String(args[argIndex])) return false;
+        const column = conditionMatch[5];
+        const defaultOrganization =
+          column === "organization_id" || column === "owner_organization_id"
+            ? "00000000-0000-4000-8000-000000000001"
+            : undefined;
+        const value = row[column] ?? defaultOrganization;
+        if (String(value) !== String(args[argIndex])) return false;
         argIndex++;
       } else {
         // LIKE ? — converts the SQL pattern (CERT-2026-%) into a regex.
@@ -368,7 +395,7 @@ export function createFakeDb() {
     const table = /from (\w+)/i.exec(sql)[1];
     let rows = state[table].filter((row) => evalWhere(sql, args, row));
 
-    const orderMatch = /order by (\w+)(?: asc)?/i.exec(sql);
+    const orderMatch = /order by (?:\w+\.)?(\w+)(?: asc)?/i.exec(sql);
     if (orderMatch) {
       const column = orderMatch[1];
       rows = [...rows].sort((left, right) => {

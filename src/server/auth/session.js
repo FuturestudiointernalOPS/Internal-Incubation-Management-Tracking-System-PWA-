@@ -162,7 +162,7 @@ export async function getSession() {
 
     const pending = readSessionFromToken(token)
       .then((session) => {
-        if (session) cacheSession(cacheKey, session);
+        if (session && _sessionInflight.get(cacheKey) === pending) cacheSession(cacheKey, session);
         return session;
       })
       .finally(() => {
@@ -255,7 +255,14 @@ async function readSessionFromToken(token) {
     group_name: session.group_name,
     image: session.image || null,
     token: session.token,
+    activeOrganizationId: session.active_organization_id || null,
   };
+}
+
+/** Evict only the changed token; detached in-flight reads may not re-cache it. */
+export function invalidateSessionCache(token) {
+  _sessionCache.delete(token);
+  _sessionInflight.delete(token);
 }
 
 /**

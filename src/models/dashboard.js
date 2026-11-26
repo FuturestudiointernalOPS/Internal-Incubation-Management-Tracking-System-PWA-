@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate, platformProgramRelationPredicate } from "@/models/organizations/programScope";
 
 /**
  * Dashboard model — data access for the unified dashboard controller
@@ -24,6 +25,7 @@ export async function getProgramKpiSummary() {
           FROM v2_programs p
           LEFT JOIN kpi_progress kp ON p.id::text = kp.program_id
           WHERE p.status NOT IN ('archived', 'cancelled')
+            AND ${platformProgramPredicate("p")}
           GROUP BY p.id, p.name, p.status
           HAVING COUNT(DISTINCT kp.kpi_id) > 0
           ORDER BY avg_kpi_rate DESC NULLS LAST`,
@@ -57,7 +59,8 @@ export async function getCalendarPrograms(userId, role) {
           FROM v2_programs
           WHERE (start_date IS NOT NULL OR end_date IS NOT NULL)
             AND (is_archived IS NULL OR is_archived = 0)
-            AND (assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
+            AND (assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))
+            AND ${platformProgramPredicate()}`,
     args: [userId, role],
   });
 }
@@ -67,8 +70,9 @@ export async function getCalendarSessions(userId, role) {
   return db.execute({
     sql: `SELECT s.id, s.title, s.start_at, s.teacher_id, s.program_id, p.name AS program_name
           FROM v2_sessions s
-          LEFT JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
+          JOIN v2_programs p ON s.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
           WHERE s.start_at IS NOT NULL
+            AND ${platformProgramPredicate("p")}
             AND (s.teacher_id = ? OR s.program_id IN (
               SELECT id FROM v2_programs WHERE assigned_pm_id = ?
             ) OR ? IN ('super_admin', 'admin'))`,
@@ -83,6 +87,7 @@ export async function getCalendarDeliverables(userId, role) {
           FROM v2_deliverables d
           JOIN v2_programs p ON d.program_id = p.id AND (p.is_archived IS NULL OR p.is_archived = 0)
           WHERE d.due_date IS NOT NULL
+            AND ${platformProgramPredicate("p")}
             AND (p.assigned_pm_id = ? OR ? IN ('super_admin', 'admin'))`,
     args: [userId, role],
   });
@@ -94,7 +99,8 @@ export async function getCalendarEvents(userId) {
     sql: `SELECT id, title, start_time, end_time, location, event_type, created_by
           FROM v2_events
           WHERE start_time IS NOT NULL
-            AND created_by = ?`,
+            AND created_by = ?
+            AND (program_id IS NULL OR ${platformProgramRelationPredicate("v2_events")})`,
     args: [userId],
   });
 }
@@ -138,6 +144,7 @@ export async function getVisiblePrograms(userId, role) {
           WHERE (is_archived IS NULL OR is_archived = 0)
             AND (assigned_pm_id = ?
              OR ? IN ('super_admin', 'admin'))
+            AND ${platformProgramPredicate()}
           ORDER BY created_at DESC`,
     args: [userId, role],
   });
@@ -267,7 +274,7 @@ export async function getKpiProgressRows(userId) {
                  kp.approved_count, kp.participant_count, kp.completion_rate
           FROM kpi_progress kp
           JOIN v2_kpis k ON kp.kpi_id::text = k.id::text AND kp.program_id::text = k.program_id::text
-          WHERE kp.program_id IN (SELECT id::text FROM v2_programs WHERE assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?))
+          WHERE kp.program_id IN (SELECT id::text FROM v2_programs WHERE ${platformProgramPredicate()} AND (assigned_pm_id = ? OR assigned_assistant_id LIKE ? OR id::text IN (SELECT program_id::text FROM v2_teams WHERE handler_id = ?)))
           ORDER BY kp.program_id, kp.kpi_id`,
     args: [userId, `%${userId}%`, userId],
   });

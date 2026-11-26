@@ -6,7 +6,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/lib/i18n";
-import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import { cacheGet, cacheSet, useApi } from "@/lib/hooks/useApi";
 import { LayoutGrid, LogOut, Loader2, ArrowRight, User, Building2, GraduationCap, Rocket } from "lucide-react";
 import CreateActions from "@/components/shared/create/CreateActions";
 
@@ -86,6 +86,14 @@ export default function WorkspacesPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Client memberships are separate from internal assignments. Never cache
+  // their access decision alongside the internal workspace navigation.
+  const { data: clientContext, loading: clientsLoading } = useApi("/api/org/context", {
+    cache: false, fetchOptions: { cache: "no-store" },
+  });
+  const clientOrganizations = clientContext?.success ? clientContext.organizations || [] : [];
+  const clientHome = clientOrganizations.length ? "/o/select" : null;
+  const dashboardHref = ["/member", "/workspaces"].includes(data?.home) && clientHome ? clientHome : data?.home;
 
   useEffect(() => {
     const loadWorkspaces = async (bypassCache = false) => {
@@ -158,7 +166,7 @@ export default function WorkspacesPage() {
   // show the previous flat assignment list instead of an empty state.
   const hasLegacy = !hasAny && (data?.workspaces?.length || 0) > 0;
 
-  if (loading) {
+  if (loading || clientsLoading) {
     return (
       <div className="min-h-screen bg-primary flex items-center justify-center">
         <Loader2 className="w-6 h-6 text-[var(--brand-orange)] animate-spin" />
@@ -175,7 +183,7 @@ export default function WorkspacesPage() {
           </h1>
           <div className="flex items-center gap-4">
             <Link
-              href="/member/participant/profile"
+              href={clientOrganizations.length ? "/o/profile" : "/member/participant/profile"}
               className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] hover:text-[var(--brand-orange)] transition-colors"
             >
               <User className="w-3.5 h-3.5" />
@@ -211,6 +219,15 @@ export default function WorkspacesPage() {
                 participant dashboard, so the actions it is allowed to perform
                 must appear on this neutral hub too. */}
             <CreateActions />
+
+            {clientOrganizations.length > 0 && (
+              <Group icon={Building2} label={t("common.organizationPortal.clientWorkspaces")}>
+                {clientOrganizations.map((organization) => (
+                  <ContextCard key={organization.id} title={organization.branding?.displayName || organization.name}
+                    role={t("common.organizationPortal.clientSpace")} href="/o/select" />
+                ))}
+              </Group>
+            )}
 
             {hasAny ? (
               <div className="space-y-8">
@@ -316,7 +333,7 @@ export default function WorkspacesPage() {
                   />
                 ))}
               </div>
-            ) : (
+            ) : !clientOrganizations.length ? (
               <div className="rounded-2xl border border-[var(--border-primary)] bg-secondary p-12 text-center space-y-3">
                 <LayoutGrid className="w-8 h-8 text-[var(--text-secondary)] mx-auto" />
                 <p className="text-[12px] font-black uppercase text-[var(--text-primary)]">
@@ -326,12 +343,12 @@ export default function WorkspacesPage() {
                   {t("common.workspaces.emptyBody")}
                 </p>
               </div>
-            )}
+            ) : null}
 
-            {data?.home && (
+            {dashboardHref && !["/member", "/workspaces"].includes(dashboardHref) && (
               <div className="text-center">
                 <Link
-                  href={data.home}
+                  href={dashboardHref}
                   className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[var(--brand-orange)] text-black text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition-opacity"
                 >
                   {t("common.workspaces.myDashboard")}

@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /** Ensure v2_programs has the slug column. Used by POST /api/pm/programs. */
 export async function addProgramSlugColumn() {
@@ -27,7 +28,7 @@ export async function addProgramSuccessMetricsColumn() {
 /** Non-archived program with an exactly matching (case-insensitive) name. Used by POST. */
 export async function findProgramByExactName(name) {
   return db.execute({
-    sql: "SELECT id FROM v2_programs WHERE LOWER(name) = LOWER(?) AND is_archived = 0",
+    sql: `SELECT id FROM v2_programs WHERE LOWER(name) = LOWER(?) AND is_archived = 0 AND ${platformProgramPredicate()}`,
     args: [name],
   });
 }
@@ -127,7 +128,7 @@ export async function createProgramKpi(programId, title, targetValue) {
 /** Program row (id + assigned_pm_id) — existence + previous-PM probe. Used by PUT. */
 export async function getProgramWithAssignedPm(id) {
   return db.execute({
-    sql: "SELECT id, assigned_pm_id FROM v2_programs WHERE id = ?",
+    sql: `SELECT id, assigned_pm_id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [id],
   });
 }
@@ -135,7 +136,7 @@ export async function getProgramWithAssignedPm(id) {
 /** Quick archive/unarchive toggle (is_archived + status) by id. Used by PUT. */
 export async function setProgramArchiveState(isArchived, status, id) {
   return db.execute({
-    sql: "UPDATE v2_programs SET is_archived = ?, status = ? WHERE id = ?",
+    sql: `UPDATE v2_programs SET is_archived = ?, status = ? WHERE id = ? AND ${platformProgramPredicate()}`,
     args: [isArchived, status, id],
   });
 }

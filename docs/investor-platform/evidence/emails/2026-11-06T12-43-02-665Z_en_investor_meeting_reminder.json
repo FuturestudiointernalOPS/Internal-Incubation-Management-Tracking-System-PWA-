@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-en@sandbox.local",
+  "subject": "Future Studio — Meeting reminder",
+  "language": "en",
+  "email_type": "investor_meeting_reminder",
+  "body": "Reminder: your meeting with DEMO Gate Venture is coming up.\n\nFuture Studio Investor Relations",
+  "captured_at": "2026-11-06T12:43:02.665Z",
+  "provider": "file"
+}

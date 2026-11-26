@@ -1,0 +1,9 @@
+{
+  "to": "gate-e2e-fr@sandbox.local",
+  "subject": "Future Studio — Réunion confirmée",
+  "language": "fr",
+  "email_type": "investor_meeting_confirmation",
+  "body": "Votre réunion avec DEMO Gate Venture est confirmée.\n\nRelations investisseurs — Future Studio",
+  "captured_at": "2026-11-06T12:43:02.665Z",
+  "provider": "file"
+}

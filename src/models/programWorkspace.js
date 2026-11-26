@@ -1,4 +1,18 @@
 import db from "@/lib/db";
+import { platformProgramPredicate } from "@/models/organizations/programScope";
+
+// Guard each read in the same SQL statement, including global staff choices.
+// A preflight query alone would not protect the subsequent parallel reads.
+function platformWorkspaceQuery(sql, args, programId, numbered = false) {
+  return {
+    sql: `SELECT wl_rows.* FROM (${sql}) wl_rows WHERE EXISTS (
+      SELECT 1 FROM v2_programs wl_parent
+      WHERE wl_parent.id::text = ${numbered ? `$${args.length + 1}` : "?"}
+        AND ${platformProgramPredicate("wl_parent")}
+    )`,
+    args: [...args, String(programId)],
+  };
+}
 
 /**
  * ProgramWorkspace model — data access for the PM program workspace
@@ -11,8 +25,8 @@ import db from "@/lib/db";
  *  - /api/pm/export
  *
  * Each function wraps exactly one SQL statement (or one parallel batch).
- * SQL is byte-identical to the queries that used to live inline in the
- * controllers, so behavior is unchanged.
+ * Internal reads retain their business filters and add a platform ownership
+ * boundary. Client reads use the separate organisation repositories.
  *
  * Model-layer rules (see docs/MVC_REFACTOR.md §4):
  *  - No HTTP / Next.js imports here — only the db engine.
@@ -141,7 +155,7 @@ export async function getProgramFullStateData(id) {
   return Promise.all(
     queries.map(async (query) => {
       try {
-        return await db.execute({ sql: query.sql, args: query.args });
+        return await db.execute(platformWorkspaceQuery(query.sql, query.args, id));
       } catch (error) {
         console.error(` forensic | Query [${query.name}] failed:`, error.message);
         return { rows: [] };
@@ -164,10 +178,10 @@ export async function getAssistantContactsByCids(assistantIds) {
 
 /** Persisted KPI progress rows for a program (fallback = dynamic calc). */
 export async function getPersistedKpiProgress(programId) {
-  return db.execute({
-    sql: "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
-    args: [programId],
-  });
+  return db.execute(platformWorkspaceQuery(
+    "SELECT * FROM kpi_progress WHERE program_id = ? ORDER BY kpi_id ASC",
+    [programId], programId,
+  ));
 }
 
 // ────────────────────────────────────────────────────────────
@@ -182,6 +196,7 @@ export async function getSuperAdminSchedule() {
              FROM v2_sessions s
              JOIN v2_programs p ON s.program_id = p.id
              WHERE s.scheduled_date IS NOT NULL AND p.is_archived = 0
+               AND ${platformProgramPredicate("p")}
              ORDER BY s.scheduled_date ASC
           `,
     args: [],
@@ -196,6 +211,7 @@ export async function getOwnSchedule(ownCid) {
              FROM v2_sessions s
              JOIN v2_programs p ON s.program_id = p.id
              WHERE s.scheduled_date IS NOT NULL AND p.is_archived = 0
+               AND ${platformProgramPredicate("p")}
                AND (s.handler_id = ? OR p.assigned_pm_id = ?)
              ORDER BY s.scheduled_date ASC
           `,
@@ -230,7 +246,7 @@ export async function ensureSubmissionCreatedAtIndex() {
 /** Programs assigned to a PM (id + name, not archived). */
 export async function getProgramsByAssignedPm(assignedPmId) {
   return db.execute({
-    sql: "SELECT id, name FROM v2_programs WHERE assigned_pm_id = ? AND (is_archived = 0 OR is_archived IS NULL)",
+    sql: `SELECT id, name FROM v2_programs WHERE assigned_pm_id = ? AND (is_archived = 0 OR is_archived IS NULL) AND ${platformProgramPredicate()}`,
     args: [assignedPmId],
   });
 }
@@ -241,6 +257,7 @@ export async function getProgramsByAssignedPm(assignedPmId) {
  * to the original inline `program_id IN (?,?,...)` query.
  */
 export async function getSubmissionsByProgramIds(programIds) {
+  if (!programIds.length) return { rows: [] };
   const placeholders = programIds.map(() => "?").join(",");
   return db.execute({
     sql: `SELECT s.*, d.title as deliverable_title, d.week_number as deliverable_week,
@@ -249,8 +266,9 @@ export async function getSubmissionsByProgramIds(programIds) {
             FROM v2_submissions s
             LEFT JOIN v2_document_requirements d ON s.deliverable_id::text = d.id::text
             LEFT JOIN contacts c ON s.participant_id::text = c.cid
-            LEFT JOIN v2_programs prog ON s.program_id::text = prog.id::text
+            JOIN v2_programs prog ON s.program_id::text = prog.id::text
             WHERE s.program_id::text IN (${placeholders})
+              AND ${platformProgramPredicate("prog")}
             ORDER BY s.created_at DESC`,
     args: programIds,
   });
@@ -313,5 +331,5 @@ export async function getProgramExportRows(type, programId) {
                ORDER BY vs.scheduled_date`;
       break;
   }
-  return db.execute({ sql, args: [programId] });
+  return db.execute(platformWorkspaceQuery(sql, [programId], programId, true));
 }

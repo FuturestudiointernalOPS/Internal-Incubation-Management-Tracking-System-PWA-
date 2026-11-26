@@ -1,4 +1,5 @@
 import db from "@/lib/db";
+import { platformProgramRelationPredicate } from "@/models/organizations/programScope";
 
 /**
  * List weekly reports, newest first, optionally narrowed to one program and/or
@@ -6,7 +7,7 @@ import db from "@/lib/db";
  * `teacher_id` / `teacher_name` columns are storage and keep their names).
  */
 export async function listWeeklyReports(programId, weekNumber) {
-  let sql = "SELECT * FROM v2_weekly_reports WHERE 1=1";
+  let sql = `SELECT * FROM v2_weekly_reports WHERE ${platformProgramRelationPredicate("v2_weekly_reports")}`;
   const args = [];
 
   if (programId) {
