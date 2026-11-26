@@ -23,10 +23,10 @@ jest.mock("@/components/ui/DialogProvider", () => ({
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
-const OrganizationsPage = require("@/app/crm/organizations/page").default;
-const LeadsPage = require("@/app/crm/leads/page").default;
-const OpportunitiesPage = require("@/app/crm/opportunities/page").default;
-const SegmentsPage = require("@/app/crm/segments/page").default;
+const OrganizationsPage = require("@/app/staff/crm/organizations/page").default;
+const LeadsPage = require("@/app/staff/crm/leads/page").default;
+const OpportunitiesPage = require("@/app/staff/crm/opportunities/page").default;
+const SegmentsPage = require("@/app/staff/crm/segments/page").default;
 const CrmScorePanel = require("@/components/ui/CrmScorePanel").default;
 
 const ORG = { id: "org-1", name: "E2E-MTN Benin", type: "company", industry: "Telecoms", website: "https://mtn.example" };
@@ -129,7 +129,8 @@ describe("Leads", () => {
   test("the list shows the leads with their qualification", async () => {
     render(<LeadsPage />);
     expect(await screen.findByText("MTN Strategic Partnership")).toBeTruthy();
-    expect(screen.getByText("crm.leads.qualifications.in_review")).toBeTruthy();
+    // Scope to the table: the qualification filter also offers this label as an option.
+    expect(within(screen.getByRole("table")).getByText("crm.leads.qualifications.in_review")).toBeTruthy();
   });
 
   test("a lead is refused without a target, then sent with the chosen organization", async () => {

@@ -30,9 +30,9 @@ describe("where the reminder button leads", () => {
 
   test("staff and participants land on the Venture page of their own section", async () => {
     getSession.mockResolvedValue({ cid: "S", role: "staff" });
-    expect(await open("/open/venture/VNT-1")).toBe("/staff/ventures/VNT-1");
+    expect(await open("/open/venture/VNT-1")).toBe("/staff/lead-manager/ventures/VNT-1");
     getSession.mockResolvedValue({ cid: "P", role: "participant" });
-    expect(await open("/open/venture/VNT-1?signup=1")).toBe("/participant/ventures/VNT-1");
+    expect(await open("/open/venture/VNT-1?signup=1")).toBe("/member/participant/ventures/VNT-1");
   });
 
   test("a signed-out reader with an account goes to login, and comes back here", async () => {

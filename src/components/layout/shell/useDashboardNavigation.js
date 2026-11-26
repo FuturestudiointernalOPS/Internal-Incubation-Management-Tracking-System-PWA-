@@ -22,15 +22,19 @@ import {
   CheckSquare,
   Clock,
   GraduationCap,
+  Building2,
+  Target,
+  GitBranch,
+  Activity,
+  Filter,
+  Zap,
 } from "lucide-react";
 import { getActivePathIds } from "./navigation";
 import { buildAccessNav, hasCapability } from "@/lib/masterNavigation";
-import {
-  carriesContextualValue,
-  isInternalStaffRole,
-  isLegacyProgramManagerRole,
-  isPlatformOwnerRole,
-} from "@/lib/identity";
+import { isPlatformOwnerRole } from "@/lib/identity";
+import { spaceForRole } from "@/spaces/registry";
+import { composeMemberNav } from "@/spaces/member/contexts";
+import { hasStaffContext } from "@/spaces/staff/contexts";
 import { useApi } from "@/lib/hooks/useApi";
 
 // Resolve icon names from the master navigation module into components.
@@ -55,6 +59,12 @@ const NAV_ICONS = {
   trendingUp: TrendingUp,
   clock: Clock,
   graduationCap: GraduationCap,
+  building: Building2,
+  target: Target,
+  gitBranch: GitBranch,
+  activity: Activity,
+  filter: Filter,
+  zap: Zap,
 };
 
 function attachIcons(items) {
@@ -96,6 +106,7 @@ export function useDashboardNavigation({
   pmPrograms,
   ventureAssignCount,
   relationships,
+  profiles = [],
 }) {
   // The sections the person opened or closed BY HAND, recorded together with the
   // route they were on. Nothing else about the accordion is state: the effective
@@ -135,85 +146,121 @@ export function useDashboardNavigation({
     // from an actual course enrollment, programs/certificates only for program
     // participants, ventures only for venture members.
     if (PERSONAL_ROLES.includes(activeRole)) {
-      const rel = relationships || {
-        isProgramParticipant: false,
-        isVentureMember: false,
-        isFounder: false,
-        isInvestor: false,
-        ventures: [],
-      };
-      // Investors use Investor Space as their home. Other personal accounts
-      // keep the common participant dashboard, and team accounts keep /team.
-      const dashboardHref = activeRole === "team" ? "/team" : "/participant";
-      const investorAccount =
-        carriesContextualValue(activeRole, "investor") || rel.isInvestor;
-      const items = investorAccount ? [] : [
-        { id: "dashboard", name: "DASHBOARD", icon: LayoutDashboard, href: dashboardHref },
-      ];
-      // The learner door. It opens from an actual enrollment — the LMS decides
-      // access server-side — never from belonging to a program: someone who
-      // subscribed to a course on the website holds no program and no venture.
-      if (hasLmsEnrollments === true) {
-        items.push({
-          id: "learning",
-          name: "MY LEARNING",
-          icon: GraduationCap,
-          href: "/participant/learning",
-        });
-      }
-      if (rel.isProgramParticipant) {
-        items.push({ id: "programs", name: "MY PROGRAMS", icon: Briefcase, href: "/participant/dashboard" });
-        items.push({ id: "certificates", name: "MY CERTIFICATES", icon: FileText, href: "/participant/certificates" });
-      }
-      if (activeRole !== "team") items.push({ id: "announcements", name: "ANNOUNCEMENTS", icon: Bell, href: "/participant/announcements" });
-      if (canReadMessages && activeRole !== "team") items.push({ id: "messages", name: "MESSAGES", icon: MessageSquare, href: "/participant/messages" });
-      if (rel.isVentureMember) {
-        // A founder's venture door sits with their program doors (the founder
-        // nav contract reads Dashboard → Programs → Ventures → Timeline),
-        // not buried after every participant item. Team members keep the
-        // additive arrangement: their venture door comes last.
-        const ventureDoor = { id: "ventures", name: "MY VENTURES", icon: Rocket, href: "/participant/ventures" };
-        if (rel.isFounder) {
-          const progIndex = items.findIndex((navItem) => navItem.id === "programs");
-          items.splice(progIndex === -1 ? 1 : progIndex + 2, 0, ventureDoor);
-        } else {
-          items.push(ventureDoor);
-        }
-      }
-      // The investor context: an APPROVED investor profile is a relationship the
-      // baseline badge cannot carry, so a "member" who was taken as an investor
-      // gets their investor space here — exactly like the program and venture
-      // doors, driven by what the server resolved for this person, never by the
-      // role string.
-      if (investorAccount) {
-        items.unshift({ id: "investor", name: "INVESTOR SPACE", icon: TrendingUp, href: "/investor/dashboard" });
-      }
-      return items;
+      // Every rule about WHAT a member context is, and which doors it opens,
+      // lives in the member space itself (src/spaces/member/contexts.js). This
+      // hook no longer carries a second copy of the product's rules.
+      return attachIcons(
+        composeMemberNav({
+          role: activeRole,
+          rel: relationships,
+          hasCourse: hasLmsEnrollments === true,
+          canReadMessages,
+          profiles,
+        }),
+      );
     }
 
-    // SIDEBAR ADDITION — the ventures console appears only when this staff
-    // member actually holds venture assignments. Navigation belongs in the
-    // sidebar, not on the dashboard: clicking it opens ALL ventures.
+    // SIDEBAR ADDITION — the ventures console appears when this staff member
+    // actually holds venture assignments, and the PORTFOLIO doors appear when
+    // they hold the portfolio right. Both are capability/relationship facts, so
+    // the menu can never offer a door the API would refuse.
     const withVentureConsole = (list) => {
-      if (
-        !isInternalStaffRole(activeRole) &&
-        !isLegacyProgramManagerRole(activeRole)
-      ) {
-        return list;
-      }
-      if (typeof ventureAssignCount !== "number" || ventureAssignCount <= 0) {
-        return list;
-      }
+      const leadManager = hasStaffContext(
+        { role: activeRole, ventureAssignCount },
+        "lead-manager",
+      );
+      const canViewAll = hasCapability(effectiveCaps, "ventures", "view_all");
+      const canOperateAll = hasCapability(effectiveCaps, "ventures", "edit_all");
+      const canConfigure = hasCapability(effectiveCaps, "ventures", "setup", 3);
+      const isStaffSurface = spaceForRole(activeRole) === "staff";
+      if (!leadManager && !canViewAll) return list;
       const next = list.slice();
-      if (!next.some((navItem) => navItem.id === "ventures")) {
-        const dashIndex = next.findIndex((navItem) => navItem.id === "dashboard");
-        const insertAt = dashIndex === -1 ? 0 : dashIndex + 1;
-        next.splice(insertAt, 0, {
+      const insertAfter = (afterId, item) => {
+        if (next.some((navItem) => navItem.id === item.id)) return;
+        const anchor = next.findIndex((navItem) => navItem.id === afterId);
+        const insertAt =
+          anchor !== -1
+            ? anchor + 1
+            : Math.max(
+                0,
+                next.findIndex((navItem) => navItem.id === "dashboard") + 1,
+              );
+        next.splice(insertAt, 0, item);
+      };
+
+      if (leadManager) {
+        insertAfter("dashboard", {
           id: "ventures",
           name: "MY VENTURES",
           icon: Rocket,
-          href: "/staff/ventures",
+          href: "/staff/lead-manager/ventures",
         });
+      }
+      // THE DEDICATED VENTURE ADMINISTRATION AREA.
+      //
+      // A staff-only group whose presence follows the portfolio WRITE right
+      // (`ventures.edit_all`) — the same right the server reads. Revoking it in
+      // the permissions matrix removes the door on the next load; the API stays
+      // the authority, so hiding the door is convenience, never security.
+      //
+      // The read perimeter is also required: the area's screens read every
+      // Venture, and a write-only grant would open a door onto refusals.
+      if (isStaffSurface && canViewAll && canOperateAll) {
+        insertAfter(leadManager ? "ventures" : "dashboard", {
+          id: "venture_admin",
+          name: "VENTURE ADMIN",
+          icon: Rocket,
+          subItems: [
+            {
+              id: "venture_admin_home",
+              name: "OVERVIEW",
+              href: "/staff/venture-admin",
+            },
+            {
+              id: "all_ventures",
+              name: "ALL VENTURES",
+              href: "/staff/venture-admin/ventures",
+            },
+            {
+              id: "portfolio",
+              name: "PORTFOLIO",
+              href: "/staff/venture-admin/portfolio",
+            },
+            ...(canConfigure
+              ? [
+                  {
+                    id: "venture_reporting_settings",
+                    name: "REPORTING SETTINGS",
+                    href: "/staff/venture-admin/reporting-settings",
+                  },
+                ]
+              : []),
+          ],
+        });
+        return next;
+      }
+
+      if (canViewAll) {
+        insertAfter("ventures", {
+          id: "all_ventures",
+          name: "ALL VENTURES",
+          icon: Rocket,
+          href: "/staff/venture-admin/ventures",
+        });
+        insertAfter("all_ventures", {
+          id: "portfolio",
+          name: "PORTFOLIO",
+          icon: BarChart3,
+          href: "/staff/venture-admin/portfolio",
+        });
+        if (canConfigure) {
+          insertAfter("portfolio", {
+            id: "venture_reporting_settings",
+            name: "REPORTING SETTINGS",
+            icon: FileText,
+            href: "/staff/venture-admin/reporting-settings",
+          });
+        }
       }
       return next;
     };
@@ -225,7 +272,7 @@ export function useDashboardNavigation({
     // A non-empty manager list is what opens the manager sub-menu: the shell
     // only reads it for someone carrying the program-manager profile, and it
     // is empty for a manager who manages none.
-    if (pmPrograms.length > 0) {
+    if (hasStaffContext({ pmPrograms }, "program-manager")) {
       const progIndex = items.findIndex((navItem) => navItem.id === "programs");
       if (progIndex !== -1) {
         const baseSubItems =
@@ -243,11 +290,11 @@ export function useDashboardNavigation({
                 },
               ]
             : [
-                { id: "all_programs", name: "OVERVIEW", href: "/pm/programs" },
+                { id: "all_programs", name: "OVERVIEW", href: "/staff/program-manager/programs" },
                 {
                   id: "submissions",
                   name: "SUBMISSIONS",
-                  href: "/pm/submissions",
+                  href: "/staff/program-manager/submissions",
                 },
               ];
 
@@ -270,6 +317,7 @@ export function useDashboardNavigation({
     canReadMessages,
     ventureAssignCount,
     relationships,
+    profiles,
   ]);
 
   // Active navigation path — the current page plus every ancestor node id.

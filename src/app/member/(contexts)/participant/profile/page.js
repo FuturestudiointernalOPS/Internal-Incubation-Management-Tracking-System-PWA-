@@ -1,0 +1,18 @@
+"use client";
+
+import ProfileView from "@/components/shared/dashboard/ProfileView";
+
+/**
+ * PARTICIPANT PROFILE — Unified Profile Page
+ *
+ * All roles share the same ProfileView component.
+ */
+export default function ParticipantProfilePage() {
+  return (
+    <>
+      <div className="p-6 max-w-6xl mx-auto">
+        <ProfileView participant />
+      </div>
+    </>
+  );
+}

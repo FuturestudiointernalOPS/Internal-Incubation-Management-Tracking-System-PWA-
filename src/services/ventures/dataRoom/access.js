@@ -41,6 +41,7 @@ import {
 import { resolveVentureInternalId } from "@/models/ventureIdentityStore";
 import { resolveInvestorScope } from "@/models/authorization/investorScope";
 import { getAuthorizationContext } from "@/models/authorization/index";
+import { holdsVenturePortfolioRight } from "@/services/ventures/portfolioAccess";
 import { selectLeadManagerAssignment } from "@/models/ventureDocumentTypesStore";
 import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./shared";
 
@@ -52,7 +53,7 @@ import { refusal, withSignedUrl, withSignedVersion, parseDetails } from "./share
  *   super admin                     → view + manage + review
  *   venture founder / owner         → view + manage
  *   other venture member            → view (and download)
- *   assigned Lead Manager           → view + configure requirements, never manage/review
+ *   assigned Venture Manager           → view + configure requirements, never manage/review
  *   assigned staff with documents.* → view + manage (edit/upload/manage)
  *   assigned staff with review      → review
  *   investor with a live grant      → view + download, their granted subset only
@@ -71,7 +72,11 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   if (!INTERNAL_ID.test(String(internalId || ""))) return { allowed: false, reason: "not-found" };
 
   const authContext = await getAuthorizationContext(session);
-  const superAdmin = Boolean(authContext?.isSuperAdmin);
+  const isSuperAdmin = Boolean(authContext?.isSuperAdmin);
+  // Unscoped Data Room authority is an explicit right, not a role: a revoked
+  // Super Admin falls back to their membership/assignment like anyone else.
+  const portfolioView = holdsVenturePortfolioRight(authContext, "view");
+  const portfolioEdit = holdsVenturePortfolioRight(authContext, "edit");
   const internalStaff = isInternalStaffFamilyRole(session.role);
   const cid = session.cid || null;
 
@@ -87,11 +92,11 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   );
 
   let assigned = false;
-  if (cid && internalStaff && !superAdmin) {
+  if (cid && internalStaff && !portfolioView) {
     assigned = await hasAnyVentureAssignment({ ventureId, contactId: cid });
   }
 
-  // A Lead Manager RUNS the Venture but does not file its documents: they
+  // A Venture Manager RUNS the Venture but does not file its documents: they
   // request the categories and review what the founder uploads. Detecting the
   // responsibility explicitly keeps that rule out of the generic document
   // capability matrix, which other staff roles still use.
@@ -101,9 +106,9 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
     isLeadManager = (leadResult.rows || []).length > 0;
   }
 
-  const canView = superAdmin || isMember || assigned;
+  const canView = portfolioView || portfolioEdit || isMember || assigned;
 
-  let canManage = superAdmin || isFounder;
+  let canManage = portfolioEdit || isFounder;
   if (!canManage && assigned && cid && !isLeadManager) {
     canManage =
       (await hasVentureCapability({ ventureId, contactId: cid, area: "documents", action: "edit" })) ||
@@ -112,10 +117,10 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
   }
 
   let canReview = false;
-  if (superAdmin) {
+  if (portfolioEdit) {
     canReview = true;
   } else if (assigned && isLeadManager) {
-    // The Lead Manager decides on what the founder files: approve or not.
+    // The Venture Manager decides on what the founder files: approve or not.
     canReview = true;
   } else if (assigned) {
     canReview =
@@ -125,7 +130,7 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
         : false);
   }
 
-  // A Lead Manager configures WHAT must be provided and reviews what is filed;
+  // A Venture Manager configures WHAT must be provided and reviews what is filed;
   // they still do not upload or edit the documents themselves.
   const canConfigureRequirements = canReview || (assigned && isLeadManager);
 
@@ -133,7 +138,7 @@ export async function resolveDataRoomViewer({ ventureId, session, database } = {
     return {
       allowed: true,
       session,
-      viewerType: superAdmin ? "super_admin" : internalStaff ? "staff" : "member",
+      viewerType: isSuperAdmin ? "super_admin" : internalStaff ? "staff" : "member",
       isFounder,
       isMember,
       isLeadManager,

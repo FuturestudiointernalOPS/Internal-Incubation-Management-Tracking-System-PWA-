@@ -3,13 +3,14 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { isProgramManagerSession } from "@/services/authorization/programManagement";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAuthorization, requireAnyAuthorization } from "@/models/authorization/index";
 
 import { v4 as uuidv4 } from "uuid";
 
 import {
   getFamilyByRegistrationId,
   getAllFamilies,
+  findFamilyByName,
   ensureFamilyDescriptionColumn,
   ensureFamilyFormIdColumn,
   ensureFamilyDefaultRoleColumn,
@@ -60,8 +61,15 @@ export async function GET(req) {
     // platform-wide group read — no UI consumer exists for that; the
     // program-scoped group data participants need comes from their own
     // program endpoints.
+    //
+    // A delegated program CREATOR also reads it: the new-program wizard offers
+    // an existing group as the cohort target, so the creation right carries the
+    // list it needs.
     const session = await getSession();
-    const capError = await requireAuthorization("programs", "view");
+    const capError = await requireAnyAuthorization([
+      { module: "programs", capability: "view" },
+      { module: "programs", capability: "create" },
+    ]);
     const canList = !capError || (await isProgramManagerSession(session));
     if (!canList) {
       return NextResponse.json(
@@ -80,8 +88,13 @@ export async function GET(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    // A cohort group is created as part of setting up a program, so the
+    // delegated program-creation right carries it. The platform owner bypasses
+    // capabilities; the former super-admin-only allowlist had nothing else.
+    const authError = await requireAuth();
     if (authError) return authError;
+    const capError = await requireAuthorization("programs", "create");
+    if (capError) return capError;
     const { name, type, program_id, description, default_role } = await req.json();
 
     try {
@@ -92,6 +105,32 @@ export async function POST(req) {
 
     if (!name)
       return NextResponse.json({ success: false, error: "Name is required" }, { status: 400 });
+
+    // A group's name is the key contacts are filed under, so an existing row
+    // with the same name IS the group: reuse it (and attach it to the requested
+    // program when it had none) instead of inserting a duplicate and a second
+    // auto-created registration form.
+    const duplicate = (await findFamilyByName(name)).rows?.[0];
+    if (duplicate) {
+      if (program_id && !duplicate.program_id) {
+        await updateFamilyFields(["program_id = ?"], [program_id, duplicate.id]);
+        duplicate.program_id = program_id;
+      }
+      return NextResponse.json({
+        success: true,
+        existing: true,
+        id: duplicate.id,
+        form_id: duplicate.form_id,
+        group: {
+          id: duplicate.id,
+          name: duplicate.name,
+          registration_id: duplicate.registration_id,
+          description: duplicate.description,
+          form_id: duplicate.form_id,
+          program_id: duplicate.program_id || null,
+        },
+      });
+    }
 
     const registration_id = "GRP-" + uuidv4().split("-")[0].toUpperCase() + Math.floor(Math.random() * 1000);
 

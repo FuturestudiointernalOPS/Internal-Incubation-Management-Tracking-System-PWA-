@@ -1,43 +1,58 @@
 {
   "rootMisc": {
     "landing": {
-      "brand": "ImpactOS Terminal",
+      "brand": "ImpactOS",
+      "brandBy": "by Future Studio",
       "connecting": "Connecting Secure Session...",
-      "kicker": "Future Studio",
-      "title": "Your journey from idea to impact starts here.",
-      "intro": "Access the programs, mentorship, resources, and opportunities you need to develop your ideas, build your venture, connect with the right people, and turn your ambitions into measurable progress.",
-      "whatTitle": "What you can do here",
-      "pillars": {
-        "programs": {
-          "title": "Join Programs & Cohorts",
-          "body": "Discover your program activities, access learning sessions, follow your curriculum, and track your progress from onboarding to completion."
-        },
-        "ventures": {
-          "title": "Build Your Venture",
-          "body": "Develop your ideas, organize your business activities, complete milestones, and access the guidance and support needed to grow your startup."
-        },
-        "mentorship": {
-          "title": "Access Mentorship & Networks",
-          "body": "Connect with mentors, collaborate with peers, participate in sessions, and benefit from relationships that support your professional and entrepreneurial growth."
-        },
-        "progress": {
-          "title": "Track Your Progress",
-          "body": "Stay on top of your tasks, monitor your achievements, submit deliverables, and see how far you have progressed toward your goals."
-        },
-        "funding": {
-          "title": "Explore Funding Opportunities",
-          "body": "Follow relevant funding opportunities, prepare for investment readiness, and track your venture's progress toward accessing capital."
-        },
-        "impact": {
-          "title": "Showcase Your Impact",
-          "body": "Document your achievements, highlight your milestones, and demonstrate the progress and impact of your work."
-        }
-      },
-      "signIn": "Sign In →",
+      "signIn": "Sign In",
       "signInHint": "For registered participants, founders, mentors, and authorized partners.",
       "language": "Language",
       "switchTheme": "Switch theme",
-      "footer": "© 2026 Future Studio · Empowering Innovation & Entrepreneurship"
+      "hero": {
+        "titleLead": "Building entrepreneurs shouldn't take",
+        "titleAccent": "five different tools.",
+        "intro": "ImpactOS is the all-in-one operating platform for organizations that build entrepreneurs and ventures.",
+        "talkToUs": "Talk to Us"
+      },
+      "problem": {
+        "line1": "Your team runs stand-ups in one app. Your programs live in spreadsheets. Your courses sit on a separate platform.",
+        "line2": "Your startups are tracked in documents, and your investor conversations happen over email.",
+        "line3": "Every tool holds a piece of the story. None of them holds a founder's whole journey.",
+        "line4": "So when it's time to show progress, someone has to stitch it all together by hand."
+      },
+      "is": {
+        "title": "ImpactOS ends the patchwork.",
+        "body": "One platform to run your team, deliver your programs, teach your learners, grow your ventures, and connect them with investors."
+      },
+      "products": {
+        "operations": {
+          "title": "Operations",
+          "body": "Run daily stand-ups, retros, and weekly rituals, and manage projects and tasks in one shared workspace."
+        },
+        "programs": {
+          "title": "Programs",
+          "body": "Run incubators, accelerators, and cohorts end to end, from application and onboarding to activities, submissions, and completion."
+        },
+        "learning": {
+          "title": "Learning",
+          "body": "Deliver online courses and lessons, and track every learner's progress. Use it alongside your programs or on its own."
+        },
+        "ventures": {
+          "title": "Ventures",
+          "body": "Follow startups through incubation, acceleration, and growth, with each venture's progress tracked over time."
+        },
+        "investors": {
+          "title": "Investors",
+          "body": "Give investors access to ventures and opportunities, and keep investments and relationships in one place."
+        }
+      },
+      "short": {
+        "tagline": "One platform. Five products. One record of every person and every milestone.",
+        "body": "ImpactOS is the platform Future Studio runs on every day. We're building it so other organizations can run on the same foundations, under their own brand.",
+        "question": "Want to run your organization on ImpactOS?",
+        "talkToUs": "Talk to Us"
+      },
+      "footer": "© 2026 Future Studio · Empowering"
     },
     "terminal": {
       "title": "Terminal Unification",
@@ -144,6 +159,9 @@
       "fullNamePlaceholder": "Full Name",
       "emailPlaceholder": "Email Address",
       "phonePlaceholder": "Phone (optional)",
+      "whatsappConsent": "I agree to receive promotional offers and exclusives from ImpactOS on my WhatsApp number.",
+      "whatsappConsentHint": "Optional. You can change this at any time in your profile.",
+      "whatsappConsentNeedsPhone": "Add a valid phone number to enable this option.",
       "createPasswordPlaceholder": "Create Password",
       "completeRegistration": "Complete Registration"
     },
@@ -267,6 +285,8 @@
       "emailPlaceholder": "name@domain.com",
       "phone": "Phone Number",
       "phonePlaceholder": "+234...",
+      "whatsappConsent": "I agree to receive promotional offers and exclusives from ImpactOS on my WhatsApp number.",
+      "whatsappConsentHint": "Optional. You can change this at any time in your profile.",
       "gender": "Gender",
       "genderMale": "MALE",
       "genderFemale": "FEMALE",

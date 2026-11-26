@@ -19,7 +19,7 @@
  * detail page agree the first time either is opened.
  */
 
-import { defaultRequirements } from "@/lib/dataRoom";
+import { defaultRequirements, isDataRoomCategory } from "@/lib/dataRoom";
 import {
   selectDataRoomDocumentStatusesForVentures,
   selectDataRoomRequirementsForVentures,
@@ -98,8 +98,12 @@ export async function listDataRoomReadiness(ventureRefs = []) {
     if (stage === undefined) return unknownRow(ventureId); // venture not readable
 
     // Stored levels win; otherwise the per-stage defaults, exactly as the
-    // per-Venture seeding would have produced them.
-    const stored = requirementsByVenture.get(key) || [];
+    // per-Venture seeding would have produced them. A RETIRED category (see
+    // `isDataRoomCategory`) is dropped: its stored row may still exist, but it
+    // must not count towards a denominator the Data Room no longer shows.
+    const stored = (requirementsByVenture.get(key) || []).filter((row) =>
+      isDataRoomCategory(row.category),
+    );
     const requirements = stored.length > 0
       ? stored.map((row) => ({ category: row.category, level: row.level }))
       : defaultRequirements(stage);
@@ -166,7 +170,7 @@ export async function getRequiredEvidence(ventureRef) {
   const stage = stagesResult.rows?.[0]?.business_stage;
   if (stage === undefined) return null;
 
-  const stored = requirementsResult.rows || [];
+  const stored = (requirementsResult.rows || []).filter((row) => isDataRoomCategory(row.category));
   const requirements = stored.length > 0
     ? stored.map((row) => ({ category: row.category, level: row.level }))
     : defaultRequirements(stage);

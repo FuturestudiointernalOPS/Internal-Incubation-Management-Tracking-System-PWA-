@@ -48,9 +48,9 @@ describe("session hardening", () => {
 });
 
 describe("privileged writes and secrets", () => {
-  test("running platform migrations requires the super_admin role", () => {
+  test("running platform migrations requires the dedicated settings.manage_schema right", () => {
     const src = read("src/app/api/system/database/route.js");
-    expect(src).toMatch(/requireAuth\(\["super_admin"\]\)/);
+    expect(src).toMatch(/requireAuthorization\("settings", "manage_schema"\)/);
   });
 
   test.each([
@@ -66,7 +66,7 @@ describe("no raw HTML and server-controlled fields", () => {
   test("the public success message is sanitised", () => {
     // The message is rendered by SubmissionSuccess since the public run page was
     // split, so the guard follows the sanitiser to the file that now holds it.
-    const src = read("src/components/public/run-submit/SubmissionSuccess.js");
+    const src = read("src/components/shared/public/run-submit/SubmissionSuccess.js");
     expect(src).toMatch(/sanitizeRichText\(/);
     expect(src).toMatch(/dangerouslySetInnerHTML/);
   });

@@ -5,6 +5,8 @@ import { serverError } from "@/lib/apiError";
 import writeXlsxFile from "write-excel-file/node";
 import { jsPDF } from "jspdf";
 import { getRunWithFormName, getRunSubmissions } from "@/models/workspace";
+import { getFormFieldsForRunById } from "@/models/formRuns";
+import { formatCountryAnswer } from "@/lib/countries";
 
 export const dynamic = "force-dynamic";
 
@@ -18,14 +20,16 @@ export const dynamic = "force-dynamic";
  */
 
 /** Flatten one submission's data JSONB into { label: displayValue }, skipping internal keys. */
-function flattenData(data) {
+function flattenData(data, fieldTypes) {
   const output = {};
   if (!data || typeof data !== "object") return output;
   for (const [key, value] of Object.entries(data)) {
     if (key.startsWith("_")) continue; // internal keys (_scores etc.)
     if (value === null || value === undefined || value === "") continue;
     let display = value;
-    if (typeof value === "object") {
+    if (fieldTypes[key] === "country") {
+      display = formatCountryAnswer(value, "en");
+    } else if (typeof value === "object") {
       try { display = JSON.stringify(value); } catch { display = String(value); }
     }
     output[key] = String(display);
@@ -64,13 +68,23 @@ export async function GET(req) {
 
     const submissionsResult = await getRunSubmissions(parseInt(runId));
 
+    // Field types, so a stored country code is shared as its readable name.
+    const fieldTypes = {};
+    try {
+      const fieldsResult = await getFormFieldsForRunById(run.form_id);
+      for (const field of fieldsResult.rows || []) {
+        fieldTypes[String(field.id)] = field.field_type;
+        if (field.label) fieldTypes[String(field.label)] = field.field_type;
+      }
+    } catch (_) {}
+
     // Build structured rows: collect question labels in order of first appearance.
     const flattened = submissionsResult.rows.map((submission) => {
       let data = submission.data;
       if (typeof data === "string") {
         try { data = JSON.parse(data); } catch { data = {}; }
       }
-      return { meta: submission, answers: flattenData(data) };
+      return { meta: submission, answers: flattenData(data, fieldTypes) };
     });
 
     const labels = [];

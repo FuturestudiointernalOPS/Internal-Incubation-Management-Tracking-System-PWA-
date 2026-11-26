@@ -13,7 +13,7 @@ import db from "@/lib/db";
  * (scope is decided by the controller; the SQL text lives here).
  */
 export async function getTasksByFilters({
-  isSuperAdmin,
+  seesAll,
   scope,
   sessionCid,
   effectiveUserId,
@@ -29,9 +29,11 @@ export async function getTasksByFilters({
   let sql = "SELECT * FROM tasks WHERE 1=1";
   const args = [];
 
-  // SECURITY (Phase 0/6): For non-SA users, scope to: owned tasks, assigned tasks, or supervised tasks.
+  // SECURITY (Phase 0/6): For callers without `tasks.view_all`, scope to: owned
+  // tasks, assigned tasks, or supervised tasks. The caller passes the verdict,
+  // never a role.
   // When an explicit assigned_to filter is given, use that. Otherwise scope by session user.
-  if (!isSuperAdmin) {
+  if (!seesAll) {
     if (scope === "self") {
       // No user/assignee filter given (with or without project_id): force scope to session user
       sql += " AND (user_id = ? OR assigned_to = ? OR supervisor_id = ?)";
@@ -55,7 +57,7 @@ export async function getTasksByFilters({
       sql += " AND 1 = 0";
     }
   } else {
-    // Super admin: apply filters as requested
+    // The caller may see every person's tasks: apply filters as requested
     if (effectiveUserId) {
       sql += " AND user_id = ?";
       args.push(effectiveUserId);

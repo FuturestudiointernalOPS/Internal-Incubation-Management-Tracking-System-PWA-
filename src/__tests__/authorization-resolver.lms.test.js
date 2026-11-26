@@ -51,13 +51,21 @@ describe("lms module", () => {
     expect(authorize(ctx, "lms", "view")).toBe(false);
   });
 
-  test("super admin is allowed without explicit lms rows (matrix bypass)", () => {
-    expect(authorize(saCtx(), "lms", "create")).toBe(true);
-    expect(authorize(saCtx(), "lms", "publish")).toBe(true);
+  test("super admin is allowed when its matrix holds the LMS right", () => {
+    const sa = saCtx({ effective: { lms: { view: 5, create: 5, publish: 5 } } });
+    expect(authorize(sa, "lms", "create")).toBe(true);
+    expect(authorize(sa, "lms", "publish")).toBe(true);
+  });
+
+  test("super admin without the right is denied (the matrix decides)", () => {
+    expect(authorize(saCtx({ effective: {} }), "lms", "create")).toBe(false);
   });
 
   test("super admin with an explicit lms restriction is denied", () => {
-    const ctx = saCtx({ restrictions: { lms: new Set(["publish"]) } });
+    const ctx = saCtx({
+      effective: { lms: { view: 5, create: 5, publish: 5 } },
+      restrictions: { lms: new Set(["publish"]) },
+    });
     expect(authorize(ctx, "lms", "publish")).toBe(false);
     expect(authorize(ctx, "lms", "view")).toBe(true); // unrelated cap unaffected
   });

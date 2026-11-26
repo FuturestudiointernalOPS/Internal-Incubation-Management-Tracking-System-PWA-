@@ -92,6 +92,54 @@ export async function GET(req) {
       return NextResponse.json({ success: true, run: run.rows[0], submission: mySubmissionResult.rows[0] || null });
     }
 
+    // Scoped registration lookup (`?program_id=` / `?group_id=` alone): the
+    // program workspace Registration Link card needs the active public slug for
+    // a programme the caller can already open. That must not require the
+    // Platform → Runs module (`runs.view`) — staff/PM who lack it otherwise see
+    // a false "NO FORM YET" even when a live run is assigned.
+    const scopedProgramId = searchParams.get("program_id");
+    const scopedGroupId = searchParams.get("group_id");
+    const isScopedRegistrationList =
+      Boolean(scopedProgramId || scopedGroupId) &&
+      !id &&
+      !timeline &&
+      !submissionId &&
+      !contacts &&
+      mySubmissions !== "true" &&
+      searchParams.get("dashboard") !== "true" &&
+      searchParams.get("activity") !== "true" &&
+      !searchParams.get("scoring") &&
+      searchParams.get("responses") !== "true";
+
+    if (isScopedRegistrationList) {
+      const { getSession } = await import("@/server/auth/session");
+      const session = await getSession();
+      if (!session) {
+        return NextResponse.json(
+          { success: false, error: "errors.authRequired" },
+          { status: 401 },
+        );
+      }
+      const page = Math.max(1, parseInt(searchParams.get("page")) || 1);
+      const perPage = Math.max(1, parseInt(searchParams.get("per_page")) || 50);
+      const offset = (page - 1) * perPage;
+      const result = await listFormRunsPage({
+        groupId: scopedGroupId,
+        programId: scopedProgramId,
+        formId,
+        status,
+        perPage,
+        offset,
+      });
+      return NextResponse.json({
+        success: true,
+        runs: result.rows,
+        total: result.total,
+        page,
+        per_page: perPage,
+      });
+    }
+
     const authError = await requireAuthorization("runs", "view");
     if (authError) return authError;
 

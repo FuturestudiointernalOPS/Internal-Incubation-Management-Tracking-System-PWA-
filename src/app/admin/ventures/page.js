@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Rocket,
@@ -8,14 +9,15 @@ import {
   Search,
   ChevronRight,
   Loader2,
-  Building2,
-  Mail,
+  BarChart3,
+  Settings2,
 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import AppModal from "@/components/ui/AppModal";
-import AppInput from "@/components/ui/AppInput";
-import AppButton from "@/components/ui/AppButton";
+import AddVentureForm from "@/components/shared/create/AddVentureForm";
+import BroadcastCensusModal from "@/components/shared/ventures/console/BroadcastCensusModal";
+import { Send } from "lucide-react";
 
 const VENTURE_STAGES = {
   idea: { label: "vadmin.list.stageIdea", color: "text-blue-400 bg-blue-500/10" },
@@ -48,9 +50,7 @@ export default function VenturesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
-  const [addForm, setAddForm] = useState({ company_name: "", founder_email: "" });
-  const [addSubmitting, setAddSubmitting] = useState(false);
-  const [addError, setAddError] = useState("");
+  const [showBroadcastModal, setShowBroadcastModal] = useState(false);
   // The loader's work — painting from the cache first, discarding a stale
   // response, the background refresh — belongs to the hook, so the screen keeps
   // no list state of its own and never sets state from an effect. Adding a
@@ -98,64 +98,8 @@ export default function VenturesPage() {
     };
   };
 
-  const notify = (type, message, duration = 4000) => {
-    window.dispatchEvent(
-      new CustomEvent("impactos:notify", { detail: { type, message, duration } }),
-    );
-  };
-
   const closeAddModal = () => {
     setShowAddModal(false);
-    setAddError("");
-  };
-
-  // "Add a Venture": record the venture by name and invite its founder, who
-  // receives a link to create their account and access the venture.
-  const handleAddVenture = async (event) => {
-    event.preventDefault();
-    const companyName = addForm.company_name.trim();
-    const founderEmail = addForm.founder_email.trim();
-    if (companyName.length < 2) {
-      setAddError(t("vadmin.list.addVentureNameRequired"));
-      return;
-    }
-    if (!founderEmail) {
-      setAddError(t("vadmin.list.addVentureEmailRequired"));
-      return;
-    }
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(founderEmail)) {
-      setAddError(t("vadmin.list.addVentureEmailInvalid"));
-      return;
-    }
-
-    setAddSubmitting(true);
-    setAddError("");
-    try {
-      const response = await fetch("/api/admin/ventures/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ company_name: companyName, founder_email: founderEmail }),
-      });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) {
-        setAddError(t(payload.error || "vadmin.list.addVentureFailed"));
-        return;
-      }
-      // The venture is created either way; a transport failure only means the
-      // invitation email did not leave, which the admin must be told explicitly.
-      notify(
-        payload.email_sent === false ? "error" : "success",
-        t(payload.email_sent === false ? "vadmin.list.addVentureEmailFailed" : "vadmin.list.addVentureSuccess"),
-        5000,
-      );
-      closeAddModal();
-      setAddForm({ company_name: "", founder_email: "" });
-      refresh();
-    } catch {
-      setAddError(t("vadmin.list.addVentureFailed"));
-    } finally {
-      setAddSubmitting(false);
-    }
   };
 
   return (
@@ -176,6 +120,20 @@ export default function VenturesPage() {
             </h1>
           </div>
           <div className="flex gap-3">
+            {/* The portfolio roll-up and the reporting settings are GLOBAL, so
+                they live beside the list rather than inside a Venture. */}
+            <Link href="/admin/ventures/portfolio" className="btn btn-secondary gap-2">
+              <BarChart3 className="w-4 h-4" /> {t("vadmin.list.portfolio")}
+            </Link>
+            <Link href="/admin/ventures/reporting-settings" className="btn btn-secondary gap-2">
+              <Settings2 className="w-4 h-4" /> {t("vadmin.list.reportingSettings")}
+            </Link>
+            <button
+              onClick={() => setShowBroadcastModal(true)}
+              className="btn btn-secondary gap-2 border-[var(--brand-orange)]/40 text-[var(--brand-orange)] hover:bg-[var(--brand-orange)]/10 font-semibold"
+            >
+              <Send className="w-4 h-4" /> Broadcast Census / Form
+            </button>
             <button
               onClick={() => setShowAddModal(true)}
               className="btn btn-primary gap-2"
@@ -258,9 +216,18 @@ export default function VenturesPage() {
                       >
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform">
-                              <Rocket className="w-4 h-4" />
-                            </div>
+                            {venture.logo_url ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img
+                                src={venture.logo_url}
+                                alt={venture.company_name || ""}
+                                className="w-8 h-8 rounded-lg object-contain bg-[var(--surface-1)] border border-[var(--border-primary)] p-0.5 group-hover:scale-110 transition-transform shrink-0"
+                              />
+                            ) : (
+                              <div className="p-2 rounded-lg bg-brand-orange/10 text-[var(--brand-orange)] group-hover:scale-110 transition-transform shrink-0">
+                                <Rocket className="w-4 h-4" />
+                              </div>
+                            )}
                             <div>
                               <p className="text-sm font-bold text-[var(--text-primary)]">{venture.company_name}</p>
                               <p className="text-[10px] text-slate-500 font-medium">{venture.venture_id}</p>
@@ -317,48 +284,22 @@ export default function VenturesPage() {
         title={t("vadmin.list.addVentureTitle")}
         size="sm"
       >
-        <form onSubmit={handleAddVenture} className="space-y-5">
-          <p className="text-xs leading-relaxed -mt-2" style={{ color: "var(--text-secondary)" }}>
-            {t("vadmin.list.addVentureSubtitle")}
-          </p>
-          <AppInput
-            autoFocus
-            icon={Building2}
-            label={t("vadmin.list.ventureNameLabel")}
-            placeholder={t("vadmin.list.ventureNamePlaceholder")}
-            value={addForm.company_name}
-            onChange={(event) => {
-              setAddForm((previous) => ({ ...previous, company_name: event.target.value }));
-              setAddError("");
-            }}
-          />
-          <AppInput
-            icon={Mail}
-            type="email"
-            label={t("vadmin.list.founderEmailLabel")}
-            placeholder={t("vadmin.list.founderEmailPlaceholder")}
-            value={addForm.founder_email}
-            onChange={(event) => {
-              setAddForm((previous) => ({ ...previous, founder_email: event.target.value }));
-              setAddError("");
-            }}
-          />
-          {addError && <p className="text-xs font-bold text-rose-500">{addError}</p>}
-          <div className="flex justify-end gap-3 pt-1">
-            <AppButton
-              type="button"
-              variant="ghost"
-              disabled={addSubmitting}
-              onClick={closeAddModal}
-            >
-              {t("vadmin.list.addVentureCancel")}
-            </AppButton>
-            <AppButton type="submit" variant="primary" icon={Plus} loading={addSubmitting}>
-              {t("vadmin.list.addVentureSubmit")}
-            </AppButton>
-          </div>
-        </form>
+        <AddVentureForm
+          onCancel={closeAddModal}
+          onCreated={() => {
+            closeAddModal();
+            refresh();
+          }}
+        />
       </AppModal>
+
+      {/* The button above only sets this state; without the modal rendered here
+          the click did nothing at all. */}
+      <BroadcastCensusModal
+        isOpen={showBroadcastModal}
+        onClose={() => setShowBroadcastModal(false)}
+        ventures={ventures}
+      />
     </>
   );
 }

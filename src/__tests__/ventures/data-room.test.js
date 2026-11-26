@@ -27,7 +27,19 @@ jest.mock("@/models/authorization/investorScope", () => ({
   resolveInvestorScope: jest.fn(),
 }));
 jest.mock("@/models/authorization/index", () => ({
-  getAuthorizationContext: jest.fn(async (session) => ({ isSuperAdmin: session?.role === "super_admin" })),
+  // The unscoped Data Room authority is the explicit portfolio right now, so
+  // the context has to carry the effective matrix, not only the role flag.
+  getAuthorizationContext: jest.fn(async (session) => {
+    const isSuperAdmin = session?.role === "super_admin";
+    return {
+      role: session?.role,
+      isSuperAdmin,
+      effective: isSuperAdmin
+        ? { ventures: { view: 5, edit: 5, view_all: 5, edit_all: 5 } }
+        : {},
+      restrictions: {},
+    };
+  }),
 }));
 jest.mock("@/services/ventures/permissions", () => ({
   hasAnyVentureAssignment: jest.fn(),
@@ -164,7 +176,7 @@ describe("loadDataRoomRequirements", () => {
 
     const requirements = await loadDataRoomRequirements(VENTURE, db);
 
-    expect(requirements).toHaveLength(11);
+    expect(requirements).toHaveLength(9);
     const byCategory = Object.fromEntries(requirements.map((row) => [row.category, row]));
     expect(byCategory.fundraising_cap_table.level).toBe("conditional");
     expect(byCategory.company_overview.level).toBe("recommended");
@@ -249,7 +261,7 @@ describe("resolveDataRoomViewer", () => {
     expect(viewer).toMatchObject({ allowed: true, canManage: true, canReview: false });
   });
 
-  test("a Lead Manager requests categories and reviews, but never uploads", async () => {
+  test("a Venture Manager requests categories and reviews, but never uploads", async () => {
     hasAnyVentureAssignment.mockResolvedValue(true);
     hasVentureCapability.mockResolvedValue(true);
     canManageVerification.mockResolvedValue({ allowed: true });
@@ -325,16 +337,22 @@ describe("resolveDataRoomViewer", () => {
   });
 });
 
-test("the Data Room ships with eleven categories", () => {
+test("the Data Room ships with nine categories", () => {
   const { DATA_ROOM_CATEGORIES } = require("@/lib/dataRoom");
-  expect(DATA_ROOM_CATEGORIES).toHaveLength(11);
+  expect(DATA_ROOM_CATEGORIES).toHaveLength(9);
+  // `team` and `due_diligence` were retired; neither may creep back in.
+  expect(DATA_ROOM_CATEGORIES.map((category) => category.code)).not.toEqual(
+    expect.arrayContaining(["team", "due_diligence"]),
+  );
   expect(DEFAULT_VENTURE_DOCUMENT_TYPES.length).toBe(6);
 });
 
-test("a category outside the eleven is legacy, never silently reclassified", () => {
+test("a retired category is legacy, never silently reclassified", () => {
   const { isLegacyDocumentCategory } = require("@/lib/dataRoom");
 
   expect(isLegacyDocumentCategory("company_overview")).toBe(false);
+  expect(isLegacyDocumentCategory("team")).toBe(true);
+  expect(isLegacyDocumentCategory("due_diligence")).toBe(true);
   expect(isLegacyDocumentCategory("business_plan")).toBe(true);
   expect(isLegacyDocumentCategory("general")).toBe(true);
   expect(isLegacyDocumentCategory(null)).toBe(true);

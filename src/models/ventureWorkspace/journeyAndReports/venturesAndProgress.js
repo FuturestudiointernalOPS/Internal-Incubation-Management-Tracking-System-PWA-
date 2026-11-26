@@ -132,7 +132,7 @@ export async function countVentureRetrosByVentureId(dbId) {
 /** Profile-score fields of a venture by internal id. */
 export async function getVentureProfileFields(dbId) {
   return db.execute({
-    sql: "SELECT name, description, mission, vision, industry, sector, business_stage, website FROM ventures WHERE id = ?",
+    sql: "SELECT name, description, mission, vision, industry, sector, business_stage, website, logo_url FROM ventures WHERE id = ?",
     args: [dbId],
   });
 }

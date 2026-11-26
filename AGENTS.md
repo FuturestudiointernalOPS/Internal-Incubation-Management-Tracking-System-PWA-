@@ -203,14 +203,25 @@ src/
 │   │   ├── op-reports/   ← Operational reports
 │   │   ├── intelligence/ ← Intelligence module
 │   │   └── ...
-│   ├── staff/            ← Staff routes
-│   ├── pm/               ← Program Manager routes
-│   ├── participant/      ← Participant routes
+│   ├── staff/            ← STAFF space: one shell + one folder per context
+│   │   ├── layout.js     ← the space shell + guard (mounted once)
+│   │   ├── program-manager/ ← programme-manager context
+│   │   ├── finance/      ← finance context
+│   │   └── create/       ← delegated creation context
+│   ├── member/           ← MEMBER space routes (participant, founder, investor…)
+│   │   ├── page.js       ← the hub (outside the shell)
+│   │   └── (contexts)/   ← ONE shell for every member context
 │   └── api/              ← API routes (thin controllers, 403 handlers)
+├── spaces/               ← the three spaces: views + components per context
+│   ├── registry.js       ← identity → space, operating denial, homes
+│   ├── member/           ← one folder per member context
+│   ├── staff/            ← one folder per staff context
+│   └── admin/            ← one folder per admin domain
 ├── components/
 │   ├── layout/
 │   │   └── DashboardLayout.js  ← Sidebar + header wrapper
-│   └── ui/               ← Reusable components
+│   ├── shared/           ← components genuinely used by two spaces
+│   └── ui/               ← Reusable components (the neutral kit)
 ├── models/               ← MODEL layer — all SQL + domain logic (MVC)
 │   ├── tasks.js          ← one file per domain (blocks, projects,
 │   │                        programs, contacts, authFlows, groups,
@@ -229,6 +240,31 @@ src/
 │   └── ...
 └── locales/              ← Translation files (en + fr)
 ```
+
+### Spaces — see `docs/SPACES.md`
+
+There are three spaces, and an identity belongs to exactly one:
+
+| Space | Who | Address |
+|---|---|---|
+| `member` | a person in their own programmes, ventures, learning | `/member` (+ `/member/participant`, `/member/founder`, `/member/investor`, `/member/facilitator`, `/member/team`) |
+| `staff` | an internal function | `/staff` (+ `/staff/<context>`) |
+| `admin` | the platform owner | `/admin`, `/platform` |
+
+Inside a space, a **context** is what the person is or does there (founder,
+learner, programme manager, lead manager, finance, CRM…). Contexts are
+**cumulative** — one person holds several — and each adds its own screens and
+doors. A context's screens and components live in `src/spaces/<space>/<context>/`.
+A page file stays a thin entry point that renders a screen from there.
+
+- The registry (`src/spaces/registry.js`) is the ONLY list of who belongs where.
+  Guards and navigation read it; do not add a private list elsewhere.
+- One shell per space. A context moved under an existing space must NOT wrap
+  itself in another `<DashboardLayout>`.
+- A space never imports another space and never imports `@/lib/db`.
+- A component two spaces genuinely need goes in `src/components/shared/` — never
+  copied into both. The neutral design kit stays in `src/components/ui/`.
+- Enforced by `src/__tests__/spaces-boundaries.test.js`.
 
 ### MVC layering (see `docs/MVC_REFACTOR.md` and `docs/LAYER_SPLIT.md`)
 
@@ -256,13 +292,14 @@ no re-fetch of the auth/badge chain on every link click):
 |---|---|---|
 | `/admin/*` | `src/app/admin/layout.js` | `super_admin` (from session) |
 | `/staff/*` | `src/app/staff/layout.js` | `staff` |
-| `/pm/*` | `src/app/pm/layout.js` | `program_manager` |
-| `/participant/*` | `src/app/participant/layout.js` | `participant` |
-| `/facilitator/*` | `src/app/facilitator/layout.js` | `facilitator` |
-| `/investor/*` | `src/app/investor/layout.js` | `investor` |
-| `/finance/*` | `src/app/finance/layout.js` | `finance` |
-| `/crm/*` | `src/app/crm/layout.js` | `crm` |
-| `/team/*` | `src/app/team/layout.js` | `team` |
+| `/staff/program-manager/*` | `src/app/staff/layout.js` (shared) | `program_manager` (from session) |
+| `/member/participant/*` | `src/app/member/participant/layout.js` | `participant` |
+| `/member/facilitator/*` | `src/app/member/facilitator/layout.js` | `facilitator` |
+| `/member/investor/*` | `src/app/member/investor/layout.js` | `investor` |
+| `/staff/finance/*` | `src/app/staff/layout.js` (shared) | `finance` (from session) |
+| `/staff/crm/*` | `src/app/staff/layout.js` (shared) | `crm` (from session) |
+| `/member/team/*` | `src/app/member/team/layout.js` | `team` |
+| `/member/founder/*` | `src/app/member/founder/layout.js` | `founder` |
 
 **Do NOT wrap a page in `<DashboardLayout>` anymore.** Pages simply return their own
 content; the section layout provides the shell. The `role` prop is only a pre-session
@@ -279,12 +316,15 @@ never selects a role.
 - [ ] If adding UI text: use `t("namespace.key")` and update BOTH `en/` and `fr/` locale files
 - [ ] If creating a new page inside `/admin/*`: no action needed (layout already has force-dynamic)
 - [ ] If creating a new page outside `/admin/*`: add `export const dynamic = "force-dynamic"` if using client hooks
-- [ ] If adding a new component: put it in `src/components/ui/` and update `DESIGN_SYSTEM.md`
+- [ ] If adding a new component: a neutral kit component goes in `src/components/ui/` (update `DESIGN_SYSTEM.md`); a screen or component for ONE context goes in `src/spaces/<space>/<context>/`; one genuinely needed by two spaces goes in `src/components/shared/`
 - [ ] If asking for a confirmation, a typed value or an acknowledgement: use `useDialogs()` — never the browser's `confirm` / `prompt` / `alert`
 - [ ] If adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)
 - [ ] Run `npm run lint` (0 errors) and `npm run build` to verify zero errors
 - [ ] Promoting to production (branch `G` → `main`): run the **production test** — `docs/PRODUCTION_TEST.md`
+- [ ] Never open or merge a pull request into `main` from anything other than `G`
+- [ ] Never merge `white_label_os` into `interns`
+- [ ] Branch rules and how they are enforced: `docs/BRANCH_PROTECTION.md`
 
 ---
 
@@ -330,22 +370,40 @@ curl -s -o /dev/null -w '%{http_code}\n' http://localhost:3000/api/ventures/VNT-
 `405` instead of `401`/`404` means the path resolved but that HTTP method is not
 exported.
 
-### `.env.local` points at PRODUCTION (corrected 2026-10-11)
+### Environments — staging vs production (corrected 2026-11-02)
 
-The local dev server reads `DATABASE_URL` from `.env.local`, and on this
-workstation that is the **production** Supabase project — **not staging**, as
-this file previously and wrongly claimed. Verified read-only on 2026-10-11:
-`.env.local` holds **588 contacts / 530 form submissions / 5 ventures**, while
-`.env.audit-staging` is the near-empty staging project (**10 contacts /
-1 venture**).
+The staging Supabase project is **`mbpaxrfhqqclzyiefuab`** — its URL is
+`https://mbpaxrfhqqclzyiefuab.supabase.co` and it begins with **M**. The
+production project is **`yakxdxdzuojafzdkqhjd`**.
 
-So: **browsing admin screens writes to PRODUCTION.** Schema is *not* an
-exception — see the runtime migration note in `src/lib/db.js`: unless
-`SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies its own
+| File | Project | Target |
+|---|---|---|
+| `.env.local` | `mbpaxrfhqqclzyiefuab` | **Staging** |
+| `.env.staging` | `mbpaxrfhqqclzyiefuab` | **Staging** |
+| `.env.audit-staging` | `mbpaxrfhqqclzyiefuab` | **Staging** |
+| `.env.prod-verify` | `yakxdxdzuojafzdkqhjd` | **Production** |
+
+An earlier version of this file claimed `.env.local` pointed at production.
+That is no longer true: verified 2026-11-02 by reading the project ref from each
+`DATABASE_URL` (the part after `postgres.`), never the credentials. The local
+dev server therefore writes to **staging**.
+
+**Only `.env.prod-verify` is production.** Point read-only audits at it
+deliberately; never run development, schema, migrations or seed work against it.
+Schema is *not* an exception — see the runtime migration note in `src/lib/db.js`:
+unless `SKIP_RUNTIME_SCHEMA_MAINTENANCE` is set, the app applies its own
 `CREATE TABLE IF NOT EXISTS` / `ADD COLUMN IF NOT EXISTS` on first use.
 
-Build and test on **staging**; production is the promotion target only. To tell
-the two apart before pointing any tool at them, count, read-only:
-`node scripts/db-audit/run-readonly.mjs <sql-file> .env.local` — that runner
-executes only `SELECT / WITH / SET / SHOW / EXPLAIN / VALUES` statements and
-skips (never runs) anything else.
+To confirm the target before pointing any tool at it, read the project ref, not
+the URL: `node scripts/db-audit/run-readonly.mjs <sql-file> <env-file>` prints
+the connected database and role (`postgres.<ref>`) and never the credentials.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

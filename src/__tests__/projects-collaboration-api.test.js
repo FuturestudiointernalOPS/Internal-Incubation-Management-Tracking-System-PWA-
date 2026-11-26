@@ -132,7 +132,8 @@ describe("GET /api/projects/assignments", () => {
     expect(data.owned).toHaveLength(1);
     expect(data.collab).toHaveLength(2);
     expect(data.myProjects.map((project) => project.id)).toEqual(["1", "2"]);
-    // Portfolio roles also get the unlinked dropdown.
+    // Every internal caller gets the unlinked dropdown — not only portfolio
+    // holders: choosing a project must never depend on owning it.
     expect(data.all_active).toHaveLength(3);
   });
 
@@ -144,7 +145,7 @@ describe("GET /api/projects/assignments", () => {
     expect(res.status).toBe(403);
   });
 
-  test("a non-portfolio caller does not get the all_active dropdown", async () => {
+  test("a member gets no project catalogue: the dropdown is an internal surface", async () => {
     mockSession.role = "participant";
     const res = await assignments.GET(
       req("/api/projects/assignments"),
@@ -153,6 +154,20 @@ describe("GET /api/projects/assignments", () => {
     expect(res.status).toBe(200);
     expect(data.all_active).toEqual([]);
     expect(count("WHERE status != 'Archived' AND status != 'Completed'")).toBe(0);
+  });
+
+  test("a staff member WITHOUT projects.view_all still gets the whole dropdown", async () => {
+    // The right decides the PORTFOLIO screens; it must not decide what a task's
+    // project picker offers. A project created without a lead belongs to nobody,
+    // and it still has to be selectable.
+    const { authorize } = require("@/models/authorization/index");
+    authorize.mockImplementationOnce(() => false);
+
+    const res = await assignments.GET(req("/api/projects/assignments"));
+    const data = await readJson(res);
+    expect(res.status).toBe(200);
+    expect(data.all_active).toHaveLength(3);
+    expect(count("WHERE status != 'Archived' AND status != 'Completed'")).toBe(1);
   });
 });
 

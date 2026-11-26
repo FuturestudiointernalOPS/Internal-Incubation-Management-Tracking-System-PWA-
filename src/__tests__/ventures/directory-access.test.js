@@ -35,9 +35,10 @@ jest.mock("@/server/auth/guards", () => ({
   requireAuth: jest.fn().mockResolvedValue(null),
 }));
 
+let mockAuthzContext = null;
 jest.mock("@/models/authorization/index", () => ({
   requireAuthorization: jest.fn().mockResolvedValue(null),
-  getAuthorizationContext: jest.fn().mockResolvedValue({ isSuperAdmin: true }),
+  getAuthorizationContext: jest.fn(async () => mockAuthzContext),
   authorize: jest.fn().mockReturnValue(true),
 }));
 
@@ -64,9 +65,20 @@ const callRoute = async (query = "") => {
   return GET(request(query));
 };
 
+/** A context with the portfolio perimeter, or without it. */
+const contextFor = (role, portfolio = false) => ({
+  isSuperAdmin: role === "super_admin",
+  role,
+  effective: {
+    ventures: portfolio ? { view: 5, view_all: 5 } : { view: 1 },
+  },
+  restrictions: {},
+});
+
 beforeEach(() => {
   jest.clearAllMocks();
   requireAuth.mockResolvedValue(null); // the guard admits
+  mockAuthzContext = contextFor("member", false);
   mockList.mockResolvedValue({ rows: [{ venture_id: "VNT-1" }] });
 });
 
@@ -144,6 +156,7 @@ describe("the predicates that were already settled stay settled", () => {
     for (const role of ["staff", "program_manager"]) {
       jest.clearAllMocks();
       requireAuth.mockResolvedValue(null);
+      mockAuthzContext = contextFor("staff", false);
       getSession.mockResolvedValue({ cid: `USR_${role}`, role });
 
       await callRoute("?contact_id=USR_SOMEONE_ELSE");
@@ -154,13 +167,49 @@ describe("the predicates that were already settled stay settled", () => {
     }
   });
 
-  test("a global role keeps the whole directory, and the address only narrows it", async () => {
+  test("a portfolio right holder keeps the whole directory, and the address only narrows it", async () => {
     getSession.mockResolvedValue({ cid: "sa-1", role: "super_admin" });
+    mockAuthzContext = contextFor("super_admin", true);
 
     await callRoute("?contact_id=USR_X");
 
     expect(mockList).toHaveBeenCalledWith(
       expect.objectContaining({ effectiveContactId: "USR_X", assignedStaffId: null }),
+    );
+  });
+
+  test("a staff member granted the portfolio right sees the whole directory", async () => {
+    getSession.mockResolvedValue({ cid: "USR_STAFF", role: "staff" });
+    mockAuthzContext = contextFor("staff", true);
+
+    await callRoute("?contact_id=USR_X");
+
+    expect(mockList).toHaveBeenCalledWith(
+      expect.objectContaining({ effectiveContactId: "USR_X", assignedStaffId: null }),
+    );
+  });
+
+  test("a Super Admin sees the whole directory by ROLE, whatever the matrix says", async () => {
+    // The role is authoritative: without it, a database whose one-time grant
+    // has not been applied yet shows the owner an empty Ventures directory.
+    getSession.mockResolvedValue({ cid: "sa-1", role: "super_admin" });
+    mockAuthzContext = contextFor("super_admin", false);
+
+    await callRoute("?contact_id=USR_X");
+
+    expect(mockList).toHaveBeenCalledWith(
+      expect.objectContaining({ effectiveContactId: "USR_X", assignedStaffId: null }),
+    );
+  });
+
+  test("a member never receives the portfolio, even if the right is somehow present", async () => {
+    getSession.mockResolvedValue({ cid: "USR_M", role: "member" });
+    mockAuthzContext = contextFor("member", true);
+
+    await callRoute("?contact_id=USR_X");
+
+    expect(mockList).toHaveBeenCalledWith(
+      expect.objectContaining({ effectiveContactId: "USR_M", assignedStaffId: null }),
     );
   });
 });

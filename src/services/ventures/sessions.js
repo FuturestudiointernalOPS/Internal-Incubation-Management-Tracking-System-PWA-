@@ -18,6 +18,7 @@ import {
   selectSessions,
   selectSessionById,
   selectSessionNotes,
+  selectSessionNotesForVenture,
   selectSessionAttendance,
   selectSessionActionItems,
   selectVentureSessionConflicts,
@@ -42,6 +43,12 @@ import { isValidSessionStart, SESSION_PAST_START_ERROR } from "@/lib/ventureSess
 
 export async function listSessions(ventureId, { startDate, endDate, status, coachId, limit } = {}) {
   const res = await selectSessions(ventureId, { startDate, endDate, status, coachId, limit });
+  return res.rows || [];
+}
+
+/** Every note written on the Venture's sessions (coach feedback), oldest first. */
+export async function listSessionNotesForVenture(ventureId) {
+  const res = await selectSessionNotesForVenture(ventureId);
   return res.rows || [];
 }
 

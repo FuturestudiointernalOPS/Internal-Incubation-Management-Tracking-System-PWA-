@@ -13,6 +13,12 @@ const mockEvalAuth = jest.fn();
 jest.mock("@/services/authorization/context", () => ({
   getAuthorizationContext: (...args) => mockGetCtx(...args),
   evaluateAuthorization: (...args) => mockEvalAuth(...args),
+  explainAuthorization: (ctx, module, capability, minLevel = 1) => {
+    const level = Number(ctx?.effective?.[module]?.[capability] ?? 0);
+    return level >= minLevel
+      ? { allowed: true, reason: "granted", minLevel }
+      : { allowed: false, reason: "missing_permission", minLevel };
+  },
   AUTHZ_REASONS: { GRANTED: "granted", SUPER_ADMIN: "super_admin" },
 }));
 
@@ -58,10 +64,16 @@ describe("evaluateScopedAccess — justifications (c1)", () => {
     expect(d).toMatchObject({ allowed: false, status: 401, reason: "unauthenticated" });
   });
 
-  test("super admin → super_admin (autorisé)", async () => {
-    mockGetCtx.mockResolvedValue({ isSuperAdmin: true });
+  test("super admin avec le droit → super_admin (autorisé, portée levée)", async () => {
+    mockGetCtx.mockResolvedValue({ isSuperAdmin: true, effective: { programs: { view: 5 } } });
     const d = await call();
     expect(d).toMatchObject({ allowed: true, reason: "super_admin" });
+  });
+
+  test("super admin sans le droit → refusé (un droit retiré s'applique au propriétaire)", async () => {
+    mockGetCtx.mockResolvedValue({ isSuperAdmin: true, effective: {} });
+    const d = await call();
+    expect(d).toMatchObject({ allowed: false, reason: "missing_permission" });
   });
 
   test("capacité refusée → la raison de la capacité est propagée", async () => {

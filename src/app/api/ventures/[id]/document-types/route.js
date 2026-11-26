@@ -20,7 +20,7 @@ import {
  *        or delegated staff with an assignment). `can_manage` tells the screen
  *        whether to offer the editing controls, and retired types are only
  *        returned to someone who could turn them back on.
- * POST — a Super Admin, or a delegated staff member carrying the `lead_manager`
+ * POST — a Super Admin, or a delegated staff member carrying the `venture_manager`
  *        responsibility ON THIS Venture: define a new document type.
  *
  * The list belongs to the Venture, so a write here never touches another one.

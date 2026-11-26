@@ -29,7 +29,7 @@ jest.mock("@/models/formRuns", () => mockFormRuns);
 
 const { GET } = require("@/app/api/platform/form-runs/handlers/get");
 const { calculateSubmissionScores } = require("@/services/platform/scoring");
-const { runAutomationActions } = require("@/app/platform/runs/actions/runAutomation");
+const { runAutomationActions } = require("@/app/admin/communication/forms/runs/actions/runAutomation");
 const { getTemplate, getDesignedTemplate, resolveResultDelayMinutes } = require("@/lib/email/templates");
 
 const ON = (label) => ({ enabled: true, label, sections: { S: { weight: 100, field_labels: ["Q"] } } });

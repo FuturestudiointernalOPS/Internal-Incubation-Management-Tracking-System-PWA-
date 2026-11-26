@@ -18,7 +18,7 @@ import {
   getSubtasksByParentId,
   createSubtaskCopy,
 } from "@/models/taskLifecycle";
-import { canAccessTask } from "./access";
+import { canAccessTaskFor } from "./access";
 
 /** ISO week number for a date (copied verbatim from the original controller). */
 function getWeekNumber(date) {
@@ -39,7 +39,7 @@ function getWeekNumber(date) {
 export async function duplicateTask({ taskId, role, sessionCid }) {
   const task = await getTaskById(taskId);
   if (!task) return { status: 404, error: "Task not found" };
-  if (!canAccessTask({ task, role, cid: sessionCid })) {
+  if (!(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return {
       status: 403,
       error: "errors.taskDuplicateDenied",

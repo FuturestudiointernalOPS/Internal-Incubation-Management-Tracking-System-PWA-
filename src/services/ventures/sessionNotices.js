@@ -4,7 +4,7 @@
  *
  * Moved verbatim out of `src/app/api/ventures/[id]/sessions/route.js` (lane L2):
  * the controller decides WHETHER an action happened; this module decides WHO is
- * told about it (founders, the coach, the Lead Managers) and WHAT they read.
+ * told about it (founders, the coach, the Venture Managers) and WHAT they read.
  * Every notice is best-effort — a failed notice never fails the session write.
  *
  * It imports the same facades the controller used (`@/lib/ventureNotify`,
@@ -57,7 +57,7 @@ export async function emailVentureAboutSession(ventureParam, sessionRecord, { in
 
 /**
  * The notices of a NEW session: the coach, the founders (venture-facing only)
- * and the Venture's active Lead Managers. The memo lives on the SESSION and
+ * and the Venture's active Venture Managers. The memo lives on the SESSION and
  * nowhere else: it is the Venture-facing brief, and it travels with every
  * notice. The milestone record is the manager's own judgement, written
  * deliberately — never a copy of it.
@@ -138,7 +138,7 @@ export async function notifySessionScheduled({ ventureParam, body, sessionNote, 
       }
     } catch (_) {}
   }
-  // Lead Manager delivery (A8): the Venture's active Lead Managers are told
+  // Venture Manager delivery (A8): the Venture's active Venture Managers are told
   // about the new session too (in-app + email), regardless of
   // venture_facing. The creator and an LM who is also the coach are left
   // out (they got the coach wording above).
@@ -192,7 +192,7 @@ export async function notifySessionUpdated({ ventureParam, session }) {
   });
 }
 
-/** The notices of a cancelled session: founders (+ coach), then the Lead Managers. */
+/** The notices of a cancelled session: founders (+ coach), then the Venture Managers. */
 export async function notifySessionCancelled({ ventureParam, session, actorCid }) {
   const id = ventureParam;
   await emailVentureAboutSession(id, session, {
@@ -208,7 +208,7 @@ export async function notifySessionCancelled({ ventureParam, session, actorCid }
     params: { title: session.title },
     dedupeKey: `session-cancelled:${session.id}`,
   });
-  // Lead Manager delivery (A8): same event for the Venture's active Lead
+  // Venture Manager delivery (A8): same event for the Venture's active Lead
   // Managers (in-app + email), minus the actor and the session coach.
   try {
     const leadManagerVenture = await getVentureIdAndCode(id);
@@ -239,7 +239,7 @@ export async function notifySessionCancelled({ ventureParam, session, actorCid }
   } catch (_) {}
 }
 
-/** The notices of a rescheduled session: founders (+ coach), then the Lead Managers. */
+/** The notices of a rescheduled session: founders (+ coach), then the Venture Managers. */
 export async function notifySessionRescheduled({ ventureParam, session, actorCid }) {
   const id = ventureParam;
   await emailVentureAboutSession(id, session, {
@@ -256,7 +256,7 @@ export async function notifySessionRescheduled({ ventureParam, session, actorCid
     params: { title: session.title },
     dedupeKey: `session-rescheduled:${session.id}`,
   });
-  // Lead Manager delivery (A8): same event for the Venture's active Lead
+  // Venture Manager delivery (A8): same event for the Venture's active Lead
   // Managers (in-app + email), minus the actor and the session coach.
   try {
     const leadManagerVenture = await getVentureIdAndCode(id);

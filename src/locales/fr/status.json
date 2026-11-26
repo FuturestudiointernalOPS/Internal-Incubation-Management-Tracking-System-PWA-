@@ -1,6 +1,9 @@
 {
   "status": {
     "active": "Actif",
+    "dormant": "En sommeil",
+    "terminated": "Arrêtée",
+    "sold": "Cédée",
     "pending": "En attente",
     "prospect": "Prospect",
     "paused": "En pause",

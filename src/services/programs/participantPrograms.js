@@ -8,6 +8,7 @@ import {
   requireProgramScopeForAll,
 } from "@/lib/programScopedAccess";
 import { ensureProgramEnrollments } from "@/models/lms/programRequirements";
+import { releaseProgramLearning } from "@/services/lms/learning";
 import {
   getParticipantProgramAssignments,
   getProgramById,
@@ -155,6 +156,12 @@ export async function removeParticipantFromProgramService({ participant_id, prog
   if (scopeError) return { isAuthError: true, response: scopeError };
 
   const result = await deleteParticipantProgram(participant_id, program_id);
+
+  // The learning this seat granted leaves with it. Suspended, not deleted: the
+  // history stays, but the course stops appearing in My Learning and can no
+  // longer be opened. A course another active seat still requires is kept.
+  await releaseProgramLearning({ cid: participant_id });
+
   await insertRemovalAudit(participant_id, program_id, assigned_by || null);
 
   try {

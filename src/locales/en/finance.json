@@ -1,5 +1,9 @@
 {
   "finance": {
+    "displayCurrency": {
+      "label": "Display currency",
+      "follow": "Follow venture ({currency})"
+    },
     "dashboard": {
       "title": "Finance Dashboard",
       "subtitle": "Master overview — all projects",

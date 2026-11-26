@@ -110,17 +110,22 @@ export async function GET(req, { params }) {
           };
     }
 
-    // The gate's own verdict — never a guess from the role string. A global role
-    // holds no assignment rows, so without this the matrix read below would
-    // report FALSE for someone the server lets through; an under-claim hides a
-    // button that works, so the bypass has to be reproduced exactly.
+    // The gate's own verdict — never a guess from the role string. A portfolio
+    // viewer holds no assignment rows, so without this the matrix read below
+    // would report FALSE for someone the server lets through; an under-claim
+    // hides a button that works, so the unscoped verdict has to be reproduced
+    // exactly. `portfolio` is a right now, so a granted staff member reaches
+    // the same unscoped authority a Super Admin does.
     const isSuperAdmin = capabilities.view?.decision === "super-admin";
+    const hasUnscopedAuthority =
+      capabilities.view?.decision === "portfolio" ||
+      capabilities.edit?.decision === "portfolio";
 
     const matrix = {};
     for (const cell of ENFORCED_MATRIX_CELLS) {
       const [area, action] = cell.split(".");
       let allowed = false;
-      if (isSuperAdmin) {
+      if (isSuperAdmin || hasUnscopedAuthority) {
         allowed = true; // unscoped authority
       } else if (session.cid) {
         allowed = await hasVentureCapability({

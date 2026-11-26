@@ -2,11 +2,11 @@
 
 import React, { useState, useCallback } from "react";
 import { BarChart3 } from "lucide-react";
-import DataSourceSelector from "@/components/finance/DataSourceSelector";
-import SummaryCard from "@/components/finance/SummaryCard";
-import BudgetExecutionGauge from "@/components/finance/BudgetExecutionGauge";
-import MonthlyTrendChart from "@/components/finance/MonthlyTrendChart";
-import LastSyncedDisplay from "@/components/finance/LastSyncedDisplay";
+import DataSourceSelector from "@/spaces/admin/finance/DataSourceSelector";
+import SummaryCard from "@/spaces/admin/finance/SummaryCard";
+import BudgetExecutionGauge from "@/spaces/admin/finance/BudgetExecutionGauge";
+import MonthlyTrendChart from "@/spaces/admin/finance/MonthlyTrendChart";
+import LastSyncedDisplay from "@/spaces/admin/finance/LastSyncedDisplay";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 

@@ -29,14 +29,14 @@ function ventureHrefForRole(role, code) {
     case "super_admin":
       return `/admin/ventures/projects/${encoded}`;
     case "staff":
-      return `/staff/ventures/${encoded}`;
+      return `/staff/lead-manager/ventures/${encoded}`;
     case "participant":
     case "member":
     case "founder":
     case "applicant":
-      return `/participant/ventures/${encoded}`;
+      return `/member/participant/ventures/${encoded}`;
     default:
-      return roleHomeHref(role) || "/workspaces";
+      return roleHomeHref(role) || "/member";
   }
 }
 
@@ -51,7 +51,7 @@ export async function GET(req, { params }) {
   if (session && ventureCode) {
     target = ventureHrefForRole(session.role, ventureCode);
   } else if (session) {
-    target = roleHomeHref(session.role) || "/workspaces";
+    target = roleHomeHref(session.role) || "/member";
   } else if (signup) {
     target = "/register-staff";
   } else {

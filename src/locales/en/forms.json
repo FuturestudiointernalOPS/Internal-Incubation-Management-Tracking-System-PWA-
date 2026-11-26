@@ -18,6 +18,8 @@
     "paymentAmount": "Amount to pay",
     "consentLabel": "I agree that my details are recorded to manage my registration, my payment and my access to this course.",
     "consentRequired": "Please accept the recording of your details to continue.",
+    "whatsappConsent": "I agree to receive promotional offers and exclusives from ImpactOS on my WhatsApp number.",
+    "whatsappConsentHint": "Optional. You can change this at any time in your profile.",
     "paymentMisconfigured": "This course is not open for online payment. Please contact us.",
     "paymentOpening": "Opening the payment window…",
     "paymentConfirming": "Confirming your payment…",

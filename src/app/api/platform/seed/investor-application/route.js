@@ -8,16 +8,20 @@
  * (profile + activation email) — see the platform automation rule.
  *
  * Idempotent: re-running reuses the existing form/run and only ensures the
- * configuration points at it. Super admin only.
+ * configuration points at it.
  *
- * Thin controller: gates on `super_admin` and delegates to
- * `@/services/platform/seed` (see docs/LAYER_SPLIT.md).
+ * Gate: `investor.create` (delegatable from the Permission Center) or
+ * `settings.edit` (the platform-configuration right this seed used to require).
+ * A delegated investor creator gets the same link the Super Admin hands out.
+ *
+ * Thin controller: gates and delegates to `@/services/platform/seed` (see
+ * docs/LAYER_SPLIT.md).
  */
 
 import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/server/auth/guards";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAnyAuthorization } from "@/models/authorization/index";
 import { seedInvestorApplication } from "@/services/platform/seed";
 
 export async function POST() {
@@ -25,7 +29,10 @@ export async function POST() {
   const authError = await requireAuth();
   if (authError) return authError;
 
-  const capError = await requireAuthorization("settings", "edit");
+  const capError = await requireAnyAuthorization([
+    { module: "investor", capability: "create" },
+    { module: "settings", capability: "edit" },
+  ]);
   if (capError) return capError;
 
   try {

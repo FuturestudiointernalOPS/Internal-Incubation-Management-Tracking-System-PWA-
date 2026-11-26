@@ -1,43 +1,58 @@
 {
   "rootMisc": {
     "landing": {
-      "brand": "ImpactOS Terminal",
+      "brand": "ImpactOS",
+      "brandBy": "par Future Studio",
       "connecting": "Connexion de la session sécurisée...",
-      "kicker": "Future Studio",
-      "title": "Votre parcours de l'idée à l'impact commence ici.",
-      "intro": "Accédez aux programmes, au mentorat, aux ressources et aux opportunités dont vous avez besoin pour développer vos idées, bâtir votre venture, rencontrer les bonnes personnes et transformer vos ambitions en progrès mesurables.",
-      "whatTitle": "Ce que vous pouvez y faire",
-      "pillars": {
-        "programs": {
-          "title": "Rejoindre des programmes et des cohortes",
-          "body": "Découvrez les activités de votre programme, accédez aux sessions d'apprentissage, suivez votre cursus et mesurez votre progression, de l'intégration à la fin du programme."
-        },
-        "ventures": {
-          "title": "Bâtir votre venture",
-          "body": "Développez vos idées, organisez vos activités, franchissez les jalons et accédez à l'accompagnement nécessaire pour faire grandir votre startup."
-        },
-        "mentorship": {
-          "title": "Accéder au mentorat et aux réseaux",
-          "body": "Échangez avec des mentors, collaborez avec vos pairs, participez aux sessions et tirez parti de relations qui soutiennent votre croissance professionnelle et entrepreneuriale."
-        },
-        "progress": {
-          "title": "Suivre votre progression",
-          "body": "Gardez le contrôle de vos tâches, suivez vos réalisations, soumettez vos livrables et mesurez le chemin parcouru vers vos objectifs."
-        },
-        "funding": {
-          "title": "Explorer les opportunités de financement",
-          "body": "Suivez les opportunités de financement pertinentes, préparez-vous à l'investissement et suivez la progression de votre venture vers l'accès au capital."
-        },
-        "impact": {
-          "title": "Mettre en valeur votre impact",
-          "body": "Documentez vos réalisations, mettez en avant vos jalons et démontrez le progrès et l'impact de votre travail."
-        }
-      },
-      "signIn": "Se connecter →",
-      "signInHint": "Pour les participants inscrits, les fondateurs, les mentors et les partenaires autorisés.",
+      "signIn": "Se connecter",
+      "signInHint": "Pour les participants, fondateurs, mentors et partenaires autorisés inscrits.",
       "language": "Langue",
       "switchTheme": "Changer de thème",
-      "footer": "© 2026 Future Studio · Encourager l'innovation et l'entrepreneuriat"
+      "hero": {
+        "titleLead": "Bâtir des entrepreneurs ne devrait pas exiger",
+        "titleAccent": "cinq outils différents.",
+        "intro": "ImpactOS est la plateforme tout-en-un des organisations qui forment des entrepreneurs et font grandir des ventures.",
+        "talkToUs": "Parlons-en"
+      },
+      "problem": {
+        "line1": "Votre équipe fait ses stand-ups dans une application. Vos programmes vivent dans des tableurs. Vos cours sont sur une plateforme à part.",
+        "line2": "Vos startups sont suivies dans des documents, et vos échanges avec les investisseurs se font par e-mail.",
+        "line3": "Chaque outil détient une partie de l'histoire. Aucun ne détient le parcours complet d'un fondateur.",
+        "line4": "Alors, quand vient le moment de montrer les progrès, quelqu'un doit tout recoller à la main."
+      },
+      "is": {
+        "title": "ImpactOS met fin au bricolage.",
+        "body": "Une seule plateforme pour piloter votre équipe, délivrer vos programmes, former vos apprenants, faire grandir vos ventures et les connecter aux investisseurs."
+      },
+      "products": {
+        "operations": {
+          "title": "Opérations",
+          "body": "Animez les stand-ups quotidiens, les rétros et les rituels hebdomadaires, et gérez projets et tâches dans un espace de travail partagé."
+        },
+        "programs": {
+          "title": "Programmes",
+          "body": "Pilotez incubateurs, accélérateurs et cohortes de bout en bout : candidature, intégration, activités, rendus et clôture."
+        },
+        "learning": {
+          "title": "Apprentissage",
+          "body": "Diffusez des cours et des leçons en ligne et suivez la progression de chaque apprenant. Utilisez-la avec vos programmes ou de façon autonome."
+        },
+        "ventures": {
+          "title": "Ventures",
+          "body": "Suivez les startups à travers l'incubation, l'accélération et la croissance, avec la progression de chaque venture suivie dans le temps."
+        },
+        "investors": {
+          "title": "Investisseurs",
+          "body": "Donnez aux investisseurs accès aux ventures et aux opportunités, et réunissez investissements et relations au même endroit."
+        }
+      },
+      "short": {
+        "tagline": "Une plateforme. Cinq produits. Une trace de chaque personne et de chaque étape.",
+        "body": "ImpactOS est la plateforme que Future Studio utilise chaque jour. Nous la construisons pour que d'autres organisations puissent s'appuyer sur les mêmes fondations, sous leur propre marque.",
+        "question": "Vous voulez faire tourner votre organisation sur ImpactOS ?",
+        "talkToUs": "Parlons-en"
+      },
+      "footer": "© 2026 Future Studio · Donner le pouvoir d'agir"
     },
     "terminal": {
       "title": "Unification du terminal",
@@ -144,6 +159,9 @@
       "fullNamePlaceholder": "Nom complet",
       "emailPlaceholder": "Adresse email",
       "phonePlaceholder": "Téléphone (facultatif)",
+      "whatsappConsent": "J'accepte de recevoir des offres promotionnelles et des exclusivités de la part d'ImpactOS sur mon numéro WhatsApp.",
+      "whatsappConsentHint": "Facultatif. Vous pouvez modifier ce choix à tout moment dans votre profil.",
+      "whatsappConsentNeedsPhone": "Ajoutez un numéro de téléphone valide pour activer cette option.",
       "createPasswordPlaceholder": "Créer un mot de passe",
       "completeRegistration": "Terminer l'inscription"
     },
@@ -267,6 +285,8 @@
       "emailPlaceholder": "name@domaine.com",
       "phone": "Numéro de téléphone",
       "phonePlaceholder": "+234...",
+      "whatsappConsent": "J'accepte de recevoir des offres promotionnelles et des exclusivités de la part d'ImpactOS sur mon numéro WhatsApp.",
+      "whatsappConsentHint": "Facultatif. Vous pouvez modifier ce choix à tout moment dans votre profil.",
       "gender": "Genre",
       "genderMale": "MASCULIN",
       "genderFemale": "FÉMININ",

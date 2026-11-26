@@ -19,7 +19,7 @@ import {
  *          uploaded files would vanish from the Data bank without being
  *          deleted). Retiring a built-in type means turning it off.
  *
- * Both are Super Admin / Lead Manager acts, scoped to the Venture in the URL.
+ * Both are Super Admin / Venture Manager acts, scoped to the Venture in the URL.
  */
 
 async function requireManage(req, params) {

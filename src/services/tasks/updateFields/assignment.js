@@ -25,7 +25,7 @@ export async function applyAssignmentChange(patch, {
   id,
   task,
   input,
-  role,
+  canModerate = false,
   sessionCid,
   sessionName,
 }) {
@@ -62,8 +62,8 @@ export async function applyAssignmentChange(patch, {
   }
 
   // Assign to another user: open a pending assignment (accept/decline).
-  // Contact Group enforcement.
-  if (role !== "super_admin") {
+  // Contact Group enforcement, waived for a holder of `tasks.moderate`.
+  if (!canModerate) {
     const groupCheck = await validateTaskAssignment(
       effectiveUserId,
       assigned_to,

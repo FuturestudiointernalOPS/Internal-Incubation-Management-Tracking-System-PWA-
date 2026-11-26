@@ -210,7 +210,7 @@ describe("canManageVerification — the sign-off belongs to the Venture lead", (
     expect(result).toMatchObject({ allowed: true, isReviewer: true });
   });
 
-  test("a delegated Lead Manager may", async () => {
+  test("a delegated Venture Manager may", async () => {
     canManageVentureDocumentTypes.mockResolvedValue(true);
     const result = await canManageVerification("VNT-1", { role: "staff", cid: "LM-1" });
     expect(result).toMatchObject({ allowed: true, isReviewer: true });

@@ -8,6 +8,7 @@ import {
   normalizeGroupName,
   INTERNAL_GROUP,
 } from "@/models/authorization/membership";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import { readRegistryContacts } from "@/services/contacts/registryRead";
 import { softDeleteRegistryContact } from "@/services/contacts/deletion";
 import { registerContacts } from "@/services/contacts/registration";
@@ -27,6 +28,7 @@ import {
   deleteContactPrograms,
   ensureContactProgramMembership,
 } from "@/models/contacts/programMembership";
+import { releaseProgramLearning } from "@/services/lms/learning";
 export const dynamic = "force-dynamic";
 
 /**
@@ -107,6 +109,13 @@ export async function PUT(req) {
     const canAssignRole = !assignRoleError;
     const session = await getSession();
 
+    // The role column holds a BASELINE identity. An intake label (`applicant`)
+    // or a retired contextual label is translated BEFORE the write and the
+    // audit, so the stored value and the trace always agree.
+    if (canAssignRole && "role" in data) {
+      data.role = normalizeIdentityForStorage(data.role);
+    }
+
     // `archived_at` / `archived_by` record WHO archived and WHEN — the caller
     // sends only the `archived` intent; the server fills both from the session.
     let actor;
@@ -156,6 +165,8 @@ export async function PUT(req) {
       // participant, so drop the enrollment. The conflict guard is skipped — the
       // role is changing on purpose.
       await deleteContactPrograms(data.cid);
+      // The learning those seats granted leaves with them (suspended).
+      await releaseProgramLearning({ cid: data.cid });
     } else if (plan.programIds) {
       // Verify all programs exist before assigning
       const missing = await findMissingProgram(plan.programIds);
@@ -237,7 +248,12 @@ export async function GET(req) {
     const cidFilter = searchParams.get("cid");
 
     const capError = await requireAuthorization("contacts", "view");
-    const canReadDirectory = !capError;
+    // A delegated program CREATOR needs the internal staff directory to pick the
+    // program manager of the program they are creating. The wizard cannot save
+    // without that choice, and `programs.create` is already a sensitive right,
+    // so holding it opens the same directory read `contacts.view` opens.
+    const createRightsError = await requireAuthorization("programs", "create");
+    const canReadDirectory = !capError || !createRightsError;
 
     const outcome = await readRegistryContacts({
       session,

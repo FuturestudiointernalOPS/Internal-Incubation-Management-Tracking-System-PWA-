@@ -18,7 +18,8 @@ import {
   selectAssessmentAttempts,
   insertAssessmentAttempt,
 } from "@/models/lms/learningStore";
-import { getEnrollment } from "./structure";
+import { getEnrollment, loadStructure, loadEnrollmentProgress, loadAssessmentStates } from "./structure";
+import { isAssessmentUnlocked } from "./progress";
 import { computeEnrollmentProgress } from "./enrollmentProgress";
 import { finalizeCourseCompletion } from "./completion";
 
@@ -41,6 +42,15 @@ async function assertAssessmentAccess(assessment, userCid) {
   const enrollment = await getEnrollment(course.id, userCid);
   if (!enrollment || enrollment.status === "suspended") {
     throw new LmsError("lms.errors.notEnrolled", 403);
+  }
+  // The course (or the chapter) must be finished before its assessment opens.
+  const structure = await loadStructure(course.id);
+  const progress = await loadEnrollmentProgress(enrollment.id);
+  const states = await loadAssessmentStates(userCid, course.id);
+  const passedById = {};
+  for (const state of states.values()) passedById[String(state.id)] = state.passed;
+  if (!isAssessmentUnlocked(assessment, structure, progress, passedById)) {
+    throw new LmsError("lms.errors.assessmentLocked", 403);
   }
   return { course, enrollment };
 }

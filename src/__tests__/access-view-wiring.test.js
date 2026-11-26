@@ -1,9 +1,9 @@
 /**
  * The user-access screen wiring.
  *
- * The screen (`src/app/admin/access/page.js`) keeps the state, the reads and
+ * The screen (`src/app/admin/security/access/page.js`) keeps the state, the reads and
  * the supervisor handlers; its markup lives in
- * `src/components/admin/access/UserAccessView.js`, which reads everything
+ * `src/spaces/admin/components/access/UserAccessView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No behavioural test
  * renders the screen, so a key that stops being declared - or a name the view
  * reads that the screen never puts in `ctx` - is invisible. This suite pins the
@@ -14,8 +14,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const PARENT = path.join(ROOT, "app", "admin", "access", "page.js");
-const VIEW = path.join(ROOT, "components", "admin", "access", "UserAccessView.js");
+const PARENT = path.join(ROOT, "app", "admin", "security", "access", "page.js");
+const VIEW = path.join(ROOT, "spaces", "admin", "components", "access", "UserAccessView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 

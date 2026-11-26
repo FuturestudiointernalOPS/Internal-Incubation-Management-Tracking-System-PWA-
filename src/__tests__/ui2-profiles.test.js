@@ -12,8 +12,8 @@
 const fs = require("fs");
 const path = require("path");
 
-const { deriveProfileBadges } = require("@/components/permissions/profileBadges");
-const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
+const { deriveProfileBadges } = require("@/spaces/admin/permissions/profileBadges");
+const { CENTER_TABS } = require("@/spaces/admin/permissions/center/centerNav");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
@@ -51,7 +51,7 @@ describe("UI-2c — profile badges", () => {
 
 describe("UI-2c — screen contracts", () => {
   const route = "src/app/admin/security/permissions/profiles/page.js";
-  const section = "src/components/permissions/center/sections/ProfilesSection.js";
+  const section = "src/spaces/admin/permissions/center/sections/ProfilesSection.js";
 
   test("the Profiles door renders the catalogue and the context-role mapping", () => {
     const src = read(route);
@@ -62,7 +62,7 @@ describe("UI-2c — screen contracts", () => {
   });
 
   test("profile writes carry the review reason (audited server-side)", () => {
-    expect(read("src/components/permissions/center/drawers/ProfileFeatureDrawer.js")).toMatch(
+    expect(read("src/spaces/admin/permissions/center/drawers/ProfileFeatureDrawer.js")).toMatch(
       /reason: reason\.trim\(\) \|\| undefined/,
     );
   });

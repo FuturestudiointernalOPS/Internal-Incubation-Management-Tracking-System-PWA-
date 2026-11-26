@@ -68,10 +68,12 @@ node scripts/audit-phase10-safety.mjs     # ineligible grants, inactive/missing 
 node scripts/dryrun-eligibility-policy.mjs
 ```
 
-**Env-file trap.** `.env.local` and `.env.prod-verify` point at **production**;
-`.env.staging` and `.env.audit-staging` point at **staging**. Several scripts read
-`.env.local` **first**, so they target production by default. Check the script's
-env preference before running it. Some scripts are staging-only by design
+**Env-file trap.** `.env.local`, `.env.staging` and `.env.audit-staging` point
+at **staging** (`mbpaxrfhqqclzyiefuab`, URL begins with `M`). Only
+`.env.prod-verify` points at **production** (`yakxdxdzuojafzdkqhjd`). Several
+scripts read `.env.local` **first**, so they target staging by default — the
+opposite of what this file said before 2026-11-02. Check the script's env
+preference before running it. Some scripts are staging-only by design
 (`scripts/phase1-bulk-upload.mjs` exits unless a staging URL is present) — those
 must be reimplemented as SQL for production, never "repointed" by hand.
 
@@ -134,6 +136,13 @@ Only then run `migrations/drop_role_capabilities.sql`.
 SELECT name FROM authz_migrations WHERE name = 'feature-key-alignment-v1';
 SELECT name FROM authz_migrations WHERE name = 'profile-catalogue-seed-v1';
 SELECT name FROM authz_migrations WHERE name = 'drop-access-profiles-v1';
+-- Delegated record creation: the investor feature's ceiling gains `member`, so
+-- `investor.create` (like programs.create and ventures.create) can be granted
+-- to any person from the Permission Center.
+SELECT name FROM authz_migrations WHERE name = 'creation-delegation-investor-v1';
+-- Delegated course authoring: the LMS feature's ceiling gains `staff`, so
+-- `lms.create` (and its siblings) can be granted to a chosen staff member.
+SELECT name FROM authz_migrations WHERE name = 'lms-authoring-delegation-v1';
 ```
 
 The first request after deploy renames feature keys (`program_management→programs`,
@@ -142,6 +151,18 @@ The first request after deploy renames feature keys (`program_management→progr
 `knowledge_base`/`intelligence→knowledge`, `messaging`/`internal_comms→communication`)
 and merges responsibilities. **Until it completes, every non-Super-Admin is denied
 on ~10 of 12 features.**
+
+`creation-delegation-investor-v1` belongs to the one-time batch, which is applied
+only while `AUTHZ_RUN_MIGRATIONS=true` is set for the deploy (see
+`src/models/authorization/migrations.js`). If that run is skipped, the same
+ceiling can be set from **Rules → Eligibility** (`investors` → `member`);
+without it, `investor.create` cannot be granted to a personal account even
+though the capability exists.
+
+`lms-authoring-delegation-v1` is the same kind of row for course authoring:
+without it, `lms.create` can only be held by the platform owner, and the
+Permission Center refuses to grant it to a staff member. Its equivalent in
+**Rules → Eligibility** is `lms` → `staff`.
 
 The profile catalogue is seeded directly (`profile-catalogue-seed-v1`), and the
 retired access-profile tables are dropped (`drop-access-profiles-v1`) — the last

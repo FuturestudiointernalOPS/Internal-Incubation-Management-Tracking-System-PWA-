@@ -339,10 +339,10 @@ export async function getFormVersionById(formId) {
 }
 
 /** Insert a new form run (returns the created row). */
-export async function createFormRun({ form_id, form_version, name, description, opens_at, closes_at, settings, owner_id, created_by, public_slug }) {
+export async function createFormRun({ form_id, form_version, name, description, opens_at, closes_at, settings, owner_id, created_by, public_slug, status }) {
   return db.execute({
-    sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, opens_at, closes_at, settings, owner_id, created_by, public_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
-    args: [parseInt(form_id), form_version, name.trim(), description || null, opens_at || null, closes_at || null, JSON.stringify(settings || {}), owner_id || null, created_by || null, public_slug],
+    sql: `INSERT INTO platform_form_runs (form_id, form_version, name, description, status, opens_at, closes_at, settings, owner_id, created_by, public_slug) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+    args: [parseInt(form_id), form_version, name.trim(), description || null, status || "draft", opens_at || null, closes_at || null, JSON.stringify(settings || {}), owner_id || null, created_by || null, public_slug],
   });
 }
 

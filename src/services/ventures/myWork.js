@@ -276,7 +276,7 @@ export async function buildMyWork({
   const entries = [];
 
   // ── milestones ──────────────────────────────────────────────────────────────
-  // Their completion is a staff decision (the Lead Manager signs off), so a
+  // Their completion is a staff decision (the Venture Manager signs off), so a
   // milestone never lands in `awaiting_my_action`: the actionable work lives in
   // the tasks and deliverables beneath it.
   for (const milestone of milestones) {

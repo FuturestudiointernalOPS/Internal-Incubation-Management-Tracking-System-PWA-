@@ -13,6 +13,13 @@
  *   tasks         25%  — terminal-success tasks / total tasks
  *   deliverables  15%  — approved submissions / submissions reviewed
  *
+ * EACH PIECE OF EVIDENCE IS COUNTED IN ONE COMPONENT ONLY. A task that has an
+ * approved deliverable is measured by the DELIVERABLES component, not also by
+ * the tasks one — otherwise one reviewer's approval moved both, and the score
+ * rose twice for a single day's work. `counts.tasks.linked` says how many tasks
+ * were handed to that component, so the smaller denominator is explained
+ * rather than mysterious.
+ *
  * Weights are renormalized over whichever components are defined (> 0), so a
  * Venture with stages but no tasks yet still gets a meaningful signal.
  *
@@ -73,23 +80,29 @@ export async function computeRoadmapReadiness({ dbId, code }) {
   const completedJourneys = stages.filter((stage) => isJourneyStageComplete(stage.status)).length;
   const totalMilestones = milestones.length;
   const completedMilestones = milestones.filter((milestone) => isMilestoneComplete(milestone.status)).length;
-  const totalTasks = tasks.length;
-  const approvedLinked = deliverables.filter((item) => item.approval_status === "approved");
-  // An approved deliverable finishes the task it belongs to, even though the
-  // approval does not rewrite that task's own status.
-  const finishedByDeliverable = approvedLinked.filter(
-    (item) => item.task_status !== null && item.task_status !== undefined && !isTaskComplete(item.task_status),
-  ).length;
-  const completedTasks = Math.min(
-    totalTasks,
-    tasks.filter((task) => isTaskComplete(task.status)).length + finishedByDeliverable,
+
+  // A task whose deliverable a reviewer APPROVED is scored by the deliverables
+  // component. It is therefore not also scored as a task: one fact, one place.
+  const linkedTaskIds = new Set(
+    deliverables
+      .filter(
+        (item) =>
+          item.approval_status === "approved" && item.task_id !== null && item.task_id !== undefined,
+      )
+      .map((item) => String(item.task_id)),
   );
+  const standaloneTasks = tasks.filter(
+    (task) => task.id === null || task.id === undefined || !linkedTaskIds.has(String(task.id)),
+  );
+  const totalTasks = standaloneTasks.length;
+  const completedTasks = standaloneTasks.filter((task) => isTaskComplete(task.status)).length;
+
   // The deliverables the journey defines are the evidence set; the older task
   // submissions are only read when a Venture has no deliverables of its own.
   const hasDeliverables = deliverables.length > 0;
   const totalReviewed = hasDeliverables ? deliverables.length : submissions.length;
   const approvedDeliverables = hasDeliverables
-    ? approvedLinked.length
+    ? deliverables.filter((item) => item.approval_status === "approved").length
     : submissions.filter((submission) => isSubmissionApproved(submission)).length;
 
   const percent = (done, total) => (total > 0 ? Math.round((done / total) * 100) : null);
@@ -148,7 +161,11 @@ export async function computeRoadmapReadiness({ dbId, code }) {
     counts: {
       journeys: { total: totalJourneys, completed: completedJourneys },
       milestones: { total: totalMilestones, completed: completedMilestones },
-      tasks: { total: totalTasks, completed: completedTasks },
+      tasks: {
+        total: totalTasks,
+        completed: completedTasks,
+        linked: linkedTaskIds.size,
+      },
       deliverables: { reviewed: totalReviewed, approved: approvedDeliverables, outstanding: totalReviewed - approvedDeliverables },
     },
     weights: READINESS_WEIGHTS,

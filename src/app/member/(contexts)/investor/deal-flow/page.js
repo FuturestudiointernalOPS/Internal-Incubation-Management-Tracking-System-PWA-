@@ -1,0 +1,455 @@
+"use client";
+
+export const dynamic = "force-dynamic";
+
+import { useState } from "react";
+import { Loader2, Search, SlidersHorizontal } from "lucide-react";
+import { useRouter } from "next/navigation";
+import AppButton from "@/components/ui/AppButton";
+import AppInput from "@/components/ui/AppInput";
+import GlobalToast from "@/components/ui/GlobalToast";
+import PageHero from "@/components/ui/PageHero";
+import { useI18n } from "@/lib/i18n";
+import { useApi, cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import DashboardStats from "@/spaces/member/investor/components/dashboard-page/DashboardStats";
+import DashboardTabs from "@/spaces/member/investor/components/dashboard-page/DashboardTabs";
+import CampaignsSection from "@/spaces/member/investor/components/dashboard-page/CampaignsSection";
+import UpcomingMeetingsSection from "@/spaces/member/investor/components/dashboard-page/UpcomingMeetingsSection";
+import VentureFilters from "@/spaces/member/investor/components/dashboard-page/VentureFilters";
+import VentureGrid from "@/spaces/member/investor/components/dashboard-page/VentureGrid";
+import PipelineTab from "@/spaces/member/investor/components/dashboard-page/PipelineTab";
+import WatchlistTab from "@/spaces/member/investor/components/dashboard-page/WatchlistTab";
+import IntroRequestModal from "@/spaces/member/investor/components/dashboard-page/IntroRequestModal";
+import VentureDetailModal from "@/spaces/member/investor/components/dashboard-page/VentureDetailModal";
+import ComparisonBar from "@/spaces/member/investor/components/dashboard-page/ComparisonBar";
+import ComparisonModal from "@/spaces/member/investor/components/dashboard-page/ComparisonModal";
+import ProfileGate from "@/spaces/member/investor/components/dashboard-page/ProfileGate";
+import { STAGE_LABELS } from "@/spaces/member/investor/components/dashboard-page/constants";
+
+// The shape the screen renders from, so a failed or malformed payload never
+// reaches a `.map` / `.total_*` read. Module scope keeps both values stable for
+// the hook (an inline literal would refetch on every render).
+const EMPTY_INVESTOR_DASHBOARD = {
+  profile: null,
+  pipeline: [],
+  watchlist: [],
+  recommendations: [],
+  campaigns: [],
+  relationships: [],
+  stats: {},
+};
+const pickInvestorDashboard = (response) =>
+  response?.success
+    ? {
+        profile: response.profile ?? null,
+        pipeline: response.pipeline || [],
+        watchlist: response.watchlist || [],
+        recommendations: response.recommendations || [],
+        campaigns: response.campaigns || [],
+        relationships: response.relationships || [],
+        stats: response.stats || {},
+      }
+    : EMPTY_INVESTOR_DASHBOARD;
+
+/**
+ * /member/investor/deal-flow — THE investor workspace's browser.
+ *
+ * This is the screen the investor section's main door opens. It is the full
+ * deal flow experience the investor dashboard used to carry — discovery with
+ * filters, the pipeline, the watchlist, campaigns, upcoming meetings,
+ * comparison and introduction requests — so retiring the per-profile dashboard
+ * took nothing away from an investor.
+ *
+ * The personal dashboard (`/member/dashboard`) is a different page: it SUMMARISES the
+ * investor figures and links here. This one is where the browsing happens.
+ */
+export default function InvestorSpacePage() {
+  const router = useRouter();
+  const { t } = useI18n();
+
+  // The loader's work — painting from the cache first, discarding a stale
+  // response, the background refresh — belongs to the hook, so the screen keeps
+  // no data state of its own and never sets state from an effect. Both mutation
+  // flows below call refresh(), which bypasses the cache like bypassCache did.
+  const { data, loading, refresh } = useApi("/api/investor/dashboard", {
+    defaultValue: EMPTY_INVESTOR_DASHBOARD,
+    transform: pickInvestorDashboard,
+  });
+  const {
+    profile,
+    pipeline,
+    watchlist,
+    recommendations,
+    campaigns,
+    relationships,
+    stats,
+  } = data;
+  const [toast, setToast] = useState(null);
+  const [activeTab, setActiveTab] = useState("discover");
+  const [search, setSearch] = useState("");
+  const [stageFilter, setStageFilter] = useState("all");
+
+  // Advanced filters
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterIndustry, setFilterIndustry] = useState([]);
+  const [filterCountry, setFilterCountry] = useState([]);
+  const [filterStage, setFilterStage] = useState([]);
+  const [filterFundingMin, setFilterFundingMin] = useState("");
+  const [filterFundingMax, setFilterFundingMax] = useState("");
+  const [ventures, setVentures] = useState([]);
+  const [venturesTotal, setVenturesTotal] = useState(0);
+
+  // Detail modal
+  const [detailVenture, setDetailVenture] = useState(null);
+  const [detailPipeline, setDetailPipeline] = useState(null);
+
+  // Comparison
+  const [compareList, setCompareList] = useState([]);
+  const [showCompare, setShowCompare] = useState(false);
+
+  // Introduction request
+  const [showIntroModal, setShowIntroModal] = useState(false);
+  const [introVenture, setIntroVenture] = useState(null);
+  const [introMessage, setIntroMessage] = useState("");
+  const [processingId, setProcessingId] = useState(null);
+
+  const addToPipeline = async (ventureId, stage) => {
+    setProcessingId(ventureId);
+    try {
+      const response = await fetch("/api/investor/pipeline", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venture_id: ventureId, stage }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setToast({
+          type: "success",
+          message: `${t("venture")} ${t(STAGE_LABELS[stage] || "")}`,
+        });
+        refresh();
+      }
+    } catch (_) {
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const toggleWatchlist = async (ventureId) => {
+    setProcessingId(ventureId);
+    try {
+      const response = await fetch("/api/investor/watchlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ venture_id: ventureId }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setToast({
+          type: "success",
+          message:
+            data.action === "added"
+              ? t("member.investor.browser.watchlistAdded")
+              : t("member.investor.browser.watchlistRemoved"),
+        });
+        refresh();
+      }
+    } catch (_) {
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Advanced venture search with filters
+  const searchVentures = async (overrides = {}) => {
+    const searchTerm = overrides.search !== undefined ? overrides.search : search;
+    const industry = overrides.industry !== undefined ? overrides.industry : filterIndustry;
+    const country = overrides.country !== undefined ? overrides.country : filterCountry;
+    const stage = overrides.stage !== undefined ? overrides.stage : filterStage;
+    const fundingMin =
+      overrides.fundingMin !== undefined ? overrides.fundingMin : filterFundingMin;
+    const fundingMax =
+      overrides.fundingMax !== undefined ? overrides.fundingMax : filterFundingMax;
+    const params = new URLSearchParams();
+    if (searchTerm) params.set("search", searchTerm);
+    if (industry.length) params.set("industry", industry.join(","));
+    if (country.length) params.set("country", country.join(","));
+    if (stage.length) params.set("stage", stage.join(","));
+    if (fundingMin) params.set("funding_min", fundingMin);
+    if (fundingMax) params.set("funding_max", fundingMax);
+    try {
+      const response = await fetch(`/api/investor/ventures?${params}`);
+      const data = await response.json();
+      if (data.success) {
+        setVentures(data.ventures || []);
+        setVenturesTotal(data.total || 0);
+      }
+    } catch (_) {}
+  };
+
+  // Open venture detail
+  const openVentureDetail = async (venture, bypassCache = false) => {
+    setDetailVenture(venture);
+    const url = `/api/investor/pipeline?venture_id=${venture.id}`;
+    let painted = false;
+    const applyPipeline = (data) => {
+      if (data.success && data.pipeline?.length > 0) {
+        setDetailPipeline(data.pipeline[0]);
+      } else {
+        setDetailPipeline(null);
+      }
+      painted = true;
+    };
+    try {
+      // Cache-first paint: reopening a previously viewed venture renders
+      // instantly from a fresh snapshot of its pipeline status.
+      if (!bypassCache) {
+        const cached = cacheGet(url);
+        if (cached !== null && cached.success) applyPipeline(cached);
+      }
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.success) {
+        cacheSet(url, data);
+        applyPipeline(data);
+      }
+    } catch (_) {
+      // Only fall back to the empty state when nothing was painted.
+      if (!painted) setDetailPipeline(null);
+    }
+  };
+
+  // Toggle comparison
+  const toggleCompare = (venture) => {
+    setCompareList((previousList) =>
+      previousList.find((item) => item.id === venture.id)
+        ? previousList.filter((item) => item.id !== venture.id)
+        : previousList.length < 4
+          ? [...previousList, venture]
+          : previousList,
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[var(--brand-orange)]" />
+      </div>
+    );
+  }
+
+  if (!profile || profile.approval_status !== "approved") {
+    return (
+      <ProfileGate
+        profile={profile}
+        onSetupProfile={() => router.push("/member/investor/profile")}
+      />
+    );
+  }
+
+  const filteredPipeline =
+    stageFilter === "all"
+      ? pipeline
+      : pipeline.filter((item) => item.stage === stageFilter);
+
+  return (
+    <>
+      <div className="stf max-w-[1500px] mx-auto space-y-6">
+        <GlobalToast toast={toast} onClose={() => setToast(null)} />
+
+        <PageHero
+          kicker={profile.organization_name || t("member.investor.browser.individual")}
+          title={t("member.investor.browser.title")}
+          subtitle={t("member.investor.browser.subtitle")}
+        />
+
+        {/* STATS */}
+        <DashboardStats stats={stats} />
+
+        {/* TABS */}
+        <DashboardTabs activeTab={activeTab} onTabChange={setActiveTab} />
+
+        {/* DISCOVER TAB */}
+        {activeTab === "discover" && (
+          <div className="space-y-4">
+            {/* Search + Filter bar */}
+            <div className="stf-card flex flex-col gap-2 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <AppInput
+                  icon={Search}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={(event) => event.key === "Enter" && searchVentures()}
+                  placeholder={t("searchVentures")}
+                  aria-label={t("searchVentures")}
+                />
+              </div>
+              <button
+                type="button"
+                aria-pressed={showFilters}
+                onClick={() => setShowFilters(!showFilters)}
+                className={`stf-btn${showFilters ? " pr" : ""}`}
+              >
+                <SlidersHorizontal size={15} /> {t("filters")}
+              </button>
+              <AppButton variant="primary" size="sm" icon={Search} onClick={searchVentures}>
+                {t("search")}
+              </AppButton>
+            </div>
+
+            {/* Active Fundraising Campaigns */}
+            <CampaignsSection campaigns={campaigns} onOpenVenture={openVentureDetail} />
+
+            {/* Upcoming Meetings */}
+            <UpcomingMeetingsSection relationships={relationships} />
+
+            {/* Advanced filters */}
+            {showFilters && (
+              <VentureFilters
+                filterIndustry={filterIndustry}
+                filterCountry={filterCountry}
+                filterStage={filterStage}
+                filterFundingMin={filterFundingMin}
+                filterFundingMax={filterFundingMax}
+                onToggleIndustry={(value) => {
+                  const nextIndustries = filterIndustry.includes(value)
+                    ? filterIndustry.filter((item) => item !== value)
+                    : [...filterIndustry, value];
+                  setFilterIndustry(nextIndustries);
+                  searchVentures({ industry: nextIndustries });
+                }}
+                onToggleCountry={(value) => {
+                  const nextCountries = filterCountry.includes(value)
+                    ? filterCountry.filter((item) => item !== value)
+                    : [...filterCountry, value];
+                  setFilterCountry(nextCountries);
+                  searchVentures({ country: nextCountries });
+                }}
+                onToggleStage={(value) => {
+                  const nextStages = filterStage.includes(value)
+                    ? filterStage.filter((item) => item !== value)
+                    : [...filterStage, value];
+                  setFilterStage(nextStages);
+                  searchVentures({ stage: nextStages });
+                }}
+                onFundingMinChange={setFilterFundingMin}
+                onFundingMaxChange={setFilterFundingMax}
+                onClear={() => {
+                  setFilterIndustry([]);
+                  setFilterCountry([]);
+                  setFilterStage([]);
+                  setFilterFundingMin("");
+                  setFilterFundingMax("");
+                  searchVentures({ industry: [], country: [], stage: [], fundingMin: "", fundingMax: "" });
+                }}
+              />
+            )}
+
+            {/* Results */}
+            <VentureGrid
+              items={ventures.length > 0 ? ventures : recommendations}
+              venturesTotal={venturesTotal}
+              campaigns={campaigns}
+              watchlist={watchlist}
+              compareList={compareList}
+              processingId={processingId}
+              pipeline={pipeline}
+              onOpenDetail={openVentureDetail}
+              onToggleCompare={toggleCompare}
+              onToggleWatchlist={toggleWatchlist}
+              onRequestIntro={(venture) => {
+                setIntroVenture(venture);
+                setIntroMessage("");
+                setShowIntroModal(true);
+              }}
+            />
+          </div>
+        )}
+
+        {/* PIPELINE TAB */}
+        {activeTab === "pipeline" && (
+          <PipelineTab
+            pipeline={pipeline}
+            filteredPipeline={filteredPipeline}
+            stageFilter={stageFilter}
+            onStageFilterChange={setStageFilter}
+            processingId={processingId}
+            onAddToPipeline={addToPipeline}
+            onOpenWorkspace={(pipelineId) =>
+              router.push(`/member/investor/diligence?pipeline_id=${pipelineId}`)
+            }
+          />
+        )}
+
+        {/* WATCHLIST TAB */}
+        {activeTab === "watchlist" && (
+          <WatchlistTab
+            watchlist={watchlist}
+            processingId={processingId}
+            onOpenDetail={openVentureDetail}
+            onToggleWatchlist={toggleWatchlist}
+            onRequestIntro={(venture) => {
+              setIntroVenture(venture);
+              setIntroMessage("");
+              setShowIntroModal(true);
+            }}
+            onAddToPipeline={addToPipeline}
+          />
+        )}
+
+        {/* INTRODUCTION REQUEST MODAL */}
+        {showIntroModal && introVenture && (
+          <IntroRequestModal
+            introVenture={introVenture}
+            introMessage={introMessage}
+            onMessageChange={setIntroMessage}
+            processingId={processingId}
+            onClose={() => setShowIntroModal(false)}
+            onSubmit={async () => {
+              setProcessingId(introVenture.id);
+              await addToPipeline(introVenture.id, "meeting_requested");
+              setShowIntroModal(false);
+              setIntroVenture(null);
+            }}
+          />
+        )}
+
+        {/* VENTURE DETAIL MODAL */}
+        {detailVenture && (
+          <VentureDetailModal
+            detailVenture={detailVenture}
+            detailPipeline={detailPipeline}
+            campaigns={campaigns}
+            watchlist={watchlist}
+            processingId={processingId}
+            onClose={() => {
+              setDetailVenture(null);
+              setDetailPipeline(null);
+            }}
+            onToggleCompare={toggleCompare}
+            onToggleWatchlist={toggleWatchlist}
+            onDetailStageChange={(stage) => {
+              addToPipeline(detailVenture.id, stage);
+              setDetailPipeline((previous) => ({ ...previous, stage }));
+            }}
+            onAddDetailToPipeline={() => {
+              addToPipeline(detailVenture.id, "interested");
+              setDetailPipeline({ stage: "interested" });
+            }}
+          />
+        )}
+
+        {/* COMPARISON BAR + MODAL */}
+        <ComparisonBar
+          compareList={compareList}
+          onCompare={() => setShowCompare(true)}
+          onClear={() => setCompareList([])}
+        />
+
+        {showCompare && compareList.length >= 2 && (
+          <ComparisonModal compareList={compareList} onClose={() => setShowCompare(false)} />
+        )}
+      </div>
+    </>
+  );
+}

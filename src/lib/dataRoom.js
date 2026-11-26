@@ -14,7 +14,12 @@
  * proven".
  */
 
-/** The eleven categories the Data Room ships with, in display order. */
+/** The nine categories the Data Room ships with, in display order.
+ *
+ * `team` and `due_diligence` were RETIRED at the studio's request. Documents
+ * already filed under either code are kept and shown as legacy material (see
+ * `isLegacyDocumentCategory`), but they count towards nothing — the requirement
+ * list is built from this array, so a retired category cannot reappear. */
 export const DATA_ROOM_CATEGORIES = [
   {
     code: "company_overview",
@@ -59,13 +64,6 @@ export const DATA_ROOM_CATEGORIES = [
     sort_order: 6,
   },
   {
-    code: "team",
-    labelKey: "dataRoom.category.team",
-    label_en: "Team",
-    label_fr: "Équipe",
-    sort_order: 7,
-  },
-  {
     code: "impact_sustainability",
     labelKey: "dataRoom.category.impactSustainability",
     label_en: "Impact & Sustainability",
@@ -80,17 +78,10 @@ export const DATA_ROOM_CATEGORIES = [
     sort_order: 9,
   },
   {
-    code: "due_diligence",
-    labelKey: "dataRoom.category.dueDiligence",
-    label_en: "Due Diligence",
-    label_fr: "Due diligence",
-    sort_order: 10,
-  },
-  {
     code: "reports_milestones",
     labelKey: "dataRoom.category.reportsMilestones",
-    label_en: "Reports & Milestones",
-    label_fr: "Rapports et jalons",
+    label_en: "Reports & Roadmaps",
+    label_fr: "Rapports et feuilles de route",
     sort_order: 11,
   },
 ];
@@ -176,10 +167,8 @@ const STAGE_MATRIX = {
     financials_projections: "conditional",
     market_traction: "conditional",
     product_technology: "recommended",
-    team: "recommended",
     impact_sustainability: "conditional",
     fundraising_cap_table: "conditional",
-    due_diligence: "conditional",
     reports_milestones: "conditional",
   },
   early: {
@@ -189,10 +178,8 @@ const STAGE_MATRIX = {
     financials_projections: "required",
     market_traction: "conditional",
     product_technology: "recommended",
-    team: "recommended",
     impact_sustainability: "conditional",
     fundraising_cap_table: "conditional",
-    due_diligence: "conditional",
     reports_milestones: "conditional",
   },
   growth: {
@@ -202,10 +189,8 @@ const STAGE_MATRIX = {
     financials_projections: "required",
     market_traction: "required",
     product_technology: "recommended",
-    team: "required",
     impact_sustainability: "conditional",
     fundraising_cap_table: "required",
-    due_diligence: "conditional",
     reports_milestones: "conditional",
   },
 };

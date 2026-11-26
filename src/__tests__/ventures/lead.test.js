@@ -40,16 +40,18 @@ describe("changeVentureLead", () => {
 
     expect(result).toEqual({ success: true });
 
-    const clearCall = db.execute.mock.calls[2][0];
-    expect(clearCall.sql).toContain("lead_founder = FALSE, is_owner = FALSE");
+    // The sequence gained an id-resolution read, so the calls are located by
+    // their statement rather than by position.
+    const calls = db.execute.mock.calls.map(([statement]) => statement);
+    const clearCall = calls.find((call) => call.sql.includes("lead_founder = FALSE, is_owner = FALSE"));
     expect(clearCall.args[0]).toBe("VNT-ABC");
 
-    const promoteCall = db.execute.mock.calls[3][0];
-    expect(promoteCall.sql).toContain("lead_founder = TRUE, is_owner = TRUE, member_type = 'founder', role = 'founder'");
+    const promoteCall = calls.find((call) =>
+      call.sql.includes("lead_founder = TRUE, is_owner = TRUE, member_type = 'founder', role = 'founder'"),
+    );
     expect(promoteCall.args[0]).toBe(5);
 
-    const historyCall = db.execute.mock.calls[4][0];
-    expect(historyCall.sql).toContain("INSERT INTO ownership_history");
+    const historyCall = calls.find((call) => call.sql.includes("INSERT INTO ownership_history"));
     expect(historyCall.args[0]).toBe("VNT-ABC");
     expect(historyCall.args[1]).toBe("USR_NEW"); // new_owner_id
     expect(historyCall.args[3]).toBe("Mary"); // new_owner_name

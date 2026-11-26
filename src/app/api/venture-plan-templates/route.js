@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { initDb } from "@/lib/db";
 import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import { listPlanTemplates, createTemplateFromPlan } from "@/services/ventures/operatingPlans";
 import {
   getPlanVentureIdAndName,
@@ -9,12 +10,11 @@ import {
 } from "@/models/ventureWorkspace";
 
 const READ_ROLES = ["staff", "program_manager", "super_admin"];
-const WRITE_ROLES = ["super_admin"];
 
 /**
  * GET /api/venture-plan-templates — list reusable plan templates.
  * POST { plan_id, name?, description? } — save a live plan (structure only).
- * PATCH { id, is_active } — activate/deactivate (Super Admin).
+ * PATCH { id, is_active } — activate/deactivate (ventures.setup).
  */
 export const GET = createHandler(
   { roles: READ_ROLES },
@@ -58,9 +58,13 @@ export const POST = createHandler(
 );
 
 export const PATCH = createHandler(
-  { roles: WRITE_ROLES },
   async (req) => {
     await initDb();
+    // Activating/deactivating a platform template is a configuration right
+    // (`ventures.setup`), not a role: the owner holds it by default and an
+    // administrator can grant or revoke it from the Permissions screen.
+    const authError = await requireAuthorization("ventures", "setup");
+    if (authError) return authError;
     const body = await req.json();
     if (!body.id || typeof body.is_active !== "boolean") {
       return NextResponse.json({ success: false, error: "id and is_active are required." }, { status: 400 });

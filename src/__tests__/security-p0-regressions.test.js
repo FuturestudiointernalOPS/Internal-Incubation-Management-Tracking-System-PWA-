@@ -56,6 +56,9 @@ jest.mock("@/models/contacts/contactStore", () => ({
   createPasswordSetupToken: jest.fn().mockResolvedValue(true),
   markContactInvited: jest.fn().mockResolvedValue(true),
   findContactCidByPhone: jest.fn().mockResolvedValue({ rows: [] }),
+  // Registration asks whether the address already exists before writing; without
+  // this the call throws inside the use-case and no contact is ever written.
+  findContactCidByEmailAny: jest.fn().mockResolvedValue({ rows: [] }),
   updateContactFields: jest.fn().mockResolvedValue({ rows: [] }),
   getContactIdentityByCid: jest.fn().mockResolvedValue({ rows: [] }),
   markAdminNotificationsRead: jest.fn().mockResolvedValue(true),
@@ -139,6 +142,21 @@ describe("POST /api/contacts — role and status are server-controlled", () => {
 
     await postContact(
       jsonReq({ name: "Applicant", email: "a@example.io", role: "participant" }),
+    );
+
+    const written = upsertContact.mock.calls[0][0];
+    expect(written.role).toBe("member");
+    expect(written.status).toBe("pending");
+  });
+
+  test("the applicant intake label is stored as the member baseline", async () => {
+    // `applicant` is a STAGE carried by the account status, not an identity.
+    // An older client that still sends it must not write a label the identity
+    // model does not know.
+    getSession.mockResolvedValue(null);
+
+    await postContact(
+      jsonReq({ name: "Applicant", email: "b@example.io", role: "applicant" }),
     );
 
     const written = upsertContact.mock.calls[0][0];

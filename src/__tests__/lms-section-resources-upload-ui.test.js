@@ -4,7 +4,7 @@
  * SECTION RESOURCES — uploader UI (drag & drop)
  *
  * Component tests for the course-editor panel in
- * src/components/lms/SectionResourcesPanel.js. The network is mocked, so what
+ * src/components/shared/lms/SectionResourcesPanel.js. The network is mocked, so what
  * is asserted is the CONTRACT:
  *   - what the panel sends when a file is dropped (form fields, kind, scope)
  *   - the drop feedback (drag over / drag leave)
@@ -56,7 +56,7 @@ jest.mock("framer-motion", () => {
   };
 });
 
-const SectionResourcesPanel = require("@/components/lms/SectionResourcesPanel").default;
+const SectionResourcesPanel = require("@/components/shared/lms/SectionResourcesPanel").default;
 
 const COURSE = "C-1";
 const SECTION = "S-1";

@@ -36,7 +36,7 @@ const read = (rel) => {
   return text;
 };
 
-const REVIEW_PAGE = "src/app/platform/runs/review/[submissionId]/page.js";
+const REVIEW_PAGE = "src/app/admin/communication/forms/runs/review/[submissionId]/page.js";
 // The submit/manual-add write path now lives in the service; the per-submission
 // evaluation guard moved with it (see docs/LAYER_SPLIT.md, slice 104).
 const FORM_RUNS_SERVICE = "src/services/platform/formRuns.js";

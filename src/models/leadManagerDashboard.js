@@ -1,15 +1,15 @@
 import db from "@/lib/db";
 
 /**
- * Lead Manager dashboard reads (REPOSITORY layer).
+ * Venture Manager dashboard reads (REPOSITORY layer).
  *
  * Every query is scoped to the Venture ids the caller already owns as an active
- * `lead_manager` — the service decides which ones; this file only fetches.
+ * `venture_manager` — the service decides which ones; this file only fetches.
  * (Those ids are the INTERNAL ones since Phase 0: sessions, activity and reports
  * all key on `ventures.id`.)
  */
 
-/** Active lead_manager assignments for one staff contact, with Venture facts. */
+/** Active venture_manager assignments for one staff contact, with Venture facts. */
 export function selectLeadManagerVentures(staffCid) {
   return db.execute({
     sql: `SELECT a.id AS assignment_id, a.responsibility_code, a.scope_type, a.scope_ref_type,
@@ -20,13 +20,13 @@ export function selectLeadManagerVentures(staffCid) {
           JOIN ventures v ON a.venture_id::text = v.id::text
           WHERE a.staff_contact_id = ?
             AND a.status = 'active'
-            AND a.responsibility_code = 'lead_manager'
+            AND a.responsibility_code = 'venture_manager'
           ORDER BY COALESCE(v.company_name, v.name) ASC NULLS LAST, a.id DESC`,
     args: [String(staffCid)],
   });
 }
 
-/** Milestone health across a set of Venture db ids. */
+/** Milestone health across a set of Venture db ids (archive-aware when the column exists). */
 export function selectMilestonesForLeadVentures(dbIds = []) {
   const ids = (Array.isArray(dbIds) ? dbIds : []).map(String).filter(Boolean);
   if (ids.length === 0) return Promise.resolve({ rows: [] });
@@ -35,9 +35,19 @@ export function selectMilestonesForLeadVentures(dbIds = []) {
                  m.journey_stage_id, m.updated_at
           FROM venture_milestones m
           WHERE m.venture_id::text IN (${ids.map(() => "?").join(", ")})
+            AND COALESCE(m.is_archived, FALSE) = FALSE
           ORDER BY m.target_date ASC NULLS LAST, m.updated_at DESC NULLS LAST`,
     args: ids,
-  });
+  }).catch(() =>
+    db.execute({
+      sql: `SELECT m.id, m.venture_id, m.title, m.status, m.target_date, m.progress,
+                   m.journey_stage_id, m.updated_at
+            FROM venture_milestones m
+            WHERE m.venture_id::text IN (${ids.map(() => "?").join(", ")})
+            ORDER BY m.target_date ASC NULLS LAST, m.updated_at DESC NULLS LAST`,
+      args: ids,
+    }),
+  );
 }
 
 /** Live journey stages for Venture db ids (archive-aware when the column exists). */
@@ -62,7 +72,7 @@ export function selectStagesForLeadVentures(dbIds = []) {
   );
 }
 
-/** Task submissions awaiting review across Venture db ids (Lead Manager inbox). */
+/** Task submissions awaiting review across Venture db ids (Venture Manager inbox). */
 export function selectReviewQueueForLeadVentures(dbIds = [], limit = 50) {
   const ids = (Array.isArray(dbIds) ? dbIds : []).map(String).filter(Boolean);
   if (ids.length === 0) return Promise.resolve({ rows: [] });

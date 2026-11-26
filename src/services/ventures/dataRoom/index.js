@@ -7,6 +7,7 @@
  *              completeness calculation
  *   documents  upload, replace (version), review, metadata, removal
  *   grants     per-investor access and the requirement configuration
+ *   shareLinks shareable external read-only links for non-ecosystem investors
  *   shared     the small shaping helpers the three share
  *
  * Importers keep using `@/services/ventures/dataRoom`, exactly as before.
@@ -34,3 +35,10 @@ export {
   revokeDataRoomAccess,
   setDataRoomRequirement,
 } from "./grants";
+
+export {
+  createDataRoomShareLink,
+  listDataRoomShareLinks,
+  revokeDataRoomShareLinkService,
+  resolvePublicDataRoom,
+} from "./shareLinks";

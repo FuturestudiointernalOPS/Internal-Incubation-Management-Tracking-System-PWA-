@@ -11,7 +11,7 @@
 const {
   inputStyle,
   cardStyle,
-} = require("@/components/participant/ventures/ventureScreenHelpers");
+} = require("@/components/shared/ventures/workspace/ventureScreenHelpers");
 
 describe("venture workspace theme tokens", () => {
   test("form fields use the active theme, not a dark-mode literal", () => {

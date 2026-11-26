@@ -17,7 +17,7 @@ import {
   getTaskAccessForDelete,
   deleteResource,
 } from "@/models/taskResources";
-import { canAccessTask } from "./access";
+import { canAccessTaskFor } from "./access";
 
 /** Attach a resource to a task. */
 export async function addTaskResource({
@@ -33,7 +33,7 @@ export async function addTaskResource({
   const taskResult = await getTaskAccessById(taskId);
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
-  if (!canAccessTask({ task, role, cid: sessionCid })) {
+  if (!(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { status: 403, error: "errors.taskAccessDenied" };
   }
 
@@ -66,7 +66,7 @@ export async function removeTaskResource({ id, role, sessionCid }) {
   const taskResult = await getTaskAccessForDelete(resource.task_id);
   const task = taskResult.rows[0];
   if (!task) return { status: 404, error: "Task not found" };
-  if (!canAccessTask({ task, role, cid: sessionCid })) {
+  if (!(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { status: 403, error: "errors.taskAccessDenied" };
   }
 

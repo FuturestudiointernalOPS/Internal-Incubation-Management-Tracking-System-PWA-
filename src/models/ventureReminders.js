@@ -85,7 +85,7 @@ export function selectVenturesWithActiveRules() {
 }
 
 /**
- * The active Lead Managers of a Venture, with the address a reminder can copy.
+ * The active Venture Managers of a Venture, with the address a reminder can copy.
  *
  * A reminder about the Venture's work is also copied to whoever runs it: the
  * people named here receive the mail as CC, not as a second reminder. Read by
@@ -97,7 +97,7 @@ export function selectLeadManagerRecipients(ventureId) {
             FROM venture_staff_assignments a
             JOIN contacts c ON c.cid = a.staff_contact_id
            WHERE a.venture_id::text = ?::text
-             AND a.responsibility_code = 'lead_manager'
+             AND a.responsibility_code = 'venture_manager'
              AND a.status = 'active'
              AND c.email IS NOT NULL
              AND (c.deleted = 0 OR c.deleted IS NULL)`,

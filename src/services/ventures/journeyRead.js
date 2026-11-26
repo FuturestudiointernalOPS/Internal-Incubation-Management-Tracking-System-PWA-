@@ -50,7 +50,7 @@ export async function attachJourneyWork({ ventureParam, dbId, stages, signEviden
   }
 
   // Deliverables attached to each milestone (evidence submitted by the
-  // Venture, reviewed by the Lead Manager / a scoped coach). Guarded so a
+  // Venture, reviewed by the Venture Manager / a scoped coach). Guarded so a
   // database without the table still renders the journey.
   const boundMilestoneIds = Object.values(milestonesByStage)
     .flat()

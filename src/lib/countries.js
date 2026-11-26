@@ -210,3 +210,16 @@ export function getCountryDial(iso) {
 export function getCountryFlag(iso) {
   return iso ? isoToFlag(iso) : "";
 }
+
+/**
+ * A stored country answer, ready to display: "🇧🇯 Bénin" for an ISO code, and
+ * the legacy free-text value unchanged when it is not a known code.
+ */
+export function formatCountryAnswer(value, locale = "en") {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (raw.length !== 2) return raw;
+  const code = raw.toUpperCase();
+  if (!COUNTRY_CODES.includes(code)) return raw;
+  return `${getCountryFlag(code)} ${getCountryName(code, locale)}`.trim();
+}

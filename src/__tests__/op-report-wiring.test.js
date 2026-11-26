@@ -5,7 +5,7 @@
  * every read; its writes live in ./actions (one factory per concern), the
  * useCallback handlers that must stay memoised live in ./useOpReportNav, the
  * module-scope readers live in ./readers, and the markup lives in two blocks
- * under components/staff/op-report. Nothing at the type level ties those sides
+ * under spaces/staff/core/components/op-report. Nothing at the type level ties those sides
  * together and no behavioural test renders this screen, so a name that stops
  * reaching a factory or a block is invisible: the factory reads `undefined`, or
  * a block reads a field that is not there. ESLint cannot see it either — every
@@ -24,7 +24,7 @@ const ROOT = path.join(__dirname, "..");
 const SRC = path.join(ROOT, "app", "staff", "op-report");
 const PAGE = path.join(SRC, "page.js");
 const ACTIONS = path.join(SRC, "actions");
-const BLOCKS_DIR = path.join(ROOT, "components", "staff", "op-report");
+const BLOCKS_DIR = path.join(ROOT, "spaces", "staff", "core", "components", "op-report");
 const BLOCKS = ["ReportContent.js", "OpReportModals.js"];
 
 const read = (file) => fs.readFileSync(file, "utf8");

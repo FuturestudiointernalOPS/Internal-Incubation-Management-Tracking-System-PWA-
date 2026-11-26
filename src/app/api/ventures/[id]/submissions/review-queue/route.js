@@ -25,7 +25,7 @@ import { getVentureByCode, selectVentureReviewQueue } from "@/models/ventureWork
  * Assignment-scope enforcement (Vinance 3): a delegated (non-global) actor
  * only sees tasks inside one of his ACTIVE assignment scopes for the Venture.
  * Global roles, actors with NO assignment rows (legacy), and actors with a
- * venture-wide or lead_manager assignment keep the existing full-Venture
+ * venture-wide or venture_manager assignment keep the existing full-Venture
  * queue. The LIMIT-20 is applied AFTER the scope filter.
  */
 

@@ -9,7 +9,7 @@ import { render, screen } from "@testing-library/react";
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
 const { I18nProvider } = require("@/lib/i18n");
-const MetricsColumn = require("@/components/ventures/venture-dashboard/MetricsColumn").default;
+const MetricsColumn = require("@/components/shared/ventures/console/venture-dashboard/MetricsColumn").default;
 
 const widgetState = () => ({ loading: false, error: null, empty: false });
 const data = {
@@ -32,18 +32,18 @@ test("does not draw a second Readiness (stage & evidence) card", () => {
 
 test("the activity column no longer carries a Recent documents widget", () => {
   const fs = require("node:fs");
-  const source = fs.readFileSync("src/components/ventures/venture-dashboard/ActivityColumn.js", "utf8");
+  const source = fs.readFileSync("src/components/shared/ventures/console/venture-dashboard/ActivityColumn.js", "utf8");
   expect(source).not.toContain("recentDocuments");
   expect(source).toContain("upcomingMeetings");
   expect(source).toContain("notifications");
 });
 
-test("the Data Room screen no longer draws the readiness card (founder, Super Admin, staff)", () => {
+test("the Data Room draws one coverage table and one document table (founder, Super Admin, staff)", () => {
   const fs = require("node:fs");
-  const source = fs.readFileSync("src/components/ventures/data-room/VentureDataRoom.js", "utf8");
-  expect(source).not.toContain("dataRoom.completeness.title");
-  expect(source).not.toContain("dataRoom.completeness.percent");
-  // the screen itself is intact: catalogue, filters and upload are still there
-  expect(source).toContain("DataRoomDocumentCard");
+  const source = fs.readFileSync("src/components/shared/ventures/console/data-room/VentureDataRoom.js", "utf8");
+  // Readiness is asked for again on purpose: it is the coverage table that answers
+  // "what is required / submitted / left", and it owns the completeness copy.
+  expect(source).toContain("DataRoomCoverage");
+  expect(source).toContain("DataRoomDocumentTable");
   expect(source).toContain("DataRoomUploadModal");
 });

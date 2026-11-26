@@ -170,6 +170,8 @@ import AppTabs from "@/components/ui/AppTabs";
 import AppInput from "@/components/ui/AppInput";
 import AppTextarea from "@/components/ui/AppTextarea";
 import AppSelect from "@/components/ui/AppSelect";
+import AppCountrySelect from "@/components/ui/AppCountrySelect"; // single-choice country dropdown (ISO code stored, flag + localized name shown)
+import InfoHint from "@/components/ui/InfoHint";   // the (i) beside a label; AppInput and AppSelect take a `hint` prop
 
 // Data Display
 import AppTable from "@/components/ui/AppTable";
@@ -179,6 +181,7 @@ import AppEmptyState from "@/components/ui/AppEmptyState";
 import AppPagination from "@/components/ui/AppPagination";
 import AppPdfPreview from "@/components/ui/AppPdfPreview";
 import AppImage from "@/components/ui/AppImage";     // EVERY image — the one place a plain <img> is allowed
+import UserAvatar from "@/components/ui/UserAvatar"; // a person's photo, or their initial when there is none
 import ResultDelayEditor from "@/components/ui/ResultDelayEditor"; // Scheduled send: a switch + hours and minutes
 
 // Feedback
@@ -400,6 +403,7 @@ src/
 │       ├── AppLinkCard.js       ← Card with a gated redirect (isDeveloped + redirectTo), nudge otherwise
 │       ├── AppEmptyState.js     ← Empty/placeholder state (sm/md/lg)
 │       ├── AppImage.js          ← Image wrapper; plain <img> for arbitrary hosts, next/image for allowed ones
+│       ├── UserAvatar.js        ← A person's photo, falling back to their initial
 │       ├── AppInput.js
 │       ├── AppTextarea.js       ← Multi-line field, same contract as AppInput
 │       ├── AppModal.js
@@ -407,6 +411,7 @@ src/
 │       ├── AppSplitMenu.js      ← Split action button — the action on show + a chevron for the other actions
 │       ├── AppPagination.js     ← Pagination with page numbers or compact
 │       ├── AppSelect.js
+│       ├── AppCountrySelect.js  ← Country dropdown; stores the ISO alpha-2 code, shows flag + localized name
 │       ├── AppStatusBadge.js    ← Status badge using shared STATUS_CONFIG
 │       ├── AppTable.js
 │       ├── AppTabs.js           ← Tab navigation (underline/pills variants)

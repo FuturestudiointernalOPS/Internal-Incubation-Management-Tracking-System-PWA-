@@ -39,7 +39,7 @@ function makeRouteDb() {
     }
     if (sql.includes("FROM ventures WHERE venture_id = ?")) return { rows: [{ id: VENTURE_DB_ID, venture_id: "VNT-3ECFB390" }] };
     // Authority: the assignment supplies the responsibility, the matrix decides
-    // the cell. Seeded truth — a Lead Manager holds `milestones.edit`.
+    // the cell. Seeded truth — a Venture Manager holds `milestones.edit`.
     if (sql.includes("FROM venture_staff_assignments")) {
       return {
         rows: flags.assignment === "none"
@@ -90,7 +90,7 @@ jest.mock("@/lib/ventureAuth", () => ({
 
 jest.mock("@/lib/ventureScopedAccess", () => ({
   // A Venture Manager holds `ventures.edit` and is in scope — the gate the
-  // staging data confirmed (LEW: profile 11, lead_manager, venture-wide).
+  // staging data confirmed (LEW: profile 11, venture_manager, venture-wide).
   requireVentureScopedAccess: jest.fn().mockResolvedValue({
     session: { cid: "USR-LEW", role: "staff" },
     path: "capability+scope",
@@ -414,7 +414,7 @@ describe("CHECK 6 — field and date edits stay open to the Venture Manager", ()
   const edit = (body) =>
     patchMilestone(new Request("http://localhost/x?id=MS_1", { method: "PATCH", body: JSON.stringify(body) }), milestoneCtx);
 
-  test("title, description, dates, priority and owner are all editable, with no authority check", async () => {
+  test("title, description, dates, priority and owner are all editable without a matrix check", async () => {
     const res = await edit({
       title: "Go-to-Market System",
       description: "Renamed after the workshop",
@@ -427,12 +427,14 @@ describe("CHECK 6 — field and date edits stay open to the Venture Manager", ()
     expect(res.status).toBe(200);
     expect((await readJson(res)).success).toBe(true);
 
-    // The proof that field edits need only `ventures.edit`: the milestone
-    // AUTHORITY was never consulted — no assignment read, no matrix read.
-    const authorityReads = executed.filter(
-      (call) => call.sql.includes("FROM venture_staff_assignments") || call.sql.includes("venture_permission_matrix"),
-    );
-    expect(authorityReads).toEqual([]);
+    // Field edits need only `ventures.edit` plus the person's ASSIGNMENT SCOPE:
+    // the milestone authority (matrix) is never consulted — no matrix read.
+    const matrixReads = executed.filter((call) => call.sql.includes("venture_permission_matrix"));
+    expect(matrixReads).toEqual([]);
+    // Exactly one assignment read: the scope that decides which milestone this
+    // person may touch. A venture_manager passes it (wide reach by definition).
+    const scopeReads = executed.filter((call) => call.sql.includes("FROM venture_staff_assignments"));
+    expect(scopeReads).toHaveLength(1);
     // ...and the fields really were written.
     const write = executed.find((call) => call.sql.includes("UPDATE venture_milestones SET"));
     expect(write.sql).toContain("title = ?");
@@ -458,7 +460,7 @@ describe("CHECK 6 — field and date edits stay open to the Venture Manager", ()
   });
 
   test("completion is the ONE status change that still needs the matrix cell", async () => {
-    flags.assignment = "lead_manager";
+    flags.assignment = "venture_manager";
     flags.matrixAllows = true;
     const res = await edit({ status: "completed" });
     expect(res.status).toBe(200);

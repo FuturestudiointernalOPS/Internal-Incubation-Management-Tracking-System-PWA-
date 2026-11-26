@@ -49,24 +49,24 @@ describe("allowsPlanAction (operating_plan area policy)", () => {
     }
   });
 
-  it("grants a venture-wide Lead Manager the manage action", async () => {
+  it("grants a venture-wide Venture Manager the manage action", async () => {
     installMatrix();
     const access = {
       ok: true, code: "VNT-A", global: false,
-      assignments: [{ id: 1, responsibility_code: "lead_manager", scope_type: "venture_wide" }],
+      assignments: [{ id: 1, responsibility_code: "venture_manager", scope_type: "venture_wide" }],
     };
     expect(await allowsPlanAction(access, "manage")).toBe(true);
     expect(await allowsPlanAction(access, "view")).toBe(true);
   });
 
-  it("never lets a venture-wide Lead Manager delete — the matrix has no say on it", async () => {
+  it("never lets a venture-wide Venture Manager delete — the matrix has no say on it", async () => {
     // installMatrix() allows EVERY cell, so this proves the refusal is the
     // policy's own rule and not a dependent of the matrix: permanent deletion
     // is a Super Admin act, never delegated.
     installMatrix();
     const access = {
       ok: true, code: "VNT-A", global: false,
-      assignments: [{ id: 1, responsibility_code: "lead_manager", scope_type: "venture_wide" }],
+      assignments: [{ id: 1, responsibility_code: "venture_manager", scope_type: "venture_wide" }],
     };
     expect(await allowsPlanAction(access, "manage")).toBe(true);
     expect(await allowsPlanAction(access, "delete")).toBe(false);

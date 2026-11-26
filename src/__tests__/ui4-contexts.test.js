@@ -164,12 +164,12 @@ describe("UI-4c — getContactContexts", () => {
     mockState.ventureScope = [{ id: "VNT-2" }];
     mockState.ventureRows = [{ id: "VNT-2", label: "Acme" }];
     // venture_staff_assignments has `responsibility_code`, not `role`.
-    mockState.ventureStaffRows = [{ id: "VNT-2", responsibility_code: "lead_manager" }];
+    mockState.ventureStaffRows = [{ id: "VNT-2", responsibility_code: "venture_manager" }];
 
     const { contexts } = await getContactContexts("USR-1");
 
     expect(contexts).toHaveLength(1);
-    expect(contexts[0]).toMatchObject({ type: "venture", role: "lead_manager" });
+    expect(contexts[0]).toMatchObject({ type: "venture", role: "venture_manager" });
   });
 
   test("a missing label falls back to the id, never to a blank chip", async () => {
@@ -215,13 +215,13 @@ describe("UI-4c — the screens use them", () => {
   });
 
   test("the person detail renders the contexts panel", () => {
-    const src = read("src/components/permissions/center/sections/PersonDetail.js");
+    const src = read("src/spaces/admin/permissions/center/sections/PersonDetail.js");
     expect(src).toContain("context.contexts");
     expect(src).toContain("center.noContexts");
   });
 
   test("the eligibility matrix lists baseline roles and profiles", () => {
-    const rules = read("src/components/permissions/center/sections/RulesSection.js");
+    const rules = read("src/spaces/admin/permissions/center/sections/RulesSection.js");
     expect(rules).toContain("eligibility?.roles");
     expect(rules).toContain("eligibility?.profiles");
     expect(rules).toContain("eligibilityProfileTag");

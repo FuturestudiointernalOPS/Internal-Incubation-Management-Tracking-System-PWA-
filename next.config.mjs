@@ -1,3 +1,9 @@
+import {
+  spaceRedirects,
+  retiredDashboardRedirects,
+  screenRedirectsForNext,
+} from "./src/spaces/redirects.js";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -35,8 +41,20 @@ const nextConfig = {
       },
     ];
   },
+
   async redirects() {
     return [
+      // The retired per-profile dashboards. Every member now opens ONE dashboard,
+      // so these addresses lead there instead of showing a second, narrower home.
+      ...retiredDashboardRedirects(),
+      // Every legacy space address → its new home. The list lives in a plain
+      // module so it can be tested; SPACE_REDIRECTS_PERMANENT flips the whole
+      // set from temporary (307, reversible) to permanent (308, cached).
+      ...spaceRedirects(),
+      // The screen moves, generated from the address catalogue. Every entry is a
+      // retired address of a screen that has finished its move; while a move is
+      // pending the list stays empty and the old address keeps serving.
+      ...screenRedirectsForNext(),
       {
         source: "/sa-hq-sp-2026-v1/:path*",
         destination: "/admin",

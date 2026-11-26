@@ -18,7 +18,7 @@ const {
   buildMeetingPayload,
   dateKey,
   monthsNeeded,
-} = require("@/components/staff/calendarModel");
+} = require("@/components/shared/calendar/calendarModel");
 
 const task = (id, date, extra = {}) => ({
   id: `task-${id}-${date}`,

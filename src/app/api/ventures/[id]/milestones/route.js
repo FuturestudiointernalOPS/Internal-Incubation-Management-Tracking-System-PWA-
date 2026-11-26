@@ -4,6 +4,14 @@ import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { computeInitialMilestoneStatus, isMilestoneLeadAuthority, canManageMilestones, activateDueStages } from "@/services/ventures/milestoneEngine";
 import { dateOrNull, cidOrNull, isValidCid, isUnknownColumnError } from "@/lib/ventureInput";
 import { roleIsPrivileged } from "@/lib/ventureAuth";
+import {
+  isGlobalRole,
+  resolveVentureCode,
+  getAssignmentScopes,
+  hasVentureWideReach,
+  isTaskInScope,
+  resolveTaskContext,
+} from "@/services/ventures/scope";
 import { projectMilestonesForVenture } from "@/lib/ventureVisibility";
 import {
   getVentureDbIdByCodeOrId,
@@ -20,6 +28,26 @@ import {
 } from "@/models/ventureWorkspace";
 import { recordMilestoneEdit, settleMilestoneCompletion } from "@/services/ventures/milestoneCompletion";
 import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
+
+/**
+ * Assignment scope for a milestone EDIT.
+ *
+ * The same helpers the review routes use. A `venture_manager` passes through
+ * `hasVentureWideReach` by definition; an actor with no assignment rows keeps
+ * the legacy behaviour; an actor scoped to another milestone is refused.
+ *
+ * Fails CLOSED on a lookup error, because this guards a WRITE.
+ */
+async function isMilestoneInCallerScope({ session, ventureId, milestoneId }) {
+  if (!session?.cid || isGlobalRole(session.role)) return true;
+  const code = await resolveVentureCode(ventureId);
+  if (!code) return true;
+  const scopes = await getAssignmentScopes({ code, cid: session.cid });
+  if (scopes === null) return false;
+  if (scopes.length === 0) return true;
+  if (hasVentureWideReach(scopes)) return true;
+  return isTaskInScope(scopes, await resolveTaskContext({ milestone_id: milestoneId }));
+}
 
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
@@ -48,8 +76,13 @@ export const POST = createHandler(async (req, { params }) => {
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "edit" });
   if (access.error) return access.error;
 
-  // Adding a milestone is a STRUCTURE action: Lead Manager or Super Admin.
-  const allowed = await canManageMilestones({ id, cid: access.session?.cid, role: access.session?.role });
+  // Adding a milestone is a STRUCTURE action: Venture Manager or Super Admin.
+  const allowed = await canManageMilestones({
+    id,
+    cid: access.session?.cid,
+    role: access.session?.role,
+    session: access.session,
+  });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "errors.ventureManagerOnly" },
@@ -143,13 +176,18 @@ export const PATCH = createHandler(async (req, { params }) => {
   const completing = status === "completed";
 
   // Completion authority (Phase 3, locked decision): ONLY the Venture's
-  // assigned Lead Manager or a Super Admin may mark a milestone completed.
+  // assigned Venture Manager or a Super Admin may mark a milestone completed.
   if (completing) {
     const ventureResult = await getVentureIdAndCode(id).catch(() => ({ rows: [] }));
     const ventureDbId = ventureResult.rows?.[0]?.id;
     const code = ventureResult.rows?.[0]?.venture_id || (typeof id === "string" && id.startsWith("VNT-") ? id : null);
     if (!ventureDbId) return NextResponse.json({ success: false, error: "Venture not found" }, { status: 404 });
-    const authorized = await isMilestoneLeadAuthority({ code, cid: session.cid, role: session.role });
+    const authorized = await isMilestoneLeadAuthority({
+      code,
+      cid: session.cid,
+      role: session.role,
+      session,
+    });
     if (!authorized) {
       return NextResponse.json({ success: false, error: "errors.milestoneCompleteDenied" }, { status: 403 });
     }
@@ -191,6 +229,15 @@ export const PATCH = createHandler(async (req, { params }) => {
     }
     updates.push("journey_stage_id = ?");
     args.push(body.journey_stage_id);
+  }
+
+  // Assignment scope: an editor restricted to one milestone may not change
+  // another one. Completion has its own, stricter authority above.
+  if (!(await isMilestoneInCallerScope({ session, ventureId: id, milestoneId }))) {
+    return NextResponse.json(
+      { success: false, error: "errors.outOfAssignmentScope" },
+      { status: 403 },
+    );
   }
 
   if (updates.length === 1) return NextResponse.json({ success: false, error: "No fields to update" }, { status: 400 });

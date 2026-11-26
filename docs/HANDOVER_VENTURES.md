@@ -55,7 +55,7 @@ the same authority, as marking it complete by hand.
 |---|---|---|---|
 | **Memo** | the session row | **out** — sent to the Venture | whoever books the session |
 | **Milestone record** | the milestone | **in** — the manager's own judgement | the manager |
-| **Journey report** | the journey | **up** — to Super Admin | the Lead Manager |
+| **Journey report** | the journey | **up** — to Super Admin | the Venture Manager |
 
 They are deliberately *not* copies of each other. A memo is not a report, and a
 milestone record is not a memo. Merging them looks tidy and destroys the point.
@@ -118,6 +118,81 @@ Two things worth stating on their own:
 
 ---
 
+## 1.5 The founder's real entry point — routing, and why a file can be dead
+
+**Read this before adding any `/founder/…` page.** It has already cost one
+engineer a day of testing a screen that never renders.
+
+`next.config.mjs` does not only have `redirects()`. It also has **`rewrites()`**:
+
+```js
+rewrites: [
+  { source: "/founder/ventures/:path*", destination: "/participant/ventures/:path*" },
+  { source: "/founder/ventures",        destination: "/participant/ventures" },
+],
+```
+
+Those two lines were introduced by `4ae6591ca` (1 Nov 2026, *"founder adaptive
+dashboard"*). They are the product decision: **a founder works in the same
+Venture workspace as everyone else.**
+
+### What is actually served
+
+| URL opened | Rendered by | Tabs |
+|---|---|---|
+| `/founder` | `src/app/founder/page.js` — FounderExecutiveDashboard | — |
+| `/founder/ventures` | **rewrite** → `src/app/participant/ventures/page.js` | list |
+| `/founder/ventures/<id>` | **rewrite** → `src/app/participant/ventures/[id]/page.js` → `VentureWorkspaceView` | 6 |
+| `/admin/ventures/<id>` | admin detail (`VentureHubNav` + `VentureDetailView`) | 9 |
+
+### Why a route file can exist and never run
+
+Next resolves a request in this order (`node_modules/next/dist/docs/…/rewrites.md`):
+
+1. redirects
+2. `beforeFiles` rewrites
+3. static files
+4. **`afterFiles` rewrites** ← what an array returned by `rewrites()` becomes
+5. **dynamic routes** (`app/…/[id]/page.tsx`)
+
+The doc says it plainly: *"the first rewrite that resolves to a static file, page,
+or dynamic route is served"*, and dynamic routes are matched **after** that.
+
+So a file at `src/app/founder/ventures/[id]/page.js` is a **dynamic route**, and
+the rewrite above wins. It never renders. `/founder/ventures` has no `page.js` at
+all, so the rewrite is the only thing serving it — which is why the URL answers
+**200** while the directory looks empty.
+
+> That is exactly how the Venture **reporting** screen (spec: static profile,
+> founders, team, baseline, monthly, quarterly, events, stage, glossary) was
+> built, tested, and still unreachable: `/founder/ventures/<id>` rendered the
+> participant workspace instead. The fix was not a new route — it was to put the
+> reporting tabs **inside** the workspace a founder already opens (§1.4).
+
+### The two tab sets (do not confuse them)
+
+| Screen | Tabs |
+|---|---|
+| `VentureWorkspaceView` — the founder's real screen | `dashboard, journey, investment, dataRoom, profile, team`, plus `reporting` when the viewer may edit the Venture |
+| `VentureReportingScreen` — the data foundation | `dashboard, profile, founders, team, baseline, monthly, quarterly, events, stage, glossary` |
+
+The workspace's `profile` and `team` are the **Venture record**; the reporting
+screen's `profile` and `team` are the **data foundation**. Same words, different
+records. Nested on purpose: Reporting is one door in the workspace, and it keeps
+its own sub-tabs.
+
+### The rule for future work
+
+- Adding a page under `/founder/…`? **Check `rewrites()` first.** A matching
+  rewrite makes your page dead and gives no warning.
+- Never "fix" a founder route by deleting the rewrites: that removes journey,
+  investment, Data Room and team from every founder in one line.
+- The reporting tab is gated on `/api/ventures/<id>/my-access` →
+  `capabilities.edit.allowed`, which is the guard's own verdict. Do not gate it
+  on a role string.
+
+---
+
 # 2. How it is meant to be used
 
 ## 2.1 The cast
@@ -125,7 +200,7 @@ Two things worth stating on their own:
 | Role | Responsibility | Not responsible for |
 |---|---|---|
 | **Super Admin** | defines and governs the framework | day-to-day coordination |
-| **Lead Manager** (venture manager) | coordinates the Venture through the framework | owning the global framework |
+| **Venture Manager** | coordinates the Venture through the framework | owning the global framework |
 | **Coach / Facilitator** | supports within an **assigned scope** | owning the journey |
 | **Venture** (founder/team) | executes the released work | seeing unreleased work |
 
@@ -139,9 +214,9 @@ Verified against the code, not from memory:
 
 | Action | Who |
 |---|---|
-| Add / reorder / delete / **complete** a milestone | Lead Manager (`milestones.edit`) or Super Admin |
-| Define a deliverable | Lead Manager or Super Admin |
-| **Review** a deliverable | Super Admin, or a Lead Manager (venture-wide), **or a Coach whose assigned scope covers that milestone** |
+| Add / reorder / delete / **complete** a milestone | Venture Manager (`milestones.edit`) or Super Admin |
+| Define a deliverable | Venture Manager or Super Admin |
+| **Review** a deliverable | Super Admin, or a Venture Manager (venture-wide), **or a Coach whose assigned scope covers that milestone** |
 | Book / move / cancel a **staff** session | matrix cell `calendar.schedule` — a **Coach cannot book** (they hold `calendar.view`) |
 | Book a session **as the Venture** | the Venture's own members — deliberately exempt from the gate above |
 | Write internal notes | **staff only** — a founder gets 404 |
@@ -156,7 +231,7 @@ Two rules worth stating on their own:
   deliverable. The authority is unchanged (`milestones.edit`, or a Super Admin):
   a scoped coach may *review* evidence and push the milestone to `in_progress`,
   but the sign-off — and the unlock / Journey close it triggers — stays with the
-  Lead Manager.
+  Venture Manager.
 - **Internal notes never leave the staff side.** They are scope-filtered, not
   just permission-filtered: a coach sees the notes inside their assignment.
 
@@ -193,7 +268,7 @@ user-visible benefit. Do not rename them opportunistically.
 ### What the Data bank actually holds (built — no longer pending)
 
 The documents a Venture is asked for are a **per-Venture list**, not six hardcoded
-categories. A Super Admin, or that Venture's Lead Manager, defines them at:
+categories. A Super Admin, or that Venture's manager, defines them at:
 
 ```
 /admin/ventures/<venture>/document-types
@@ -229,7 +304,7 @@ Use this to sanity-check any change. It touches every part of the model.
 
 ### The setting
 
-David is the **Lead Manager** for AgriNova. Sarah is the **GTM Coach**.
+David is the **Venture Manager** for AgriNova. Sarah is the **GTM Coach**.
 Awa is the **founder**. Super Admin has built a five-Journey framework.
 
 ### Step 1 — Super Admin lays the framework
@@ -456,10 +531,10 @@ included. Sealing one and not the other would have been theatre.
 **privileged role** (`roleIsPrivileged`: `staff`, `super_admin`,
 `program_manager`, `developer`, `admin`). The journey read additionally unseals
 for a viewer who holds Journey authoring access on this Venture (the
-`operating_plan` capabilities, which is what a Lead Manager is granted).
+`operating_plan` capabilities, which is what a Venture Manager is granted).
 
-Lead Managers and Coaches are **internal staff** — they carry the `staff` role
-and the `lead_manager` responsibility code — so they always hold the unsealed
+Venture Managers and Coaches are **internal staff** — they carry the `staff` role
+and the `venture_manager` responsibility code — so they always hold the unsealed
 view and nothing about their surfaces changes. A founder or team member reaches
 these routes through Venture *membership*, not through a staff assignment, so
 membership is what leaves them sealed.

@@ -25,11 +25,20 @@ export const ROLE_ACCESS = {
       "finance", "operations", "intelligence", "reports", "knowledge", "lms", "settings",
     ],
     children: {
-      crm: ["crm_dashboard", "all_contacts", "crm_membership", "crm_timeline", "crm_duplicates", "pending_users", "bulk_upload"],
+      crm: [
+        "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
+        "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
+        "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
+        "pending_users", "bulk_upload",
+      ],
       communication: ["messages", "announcements", "forms"],
+      forms: [
+        "forms_dashboard", "forms_list", "forms_runs",
+        "forms_import", "forms_identity_review", "forms_scores",
+      ],
       programs: ["all_programs", "create_program", "progress"],
       ventures: ["all_ventures"],
-      investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_campaigns", "investors_relationships"],
+      investors: ["investors_manage", "investors_dashboard", "investors_review", "investors_campaigns", "investors_relationships", "investors_portfolio", "investors_deal_flow", "investors_introductions", "investors_metrics"],
       operations: ["internal_ops_board", "all_projects", "create_project", "tasks", "blockers", "standup", "retro"],
       reports: ["program_reports", "internal_reports", "metrics"],
       knowledge: ["knowledge_base"],
@@ -49,11 +58,13 @@ export const ROLE_ACCESS = {
   staff: {
     top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
     children: {
-      communication: ["messages", "forms"],
+      // The Forms workspace lives in the admin Communication section now, so a
+      // staff mask keeps only the messages door.
+      communication: ["messages"],
     },
     hrefs: {
       dashboard: "/staff",
-      programs: "/pm/programs",
+      programs: "/staff/program-manager/programs",
       messages: "/staff/messages",
     },
     icons: {},
@@ -62,17 +73,17 @@ export const ROLE_ACCESS = {
   member: {
     top: ["dashboard"],
     children: {},
-    // The dashboard is the page that owns the calendar. A member has no
-    // program context yet, so it is the participant dashboard's empty state —
-    // NOT the /workspaces hub, which made "the workspace show first".
-    hrefs: { dashboard: "/participant" },
+    // Every member opens the SAME dashboard (`/member/dashboard`). The page shows the
+    // sections of the profiles the person actually holds; it never becomes a
+    // program seat or an investor-only page.
+    hrefs: { dashboard: "/member/dashboard" },
     icons: {},
   },
 
   team: {
     top: ["dashboard", "programs"],
     children: {},
-    hrefs: { dashboard: "/team", programs: "/team" },
+    hrefs: { dashboard: "/member/team", programs: "/member/team" },
     icons: {},
   },
 
@@ -80,16 +91,36 @@ export const ROLE_ACCESS = {
     top: ["dashboard", "profile"],
     children: {},
     hrefs: {
-      dashboard: "/finance",
-      profile: "/participant/profile",
+      dashboard: "/staff/finance",
+      profile: "/member/participant/profile",
     },
     icons: { dashboard: "barChart3" },
   },
 
   crm: {
-    top: ["crm_dashboard", "forms"],
-    children: {},
-    hrefs: { crm_dashboard: "/crm" },
+    // The CRM responsibility opens the whole workspace as one section. Children
+    // whose admin route has no non-admin equivalent are deliberately absent
+    // (duplicates, pending approvals, bulk import arrive through capabilities
+    // or stay in the Super Admin shell).
+    //
+    // Forms are NOT CRM, and they have no non-admin address any more: the
+    // workspace lives under the admin Communication section, so this mask does
+    // not show a door it could not open.
+    top: ["crm"],
+    children: {
+      crm: [
+        "crm_dashboard", "all_contacts", "crm_organizations", "crm_leads",
+        "crm_opportunities", "crm_pipelines", "crm_activities", "crm_segments",
+        "crm_automations", "crm_timeline", "crm_membership", "crm_duplicates",
+      ],
+    },
+    hrefs: {
+      crm_dashboard: "/staff/crm",
+      all_contacts: "/staff/crm/contacts",
+      crm_timeline: "/staff/crm/timeline",
+      crm_membership: "/staff/crm/membership",
+      crm_duplicates: "/staff/crm/duplicates",
+    },
     icons: {},
   },
 };
@@ -110,25 +141,94 @@ export const ROLE_ACCESS = {
 // Changing eligibility for a feature does NOT auto-change the menu — add the
 // node to a role's hide/show list deliberately (visibility is curated, and
 // the server gates remain authoritative).
+/**
+ * A requirement names one capability, or a list of alternatives ("any of").
+ * The CRM section is the first user: the workspace is granted by `crm.view`,
+ * while a people-only profile carries `contacts.view` — either one opens the
+ * section, and each child keeps its own, stricter requirement.
+ */
+export function requirementAlternatives(requirement) {
+  if (!requirement) return [];
+  return Array.isArray(requirement.anyOf) ? requirement.anyOf : [requirement];
+}
+
 export const NAV_CAPABILITY_REQUIREMENTS = {
-  crm: { module: "contacts", capability: "view" },
+  // The section opens for any of its three live domains; the children below
+  // stay strict, so a membership-only profile sees the roster and nothing else.
+  crm: {
+    anyOf: [
+      { module: "crm", capability: "view" },
+      { module: "contacts", capability: "view" },
+      { module: "org_membership", capability: "view" },
+      { module: "duplicates", capability: "view" },
+    ],
+  },
+  crm_dashboard: {
+    anyOf: [
+      { module: "crm", capability: "view" },
+      { module: "contacts", capability: "view" },
+    ],
+  },
+  // People and their history belong to the contacts module.
+  all_contacts: { module: "contacts", capability: "view" },
+  crm_timeline: { module: "contacts", capability: "view" },
+  // The records layer is the CRM module's own surface.
+  crm_organizations: { module: "crm", capability: "view" },
+  crm_leads: { module: "crm", capability: "view" },
+  crm_opportunities: { module: "crm", capability: "view" },
+  crm_pipelines: { module: "crm", capability: "view" },
+  crm_activities: { module: "crm", capability: "view" },
+  crm_segments: { module: "crm", capability: "view" },
+  crm_automations: { module: "crm", capability: "view" },
   // Membership lives under the CRM section but is backed by its own module
   // (GET /api/org-membership requires org_membership.view) — so it only appears
   // when that capability is actually held, not merely because CRM is granted.
   crm_membership: { module: "org_membership", capability: "view" },
+  // The queue and the import are administration doors, kept in the CRM section
+  // by decision; each follows the capability its endpoint actually checks.
+  crm_duplicates: { module: "duplicates", capability: "view" },
+  pending_users: { module: "permissions", capability: "view_matrix" },
+  bulk_upload: { module: "bulk_upload", capability: "execute" },
   finance: { module: "finance", capability: "view" },
   security: { module: "settings", capability: "view" },
   programs: { module: "programs", capability: "view" },
   knowledge: { module: "knowledge", capability: "view" },
-  // LMS — course authoring. Admin-capable roles (super_admin) open
-  // the /admin/lms pages directly; a role without a reachable non-admin landing
-  // still has the node DROPPED by the projection (no dead links), so this
-  // requirement never leaks an /admin link to a non-admin role.
-  lms: { module: "lms", capability: "view" },
+  // LMS — course authoring. Any of the three authoring rights opens the
+  // section: a delegated creator may hold `create` without `view` (the course
+  // reads accept it), and an editor may hold only `edit`. Admin-capable roles
+  // (super_admin) open the /admin/lms pages directly; a role without a
+  // reachable non-admin landing still has the node DROPPED by the projection
+  // (no dead links), so this requirement never leaks an /admin link.
+  lms: {
+    anyOf: [
+      { module: "lms", capability: "view" },
+      { module: "lms", capability: "create" },
+      { module: "lms", capability: "edit" },
+    ],
+  },
   reports: { module: "reports", capability: "view" },
   ventures: { module: "ventures", capability: "view" },
   investors: { module: "investor", capability: "view" },
-  communication: { module: "messaging", capability: "view" },
+  // The section opens for any of its live domains, exactly like the CRM
+  // section: a person allowed to read forms or runs no longer loses the whole
+  // Communication section because they cannot read messages.
+  communication: {
+    anyOf: [
+      { module: "messaging", capability: "view" },
+      { module: "internal_comms", capability: "view" },
+      { module: "forms", capability: "view" },
+      { module: "runs", capability: "view" },
+      { module: "collections", capability: "view" },
+    ],
+  },
+  // The Forms workspace screens — each one the right its API checks, exactly
+  // as declared in src/models/platform/registry.js.
+  forms_dashboard: { module: "runs", capability: "view" },
+  forms_list: { module: "forms", capability: "view" },
+  forms_runs: { module: "runs", capability: "view" },
+  forms_import: { module: "settings", capability: "edit" },
+  forms_identity_review: { module: "settings", capability: "edit" },
+  forms_scores: { module: "runs", capability: "view" },
   weekly_ops: { module: "reports", capability: "create" },
   my_projects: { module: "projects", capability: "view" },
   messages: { module: "messaging", capability: "view" },
@@ -141,11 +241,18 @@ export const NAV_CAPABILITY_REQUIREMENTS = {
 // OTHER /admin node is dropped for a non-admin role: the sidebar never renders
 // a link the role would be redirected away from.
 export const NON_ADMIN_HREF_FALLBACKS = {
-  finance: "/finance",
-  crm_dashboard: "/crm",
-  all_contacts: "/crm/contacts",
-  crm_membership: "/crm/membership",
-  crm_timeline: "/crm/timeline",
-  forms: "/platform",
-  lms_courses: "/pm/lms/courses",
+  finance: "/staff/finance",
+  crm_dashboard: "/staff/crm",
+  all_contacts: "/staff/crm/contacts",
+  crm_organizations: "/staff/crm/organizations",
+  crm_leads: "/staff/crm/leads",
+  crm_opportunities: "/staff/crm/opportunities",
+  crm_pipelines: "/staff/crm/pipelines",
+  crm_activities: "/staff/crm/activities",
+  crm_segments: "/staff/crm/segments",
+  crm_automations: "/staff/crm/automations",
+  crm_membership: "/staff/crm/membership",
+  crm_duplicates: "/staff/crm/duplicates",
+  crm_timeline: "/staff/crm/timeline",
+  lms_courses: "/staff/program-manager/lms/courses",
 };

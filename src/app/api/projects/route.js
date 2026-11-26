@@ -128,7 +128,7 @@ export async function PUT(req) {
     // Object-level authorization: a caller outside the portfolio roles must own
     // or belong to the project before editing it.
     const session = await getSession();
-    if (needsProjectObjectCheck({ role: session?.role })) {
+    if (await needsProjectObjectCheck({ role: session?.role, cid: session?.cid })) {
       const accessError = await requireProjectAccess(id);
       if (accessError) return accessError;
     }
@@ -169,7 +169,7 @@ export async function DELETE(req) {
     // Object-level authorization: `projects.delete` is a global capability, so a
     // non-staff holder must own or belong to the project before destroying it.
     const session = await getSession();
-    if (needsProjectObjectCheck({ role: session?.role })) {
+    if (await needsProjectObjectCheck({ role: session?.role, cid: session?.cid })) {
       const accessError = await requireProjectAccess(id);
       if (accessError) return accessError;
     }

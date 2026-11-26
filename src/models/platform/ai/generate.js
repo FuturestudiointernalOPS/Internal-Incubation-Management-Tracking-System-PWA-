@@ -33,7 +33,7 @@ Return ONLY valid JSON. No markdown, no extra text. Format:
       "fields": [
         {
           "label": "Question or field label",
-          "field_type": "text|textarea|number|email|phone|date|select|radio|checkbox|multiselect|file|url|rating|currency",
+          "field_type": "text|textarea|number|email|phone|date|select|radio|checkbox|multiselect|file|url|rating|currency|country",
           "required": true,
           "placeholder": "Optional placeholder",
           "help_text": "Optional help text",

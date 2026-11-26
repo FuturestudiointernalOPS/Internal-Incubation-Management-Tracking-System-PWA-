@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuthorization } from "@/models/authorization/index";
+import { requireAuthorization, requireAnyAuthorization } from "@/models/authorization/index";
 import {
   createKnowledgeNote,
   createKnowledgeAttachment,
@@ -24,7 +24,13 @@ export const maxDuration = 30;
 export async function POST(req) {
   try {
     await initDb();
-    const capError = await requireAuthorization("knowledge", "create");
+    // A knowledge note is also created inline by the program-creation wizard
+    // (the concept note), so `programs.create` is an accepted alternative — the
+    // wizard must not 403 on a delegated creator.
+    const capError = await requireAnyAuthorization([
+      { module: "knowledge", capability: "create" },
+      { module: "programs", capability: "create" },
+    ]);
     if (capError) return capError;
     const body = await req.json();
     const { title, description, files } = body;
@@ -73,7 +79,13 @@ export async function POST(req) {
 export async function GET() {
   try {
     await initDb();
-    const capError = await requireAuthorization("knowledge", "view");
+    // The new-program wizard reads the Knowledge Bank to link a concept note.
+    // A delegated program creator must be able to read it, exactly as they may
+    // read the staff directory and the program vocabulary.
+    const capError = await requireAnyAuthorization([
+      { module: "knowledge", capability: "view" },
+      { module: "programs", capability: "create" },
+    ]);
     if (capError) return capError;
     // Use BigInt safe query
     const notesResult = await listKnowledgeNotes();

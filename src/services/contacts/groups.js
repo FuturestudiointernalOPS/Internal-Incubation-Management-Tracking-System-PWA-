@@ -14,6 +14,7 @@
  */
 
 import {
+  findGroupByExactName,
   createGroup,
   createGroupAfterColumnSelfHeal,
   addFamilyDescriptionColumn,
@@ -34,7 +35,29 @@ function isMissingSchemaError(error) {
 /**
  * Create one contact group. Returns `{ id, registration_id }`.
  */
+/**
+ * Create one contact group. Returns `{ id, registration_id, program_id, existing? }`.
+ *
+ * A group's name is the key contacts are filed under, so an existing row with
+ * the same name IS the group: the call reuses it instead of inserting a
+ * duplicate, and attaches it to the requested program when it had none.
+ */
 export async function createContactGroup({ programId, name, type, description, defaultRole }) {
+  const duplicate = (await findGroupByExactName(name)).rows?.[0];
+  if (duplicate) {
+    let program_id = duplicate.program_id || null;
+    if (programId && !program_id) {
+      await updateGroup(["program_id = ?"], [programId, duplicate.id]);
+      program_id = programId;
+    }
+    return {
+      id: duplicate.id,
+      registration_id: duplicate.registration_id,
+      program_id,
+      existing: true,
+    };
+  }
+
   // Generate a unique registration_id (matches families route pattern: GRP-XXXX123)
   const registrationId =
     "GRP-" +
@@ -60,6 +83,7 @@ export async function createContactGroup({ programId, name, type, description, d
   return {
     id: row?.id ?? result.lastInsertRowid,
     registration_id: row?.registration_id ?? registrationId,
+    program_id: programId || null,
   };
 }
 

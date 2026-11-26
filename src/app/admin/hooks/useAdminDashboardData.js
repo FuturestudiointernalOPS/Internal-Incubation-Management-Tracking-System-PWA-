@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
 import { isPlatformOwnerRole } from "@/lib/identity";
-import { teamAccountability } from "@/components/admin/dashboard-page/accountabilityModel";
+import { teamAccountability } from "@/spaces/admin/components/dashboard-page/accountabilityModel";
 
 export function useAdminDashboardData({ router, t, lang }) {
   const [loading, setLoading] = useState(true);

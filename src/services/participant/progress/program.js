@@ -50,7 +50,7 @@ export function computeProgramProgress({
   const nonAttendanceDeliverables = unlockedDeliverables.filter(
     (deliverable) => !deliverable.title?.toLowerCase().includes("attendance"),
   );
-  const totalDeliverables = nonAttendanceDeliverables.length || 1;
+  const totalDeliverables = nonAttendanceDeliverables.length;
   const completedDeliverables = nonAttendanceDeliverables.filter((deliverable) =>
     submissions.some(
       (submission) =>
@@ -59,7 +59,11 @@ export function computeProgramProgress({
           String(submission.deliverable_id) === String(deliverable.id)),
     ),
   ).length;
-  const programCompletion = Math.round((completedDeliverables / totalDeliverables) * 100);
+  // The real count is reported (the screen shows "completed / total"); only the
+  // rate is guarded against a division by zero, so a program that tracks no
+  // deliverable contributes nothing to the cross-program totals.
+  const programCompletion =
+    totalDeliverables > 0 ? Math.round((completedDeliverables / totalDeliverables) * 100) : 0;
 
   // Count distinct sessions with a "present" mark, restricted to unlocked
   // sessions, so duplicate attendance rows can never push the rate above 100%.
@@ -73,8 +77,9 @@ export function computeProgramProgress({
       )
       .map((record) => String(record.session_id)),
   ).size;
-  const totalSessions = unlockedSessions.length || 1;
-  const attendanceRate = Math.round((attendedSessions / totalSessions) * 100);
+  const totalSessions = unlockedSessions.length;
+  const attendanceRate =
+    totalSessions > 0 ? Math.round((attendedSessions / totalSessions) * 100) : 0;
 
   // KPI attendance factor only considers the days where presence was actually
   // marked for this participant (unmarked sessions don't penalize it).
@@ -95,8 +100,11 @@ export function computeProgramProgress({
   const approvedSubmissions = submissions.filter(
     (submission) => submission.status === "approved",
   ).length;
-  const totalSubmissions = submissions.length || 1;
-  const assignmentCompletion = Math.round((approvedSubmissions / totalSubmissions) * 100);
+  // The real count is reported (the screen shows "approved / total"); only the
+  // rate is guarded against a division by zero.
+  const totalSubmissions = submissions.length;
+  const assignmentCompletion =
+    totalSubmissions > 0 ? Math.round((approvedSubmissions / totalSubmissions) * 100) : 0;
 
   const approvedSubmissionRows = submissions.filter(
     (submission) => submission.status === "approved",
@@ -154,14 +162,23 @@ export function computeProgramProgress({
   const totalWeeks = program.duration_weeks || currentWeek || 1;
   const ritualParticipation = Math.round((weeksWithRituals.size / totalWeeks) * 100);
 
+  // `name` is the item itself; the screen words the milestone ("Attended …",
+  // "Completed …") in the reader's language from `type`. `title` stays for
+  // older readers.
   const milestones = [];
+  const sessionWeekById = new Map(sessions.map((session) => [String(session.id), session.week_number]));
   sessions.forEach((session) => {
-    const attendanceRecord = attendance.find(
+    const sessionRecords = attendance.filter(
       (record) => String(record.session_id) === String(session.id),
     );
+    // A session may carry more than one mark (several days, or a later
+    // correction): any "present" mark means it was attended.
+    const attendanceRecord =
+      sessionRecords.find((record) => record.status === "present") || sessionRecords[0];
     milestones.push({
       id: `session-${session.id}`,
       title: `Attended: ${session.title}`,
+      name: session.title,
       type: "attendance",
       week: session.week_number,
       achieved: attendanceRecord?.status === "present",
@@ -179,8 +196,13 @@ export function computeProgramProgress({
     milestones.push({
       id: `deliverable-${deliverable.id}`,
       title: `Completed: ${deliverable.title}`,
+      name: deliverable.title,
       type: "deliverable",
-      week: deliverable.week_number || 0,
+      // The deliverable's week is its session's week when it belongs to one.
+      week:
+        (deliverable.session_id != null && sessionWeekById.get(String(deliverable.session_id))) ||
+        deliverable.week_number ||
+        0,
       achieved: matchedSubmission?.status === "approved",
       date: matchedSubmission?.created_at || deliverable.created_at,
       score: matchedSubmission?.score || 0,

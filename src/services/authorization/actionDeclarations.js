@@ -55,6 +55,13 @@ const SELF_SCOPED_ROUTES = [
     reason: "Relations (programmes/ventures) de l'appelant.",
   },
   {
+    file: "src/app/api/member/dashboard/route.js",
+    methods: ["GET"],
+    scope: "session.cid",
+    reason:
+      "Tableau de bord unique de l'appelant : seules ses propres sections sont construites, à partir de ses relations.",
+  },
+  {
     file: "src/app/api/participant/rituals/checkin/route.js",
     methods: ["GET", "POST"],
     scope: "session.cid",
@@ -100,6 +107,9 @@ const SELF_SCOPED_ROUTES = [
   // Auth self-service : la session et la langue de l'appelant.
   { file: "src/app/api/auth/session/route.js", methods: ["GET"], scope: "session.cid", reason: "Renvoie la session de l'appelant." },
   { file: "src/app/api/auth/language/route.js", methods: ["PUT"], scope: "session.cid", reason: "Change la langue de l'appelant (`session.cid`)." },
+  // Préférence d'affichage personnelle : le document lu et écrit est celui de
+  // `session.cid`, jamais celui d'un autre compte.
+  { file: "src/app/api/me/preferences/route.js", methods: ["GET", "PATCH"], scope: "session.cid", reason: "Devise d'affichage de l'appelant : lecture et écriture bornées à `session.cid`." },
   // LMS — expérience APPRENANT (hors gestion de cours, gardée par `lms.edit`).
   { file: "src/app/api/lms/my-learning/route.js", methods: ["GET"], scope: "session.cid", reason: "Catalogue d'apprentissage de l'appelant." },
   { file: "src/app/api/lms/courses/[id]/learn/route.js", methods: ["GET"], scope: "session.cid", reason: "Contenu d'un cours pour l'appelant (`getLearnerCourse(id, session.cid)`)." },
@@ -124,6 +134,9 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/auth/setup-password/validate/route.js", kind: "auth-flow", reason: "Validation d'un jeton de configuration (rate-limit + jeton)." },
   { file: "src/app/api/investor/setup-password/route.js", kind: "auth-flow", reason: "Définition de mot de passe investisseur par jeton." },
   { file: "src/app/api/investor/register/route.js", kind: "auth-flow", reason: "Flux retiré (HTTP 410) — n'expose aucune donnée." },
+  { file: "src/app/api/investor/invitations/[token]/route.js", kind: "token", reason: "Validation d'un lien d'invitation investisseur par jeton (unguessable) ; ne renvoie que l'email et le nom de l'invité, jamais le jeton ni son hash." },
+  { file: "src/app/api/public/data-room/[token]/route.js", kind: "token", reason: "Data room partagée par jeton (unguessable) : le jeton borne le document servi, aucune session n'est requise." },
+  { file: "src/app/api/reporting/stage-sweep/route.js", kind: "cron", reason: "Balayage planifié des étapes : 503 si le secret n'est pas configuré, 403 s'il est erroné (`resolveSweepAuthorization`)." },
   { file: "src/app/api/invites/[token]/route.js", kind: "token", reason: "Validation d'un jeton d'invitation (unguessable)." },
   { file: "src/app/api/venture-member-invites/[token]/route.js", kind: "token", reason: "Invitation membre de venture par jeton." },
   { file: "src/app/api/verify/certificate/[token]/route.js", kind: "token", reason: "Vérification publique de certificat ; champs volontairement publics." },
@@ -145,6 +158,7 @@ const OPEN_ASSUMED_ROUTES = [
   { file: "src/app/api/tasks/notify-deadlines/route.js", kind: "cron", reason: "Notifications d'échéance planifiées (secret)." },
   { file: "src/app/api/webhooks/kkiapay/route.js", kind: "webhook", reason: "Webhook de paiement signé par le fournisseur ; 401 si la signature est invalide." },
   { file: "src/app/api/integrations/google-calendar/webhook/route.js", kind: "webhook", reason: "Notification push Google ; jeton de canal vérifié." },
+  { file: "src/app/api/integrations/whatsapp/webhook/route.js", kind: "webhook", reason: "Webhook WhatsApp Cloud API ; HMAC `x-hub-signature-256` vérifiée sur le corps brut, 401 si la signature est invalide, refus 503 si aucun secret n'est configuré." },
   { file: "src/app/api/health/route.js", kind: "probe", reason: "Sonde de santé publique ; n'expose aucune donnée métier." },
   { file: "src/app/api/ready/route.js", kind: "probe", reason: "Sonde de disponibilité." },
 ];
@@ -155,6 +169,10 @@ const SELF_SCOPED_PREFIXES = ["src/app/api/me/", "src/app/api/profile/"];
 /** Mechanisms that ARE a permission decision (exclude a route from "open"). */
 const DECISION_MECHANISMS = [
   "requireAuthorization(",
+  // The "any of these rights" variant of the same gate. A route that accepts
+  // two rights (e.g. program vocabulary readable with programs.view OR
+  // programs.create) is decided, not open.
+  "requireAnyAuthorization(",
   "requireScopedAccess(",
   "requireVenture",
   "requireProgramScope",

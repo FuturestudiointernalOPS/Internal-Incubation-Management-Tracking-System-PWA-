@@ -29,6 +29,8 @@ import { NextResponse } from "next/server";
  *   - /api/public/* (group lookup + registration + public course catalogue)
  *   - /api/webhooks/kkiapay (Kkiapay's own payment callback: the provider has
  *     no session, and the x-kkiapay-secret signature is the credential)
+ *   - /api/integrations/whatsapp/webhook (Meta's callback: the HMAC signature
+ *     over the raw body is the credential, verified in-route)
  *   - /api/lms/checkout-reconcile (a scheduler's replay of unclosed Kkiapay
  *     payments: the scheduler has no session, and the x-cron-secret shared
  *     secret is the credential — every OTHER /api/lms/* route stays behind a
@@ -67,7 +69,8 @@ const publicPaths = [
   "/join",
   "/open",
   "/verify",
-  "/investor/setup-password",
+  "/member/investor/setup-password",
+  "/investor/setup-password", // legacy address, kept for the redirect
   "/s",
   "/_next",
   "/brand",
@@ -96,6 +99,10 @@ const publicApiPaths = [
   // be lost.
   "/api/integrations/google-calendar/webhook",
   "/api/integrations/google-calendar/cron",
+  // Meta holds no session either. The HMAC signature over the raw body is the
+  // credential, verified in-route; without this the callback is refused at the
+  // edge and every reply and delivery status is silently lost.
+  "/api/integrations/whatsapp/webhook",
   // The daily reminder sweep. A clock holds no session cookie, so without this
   // the request is refused at the edge with 401 and the route never runs — the
   // job would look "configured" and silently never send anything. The route's
@@ -103,6 +110,11 @@ const publicApiPaths = [
   // configured rather than degrading into an open send button.
   "/api/reminders/sweep",
   "/api/platform/scheduled-result-emails",
+  // The daily VENTURE STAGE SWEEP. Same reasoning as the reminder sweep: a clock
+  // holds no session cookie, so without this entry the request is refused at the
+  // edge with 401 and the job silently never runs. The route's own x-cron-secret
+  // gate is the credential and answers 503 when no secret is configured.
+  "/api/reporting/stage-sweep",
   // The daily deadline reminder. A clock holds no session cookie, so without
   // this the request is refused at the edge with 401 and the route never runs —
   // the job would look "configured" and silently never notify anyone. The
@@ -116,6 +128,9 @@ const publicApiPaths = [
   "/api/s",
   "/api/investor/register",
   "/api/investor/setup-password",
+  // The invitation link's validation call. The token in the address is the
+  // credential and the response only carries the invited email/name.
+  "/api/investor/invitations",
   // Health probes: a load balancer / uptime monitor holds no session cookie.
   // They expose no data (see the routes), only liveness / readiness.
   "/api/health",
@@ -128,14 +143,16 @@ const publicApiPaths = [
 // Includes /api/participant and /api/notifications so routes with their own
 // requireAuth() check can handle auth themselves instead of being blocked here.
 const softAuthPaths = [
-  "/participant",
+  "/member/participant",
+  "/participant", // legacy address, kept so its redirect is not masked by auth
   "/api/participant",
   "/api/notifications",
   "/api/dashboard",
   "/api/engineering",
   "/api/user-groups",
   "/api/migrate",
-  "/finance",
+  "/finance", // legacy address, kept for the redirect to the staff space
+  "/staff/finance",
   "/api/finance",
 ];
 

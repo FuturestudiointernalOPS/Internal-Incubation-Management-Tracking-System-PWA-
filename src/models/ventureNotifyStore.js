@@ -39,11 +39,30 @@ export function selectNotifyContact(cid) {
   });
 }
 
-/** The Venture's active Lead Manager contact ids. */
+/** One notify recipient, WITH the language their email should be written in. */
+export function selectNotifyRecipient(cid) {
+  return db.execute({
+    sql: "SELECT cid, name, email, language FROM contacts WHERE cid = ? AND (deleted = 0 OR deleted IS NULL) LIMIT 1",
+    args: [String(cid)],
+  });
+}
+
+/** The Venture's active Venture Manager contact ids. */
+/** Every active Super Admin — the approvers of a stage promotion. */
+export function selectSuperAdminContacts() {
+  return db.execute({
+    sql: `SELECT cid, name, email, language
+            FROM contacts
+           WHERE role = 'super_admin' AND deleted_at IS NULL
+           ORDER BY cid ASC`,
+    args: [],
+  });
+}
+
 export function selectLeadManagerContactIds(code) {
   return db.execute({
     sql: `SELECT staff_contact_id FROM venture_staff_assignments
-            WHERE venture_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
+            WHERE venture_id = ? AND responsibility_code = 'venture_manager' AND status = 'active'`,
     args: [code],
   });
 }

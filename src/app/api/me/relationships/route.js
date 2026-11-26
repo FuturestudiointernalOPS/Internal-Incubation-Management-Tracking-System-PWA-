@@ -2,13 +2,11 @@ import { NextResponse } from "next/server";
 import { initDb } from "@/lib/db";
 import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
-import {
-  hasParticipantProgramMembership,
-  hasV2ParticipantRecord,
-  getVentureMembershipsForContact,
-} from "@/models/contacts/programMembership";
+import { resolveParticipantParticipation } from "@/services/participant/participation";
+import { getVentureMembershipsForContact } from "@/models/contacts/programMembership";
 import { isFounderMembership } from "@/models/platform/roles";
 import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
+import { hasAnyFacilitatorAssignment } from "@/models/authorization/accessQueries";
 
 /**
  * GET /api/me/relationships
@@ -19,6 +17,7 @@ import { getApprovedInvestorProfileIdByUserId } from "@/models/investor";
  * the legacy contact.role default.
  *
  *   isProgramParticipant : has participant_programs rows (or v2_participants)
+ *   isFacilitator        : holds an actual facilitator assignment
  *   ventures             : active venture_memberships (venture_members)
  *   isVentureMember      : ventures.length > 0
  *   isFounder            : owns at least one of those ventures
@@ -45,17 +44,14 @@ export async function GET() {
       await backfillNeutralParticipantRoles();
     } catch (_) {}
 
-    let isProgramParticipant = false;
+    let participation = { isProgramParticipant: false, memberships: [] };
     try {
-      const programMembership = await hasParticipantProgramMembership(cid);
-      if (programMembership.rows?.length > 0) isProgramParticipant = true;
+      // THE participation rule shared with the dashboard, the workspace hub and
+      // the landing decision: any seat counts (a completed one stays open,
+      // read-only), and the older group/program links count when no modern row
+      // exists.
+      participation = await resolveParticipantParticipation({ cid, email: session.email });
     } catch (_) {}
-    if (!isProgramParticipant) {
-      try {
-        const v2ParticipantRecord = await hasV2ParticipantRecord(cid);
-        if (v2ParticipantRecord.rows?.length > 0) isProgramParticipant = true;
-      } catch (_) {}
-    }
 
     let ventures = [];
     try {
@@ -79,9 +75,19 @@ export async function GET() {
       isInvestor = (investorProfile.rows || []).length > 0;
     } catch (_) {}
 
+    // The facilitation context follows an actual assignment, the same table the
+    // facilitator area's own guard reads — so the sidebar can never offer doors
+    // that area would refuse.
+    let isFacilitator = false;
+    try {
+      isFacilitator = await hasAnyFacilitatorAssignment(cid, session.email);
+    } catch (_) {}
+
     return NextResponse.json({
       success: true,
-      isProgramParticipant,
+      isProgramParticipant: participation.isProgramParticipant,
+      programs: participation.memberships,
+      isFacilitator,
       isVentureMember: ventures.length > 0,
       isFounder,
       isInvestor,

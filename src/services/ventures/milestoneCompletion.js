@@ -3,7 +3,7 @@
  *
  * Moved verbatim out of `src/app/api/ventures/[id]/milestones/route.js`
  * (PATCH, lane L2). The controller keeps the scoped access gate, the
- * completion authority (Lead Manager / Super Admin), the field validation
+ * completion authority (Venture Manager / Super Admin), the field validation
  * (isValidCid, dateOrNull…), the write and the response. This module writes
  * the field-level history and, on completion, settles the Journey: releases,
  * notices, history and the automatic close of a journey whose milestones are
