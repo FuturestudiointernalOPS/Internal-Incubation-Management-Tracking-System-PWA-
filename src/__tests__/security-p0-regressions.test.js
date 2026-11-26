@@ -149,6 +149,21 @@ describe("POST /api/contacts — role and status are server-controlled", () => {
     expect(written.status).toBe("pending");
   });
 
+  test("the applicant intake label is stored as the member baseline", async () => {
+    // `applicant` is a STAGE carried by the account status, not an identity.
+    // An older client that still sends it must not write a label the identity
+    // model does not know.
+    getSession.mockResolvedValue(null);
+
+    await postContact(
+      jsonReq({ name: "Applicant", email: "b@example.io", role: "applicant" }),
+    );
+
+    const written = upsertContact.mock.calls[0][0];
+    expect(written.role).toBe("member");
+    expect(written.status).toBe("pending");
+  });
+
   test("an authenticated non-privileged caller cannot set a privileged role", async () => {
     getSession.mockResolvedValue({ cid: "C-1", role: "staff" });
     requireAuthorization.mockImplementation(async (_feature, capability) => {

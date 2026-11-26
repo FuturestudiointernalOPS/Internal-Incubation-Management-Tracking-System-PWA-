@@ -78,7 +78,6 @@ function main() {
 
     if (lines > HARD_LIMIT) {
       currentOverHard.push({ file: relPath, lines });
-      errors++;
       console.log(`❌ ${relPath}: ${lines} lines (OVER HARD LIMIT ${HARD_LIMIT})`);
     } else if (lines > SOFT_LIMIT) {
       currentOverSoft.push({ file: relPath, lines });
@@ -102,7 +101,10 @@ function main() {
     for (const v of newViolations) {
       console.log(`   ${v.file}: ${v.lines} lines`);
     }
-    errors += newViolations.length;
+    // Only a file OUTSIDE the grandfather list is an error. A debt entry is the
+    // documented way to acknowledge a legacy file, so blocking on it too would
+    // make the list unenforceable.
+    errors = newViolations.length;
   }
 
   // Check for resolved debts

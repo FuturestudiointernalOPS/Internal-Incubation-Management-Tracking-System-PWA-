@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import ReportDetailModal from "@/components/admin/reports/responses/ReportDetailModal";
+import ReportDetailModal from "@/spaces/admin/components/reports/responses/ReportDetailModal";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here

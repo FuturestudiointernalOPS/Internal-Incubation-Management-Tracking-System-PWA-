@@ -4,7 +4,9 @@
       "title": "Platform Modules",
       "subtitle": "All registered platform modules. Future modules will be built here.",
       "comingSoon": "Coming Soon",
-      "open": "Open →"
+      "open": "Open →",
+      "loading": "Loading your access…",
+      "none": "No module is open to you yet. An administrator can grant one from the Permissions screen."
     },
     "nav": {
       "dashboard": "Dashboard",
@@ -271,6 +273,8 @@
       "fieldTypeCurrency": "Currency",
       "fieldTypeRating": "Rating",
       "fieldTypeRichText": "Rich Text",
+      "fieldTypeCountry": "Country",
+      "countryOptionsHint": "The complete country list is provided automatically; the respondent picks one.",
       "generateForm": "Generate Form",
       "generating": "Generating...",
       "inCollection": "in {name}",
@@ -280,6 +284,9 @@
       "name": "Name",
       "namePlaceholder": "e.g. Founder Application",
       "newForm": "New Form",
+      "seedInvestorNetwork": "Investor network form",
+      "seedInvestorNetworkDone": "Investor network form ready — copy its link from the run's Share tab.",
+      "seedInvestorNetworkFailed": "Could not create the investor network form.",
       "none": "None",
       "notifyFormArchived": "Form archived",
       "notifyFormDeleted": "Form permanently deleted",

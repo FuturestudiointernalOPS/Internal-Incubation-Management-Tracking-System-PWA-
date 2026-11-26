@@ -5,7 +5,7 @@
  * blockers table rather than added to the report flags.
  */
 
-import { teamAccountability } from "@/components/admin/dashboard-page/accountabilityModel";
+import { teamAccountability } from "@/spaces/admin/components/dashboard-page/accountabilityModel";
 
 // Thursday 15 October 2026 → ISO week 42; Friday 16 → still week 42.
 const THURSDAY = new Date(2026, 9, 15, 10);

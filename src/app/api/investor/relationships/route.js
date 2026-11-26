@@ -1,8 +1,8 @@
 import { withInvestorPrivacy } from "@/server/investor/withPrivacy";
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { requireAuth } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
+import { requireAuthorization } from "@/models/authorization/index";
 import { requireInvestorSelfServiceAuthorization } from "@/models/authorization/investorSelfService";
 import {
   listRelationshipsForViewer,
@@ -46,7 +46,7 @@ async function GETWithOriginalGuards(req) {
 export async function POST(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("investor", "create");
     if (authError) return authError;
 
     const session = await getSession();
@@ -75,7 +75,7 @@ export async function POST(req) {
 export async function PUT(req) {
   try {
     await initDb();
-    const authError = await requireAuth(["super_admin"]);
+    const authError = await requireAuthorization("investor", "edit");
     if (authError) return authError;
 
     const session = await getSession();

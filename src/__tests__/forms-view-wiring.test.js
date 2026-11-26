@@ -1,9 +1,9 @@
 /**
  * The platform-forms screen wiring.
  *
- * The screen (`src/app/platform/forms/page.js`) keeps the state, the reads and
+ * The screen (`src/app/admin/communication/forms/list/page.js`) keeps the state, the reads and
  * the handlers; its two returns - the forms list and the builder - live in
- * `src/components/platform/forms/PlatformFormsView.js`, which reads everything
+ * `src/components/shared/platform/forms/PlatformFormsView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No type connects the two
  * sides and no behavioural test renders the screen, so a key that stops being
  * declared - or a name the view reads that the screen never puts in `ctx` - is
@@ -14,9 +14,9 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const PARENT = path.join(ROOT, "app", "platform", "forms", "page.js");
-const VIEW = path.join(ROOT, "components", "platform", "forms", "PlatformFormsView.js");
-const HOOK = path.join(ROOT, "components", "platform", "forms", "hooks", "useFormBuilder.js");
+const PARENT = path.join(ROOT, "app", "admin", "communication", "forms", "list", "page.js");
+const VIEW = path.join(ROOT, "components", "shared", "platform", "forms", "PlatformFormsView.js");
+const HOOK = path.join(ROOT, "components", "shared", "platform", "forms", "hooks", "useFormBuilder.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 

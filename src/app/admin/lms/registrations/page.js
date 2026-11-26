@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import LmsRegistrationsView from "@/components/admin/lms/registrations/LmsRegistrationsView";
-import OrphanLearningPanel from "@/components/admin/lms/registrations/OrphanLearningPanel";
+import LmsRegistrationsView from "@/spaces/admin/components/lms/registrations/LmsRegistrationsView";
+import OrphanLearningPanel from "@/spaces/admin/components/lms/registrations/OrphanLearningPanel";
 
 /**
  * ADMIN — LMS REGISTRATIONS (the team view)

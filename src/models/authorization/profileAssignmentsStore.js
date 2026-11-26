@@ -70,6 +70,18 @@ export function listProfileAssignments(cid) {
   });
 }
 
+/** Every person's ACTIVE assignments (cid + profile key), for the People list. */
+export function listAllActiveProfileAssignments() {
+  return db.execute({
+    sql: `SELECT contact_cid, profile_key
+          FROM profile_assignments
+          WHERE status = 'active'
+            AND (ends_at IS NULL OR ends_at > NOW())
+            AND (started_at IS NULL OR started_at <= NOW())`,
+    args: [],
+  });
+}
+
 /**
  * The profile KEYS a person holds RIGHT NOW — active and not past their end
  * date. This is the read Phase D consumes to feed eligibility.

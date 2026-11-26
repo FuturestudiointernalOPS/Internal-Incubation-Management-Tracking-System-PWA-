@@ -203,14 +203,25 @@ src/
 │   │   ├── op-reports/   ← Operational reports
 │   │   ├── intelligence/ ← Intelligence module
 │   │   └── ...
-│   ├── staff/            ← Staff routes
-│   ├── pm/               ← Program Manager routes
-│   ├── participant/      ← Participant routes
+│   ├── staff/            ← STAFF space: one shell + one folder per context
+│   │   ├── layout.js     ← the space shell + guard (mounted once)
+│   │   ├── program-manager/ ← programme-manager context
+│   │   ├── finance/      ← finance context
+│   │   └── create/       ← delegated creation context
+│   ├── member/           ← MEMBER space routes (participant, founder, investor…)
+│   │   ├── page.js       ← the hub (outside the shell)
+│   │   └── (contexts)/   ← ONE shell for every member context
 │   └── api/              ← API routes (thin controllers, 403 handlers)
+├── spaces/               ← the three spaces: views + components per context
+│   ├── registry.js       ← identity → space, operating denial, homes
+│   ├── member/           ← one folder per member context
+│   ├── staff/            ← one folder per staff context
+│   └── admin/            ← one folder per admin domain
 ├── components/
 │   ├── layout/
 │   │   └── DashboardLayout.js  ← Sidebar + header wrapper
-│   └── ui/               ← Reusable components
+│   ├── shared/           ← components genuinely used by two spaces
+│   └── ui/               ← Reusable components (the neutral kit)
 ├── models/               ← MODEL layer — all SQL + domain logic (MVC)
 │   ├── tasks.js          ← one file per domain (blocks, projects,
 │   │                        programs, contacts, authFlows, groups,
@@ -229,6 +240,31 @@ src/
 │   └── ...
 └── locales/              ← Translation files (en + fr)
 ```
+
+### Spaces — see `docs/SPACES.md`
+
+There are three spaces, and an identity belongs to exactly one:
+
+| Space | Who | Address |
+|---|---|---|
+| `member` | a person in their own programmes, ventures, learning | `/member` (+ `/member/participant`, `/member/founder`, `/member/investor`, `/member/facilitator`, `/member/team`) |
+| `staff` | an internal function | `/staff` (+ `/staff/<context>`) |
+| `admin` | the platform owner | `/admin`, `/platform` |
+
+Inside a space, a **context** is what the person is or does there (founder,
+learner, programme manager, lead manager, finance, CRM…). Contexts are
+**cumulative** — one person holds several — and each adds its own screens and
+doors. A context's screens and components live in `src/spaces/<space>/<context>/`.
+A page file stays a thin entry point that renders a screen from there.
+
+- The registry (`src/spaces/registry.js`) is the ONLY list of who belongs where.
+  Guards and navigation read it; do not add a private list elsewhere.
+- One shell per space. A context moved under an existing space must NOT wrap
+  itself in another `<DashboardLayout>`.
+- A space never imports another space and never imports `@/lib/db`.
+- A component two spaces genuinely need goes in `src/components/shared/` — never
+  copied into both. The neutral design kit stays in `src/components/ui/`.
+- Enforced by `src/__tests__/spaces-boundaries.test.js`.
 
 ### MVC layering (see `docs/MVC_REFACTOR.md` and `docs/LAYER_SPLIT.md`)
 
@@ -256,13 +292,14 @@ no re-fetch of the auth/badge chain on every link click):
 |---|---|---|
 | `/admin/*` | `src/app/admin/layout.js` | `super_admin` (from session) |
 | `/staff/*` | `src/app/staff/layout.js` | `staff` |
-| `/pm/*` | `src/app/pm/layout.js` | `program_manager` |
-| `/participant/*` | `src/app/participant/layout.js` | `participant` |
-| `/facilitator/*` | `src/app/facilitator/layout.js` | `facilitator` |
-| `/investor/*` | `src/app/investor/layout.js` | `investor` |
-| `/finance/*` | `src/app/finance/layout.js` | `finance` |
-| `/crm/*` | `src/app/crm/layout.js` | `crm` |
-| `/team/*` | `src/app/team/layout.js` | `team` |
+| `/staff/program-manager/*` | `src/app/staff/layout.js` (shared) | `program_manager` (from session) |
+| `/member/participant/*` | `src/app/member/participant/layout.js` | `participant` |
+| `/member/facilitator/*` | `src/app/member/facilitator/layout.js` | `facilitator` |
+| `/member/investor/*` | `src/app/member/investor/layout.js` | `investor` |
+| `/staff/finance/*` | `src/app/staff/layout.js` (shared) | `finance` (from session) |
+| `/staff/crm/*` | `src/app/staff/layout.js` (shared) | `crm` (from session) |
+| `/member/team/*` | `src/app/member/team/layout.js` | `team` |
+| `/member/founder/*` | `src/app/member/founder/layout.js` | `founder` |
 
 **Do NOT wrap a page in `<DashboardLayout>` anymore.** Pages simply return their own
 content; the section layout provides the shell. The `role` prop is only a pre-session
@@ -279,7 +316,7 @@ never selects a role.
 - [ ] If adding UI text: use `t("namespace.key")` and update BOTH `en/` and `fr/` locale files
 - [ ] If creating a new page inside `/admin/*`: no action needed (layout already has force-dynamic)
 - [ ] If creating a new page outside `/admin/*`: add `export const dynamic = "force-dynamic"` if using client hooks
-- [ ] If adding a new component: put it in `src/components/ui/` and update `DESIGN_SYSTEM.md`
+- [ ] If adding a new component: a neutral kit component goes in `src/components/ui/` (update `DESIGN_SYSTEM.md`); a screen or component for ONE context goes in `src/spaces/<space>/<context>/`; one genuinely needed by two spaces goes in `src/components/shared/`
 - [ ] If asking for a confirmation, a typed value or an acknowledgement: use `useDialogs()` — never the browser's `confirm` / `prompt` / `alert`
 - [ ] If adding/editing a page: return only the page content — the section layout already renders `<DashboardLayout>` (see table above)
 - [ ] If adding/editing data access or SQL: put the query in `src/models/<domain>.js` (models only; never in routes/pages)

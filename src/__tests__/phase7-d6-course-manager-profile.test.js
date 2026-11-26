@@ -8,8 +8,8 @@
  * **profil dédié** que SEUL le staff désigné porte (jamais tout le staff). Il
  * couvre « un peu plus » (archivage, suppression d'évaluation, vignettes) — assumé.
  *
- * Le Super Admin le détient par défaut (bypass). Aucun profil semé ne détenait ce
- * droit avant ce lot : `docs/AUTHZ_CURRENT_STATE.md` §9 (seul le Super Admin).
+ * Le Super Admin le détient par défaut via sa matrice de droits (son profil
+ * `super_admin_default`), et ce droit peut lui être retiré comme tout autre.
  *
  * Ce test verrouille : le profil existe (staff only), il porte le droit unique, il
  * est assignable, et — la partie qui compte — **être staff ne suffit pas** : sans
@@ -80,7 +80,19 @@ describe("D6 — porter le profil ouvre la gestion des cours, être staff ne suf
     expect(explainAuthorization(ctx, "lms", "edit").allowed).toBe(true);
   });
 
-  test("le Super Admin le détient par défaut (bypass)", () => {
-    expect(explainAuthorization({ isSuperAdmin: true }, "lms", "edit").allowed).toBe(true);
+  test("le Super Admin le détient par défaut (sa matrice)", () => {
+    expect(
+      explainAuthorization(
+        { isSuperAdmin: true, effective: { lms: { view: 5, edit: 5 } } },
+        "lms",
+        "edit",
+      ).allowed,
+    ).toBe(true);
+  });
+
+  test("le Super Admin sans le droit est refusé (retrait effectif)", () => {
+    expect(
+      explainAuthorization({ isSuperAdmin: true, effective: {} }, "lms", "edit").allowed,
+    ).toBe(false);
   });
 });

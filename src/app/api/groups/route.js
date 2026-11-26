@@ -75,7 +75,8 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      group: { id: created.id, registration_id: created.registration_id, program_id, name, type, description },
+      existing: !!created.existing,
+      group: { id: created.id, registration_id: created.registration_id, program_id: created.program_id, name, type, description },
     });
   } catch (error) {
     return NextResponse.json(

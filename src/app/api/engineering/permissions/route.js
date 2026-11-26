@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getSession } from "@/server/auth/session";
 import { ensurePermissionsSchema } from "@/models/authorization/bootstrap";
 import { requireAuthorization } from "@/models/authorization/index";
+import { getContactNameAndRole } from "@/models/authorization";
 import { preparePermissionReads, readPermissionMatrix } from "@/services/authorization/permissionMatrix";
 import { applyPermissionChange } from "@/services/authorization/permissionWrites";
 import { isSelfAssignment } from "@/services/authorization/profileAssignment";
@@ -92,18 +93,24 @@ export async function PUT(req) {
       );
     }
 
-    // Promoting to Super Admin (or demoting) is a ROLE change, not a capability
-    // grant: a delegated "permission manager" holding assign_capabilities must
-    // not be able to mint one for themselves or anyone else. This stays in the
-    // HTTP boundary.
-    if (
-      (action === "promote_super_admin" || action === "remove_super_admin") &&
-      session.role !== "super_admin"
-    ) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
+    // Promoting to Super Admin (or demoting) is a ROLE change, but it is still
+    // a RIGHT: `permissions.promote_super_admin` / `remove_super_admin` are in
+    // the catalogue, so an administrator can delegate them — and, like every
+    // other right, they can be revoked from the owner too.
+    if (action === "promote_super_admin") {
+      const promoteError = await requireAuthorization(
+        "permissions",
+        "promote_super_admin",
       );
+      if (promoteError) return promoteError;
+    }
+
+    if (action === "remove_super_admin") {
+      const removeError = await requireAuthorization(
+        "permissions",
+        "remove_super_admin",
+      );
+      if (removeError) return removeError;
     }
 
     // §13 — separation of duties: nobody changes their OWN access through this
@@ -115,21 +122,33 @@ export async function PUT(req) {
       );
     }
 
-    // §13 — only a super admin may assign the super_admin role. Without this,
-    // `set_role` would bypass the promote_super_admin gate just above.
-    if (
-      action === "set_role" &&
-      String(body.role || "") === "super_admin" &&
-      session.role !== "super_admin"
-    ) {
-      return NextResponse.json(
-        { success: false, error: "errors.insufficientPermissions" },
-        { status: 403 },
+    // §13 — only the holder of `promote_super_admin` may assign the super_admin
+    // role. Without this, `set_role` would bypass the promote gate just above.
+    if (action === "set_role" && String(body.role || "") === "super_admin") {
+      const promoteError = await requireAuthorization(
+        "permissions",
+        "promote_super_admin",
       );
+      if (promoteError) return promoteError;
     }
 
+    // Taking the role AWAY from a Super Admin is the symmetric right: a
+    // `set_role` on a current owner is a demotion and needs
+    // `remove_super_admin` BEFORE the write (the target is read through the
+    // model layer, so this runs after the schema is ready).
     await initDb();
     await ensurePermissionsSchema();
+
+    if (action === "set_role" && String(body.role || "") !== "super_admin") {
+      const target = await getContactNameAndRole(user_cid);
+      if (String(target.rows?.[0]?.role || "") === "super_admin") {
+        const removeError = await requireAuthorization(
+          "permissions",
+          "remove_super_admin",
+        );
+        if (removeError) return removeError;
+      }
+    }
 
     // The action switch, the eligibility boundary and the audit trail live in
     // the service.

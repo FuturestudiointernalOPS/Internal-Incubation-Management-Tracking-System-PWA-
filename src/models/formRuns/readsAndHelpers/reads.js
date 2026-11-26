@@ -277,10 +277,10 @@ export async function getActivationEmailLogsByRunId(runId) {
   });
 }
 
-/** Form fields for a run (respondent enrichment: labels + filterable options). */
+/** Form fields for a run (respondent enrichment: labels, types + filterable options). */
 export async function getFormFieldsForRunById(formIdOfRun) {
   return db.execute({
-    sql: "SELECT id, label, options FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
+    sql: "SELECT id, label, field_type, options FROM platform_form_fields WHERE form_id::text = ? ORDER BY sort_order, id",
     args: [String(formIdOfRun)],
   });
 }

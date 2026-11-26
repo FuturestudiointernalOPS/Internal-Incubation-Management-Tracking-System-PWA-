@@ -154,3 +154,42 @@ describe("I2 mutation-stop guard presence", () => {
     expect(auth).toContain("deriveLegacyRoleEnabled()");
   });
 });
+
+describe("the applicant intake stage is stored as member", () => {
+  const {
+    NON_IDENTITY_ROLE_LABELS,
+    normalizeIdentityForStorage,
+  } = require("@/lib/identity");
+
+  test("the label is declared as a stage, not an identity", () => {
+    expect(NON_IDENTITY_ROLE_LABELS).toContain("applicant");
+  });
+
+  test("every write path translates it to the member baseline", () => {
+    // The public join, self-service registration, CSV import and approval all
+    // run the requested label through this one function.
+    expect(normalizeIdentityForStorage("applicant")).toBe("member");
+    expect(normalizeIdentityForStorage("Applicant")).toBe("member");
+    expect(normalizeIdentityForStorage(" applicant ")).toBe("member");
+    // Real identities and the unassigned placeholder are untouched.
+    expect(normalizeIdentityForStorage("member")).toBe("member");
+    expect(normalizeIdentityForStorage("staff")).toBe("staff");
+    expect(normalizeIdentityForStorage("super_admin")).toBe("super_admin");
+    expect(normalizeIdentityForStorage("unassigned")).toBe("unassigned");
+  });
+
+  test("the two direct writers no longer store the label", () => {
+    // The public join form now asks for member, and the CRM automation's
+    // direct INSERT writes member. Both used to persist `applicant`.
+    const join = fs.readFileSync("src/app/join/[id]/page.js", "utf8");
+    expect(join).toMatch(/role:\s*["']member["']/);
+    expect(join).not.toMatch(/role:\s*["']applicant["']/);
+
+    const crm = fs.readFileSync(
+      "src/models/platform/automation/crmHelpers.js",
+      "utf8",
+    );
+    expect(crm).not.toMatch(/'applicant'/);
+    expect(crm).toMatch(/VALUES \(\?, \?, \?, \?, 'member', 'active'\)/);
+  });
+});

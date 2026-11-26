@@ -7,9 +7,12 @@ import {
   insertVentureBroadcast,
   updateBroadcastStatus,
   checkVentureSubmissionForRun,
+  selectVentureProgrammeScope,
+  countRunSubmissions,
+  selectRunBySlug,
+  selectBroadcastRecipients,
 } from "@/models/ventureBroadcastStore";
 import { sendEmail } from "@/lib/email/send";
-import db from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 
@@ -43,10 +46,7 @@ export async function GET(req) {
         isTargeted = targetIds.includes(ventureId) || targetIds.includes(String(ventureId));
       } else if (latest.target_scope === "segment" && latest.target_segment) {
         // Query venture program_type or stage
-        const vRes = await db.execute({
-          sql: "SELECT programme_type, stage FROM ventures WHERE id::text = ? OR venture_id = ? LIMIT 1",
-          args: [ventureId, ventureId],
-        });
+        const vRes = await selectVentureProgrammeScope(ventureId);
         const v = vRes.rows[0];
         if (v && (v.programme_type === latest.target_segment || v.stage === latest.target_segment)) {
           isTargeted = true;
@@ -71,7 +71,7 @@ export async function GET(req) {
     // Otherwise, admin listing
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
 
     const broadcastsRes = mode === "all" ? await selectAllBroadcasts() : await selectActiveBroadcasts();
@@ -81,13 +81,7 @@ export async function GET(req) {
     const enriched = await Promise.all(
       broadcasts.map(async (b) => {
         try {
-          const statsRes = await db.execute({
-            sql: `SELECT COUNT(DISTINCT COALESCE(venture_id, data->>'venture_id', data->>'Startup Name', submitter_name)) as submitted_count
-                  FROM platform_form_submissions
-                  WHERE (run_id = ? OR run_id IN (SELECT id FROM platform_form_runs WHERE public_slug = ?))
-                    AND status != 'draft'`,
-            args: [b.form_run_id || -1, b.form_run_slug],
-          });
+          const statsRes = await countRunSubmissions(b.form_run_id || -1, b.form_run_slug);
           return {
             ...b,
             submitted_count: parseInt(statsRes.rows[0]?.submitted_count) || 0,
@@ -113,7 +107,7 @@ export async function POST(req) {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     // Broadcasting mails every targeted founder, so it is a Ventures WRITE, not
     // something any signed-in account may do. Super Admin bypasses capabilities.
@@ -143,10 +137,7 @@ export async function POST(req) {
     }
 
     // Find run_id from slug
-    const runRes = await db.execute({
-      sql: "SELECT id, name FROM platform_form_runs WHERE public_slug = ? LIMIT 1",
-      args: [slug],
-    });
+    const runRes = await selectRunBySlug(slug);
     const runId = runRes.rows[0]?.id || null;
     const broadcastTitle = title || runRes.rows[0]?.name || "Venture Performance Census";
 
@@ -181,25 +172,8 @@ export async function POST(req) {
     let emailStats = { sent: 0, failed: 0, recipients: [] };
     if (send_email) {
       // Column names follow the live schema: `venture_id`, `programme_type`.
-      // The old query asked for `vnt_id` / `program_type`, which do not exist —
-      // so every broadcast WITH email failed with a 500 before sending anything.
-      const venturesSql = `
-        SELECT v.id, v.venture_id, v.name, v.programme_type, v.stage,
-               c.name as founder_name, c.email as founder_email
-        FROM ventures v
-        LEFT JOIN LATERAL (
-          SELECT vm.contact_id
-          FROM venture_members vm
-          WHERE vm.venture_id::text = v.id::text
-            AND (vm.lead_founder = TRUE OR vm.member_type = 'founder')
-            AND vm.removed_at IS NULL
-          ORDER BY vm.lead_founder DESC, vm.id ASC
-          LIMIT 1
-        ) lead_mem ON true
-        LEFT JOIN contacts c ON lead_mem.contact_id = c.cid
-        WHERE v.status = 'active'
-      `;
-      const vRes = await db.execute({ sql: venturesSql, args: [] });
+      // The recipients query lives in the model, beside the rest of the schema.
+      const vRes = await selectBroadcastRecipients();
       let ventures = vRes.rows || [];
 
       // Filter by scope
@@ -284,7 +258,7 @@ export async function PATCH(req) {
   try {
     const session = await getSession();
     if (!session) {
-      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     }
     const authError = await requireAuthorization("ventures", "edit");
     if (authError) return authError;

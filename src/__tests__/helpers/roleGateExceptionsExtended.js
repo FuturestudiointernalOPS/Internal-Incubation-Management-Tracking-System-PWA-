@@ -22,7 +22,7 @@ module.exports = {
 
   ],
   display: [
-    "src/app/admin/ventures/[id]/founders/page.js#M5",
+    "src/spaces/admin/components/ventures/views/VentureFoundersTab.js#M5",
     "src/app/api/kpis/route.js#M5",
 
     "src/app/api/ventures/[id]/advisors/route.js#M5",
@@ -33,10 +33,10 @@ module.exports = {
     "src/app/api/ventures/[id]/documents/[docId]/versions/route.js#M5",
     "src/app/api/ventures/[id]/documents/route.js#M5",
     "src/app/api/ventures/[id]/progress/route.js#M5",
-    "src/app/crm/contacts/page.js#M5",
-    "src/app/workspaces/page.js#M5",
-    "src/components/crm/TimelineScreen.js#M5",
-    "src/components/crm/people-detail/constants.js#M5",
+    "src/app/staff/crm/contacts/page.js#M5",
+    "src/app/member/page.js#M5",
+    "src/components/shared/crm/TimelineScreen.js#M5",
+    "src/components/shared/crm/people-detail/constants.js#M5",
     "src/components/layout/shell/useDashboardNavigation.js#M7",
     "src/lib/masterNavigation.js#M6",
     "src/lib/masterNavigation/access.js#M5",

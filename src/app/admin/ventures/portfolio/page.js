@@ -1,6 +1,6 @@
 "use client";
 
-import VenturePortfolioRollup from "@/components/ventures/reporting/VenturePortfolioRollup";
+import VenturePortfolioRollup from "@/components/shared/ventures/console/reporting/VenturePortfolioRollup";
 
 /**
  * /admin/ventures/portfolio

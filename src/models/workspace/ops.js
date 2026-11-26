@@ -27,7 +27,7 @@ export async function createActivityLog(userIdentity, action) {
 /** Run row joined with its form name (export header data). */
 export async function getRunWithFormName(runId) {
   return db.execute({
-    sql: `SELECT r.id, r.name, r.status, f.name AS form_name
+    sql: `SELECT r.id, r.name, r.status, r.form_id, f.name AS form_name
             FROM platform_form_runs r LEFT JOIN platform_forms f ON f.id = r.form_id
             WHERE r.id = ?`,
     args: [runId],

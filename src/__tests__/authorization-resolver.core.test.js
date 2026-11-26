@@ -166,9 +166,12 @@ const saCtx = (overrides = {}) => ({
 });
 
 describe("authorize() — Super Admin", () => {
-  test("SA with no restriction and no grant is allowed", () => {
+  test("SA is allowed only for capabilities present in its effective matrix", () => {
     expect(authorize(saCtx(), "finance", "view")).toBe(true);
-    expect(authorize(saCtx(), "contacts", "delete")).toBe(true);
+    // A capability absent from the owner's matrix is DENIED — the role is no
+    // longer an implicit allow-all. This is what makes a revocation from the
+    // Permissions screen effective for a Super Admin.
+    expect(authorize(saCtx(), "contacts", "delete")).toBe(false);
   });
 
   test("SA with an explicit restriction is DENIED", () => {
@@ -177,13 +180,13 @@ describe("authorize() — Super Admin", () => {
     expect(authorize(ctx, "finance", "create")).toBe(true); // unrelated cap unaffected
   });
 
-  test("SA with an explicit grant below minLevel is DENIED (V2 edge case)", () => {
-    const ctx = saCtx({ grants: { finance: { view: 0 } } });
-    expect(authorize(ctx, "finance", "view")).toBe(false);
+  test("SA below the required level is DENIED", () => {
+    const ctx = saCtx({ effective: { finance: { view: 1 } } });
+    expect(authorize(ctx, "finance", "view", 2)).toBe(false);
   });
 
-  test("SA with an explicit grant at/above minLevel is allowed", () => {
-    const ctx = saCtx({ grants: { finance: { view: 2 } } });
+  test("SA at/above the required level is allowed", () => {
+    const ctx = saCtx({ effective: { finance: { view: 2 } } });
     expect(authorize(ctx, "finance", "view", 2)).toBe(true);
   });
 });

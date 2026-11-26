@@ -23,7 +23,7 @@ jest.mock("@/lib/db", () => {
     state.calls.push({ sql, args });
     // The Venture's own facts, whatever shape of id the caller named it by.
     if (sql.includes("FROM ventures")) {
-      return { rows: [{ code: "VNT-RESOLVED", status: "active", is_archived: 0 }] };
+      return { rows: [{ id: "11111111-1111-1111-1111-111111111111", venture_id: "VNT-RESOLVED", status: "active", is_archived: 0 }] };
     }
     // Membership and the delegated assignment are asked in ONE statement.
     if (sql.includes("FROM venture_members") || sql.includes("venture_staff_assignments")) {
@@ -94,9 +94,9 @@ describe("isStaffActorForVenture", () => {
     const allowed = await isStaffActorForVenture("11111111-1111-1111-1111-111111111111", { role: "staff", cid: "S-1" });
     expect(allowed).toBe(true);
     expect(db.calls[0].args[0]).toBe("11111111-1111-1111-1111-111111111111");
-    // Second call is the assignment lookup against the resolved VNT code.
+    // The relationship read keys on the INTERNAL id, resolved by the facts read.
     expect(db.calls[1].sql).toContain("venture_staff_assignments");
-    expect(db.calls[1].args[0]).toBe("VNT-RESOLVED");
+    expect(db.calls[1].args[0]).toBe("11111111-1111-1111-1111-111111111111");
   });
 
   it("denies when there is no session", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import CourseEditor from "@/components/lms/CourseEditor";
+import CourseEditor from "@/components/shared/lms/CourseEditor";
 
 /**
  * ADMIN — COURSE (view + edit)

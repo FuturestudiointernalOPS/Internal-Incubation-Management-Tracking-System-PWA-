@@ -9,8 +9,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
 const { I18nProvider } = require("@/lib/i18n");
-const HealthSummary = require("@/components/ventures/venture-dashboard/HealthSummary").default;
-const EvidenceBreakdown = require("@/components/ventures/venture-dashboard/EvidenceBreakdown").default;
+const HealthSummary = require("@/components/shared/ventures/console/venture-dashboard/HealthSummary").default;
+const EvidenceBreakdown = require("@/components/shared/ventures/console/venture-dashboard/EvidenceBreakdown").default;
 
 const readiness = {
   score: 19,

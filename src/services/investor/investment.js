@@ -100,7 +100,7 @@ export async function runInvestedSideEffects({
         recipient_id: investorInfo.user_id,
         venture_name: investorInfo.venture_name,
         investment_amount: investedAmount,
-        link: "/investor/dashboard",
+        link: "/member/investor/workspace",
       });
     }
 
@@ -301,7 +301,7 @@ export async function rejectInvestment({ id, reason, session }) {
         recipient_id: investorInfo.user_id,
         venture_name: investorInfo.venture_name,
         reason: trimmed.slice(0, 200),
-        link: "/investor/dashboard",
+        link: "/member/investor/workspace",
       });
     }
   } catch (_) {}

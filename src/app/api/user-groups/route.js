@@ -26,12 +26,13 @@ export async function GET(req) {
     if (!session) return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
     const { searchParams } = new URL(req.url);
     let userCid = searchParams.get("user_cid");
-    if (session.role !== "super_admin") {
-      if (userCid && String(userCid) !== String(session.cid)) {
-        return NextResponse.json({ success: false, error: "errors.ownGroupsOnly" }, { status: 403 });
-      }
-      userCid = userCid || session.cid;
+    // Reading ANOTHER person's groups is the `users.view` right, not a role
+    // property: the owner holds it by default and can have it revoked.
+    if (userCid && String(userCid) !== String(session.cid)) {
+      const authError = await requireAuthorization("users", "view");
+      if (authError) return authError;
     }
+    userCid = userCid || session.cid;
     if (!userCid) return NextResponse.json({ success: false, error: "user_cid required" }, { status: 400 });
 
     await initDb();

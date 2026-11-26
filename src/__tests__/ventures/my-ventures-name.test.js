@@ -22,10 +22,10 @@ const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relative
 
 describe("My Ventures shows the company name", () => {
   test("the card resolves the name company_name-first", () => {
-    const src = read("src/app/participant/ventures/page.js");
-    expect(src).toMatch(/\{venture\.company_name \|\| venture\.name\}/);
+    const src = read("src/app/member/(contexts)/participant/ventures/page.js");
+    expect(src).toMatch(/\{(?:row|venture)\.company_name \|\| (?:row|venture)\.name\b/);
     // The bare legacy column is never the card's title on its own.
-    expect(src).not.toMatch(/<h3[^>]*>\{venture\.name\}<\/h3>/);
+    expect(src).not.toMatch(/<h3[^>]*>\{(?:row|venture)\.name\}<\/h3>/);
   });
 
   test("a rename keeps the legacy name column in step with company_name", () => {

@@ -199,3 +199,22 @@ describe("Responsibility Access — roles are bounded by feature eligibility", (
     expect(eligibleRolesForFeature(denied, "finance")).toEqual([]);
   });
 });
+
+describe("Responsibility Access — the warning reads only the saved configuration", () => {
+  const { isResponsibilityBlockedForRole } = require("@/lib/featureAccess");
+
+  test("an unconfigured responsibility never warns (no code fallback)", () => {
+    expect(isResponsibilityBlockedForRole("member", "crm", null)).toBe(false);
+    expect(isResponsibilityBlockedForRole("member", "crm", undefined)).toBe(false);
+  });
+
+  test("a configured list warns when the role is absent", () => {
+    expect(isResponsibilityBlockedForRole("member", "crm", JSON.stringify(["staff"]))).toBe(true);
+    expect(isResponsibilityBlockedForRole("staff", "crm", JSON.stringify(["staff"]))).toBe(false);
+  });
+
+  test("an explicit empty list means nobody, so every role warns", () => {
+    expect(isResponsibilityBlockedForRole("member", "crm", JSON.stringify([]))).toBe(true);
+    expect(isResponsibilityBlockedForRole("staff", "crm", JSON.stringify([]))).toBe(true);
+  });
+});

@@ -88,6 +88,22 @@ export async function createFamilyFormField(formId, sectionId, field) {
   });
 }
 
+/**
+ * The existing group with the same trimmed, case-insensitive name, if any.
+ * `families.name` is what contacts are filed under, so a second row with the
+ * same name is the SAME group, not a new one. Used as the duplicate guard at
+ * creation time. A program-bound row wins over a program-less one.
+ */
+export async function findFamilyByName(name) {
+  return db.execute({
+    sql: `SELECT * FROM families
+          WHERE UPPER(TRIM(name)) = UPPER(TRIM(?))
+          ORDER BY (program_id IS NULL) ASC, created_at ASC
+          LIMIT 1`,
+    args: [name],
+  });
+}
+
 /** Create the family row; caller keeps the returned lastInsertRowid. */
 export async function createFamily({
   name,

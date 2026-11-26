@@ -13,14 +13,14 @@ const path = require("path");
 
 const EN = require("@/locales/en/engineering.json");
 const FR = require("@/locales/fr/engineering.json");
-const { PERMISSION_NAV } = require("@/components/permissions/permissionNav");
-const { CENTER_TABS } = require("@/components/permissions/center/centerNav");
+const { PERMISSION_NAV } = require("@/spaces/admin/permissions/permissionNav");
+const { CENTER_TABS } = require("@/spaces/admin/permissions/center/centerNav");
 
 const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
-const PERMS = "src/components/permissions/";
+const PERMS = "src/spaces/admin/permissions/";
 const SECTION = `${PERMS}center/sections/ProfilesSection.js`;
 const CREATE = `${PERMS}center/drawers/CreateProfileDrawer.js`;
 const FEATURE = `${PERMS}center/drawers/ProfileFeatureDrawer.js`;

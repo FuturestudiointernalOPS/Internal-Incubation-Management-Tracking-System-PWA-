@@ -271,7 +271,7 @@ export async function getProgramMetrics() {
 /**
  * CRM: contact registry + invitation/activation funnel.
  *
- * Mirrors EXACTLY what the CRM page (/admin/communications/contacts) shows —
+ * Mirrors EXACTLY what the CRM page (/admin/communication/contacts) shows —
  * contacts that are neither archived nor soft-deleted, with invitation status
  * derived the same way as attachInvitationStatus/deriveInvitationStatus:
  *  - activated   -> status 'active' OR a password is set

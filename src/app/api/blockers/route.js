@@ -7,6 +7,10 @@ import {
   listBlockers,
   updateBlockerRecord,
 } from "@/services/tasks/blockers";
+import {
+  getAuthorizationContext,
+  authorize,
+} from "@/models/authorization/index";
 
 /**
  * BLOCKERS API — controller layer.
@@ -50,6 +54,12 @@ export async function GET(req) {
         user_id: searchParams.get("user_id"),
         status: searchParams.get("status"),
       },
+      // The cross-person read is the `tasks.view_all` right, resolved here.
+      canSeeAll: authorize(
+        await getAuthorizationContext(session),
+        "tasks",
+        "view_all",
+      ),
     });
     if (result.error) {
       return NextResponse.json(

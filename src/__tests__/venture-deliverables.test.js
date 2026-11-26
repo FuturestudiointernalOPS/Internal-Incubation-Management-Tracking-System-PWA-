@@ -21,6 +21,16 @@ jest.mock("@/lib/db", () => {
 
 const { __state: mockState } = require("@/lib/db");
 
+// The definition authority reads the explicit portfolio WRITE right (a revocable
+// right, not a role bypass) before falling back to the assignment matrix.
+jest.mock("@/services/ventures/portfolioAccess", () => ({
+  resolveVenturePortfolioAccess: jest.fn(async ({ session }) => ({
+    allowed: session?.role === "super_admin",
+  })),
+  holdsExplicitCapability: jest.fn(() => false),
+  holdsVenturePortfolioRight: jest.fn(() => false),
+}));
+
 const VENTURE = "VNT-1";
 const MILESTONE = "MS-1";
 const STAGE = "ST-1";
@@ -63,7 +73,14 @@ function db({ assignments = [], lead = false, failAssignments = false } = {}) {
 describe("deliverable definition authority (Venture Manager / Super Admin)", () => {
   test("super_admin may define", async () => {
     db();
-    expect(await canDefineDeliverables({ id: VENTURE, cid: "u1", role: "super_admin" })).toBe(true);
+    expect(
+      await canDefineDeliverables({
+        id: VENTURE,
+        cid: "u1",
+        role: "super_admin",
+        session: { cid: "u1", role: "super_admin" },
+      }),
+    ).toBe(true);
   });
 
   test("an assigned Venture Manager may define", async () => {

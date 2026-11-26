@@ -15,8 +15,8 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const SectionResourcesEditor = require("@/components/lms/SectionResourcesEditor").default;
-const { discardUnsavedUploads } = require("@/components/lms/SectionResourcesEditor");
+const SectionResourcesEditor = require("@/components/shared/lms/SectionResourcesEditor").default;
+const { discardUnsavedUploads } = require("@/components/shared/lms/SectionResourcesEditor");
 const { DialogProvider } = require("@/components/ui/DialogProvider");
 
 const COURSE = "C-1";

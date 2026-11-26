@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { Loader2, Send, CheckCircle2 } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { cacheGet, cacheSet } from "@/lib/hooks/useApi";
+import AppCountrySelect from "@/components/ui/AppCountrySelect";
 
 export default function JoinGroupPage() {
   const { t } = useI18n();
@@ -116,7 +117,7 @@ export default function JoinGroupPage() {
         await fetch("/api/contacts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, email, group_name: group.name, role: "applicant" }),
+          body: JSON.stringify({ name, email, group_name: group.name, role: "member" }),
         });
       }
 
@@ -203,6 +204,14 @@ export default function JoinGroupPage() {
                     rows={3}
                     className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)]"
                     placeholder={field.placeholder || ""}
+                  />
+                ) : field.field_type === "country" ? (
+                  <AppCountrySelect
+                    required={field.required}
+                    value={formData[field.id] || ""}
+                    onChange={value => updateField(field.id, value)}
+                    className="w-full bg-tertiary border border-[var(--border-primary)] rounded-xl px-4 py-3 text-sm outline-none focus:border-[var(--brand-orange)]"
+                    placeholder={field.placeholder || undefined}
                   />
                 ) : (
                   <input

@@ -1,0 +1,407 @@
+"use client";
+
+import { createPortal } from "react-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  HelpCircle,
+  AlertCircle,
+  ListVideo,
+  Film,
+  Lock,
+} from "lucide-react";
+import AppButton from "@/components/ui/AppButton";
+import EmbeddedVideo from "./EmbeddedVideo";
+import LessonStateIcon from "./LessonStateIcon";
+import LearnerProgressBar from "./LearnerProgressBar";
+import LearnerCoachingButton from "./LearnerCoachingButton";
+import SectionResourcesList from "./SectionResourcesList";
+import CourseContent from "./learner-player/CourseContent";
+import { notify } from "./notify";
+import { useI18n } from "@/lib/i18n";
+import RichTextContent from "@/components/ui/RichTextContent";
+import { isValidYouTubeVideoId } from "@/models/lms/youtube";
+import { useApi } from "@/lib/hooks/useApi";
+
+/**
+ * COURSE PLAYER (learner).
+ * - Embedded YouTube (youtube-nocookie iframe) built from the stored video ID
+ *   only — the learner never leaves ImpactOS and never sees a raw URL.
+ * - Manual "Mark Lesson Complete" (explicit completion; YouTube playback events
+ *   are deliberately NOT relied on — the learner can never get stuck).
+ * - Progress persists server-side via /api/lms/lessons/[id]/complete.
+ * - Desktop: video + course-content sidebar. Mobile: stacked with collapsible
+ *   content panel.
+ */
+
+// ─── Module-scope reader ─────────────────────────────────────────────────────
+// The reading hook keys its internal work on this, so it is built once here
+// rather than on every render.
+
+const EMPTY_COURSE = { payload: null, failure: null };
+
+/**
+ * The course being played, together with the message for a read that failed.
+ * The loader reported both ways of failing as one message — the payload refusing,
+ * or a request that never got an answer — and the screen still shows one panel.
+ */
+const pickCourse = (data) =>
+  data?.success
+    ? { payload: data, failure: null }
+    : { payload: null, failure: data?.error || "lms.errors.loadFailedCourse" };
+
+export default function LearnerPlayer({ courseId, lessonId }) {
+  const { t } = useI18n();
+  const router = useRouter();
+  const [completing, setCompleting] = useState(false);
+  const [justCompleted, setJustCompleted] = useState(false);
+  const [contentOpen, setContentOpen] = useState(false);
+  const completeTimer = useRef(null);
+
+  useEffect(() => () => clearTimeout(completeTimer.current), []);
+
+  // The course is read through the shared hook, which owns the cache, the
+  // cache-first paint and the discarding of a stale answer, so the player keeps
+  // no copy of its own. Its address is the course, so moving to another course
+  // re-reads by itself; marking a lesson complete re-reads through `refresh`,
+  // which bypasses the cache.
+  const {
+    data: courseRead,
+    loading,
+    error: readError,
+    refresh,
+  } = useApi(`/api/lms/courses/${courseId}/learn`, {
+    defaultValue: EMPTY_COURSE,
+    transform: pickCourse,
+    deps: [courseId],
+  });
+  const data = courseRead.payload;
+  // A request that never got an answer shows the screen's message, not the
+  // browser's raw (English) network error.
+  const error = courseRead.failure || (readError ? "lms.errors.loadFailedCourse" : null);
+
+  // Ordered lesson list for prev/next navigation (assessments are not lessons).
+  const lessons = useMemo(() => {
+    if (!data) return [];
+    return data.sections.flatMap((section) => section.lessons || []);
+  }, [data]);
+
+  const currentIndex = lessons.findIndex((lesson) => String(lesson.id) === String(lessonId));
+  const lesson = currentIndex >= 0 ? lessons[currentIndex] : null;
+  const prevLesson = currentIndex > 0 ? lessons[currentIndex - 1] : null;
+  const nextLesson = currentIndex >= 0 && currentIndex < lessons.length - 1 ? lessons[currentIndex + 1] : null;
+
+  const isCompleted = !!lesson && lesson.state === "completed";
+
+  const complete = async () => {
+    if (!lesson || isCompleted || completing || justCompleted) return;
+    setCompleting(true);
+    try {
+      const res = await fetch(`/api/lms/lessons/${lesson.id}/complete`, { method: "POST" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "lms.errors.saveFailed");
+      // Update the page behind the overlay, then confirm with the check badge.
+      await refresh();
+      setCompleting(false);
+      setJustCompleted(true);
+      if (json.courseCompleted && json.certificate) {
+        notify("success", "lms.certificate.courseCompleted");
+      }
+      completeTimer.current = setTimeout(() => setJustCompleted(false), 2600);
+    } catch (error) {
+      setCompleting(false);
+      notify("error", "lms.player.saveProgressFailed");
+      console.error("[LMS] complete error:", error);
+    }
+  };
+
+  const goToLesson = (targetLesson) =>
+    router.push(`/member/participant/learning/${courseId}/lessons/${targetLesson.id}`);
+
+  const openAssessment = (assessmentId) =>
+    router.push(`/member/participant/learning/${courseId}/assessments/${assessmentId}`);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-24">
+        <div className="w-6 h-6 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error || !data || !lesson) {
+    return (
+      <div className="flex flex-col items-center gap-4 py-24 text-center">
+        <AlertCircle className="w-8 h-8 text-rose-500" />
+        <p className="text-xs font-bold uppercase tracking-wider max-w-sm" style={{ color: "var(--text-secondary)" }}>
+          {t(error === "lms.errors.notEnrolled" ? "lms.player.noAccess" : error || "lms.errors.loadFailedCourse")}
+        </p>
+        <AppButton variant="secondary" onClick={() => router.push("/member/participant/learning")}>
+          {t("lms.learning.title")}
+        </AppButton>
+      </div>
+    );
+  }
+
+  const { course, progress } = data;
+  const videoId = isValidYouTubeVideoId(lesson.youtube_video_id) ? lesson.youtube_video_id : null;
+
+  // The assessment that follows this lesson, when there is one: the current
+  // section's assessment after its last lesson, else the first course-level
+  // assessment after the very last lesson. Surfaced as its own CTA so the
+  // learner does not have to find it in the sidebar.
+  const currentSection = data.sections.find((section) =>
+    (section.lessons || []).some((lesson) => String(lesson.id) === String(lessonId)),
+  );
+  const isSectionLast =
+    !!currentSection &&
+    currentSection.lessons.length > 0 &&
+    String(currentSection.lessons[currentSection.lessons.length - 1].id) === String(lessonId);
+  const isCourseLast = currentIndex >= 0 && currentIndex === lessons.length - 1;
+  const upcomingAssessment =
+    isSectionLast && currentSection?.assessment
+      ? currentSection.assessment
+      : isCourseLast && (data.courseAssessments || []).length > 0
+        ? data.courseAssessments[0]
+        : null;
+
+  return (
+    <div className="relative max-w-6xl mx-auto space-y-4">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => router.push(`/member/participant/learning/${course.id}`)}
+          className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest self-start transition-colors"
+          style={{ color: "var(--text-tertiary)" }}
+        >
+          ← {course.title}
+        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Phase 8 — ask for coaching right where the learner is stuck. */}
+          <LearnerCoachingButton courseId={course.id} lessonId={lesson.id} />
+          <div className="w-32">
+            <LearnerProgressBar percent={progress.percent} label={`${course.title} ${progress.percent}%`} />
+          </div>
+          <span className="text-xs font-black" style={{ color: "var(--text-primary)" }}>
+            {progress.percent}%
+          </span>
+        </div>
+      </div>
+
+      {/* Completed banner */}
+      {progress.complete && (
+        <div
+          className="flex items-center gap-3 rounded-xl border px-4 py-3"
+          style={{ background: "rgba(16,185,129,0.06)", borderColor: "rgba(16,185,129,0.25)" }}
+        >
+          <CheckCircle2 className="w-5 h-5 shrink-0" style={{ color: "var(--chart-success)" }} />
+          <p className="text-xs font-black uppercase tracking-wider" style={{ color: "var(--chart-success)" }}>
+            {t("lms.player.courseCompletedBanner")}
+          </p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-5">
+        {/* Main column */}
+        <div className="space-y-4 min-w-0">
+          {/* Video — the shared embed, mounted per lesson so another lesson
+              starts on its own poster. */}
+          {videoId ? (
+            <EmbeddedVideo
+              key={lesson.id}
+              videoId={videoId}
+              title={lesson.title}
+              playLabel={t("lms.player.playVideo")}
+            />
+          ) : (
+            <div
+              className="relative w-full overflow-hidden rounded-2xl border"
+              style={{ aspectRatio: "16 / 9", background: "#000", borderColor: "var(--border-primary)" }}
+            >
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                <Film className="w-10 h-10" style={{ color: "var(--text-tertiary)" }} />
+                <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: "var(--text-tertiary)" }}>
+                  {t("lms.player.videoUnavailable")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Lesson meta */}
+          <div className="rounded-xl border p-5" style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}>
+            <div className="flex items-center gap-2">
+              <LessonStateIcon state={lesson.state} />
+              <h2 className="text-base font-black tracking-tight" style={{ color: "var(--text-primary)" }}>
+                {lesson.title}
+              </h2>
+            </div>
+            {lesson.description && (
+              <RichTextContent
+                value={lesson.description}
+                className="text-xs mt-2"
+                style={{ color: "var(--text-secondary)" }}
+              />
+            )}
+
+            {/* Controls */}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <AppButton
+                variant="secondary"
+                icon={ChevronLeft}
+                disabled={!prevLesson}
+                onClick={() => prevLesson && goToLesson(prevLesson)}
+              >
+                {t("lms.player.previous")}
+              </AppButton>
+
+              {isCompleted ? (
+                <AppButton variant="success" icon={CheckCircle2} disabled>
+                  {t("lms.player.completed")}
+                </AppButton>
+              ) : (
+                <AppButton variant="primary" icon={CheckCircle2} loading={completing} onClick={complete}>
+                  {t("lms.player.markComplete")}
+                </AppButton>
+              )}
+
+              <AppButton
+                variant="secondary"
+                icon={ChevronRight}
+                disabled={!nextLesson}
+                onClick={() => nextLesson && goToLesson(nextLesson)}
+              >
+                {t("lms.player.next")}
+              </AppButton>
+            </div>
+          </div>
+
+          {/* Section context — the description the author wrote for this
+              section and the material attached to it, so the learner reads and
+              opens what the section is about while they work through it. */}
+          {currentSection &&
+            (currentSection.description || (currentSection.resources || []).length > 0) && (
+              <div
+                className="rounded-xl border p-5 space-y-3"
+                style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+              >
+                <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                  {currentSection.title}
+                </p>
+                {currentSection.description && (
+                  <RichTextContent
+                    value={currentSection.description}
+                    className="text-xs"
+                    style={{ color: "var(--text-secondary)" }}
+                  />
+                )}
+                {(currentSection.resources || []).length > 0 && (
+                  <SectionResourcesList resources={currentSection.resources} />
+                )}
+              </div>
+            )}
+
+          {/* Material attached to THIS lesson */}
+          {(lesson.resources || []).length > 0 && (
+            <div
+              className="rounded-xl border p-5 space-y-3"
+              style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+            >
+              <SectionResourcesList resources={lesson.resources} />
+            </div>
+          )}
+
+          {/* Up-next assessment CTA (last lesson of a section / of the course) */}
+          {upcomingAssessment && (
+            <div
+              className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border px-4 py-3"
+              style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+            >
+              <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <HelpCircle className="w-5 h-5 shrink-0" style={{ color: "var(--brand-blue)" }} />
+                <div className="min-w-0">
+                  <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: "var(--text-tertiary)" }}>
+                    {t("lms.player.upNext")}
+                  </p>
+                  <p className="text-xs font-black truncate" style={{ color: "var(--text-primary)" }}>
+                    {upcomingAssessment.title}
+                  </p>
+                </div>
+              </div>
+              {upcomingAssessment.locked ? (
+                <AppButton variant="secondary" icon={Lock} disabled title={t("lms.assessment.lockedHint")}>
+                  {t("lms.assessment.locked")}
+                </AppButton>
+              ) : upcomingAssessment.passed ? (
+                <AppButton variant="success" icon={CheckCircle2} disabled>
+                  {t("lms.assessment.passed")}
+                </AppButton>
+              ) : (
+                <AppButton
+                  variant="primary"
+                  icon={HelpCircle}
+                  onClick={() => openAssessment(upcomingAssessment.id)}
+                >
+                  {upcomingAssessment.attempted
+                    ? t("lms.assessment.tryAgain")
+                    : t("lms.player.startAssessment")}
+                </AppButton>
+              )}
+            </div>
+          )}
+
+          {/* Mobile content toggle */}
+          <button
+            type="button"
+            onClick={() => setContentOpen((prev) => !prev)}
+            className="lg:hidden w-full flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-[10px] font-black uppercase tracking-widest"
+            style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)", color: "var(--text-secondary)" }}
+          >
+            <ListVideo className="w-4 h-4" />
+            {t("lms.player.courseContent")}
+          </button>
+          {contentOpen && <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={goToLesson} onOpenAssessment={openAssessment} />}
+        </div>
+
+        {/* Sidebar (desktop) */}
+        <div className="hidden lg:block">
+          <CourseContent data={data} courseId={course.id} currentLessonId={lesson.id} onSelect={goToLesson} onOpenAssessment={openAssessment} />
+        </div>
+      </div>
+
+      {/* In-place completion feedback: blur the whole screen, confirm, then fade back. */}
+      {(completing || justCompleted) && typeof document !== "undefined" && createPortal(
+        <div
+          className="fixed inset-0 z-[400] flex items-center justify-center"
+          style={{ background: "rgba(127,127,127,0.12)", backdropFilter: "blur(3px)" }}
+          aria-live="polite"
+        >
+          <div
+            className="flex items-center gap-3 rounded-2xl border px-6 py-4"
+            style={{ background: "var(--surface-1)", borderColor: "var(--border-primary)" }}
+          >
+            {completing ? (
+              <>
+                <span className="w-5 h-5 border-2 border-[var(--brand-orange)] border-t-transparent rounded-full animate-spin shrink-0" />
+                <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--text-secondary)" }}>
+                  {t("lms.player.saving")}
+                </p>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-6 h-6 shrink-0" style={{ color: "var(--chart-success)" }} />
+                <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: "var(--chart-success)" }}>
+                  {t("lms.player.lessonCompleted")}
+                </p>
+              </>
+            )}
+          </div>
+        </div>,
+        document.body,
+      )}
+    </div>
+  );
+}

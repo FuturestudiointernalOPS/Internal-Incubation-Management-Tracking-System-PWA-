@@ -1,9 +1,9 @@
 /**
  * The program-detail screen wiring.
  *
- * The screen (`src/components/admin/programs/ProgramDetail.js`) keeps the state,
+ * The screen (`src/spaces/admin/components/programs/ProgramDetail.js`) keeps the state,
  * the reads and the KPI/follow-up handlers; its markup lives in
- * `src/components/admin/programs/ProgramDetailView.js`, which reads everything
+ * `src/spaces/admin/components/programs/ProgramDetailView.js`, which reads everything
  * through one `ctx` object the screen builds by hand. No behavioural test
  * renders the screen, so a key that stops being declared - or a name the view
  * reads that the screen never puts in `ctx` - is invisible. This suite pins the
@@ -14,8 +14,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const ROOT = path.join(__dirname, "..");
-const PARENT = path.join(ROOT, "components", "admin", "programs", "ProgramDetail.js");
-const VIEW = path.join(ROOT, "components", "admin", "programs", "ProgramDetailView.js");
+const PARENT = path.join(ROOT, "spaces", "admin", "components", "programs", "ProgramDetail.js");
+const VIEW = path.join(ROOT, "spaces", "admin", "components", "programs", "ProgramDetailView.js");
 
 const read = (file) => fs.readFileSync(file, "utf8");
 

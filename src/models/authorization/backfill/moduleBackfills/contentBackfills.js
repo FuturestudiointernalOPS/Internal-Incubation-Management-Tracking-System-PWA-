@@ -143,7 +143,7 @@ async function ensureAnnouncementsBackfill() {
 }
 
 // ─── Communication: Forms module ─────────────────────────────────────────────
-// The Forms builder (/platform/forms, /api/platform/forms) was guarded by a
+// The Forms builder (/admin/communication/forms/list, /api/platform/forms) was guarded by a
 // legacy role allowlist: reads allowed super_admin / staff, writes
 // super_admin. The module is now capability-gated
 // (forms.view/create/edit/delete) so it is configurable from the Permissions

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import StaffDashboard from "@/components/staff/StaffDashboard";
+import StaffDashboard from "@/spaces/staff/core/components/StaffDashboard";
 
 /**
  * STAFF DASHBOARD — the ONE dashboard for this surface.

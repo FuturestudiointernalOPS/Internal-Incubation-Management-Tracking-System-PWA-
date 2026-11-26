@@ -42,7 +42,7 @@ async function ensureLmsCapabilityRetirement() {
 // ─── Phase 12b: LMS view for the Program Manager profile ─────────────────────
 // The LMS section was promoted to a capability-grantable feature: every course
 // and program-learning route is gated on `lms.view` (the PM surface lives at
-// /pm/lms/courses, and the program workspace renders a learning section per
+// /staff/program-manager/lms/courses, and the program workspace renders a learning section per
 // session). `seedDefaultAccessProfiles` adds `lms: { view: 1 }` to the
 // "Program Manager" profile, but seeds only ever CREATE — a database seeded
 // before the promotion keeps a Program Manager profile with no `lms` row, so

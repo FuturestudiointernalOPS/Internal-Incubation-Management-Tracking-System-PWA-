@@ -7,8 +7,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 const { I18nProvider } = require("@/lib/i18n");
-const ContactLeadModal = require("@/components/ventures/support/ContactLeadModal").default;
-const VentureSupportCard = require("@/components/ventures/support/VentureSupportCard").default;
+const ContactLeadModal = require("@/components/shared/ventures/console/support/ContactLeadModal").default;
+const VentureSupportCard = require("@/components/shared/ventures/console/support/VentureSupportCard").default;
 const { clearResponseCache } = require("@/lib/hooks/useApi");
 
 const harry = { id: 1, name: "Harry", email: "h@x.org", reachable: true, has_account: true, active: true, responsibility_code: "venture_manager" };

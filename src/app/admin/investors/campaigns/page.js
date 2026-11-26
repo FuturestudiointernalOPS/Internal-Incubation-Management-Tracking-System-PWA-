@@ -12,7 +12,7 @@ import AppButton from "@/components/ui/AppButton";
 import { useI18n } from "@/lib/i18n";
 import { useApiMulti } from "@/lib/hooks/useApi";
 import { useDialogs } from "@/components/ui/DialogProvider";
-import { notify } from "@/components/staff/notify";
+import { notify } from "@/components/shared/notify";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on the list below, so it is built once

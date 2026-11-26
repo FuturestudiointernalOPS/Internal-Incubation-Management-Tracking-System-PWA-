@@ -22,7 +22,7 @@ describe("UI-2a — routes and active wiring", () => {
   });
 
   test("the active person detail uses the real scope-check decision", () => {
-    const src = read("src/components/permissions/center/sections/PersonDetail.js");
+    const src = read("src/spaces/admin/permissions/center/sections/PersonDetail.js");
     expect(src).toContain("/api/engineering/permissions/scope-check");
   });
 });

@@ -7,27 +7,11 @@ import {
   resolveSectionExpanded,
   nextExplicitState,
 } from "@/components/layout/sidebarMenu";
-import { tnav } from "./navigation";
-import {
-  carriesContextualValue,
-  holdsProfile,
-  isMemberSurfaceRole,
-  normalizeRole,
-  PROGRAM_MANAGER_PROFILE,
-} from "@/lib/identity";
+import { tnav, profileHrefFor } from "./navigation";
+import { isMemberSurfaceRole } from "@/lib/identity";
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, User, LogOut, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-
-// The profile page lives in the person's own SECTION. This is a ROUTING table
-// (where the page is), never a permission decision: each section gates its own
-// profile page server-side. `program_manager` stays for the D-1 rollback.
-const PROFILE_SECTION = {
-  super_admin: "admin",
-  program_manager: "pm",
-  facilitator: "facilitator",
-  investor: "investor",
-};
 
 // A group unfolds only when it is clicked: touching it with the pointer must
 // not open it. (The collapsed rail's flyout is a separate, hover-driven surface.)
@@ -52,25 +36,9 @@ export const SidebarContent = ({
   unreadByType,
   hasCommunicationActivity,
 }) => {
-  const participant = pathname?.startsWith("/participant") || pathname?.startsWith("/founder");
-  // D-1 — a staff identity carrying the program-manager PROFILE belongs in the
-  // PM space; the role alone no longer says so. The legacy value stays in the
-  // table for the rollback.
-  const profileSection =
-    holdsProfile(profiles, PROGRAM_MANAGER_PROFILE) &&
-    normalizeRole(role) === "staff"
-      ? "pm"
-      : PROFILE_SECTION[normalizeRole(role)] || "participant";
-  // Approved investors are stored as `member` + relationship, so the role table
-  // alone would send Profil to /participant/profile (generic program view).
-  // Investor OS uses /investor/profile (org, preferences, NDA entry).
-  const investorAccount =
-    pathname?.startsWith("/investor") ||
-    carriesContextualValue(role, "investor") ||
-    Boolean(relationships?.isInvestor);
-  const profileHref = investorAccount
-    ? "/investor/profile"
-    : `/${profileSection}/profile`;
+  const participant = pathname?.startsWith("/member/participant") || pathname?.startsWith("/member/founder");
+  const profileHref = pathname?.startsWith("/member/investor")
+    ? "/member/investor/profile" : profileHrefFor(role, profiles);
 
   const [flyout, setFlyout] = useState(null); // { id, top } — collapsed-rail flyout
   const flyoutTimer = useRef(null);

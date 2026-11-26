@@ -215,13 +215,13 @@ describe("UI-4c — the screens use them", () => {
   });
 
   test("the person detail renders the contexts panel", () => {
-    const src = read("src/components/permissions/center/sections/PersonDetail.js");
+    const src = read("src/spaces/admin/permissions/center/sections/PersonDetail.js");
     expect(src).toContain("context.contexts");
     expect(src).toContain("center.noContexts");
   });
 
   test("the eligibility matrix lists baseline roles and profiles", () => {
-    const rules = read("src/components/permissions/center/sections/RulesSection.js");
+    const rules = read("src/spaces/admin/permissions/center/sections/RulesSection.js");
     expect(rules).toContain("eligibility?.roles");
     expect(rules).toContain("eligibility?.profiles");
     expect(rules).toContain("eligibilityProfileTag");

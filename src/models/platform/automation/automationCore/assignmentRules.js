@@ -15,7 +15,7 @@ export const assignmentRules = [
           userId: assignment.target_id,
           title: "New Form Assigned",
           body: `You have been assigned to "${run?.name || "a form run"}". Please complete your submission.`,
-          actionUrl: `/platform/runs/submit/${run?.id}`,
+          actionUrl: `/admin/communication/forms/runs/submit/${run?.id}`,
           type: "assignment",
         });
       }

@@ -1,6 +1,6 @@
 "use client";
 
-import ProgramDetail from "@/components/admin/programs/ProgramDetail";
+import ProgramDetail from "@/spaces/admin/components/programs/ProgramDetail";
 
 export default function ProgramDetailPage({ params }) {
   return <ProgramDetail params={params} />;

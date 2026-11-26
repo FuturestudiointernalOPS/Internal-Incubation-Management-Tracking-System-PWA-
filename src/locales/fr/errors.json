@@ -20,7 +20,7 @@
     "somethingWrong": "Une erreur est survenue. Veuillez réessayer.",
     "taskCreateFailed": "Impossible de créer la tâche.",
     "authRequired": "Authentification requise.",
-    "ndaRequired": "Acceptez le NDA pour continuer.",
+    "investorProfileRequired": "Un profil investisseur est requis pour cette action.",
     "insufficientPermissions": "Vous n'avez pas les permissions requises pour cette action. Contactez un administrateur pour demander l'accès.",
     "outOfAssignmentScope": "Cet élément appartient à une autre partie du venture. Vous pouvez le consulter, mais pas le modifier.",
     "forbidden": "Vous n'êtes pas autorisé à effectuer cette action.",
@@ -149,6 +149,7 @@
     "journeyDeletePlatformOwnerOnly": "Seul un administrateur de la plateforme peut supprimer définitivement un parcours. Archivez-le plutôt.",
     "ventureLifecycleDenied": "Seul le personnel assigné à la venture peut changer son cycle de vie.",
     "startupProfileAccessDenied": "Vous n'êtes pas autorisé à accéder à ce profil de startup.",
-    "featureRetired": "Cette fonctionnalité a été retirée et n'est plus accessible."
+    "featureRetired": "Cette fonctionnalité a été retirée et n'est plus accessible.",
+    "ndaRequired": "Acceptez le NDA pour continuer."
   }
 }

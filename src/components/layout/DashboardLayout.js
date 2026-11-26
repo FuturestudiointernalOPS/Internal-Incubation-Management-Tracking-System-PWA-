@@ -98,7 +98,11 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const { lang, t, switchLang } = useI18n();
   const router = useRouter();
   const pathname = usePathname();
-  const participantSurface = pathname?.startsWith("/participant") || pathname?.startsWith("/founder");
+  const participantSurface =
+    pathname?.startsWith("/member/participant") ||
+    pathname?.startsWith("/member/founder") ||
+    pathname === "/member/dashboard" ||
+    pathname?.startsWith("/member/dashboard");
   const participantCollapsed = useSyncExternalStore(subscribeParticipantCollapse, readParticipantCollapse, expandedServerSnapshot);
   const collapsed = participantSurface ? participantCollapsed : legacyCollapsed;
   const setCollapsed = participantSurface ? writeParticipantCollapse : setLegacyCollapsed;
@@ -200,6 +204,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             email: sessionData.user.email,
             role: sessionData.user.role,
             group_name: sessionData.user.group_name,
+            image: sessionData.user.image,
           };
           publishUser(userWithFullData);
 
@@ -372,6 +377,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
       pmPrograms,
       ventureAssignCount,
       relationships,
+      profiles: activeProfiles,
     });
 
   const handleLogout = async () => {
@@ -443,8 +449,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
   const isFullWidth =
     fullWidth ||
     (typeof pathname === "string" &&
-      (pathname.startsWith("/admin/communications/contacts") ||
-        pathname.startsWith("/crm/contacts")));
+      (pathname.startsWith("/admin/communication/contacts") ||
+        pathname.startsWith("/staff/crm/contacts")));
 
   if (!authChecked) {
     return <div className="min-h-screen bg-primary" />;
@@ -494,6 +500,8 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
             router={router}
             user={user}
             relationships={relationships}
+            role={activeRole}
+            profiles={activeProfiles}
             setPendingInvites={setPendingInvites}
             setPendingAssignments={setPendingAssignments}
             setMobileMenuOpen={setMobileMenuOpen}
@@ -504,7 +512,7 @@ function DashboardLayoutInner({ children, role = "super_admin", modals, fullWidt
               pinnedAnnouncements={participantSurface ? [] : pinnedAnnouncements}
               pendingInvites={pendingInvites}
               pendingAssignments={pendingAssignments}
-              onOpenAnnouncements={() => router.push("/admin/announcements")}
+              onOpenAnnouncements={() => router.push("/admin/communication/announcements")}
               onAcceptInvite={() => respondToProjectInvite("accept")}
               onDeclineInvite={() => respondToProjectInvite("decline")}
               onAcceptAssignment={() => respondToTaskAssignment("accept")}

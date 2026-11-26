@@ -39,7 +39,7 @@ export async function createInvitation({ email, name, applicationUrl, session })
   });
   const invitation = result.rows?.[0];
 
-  const base = applicationUrl || `${resolveAppUrl()}/platform`;
+  const base = applicationUrl || `${resolveAppUrl()}/admin/communication/forms`;
   const separator = base.includes("?") ? "&" : "?";
   const link = `${base}${separator}invitation=${token}`;
 

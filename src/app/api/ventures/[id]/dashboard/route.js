@@ -14,13 +14,14 @@ export const GET = createHandler(
     const { id } = await params;
     const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
     if (access.error) return access.error;
-    const { session } = access;
 
-    // Internal viewers = global Venture authority (super_admin).
+    // Internal viewers = the portfolio perimeter (the explicit
+    // `ventures.view_all` right, held by the owner's profile by default).
     // They see the INTERNAL audit stream + internal 'sa' notification feed.
     // Everyone else (Venture members, scoped staff) only ever receives
     // Venture-facing events — never the internal staff feed.
-    const isInternalViewer = ["super_admin"].includes(session?.role);
+    const isInternalViewer =
+      access.path === "super-admin" || access.path === "portfolio";
     const start = Date.now();
 
     // Every widget section (profile, team, feeds, activity, verification,

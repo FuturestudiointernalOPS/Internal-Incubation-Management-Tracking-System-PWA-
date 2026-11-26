@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  *
- * /staff/ventures/[id] — the Venture Manager's Project tab.
+ * /staff/lead-manager/ventures/[id] — the Venture Manager's Project tab.
  *
  * The Project lens (every milestone, activity and deliverable of ONE Venture)
  * existed only behind /admin, and the /admin layout admits `super_admin` alone —
@@ -31,7 +31,7 @@ jest.mock("@/lib/hooks/useSessionUser", () => ({
 
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
-const StaffVentureWorkspace = require("@/app/staff/ventures/[id]/page").default;
+const StaffVentureWorkspace = require("@/app/staff/lead-manager/ventures/[id]/page").default;
 
 const WORK_ITEMS = {
   success: true,
@@ -96,7 +96,7 @@ describe("the Venture Manager", () => {
     fireEvent.click(screen.getByRole("button", { name: /Projects/i }));
     // The tab bar is URL-driven like every other tab on this page, so opening it
     // is a navigation, not local state.
-    expect(mockReplace).toHaveBeenCalledWith("/staff/ventures/VNT-1?tab=projects", { scroll: false });
+    expect(mockReplace).toHaveBeenCalledWith("/staff/lead-manager/ventures/VNT-1?tab=projects", { scroll: false });
   });
 
   test("that tab reads THIS Venture's work items, and shows them", async () => {

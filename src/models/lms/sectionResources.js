@@ -15,6 +15,9 @@ import {
  * first-class rows instead of opaque JSON:
  *
  *   course section → lms_section_resources (kind: 'video' | 'document')
+ *                    └─ lesson_id (nullable): the material belongs to ONE LESSON of
+ *                       the section. New material is always attached to a lesson;
+ *                       rows with lesson_id NULL are the older chapter-level ones.
  *                    └─ is_recommended + recommendation_note = the
  *                       "recommended for this section" signal learners see.
  *
@@ -44,6 +47,7 @@ function parseResource(row) {
   return {
     id: row.id,
     section_id: row.section_id ?? null,
+    lesson_id: row.lesson_id ?? null,
     kind: row.kind,
     title: row.title,
     description: row.description ?? null,
@@ -135,6 +139,17 @@ async function assertSectionExists(sectionId) {
   return section;
 }
 
+/** The lesson must exist; its row tells which section the material lives under. */
+async function assertLessonExists(lessonId) {
+  const res = await db.execute({
+    sql: "SELECT id, section_id FROM lms_lessons WHERE id = ?",
+    args: [String(lessonId)],
+  });
+  const lesson = res.rows[0];
+  if (!lesson) throw new LmsError("lms.errors.lessonNotFound", 404);
+  return lesson;
+}
+
 export async function getSectionResource(resourceId) {
   const res = await db.execute({
     sql: "SELECT * FROM lms_section_resources WHERE id = ?",
@@ -147,41 +162,51 @@ export async function getSectionResource(resourceId) {
  * Resources of one section. Recommendations are always returned and flagged —
  * callers decide whether to split them into their own block.
  */
-export async function listSectionResources({ sectionId } = {}) {
+export async function listSectionResources({ sectionId, lessonId } = {}) {
+  if (lessonId) {
+    const res = await db.execute({
+      sql: `SELECT * FROM lms_section_resources
+            WHERE lesson_id = ?
+            ORDER BY position, created_at`,
+      args: [String(lessonId)],
+    });
+    return res.rows.map(parseResource);
+  }
   if (!sectionId) throw new LmsError("lms.errors.sectionNotFound", 400);
+  // Chapter-level material only (the older rows): lesson material is read by lesson.
   const res = await db.execute({
     sql: `SELECT * FROM lms_section_resources
-          WHERE section_id = ?
+          WHERE section_id = ? AND lesson_id IS NULL
           ORDER BY position, created_at`,
     args: [String(sectionId)],
   });
   return res.rows.map(parseResource);
 }
 
-/** Group a resource list by section id. */
-function groupBySection(resources) {
-  const bySection = new Map();
+/** Group a resource list by one of its id columns. */
+function groupByColumn(resources, column) {
+  const grouped = new Map();
   for (const resource of resources) {
-    const key = String(resource.section_id);
-    if (!bySection.has(key)) bySection.set(key, []);
-    bySection.get(key).push(resource);
+    if (resource[column] == null) continue;
+    const key = String(resource[column]);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(resource);
   }
-  return bySection;
+  return grouped;
 }
 
 /**
- * Every section's material for one course, grouped by section id — the read used
- * by the course structure payload, so a course page needs one query rather than
- * one per section. The section ids are resolved first (no JOIN: the domain reads
- * stay within one table each).
+ * Every material row of one course, split in two groups in a single read:
+ * `bySection` (chapter-level rows, lesson_id NULL) and `byLesson`. The section
+ * ids are resolved first (no JOIN: the domain reads stay within one table each).
  */
-export async function listSectionResourcesByCourse(courseId) {
+export async function listCourseResourceGroups(courseId) {
   const sectionsRes = await db.execute({
     sql: "SELECT id FROM lms_course_sections WHERE course_id = ?",
     args: [String(courseId)],
   });
   const sectionIds = sectionsRes.rows.map((section) => String(section.id));
-  if (sectionIds.length === 0) return new Map();
+  if (sectionIds.length === 0) return { bySection: new Map(), byLesson: new Map() };
 
   const res = await db.execute({
     sql: `SELECT * FROM lms_section_resources
@@ -189,7 +214,19 @@ export async function listSectionResourcesByCourse(courseId) {
           ORDER BY position, created_at`,
     args: sectionIds,
   });
-  return groupBySection(res.rows.map(parseResource));
+  const resources = res.rows.map(parseResource);
+  return {
+    bySection: groupByColumn(
+      resources.filter((resource) => resource.lesson_id == null),
+      "section_id",
+    ),
+    byLesson: groupByColumn(resources, "lesson_id"),
+  };
+}
+
+/** Chapter-level material of a course, grouped by section id. */
+export async function listSectionResourcesByCourse(courseId) {
+  return (await listCourseResourceGroups(courseId)).bySection;
 }
 
 /**
@@ -219,16 +256,25 @@ async function toLearnerResource(resource) {
  * for staff.
  */
 export async function learnerSectionResourcesByCourse(courseId) {
-  const grouped = await listSectionResourcesByCourse(courseId);
-  const signed = new Map();
-  for (const [sectionId, resources] of grouped) {
-    signed.set(sectionId, await Promise.all(resources.map(toLearnerResource)));
-  }
-  return signed;
+  return (await learnerCourseResourceGroups(courseId)).bySection;
+}
+
+/** Chapter-level AND lesson-level material, uploaded files signed for the moment. */
+export async function learnerCourseResourceGroups(courseId) {
+  const { bySection, byLesson } = await listCourseResourceGroups(courseId);
+  const sign = async (grouped) => {
+    const signed = new Map();
+    for (const [key, resources] of grouped) {
+      signed.set(key, await Promise.all(resources.map(toLearnerResource)));
+    }
+    return signed;
+  };
+  return { bySection: await sign(bySection), byLesson: await sign(byLesson) };
 }
 
 export async function createSectionResource({
   sectionId,
+  lessonId,
   kind,
   title,
   description,
@@ -242,10 +288,17 @@ export async function createSectionResource({
   recommendationNote,
   createdBy,
 }) {
+  // A lesson names its own section: the chapter is whatever the lesson sits in.
+  if (lessonId) {
+    const lesson = await assertLessonExists(lessonId);
+    sectionId = lesson.section_id;
+  }
   if (!sectionId) throw new LmsError("lms.errors.sectionNotFound", 400);
   await assertSectionExists(sectionId);
 
-  const position = await nextPosition("lms_section_resources", "section_id", String(sectionId));
+  const position = lessonId
+    ? await nextPosition("lms_section_resources", "lesson_id", String(lessonId))
+    : await nextPosition("lms_section_resources", "section_id", String(sectionId));
 
   const recommended = isRecommended === true;
   const resolvedSource = normalizeSource(source);
@@ -253,12 +306,13 @@ export async function createSectionResource({
 
   const res = await db.execute({
     sql: `INSERT INTO lms_section_resources
-            (section_id, kind, title, description, url,
+            (section_id, lesson_id, kind, title, description, url,
              source, storage_path, file_name, file_size, mime_type,
              is_recommended, recommendation_note, position, created_by)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     args: [
       String(sectionId),
+      lessonId ? String(lessonId) : null,
       normalizeKind(kind),
       normalizeTitle(title),
       description ? String(description).trim() : null,

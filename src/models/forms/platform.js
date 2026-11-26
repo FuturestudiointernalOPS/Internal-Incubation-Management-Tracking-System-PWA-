@@ -1,5 +1,44 @@
 import db from "@/lib/db";
 
+// ── Field-type support ──────────────────────────────────────────────────────
+//
+// Older databases were created with a CHECK that lists the accepted field
+// types. A new type ("country") would be rejected by that rule, so the rule is
+// widened once per process on the first field that needs it. Idempotent:
+// DROP … IF EXISTS, then the same constraint re-added with the full list.
+
+const PLATFORM_FORM_FIELD_TYPES = [
+  "text", "textarea", "number", "email", "phone", "date", "time",
+  "select", "radio", "checkbox", "multiselect", "file", "url",
+  "rating", "currency", "signature", "richtext", "hidden", "country",
+];
+
+let fieldTypeSupportPromise = null;
+
+export async function ensurePlatformFormFieldTypeSupport() {
+  if (!fieldTypeSupportPromise) {
+    const allowed = PLATFORM_FORM_FIELD_TYPES.map((type) => `'${type}'`).join(", ");
+    fieldTypeSupportPromise = (async () => {
+      try {
+        await db.execute({
+          sql: "ALTER TABLE platform_form_fields DROP CONSTRAINT IF EXISTS platform_form_fields_field_type_check",
+          args: [],
+        });
+        await db.execute({
+          sql: `ALTER TABLE platform_form_fields ADD CONSTRAINT platform_form_fields_field_type_check CHECK (field_type IN (${allowed}))`,
+          args: [],
+        });
+      } catch (error) {
+        // A database already carrying the widened rule is fine. A genuine
+        // failure is reported by the insert/update that follows.
+        console.warn("[forms] field-type rule not widened:", error.message);
+      }
+      return true;
+    })();
+  }
+  return fieldTypeSupportPromise;
+}
+
 // ── src/app/api/platform/forms/route.js ─────────────────────────────────────
 
 /** Platform form row matched by its text id (GET /api/platform/forms?id=X). */
@@ -84,6 +123,40 @@ export async function publishPlatformForm(formId, version) {
   });
 }
 
+/** A platform form by exact name (idempotent seeds). */
+export async function findPlatformFormByName(name) {
+  return db.execute({
+    sql: "SELECT * FROM platform_forms WHERE name = ?",
+    args: [name],
+  });
+}
+
+/** The active run of a form (idempotent seeds). */
+export async function findActivePlatformFormRun(formId) {
+  return db.execute({
+    sql: "SELECT * FROM platform_form_runs WHERE form_id = ? AND status = 'active' ORDER BY id DESC LIMIT 1",
+    args: [parseInt(formId)],
+  });
+}
+
+/** Create an active, public run for a seeded form. */
+export async function createPlatformFormRun({ formId, formVersion, name, description, settings, slug }) {
+  return db.execute({
+    sql: `INSERT INTO platform_form_runs
+            (form_id, form_version, name, description, status, settings, owner_id, created_by, public_slug, created_at, updated_at)
+          VALUES (?, ?, ?, ?, 'active', ?::jsonb, 'system', 'system', ?, NOW(), NOW())
+          RETURNING *`,
+    args: [
+      parseInt(formId),
+      formVersion || 1,
+      name,
+      description || null,
+      JSON.stringify(settings || {}),
+      slug,
+    ],
+  });
+}
+
 /** Create a new platform form, returning the full row. */
 export async function createPlatformForm({
   name,
@@ -147,6 +220,9 @@ export async function deletePlatformFormField({ formId, fieldId }) {
 
 /** Update an existing builder field. sectionId is the FK-resolved value. */
 export async function updatePlatformFormField({ formId, field, sectionId }) {
+  if ((field.field_type || "text") === "country") {
+    await ensurePlatformFormFieldTypeSupport();
+  }
   return db.execute({
     sql: `UPDATE platform_form_fields
                     SET label = ?, field_type = ?, placeholder = ?, help_text = ?, required = ?,
@@ -169,6 +245,9 @@ export async function updatePlatformFormField({ formId, field, sectionId }) {
 
 /** Insert a new builder field, returning the created row. */
 export async function createPlatformFormField({ formId, field, sectionId }) {
+  if ((field.field_type || "text") === "country") {
+    await ensurePlatformFormFieldTypeSupport();
+  }
   return db.execute({
     sql: `INSERT INTO platform_form_fields (form_id, section_id, field_type, label, placeholder, help_text, required, options, validation, conditional_logic, sort_order)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

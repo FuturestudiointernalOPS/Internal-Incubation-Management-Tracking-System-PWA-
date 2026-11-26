@@ -29,11 +29,8 @@ import {
   reparentSubtasksToTask,
   markTaskCarriedOver,
 } from "@/models/taskLifecycle";
-import {
-  seesWholePortfolio,
-  resolveListingScope,
-} from "@/services/authorization/listingScope";
-import { ownsTask } from "./access";
+import { resolveListingScope } from "@/services/authorization/listingScope";
+import { ownsTask, resolveTaskActAny } from "./access";
 
 /** The tasks a caller may carry over this week, each with its blockers. */
 export async function listCarryoverTasks({
@@ -48,6 +45,7 @@ export async function listCarryoverTasks({
     sessionCid,
     requestedCid,
     denialMessage: "errors.ownTasksViewOnly",
+    seesAll: await resolveTaskActAny({ role, cid: sessionCid }),
   });
   if (scope.denied) return { status: 403, error: scope.denied };
 
@@ -85,9 +83,12 @@ export async function carryOverTask({
   const originalTask = originalResult.rows[0];
 
   // Object-level authorization: only the task's owner, assignee, supervisor —
-  // or a portfolio role — may carry it over. Otherwise any authenticated user
-  // could flip anyone's task by id.
-  if (!seesWholePortfolio(role) && !ownsTask(originalTask, sessionCid)) {
+  // or a holder of `tasks.act_any` — may carry it over. Otherwise any
+  // authenticated user could flip anyone's task by id.
+  if (
+    !ownsTask(originalTask, sessionCid) &&
+    !(await resolveTaskActAny({ role, cid: sessionCid }))
+  ) {
     return { status: 403, error: "errors.carryoverOwnTasksOnly" };
   }
 

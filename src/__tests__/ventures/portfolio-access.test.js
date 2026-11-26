@@ -4,9 +4,11 @@
  * These tests pin the two properties the feature exists for:
  *
  *   1. `ventures.view_all` / `ventures.edit_all` decide who reaches every
- *      Venture. The right is read from the EFFECTIVE matrix (so a Super Admin's
- *      default profile can be edited, and a restriction removes it), never from
- *      the role name.
+ *      Venture for everyone EXCEPT the platform owner, whose ROLE is
+ *      authoritative: a Super Admin never depends on a profile row, a grant or
+ *      a migration to see the portfolio. For everyone else the right is read
+ *      from the EFFECTIVE matrix (so a delegated right can be granted or
+ *      revoked).
  *   2. Only an INTERNAL identity can hold the perimeter. A member with the
  *      right — however it got there — is still refused.
  */
@@ -84,6 +86,26 @@ describe("holdsVenturePortfolioRight", () => {
       ),
     ).toBe(false);
   });
+
+  test("the platform owner reaches it by ROLE, with nothing granted", () => {
+    // The production failure this locks: nine Ventures, an empty directory,
+    // because the one-time grant had not been applied on that database yet.
+    expect(
+      holdsVenturePortfolioRight(ctx({ role: "super_admin", caps: {} }), "view"),
+    ).toBe(true);
+    expect(
+      holdsVenturePortfolioRight(ctx({ role: "super_admin", caps: {} }), "edit"),
+    ).toBe(true);
+  });
+
+  test("the owner flag alone is enough when the role string is unnormalised", () => {
+    expect(
+      holdsVenturePortfolioRight(
+        ctx({ role: "super_admin", isSuperAdmin: true, caps: {} }),
+        "edit",
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("resolveVenturePortfolioAccess", () => {
@@ -126,5 +148,18 @@ describe("resolveVenturePortfolioAccess", () => {
       action: "view",
     });
     expect(out).toMatchObject({ allowed: false, reason: "system-failure" });
+  });
+
+  test("the platform owner is allowed without any matrix read", async () => {
+    const out = await resolveVenturePortfolioAccess({
+      session: { cid: "SA", role: "super_admin" },
+      action: "edit",
+      ctx: ctx({ role: "super_admin", caps: {} }),
+    });
+    expect(out).toEqual({
+      allowed: true,
+      capability: "edit_all",
+      reason: "platform-owner",
+    });
   });
 });

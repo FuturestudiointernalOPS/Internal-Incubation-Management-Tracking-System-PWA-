@@ -24,17 +24,18 @@
  * Layer (see docs/LAYER_SPLIT.md): a decision, no SQL, no HTTP.
  */
 
-import { seesWholeProjectPortfolio } from "./workspace";
+import { resolveProjectPortfolio } from "./workspace";
 
 /**
- * Must this role pass the per-project object check before changing `projectId`?
+ * Must this caller pass the per-project object check before changing `projectId`?
  *
- * `true` for everyone outside the portfolio roles — which is the safe answer:
- * a caller who fails the object check is refused by the guard.
+ * `true` for everyone without `projects.view_all` — which is the safe answer: a
+ * caller who fails the object check is refused by the guard. The verdict comes
+ * from the authorization engine, never from the role label.
  *
- * @param {{ role?: string|null }} params
- * @returns {boolean}
+ * @param {{ role?: string|null, cid?: string|null }} params
+ * @returns {Promise<boolean>}
  */
-export function needsProjectObjectCheck({ role }) {
-  return !seesWholeProjectPortfolio(role);
+export async function needsProjectObjectCheck({ role, cid }) {
+  return !(await resolveProjectPortfolio({ role, cid }));
 }

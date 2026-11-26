@@ -263,6 +263,8 @@
       "ventureLoadError": "The venture could not be loaded.",
       "backToVentures": "Back to Ventures",
       "edit": "Edit",
+      "documentTypes": "Document types",
+      "history": "History",
       "registered": "Registered {date}",
       "dashboard": "Dashboard",
       "investment": "Investment",
@@ -741,6 +743,24 @@
       "tagsPlaceholder": "fundraising, pitch, investors",
       "cancel": "Cancel",
       "create": "Create"
+    },
+    "adminHome": {
+      "kicker": "Venture OS",
+      "title": "Venture administration",
+      "subtitle": "See and operate on every Venture in the studio. This area appears only while your profile holds the portfolio rights.",
+      "sectionPortfolio": "Portfolio",
+      "sectionPortfolioHint": "Figures across every Venture.",
+      "kpiTotal": "Ventures",
+      "kpiActive": "Active",
+      "kpiProspects": "Prospects",
+      "tools": "Tools",
+      "toolsHint": "Everything the portfolio authority opens.",
+      "allVenturesTitle": "All Ventures",
+      "allVenturesText": "The full directory. Open a Venture to work inside it.",
+      "portfolioTitle": "Portfolio roll-up",
+      "portfolioText": "Reporting and health across the whole portfolio.",
+      "reportingTitle": "Reporting settings",
+      "reportingText": "Configure the studio's reporting rules."
     },
     "list": {
       "title": "Ventures",

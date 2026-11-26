@@ -3,7 +3,7 @@
  *
  * THE REPORTING DOOR IN THE FOUNDER'S WORKSPACE.
  *
- * `/founder/ventures/<id>` is rewritten to `/participant/ventures/<id>`
+ * `/member/participant/ventures/<id>` is rewritten to `/member/participant/ventures/<id>`
  * (next.config.mjs), so the Venture Data Foundation lives INSIDE that workspace
  * as one more tab. Two properties have to hold:
  *
@@ -19,51 +19,50 @@
  */
 import { render, screen, fireEvent } from "@testing-library/react";
 
-jest.mock("@/components/ventures/reporting/VentureReportingScreen", () => {
+jest.mock("@/components/shared/ventures/console/reporting/VentureReportingScreen", () => {
   const React = require("react");
   return function VentureReportingScreen() {
     return React.createElement("div", { "data-testid": "reporting-screen" });
   };
 });
 
-jest.mock("@/components/ventures/workspace/tabs/ProfileSettingsTabs", () => {
+jest.mock("@/components/shared/ventures/console/workspace/tabs/ProfileSettingsTabs", () => {
   const React = require("react");
   return {
     ProfileTab: () => React.createElement("div", { "data-testid": "profile-tab" }),
   };
 });
-jest.mock("@/components/ventures/workspace/tabs/VentureBaselineTab", () => {
+jest.mock("@/components/shared/ventures/console/workspace/tabs/VentureBaselineTab", () => {
   const React = require("react");
   return function VentureBaselineTab() {
     return React.createElement("div", { "data-testid": "baseline-tab" });
   };
 });
-jest.mock("@/components/ventures/workspace/tabs/MembersTabs", () => {
+jest.mock("@/components/shared/ventures/console/workspace/tabs/MembersTabs", () => {
   const React = require("react");
   return {
     TeamTab: () => React.createElement("div", { "data-testid": "team-tab" }),
   };
 });
-jest.mock("@/components/ventures/workspace/tabs/DashboardHistoryTabs", () => {
+jest.mock("@/components/shared/ventures/console/workspace/tabs/DashboardHistoryTabs", () => {
   const React = require("react");
   return {
     DashboardTab: () => React.createElement("div", { "data-testid": "dashboard-tab" }),
   };
 });
-jest.mock("@/components/ventures/workspace/tabs/JourneyPlaybookTabs", () => {
+jest.mock("@/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs", () => {
   const React = require("react");
   return {
     JourneyTab: () => React.createElement("div", { "data-testid": "journey-tab" }),
   };
 });
-jest.mock("@/components/ventures/data-room/VentureDataRoom", () => {
+jest.mock("@/components/shared/ventures/console/data-room/VentureDataRoom", () => {
   const React = require("react");
   return function VentureDataRoom() {
     return React.createElement("div", { "data-testid": "data-room" });
   };
 });
-jest.mock("@/components/ventures/workspace/tabs/GrowthTabs", () => {
-  const React = require("react");
+jest.mock("@/components/shared/ventures/console/workspace/tabs/GrowthTabs", () => {
   return {
     DataRoomReadinessCard: () => null,
     RoadmapReadinessCard: () => null,
@@ -77,8 +76,8 @@ const {
   SETUP_SECTIONS,
   TABS,
   resolveWorkspaceTab,
-} = require("@/components/participant/ventures/ventureScreenModel");
-const VentureWorkspaceView = require("@/components/participant/ventures/VentureWorkspaceView").default;
+} = require("@/components/shared/ventures/workspace/ventureScreenModel");
+const VentureWorkspaceView = require("@/components/shared/ventures/workspace/VentureWorkspaceView").default;
 
 const venture = {
   venture_id: "VNT-1",

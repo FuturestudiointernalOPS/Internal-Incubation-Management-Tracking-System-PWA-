@@ -7,7 +7,7 @@
 
 const {
   resolveMessagingRole,
-} = require("@/components/messaging/chat/messagingMode");
+} = require("@/components/shared/messaging/chat/messagingMode");
 
 describe("resolveMessagingRole", () => {
   test("the platform owner keeps the administration inbox", () => {

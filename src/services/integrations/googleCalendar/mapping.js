@@ -48,7 +48,7 @@ export function taskToGoogleEvent(task, { appUrl = "" } = {}) {
   ];
   if (task.priority) lines.push(`Priority: ${task.priority}`);
   if (task.description) lines.push("", String(task.description));
-  if (appUrl) lines.push("", `${appUrl}/admin/tasks`);
+  if (appUrl) lines.push("", `${appUrl}/admin/operations/tasks`);
   return {
     summary: `${done ? "✓ " : ""}${task.title || "Task"}`,
     description: lines.join("\n"),
