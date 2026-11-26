@@ -113,10 +113,10 @@ export async function notifyVentureCoach({ dbId, coachContactId, title, message,
 }
 
 /**
- * Lead Manager delivery (A8): notify EVERY active Lead Manager of a Venture
- * (venture_staff_assignments.responsibility_code = 'lead_manager') about a
+ * Venture Manager delivery (A8): notify EVERY active Venture Manager of a Venture
+ * (venture_staff_assignments.responsibility_code = 'venture_manager') about a
  * Venture session they are attached to — in-app + email, same channel as the
- * coach. Lead Managers are internal staff, so delivery does not depend on the
+ * coach. Venture Managers are internal staff, so delivery does not depend on the
  * venture_facing flag. A recipient whose contact/email cannot be resolved still
  * gets the in-app notification (only the email is skipped), and one failing
  * recipient never stops the others.
@@ -160,7 +160,7 @@ export async function notifyVentureLeadManagers({ dbId, ventureCode, title, mess
           context: { ...(context || {}), venture_id: dbId },
           templateKey,
           params,
-          // Role suffix keeps the Lead Manager copy distinct from the founder
+          // Role suffix keeps the Venture Manager copy distinct from the founder
           // copy of the same event for a dual-role recipient.
           dedupeKey: dedupeKey ? `${dedupeKey}:lm` : null,
         });

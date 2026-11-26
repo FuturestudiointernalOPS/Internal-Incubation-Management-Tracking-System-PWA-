@@ -11,7 +11,7 @@
  *   - A delegated (non-global) actor may only review / be queued for
  *     submissions whose task lies inside one of his ACTIVE assignment scopes
  *     for that Venture (milestone / journey_stage / task / venture_wide).
- *   - An active `lead_manager` assignment is an additional Venture-wide pass,
+ *   - An active `venture_manager` assignment is an additional Venture-wide pass,
  *     mirroring the isMilestoneLeadAuthority semantics used by milestone
  *     completion gating.
  *   - Actors with NO active assignment rows keep the legacy behavior — the
@@ -113,7 +113,7 @@ export function hasAnyVentureScope(scopes) {
 
 /**
  * True when the actor's scopes grant full Venture reach: any venture_wide
- * assignment OR any active lead_manager assignment (lead managers lead the
+ * assignment OR any active venture_manager assignment (lead managers lead the
  * whole Venture regardless of the scope column on their row).
  */
 export function hasVentureWideReach(scopes) {
@@ -121,7 +121,7 @@ export function hasVentureWideReach(scopes) {
   return scopes.some(
     (scope) =>
       scope &&
-      (scope.scope_type === "venture_wide" || scope.responsibility_code === "lead_manager"),
+      (scope.scope_type === "venture_wide" || scope.responsibility_code === "venture_manager"),
   );
 }
 

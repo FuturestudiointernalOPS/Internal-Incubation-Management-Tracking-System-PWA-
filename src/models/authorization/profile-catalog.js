@@ -109,12 +109,32 @@ export const PROFILE_CATALOG = [
     context: "venture",
     allowedRoles: ["staff"],
   },
+  // The PORTFOLIO-WIDE Venture profile: the same function as `venture_manager`,
+  // but not limited to assigned Ventures. Its capabilities carry the two
+  // portfolio rights (`view_all` / `edit_all`), and it is staff-only on purpose:
+  // the portfolio perimeter is an internal authority (see
+  // `services/ventures/portfolioAccess`).
+  {
+    key: "venture_admin",
+    labelKey: "engineering.permissions.profileVentureAdmin",
+    context: "venture",
+    allowedRoles: ["staff"],
+  },
   // Phase 7 (D6) — the dedicated course-management profile (staff-only). Nobody
   // holds it by default; it is assigned manually to the staff member who manages
   // courses. See docs/permissions/phase-7-d6-course-manager-profile.md.
   {
     key: "course_manager",
     labelKey: "engineering.permissions.profileCourseManager",
+    context: "staff",
+    allowedRoles: ["staff"],
+  },
+  // Delegated LMS authoring — create AND publish. `course_manager` stays the
+  // manage-only profile (D6); this one is assigned to the staff member the
+  // studio entrusts with building and publishing courses.
+  {
+    key: "lms_author",
+    labelKey: "engineering.permissions.profileLmsAuthor",
     context: "staff",
     allowedRoles: ["staff"],
   },

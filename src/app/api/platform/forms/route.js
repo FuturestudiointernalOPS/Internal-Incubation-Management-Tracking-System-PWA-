@@ -8,6 +8,7 @@ import {
   getFormDetail,
   listForms,
   publishFormVersion,
+  restoreFormFromLatestVersion,
   saveFormBuilder,
   updateFormMetadata,
 } from "@/services/platform/forms";
@@ -70,11 +71,19 @@ export async function POST(req) {
 
     const body = await req.json();
 
-    // Publishing a version edits an existing form; any other POST creates one.
-    const capError = body.action === "publish"
+    // Publishing a version and restoring one both edit an existing form; any
+    // other POST creates a new one.
+    const editsExistingForm = body.action === "publish" || body.action === "restore";
+    const capError = editsExistingForm
       ? await requireAuthorization("forms", "edit")
       : await requireAuthorization("forms", "create");
     if (capError) return capError;
+
+    // RESTORE action: bring back the last published version's content
+    if (body.action === "restore") {
+      const { status, body: responseBody } = await restoreFormFromLatestVersion({ id: body.id });
+      return NextResponse.json(responseBody, { status });
+    }
 
     // PUBLISH action: creates a snapshot version
     if (body.action === "publish") {

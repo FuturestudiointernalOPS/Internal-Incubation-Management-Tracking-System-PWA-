@@ -10,9 +10,9 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/ventures/lead-manager/home
  *
- * Operational "My day" for a staff Lead Manager: KPIs, urgency queue and
+ * Operational "My day" for a staff Venture Manager: KPIs, urgency queue and
  * enriched Mes Ventures cards, limited to Ventures where the caller has an
- * active `lead_manager` assignment. Super Admin is steered to /admin (empty).
+ * active `venture_manager` assignment. Super Admin is steered to /admin (empty).
  */
 export const GET = createHandler(
   async () => {
@@ -27,7 +27,7 @@ export const GET = createHandler(
     if (session.role === "super_admin") {
       return NextResponse.json({
         success: true,
-        is_lead_manager: false,
+        is_venture_manager: false,
         kpis: null,
         queue: [],
         ventures: [],

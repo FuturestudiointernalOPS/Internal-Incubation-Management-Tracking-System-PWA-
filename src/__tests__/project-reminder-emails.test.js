@@ -13,7 +13,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 const { I18nProvider } = require("@/lib/i18n");
 const { clearResponseCache } = require("@/lib/hooks/useApi");
 const ProjectReminderEmailsView =
-  require("@/components/ventures/projects/ProjectReminderEmailsView").default;
+  require("@/components/shared/ventures/console/projects/ProjectReminderEmailsView").default;
 
 const HISTORY = [
   {
@@ -67,7 +67,7 @@ beforeEach(() => {
 const renderView = () =>
   render(
     <I18nProvider>
-      <ProjectReminderEmailsView ventureId="VNT-1" backHref="/staff/ventures/VNT-1?tab=projects" />
+      <ProjectReminderEmailsView ventureId="VNT-1" backHref="/staff/lead-manager/ventures/VNT-1?tab=projects" />
     </I18nProvider>,
   );
 
@@ -94,5 +94,5 @@ test("the back link returns to the projects view", async () => {
   renderView();
 
   const back = screen.getByRole("link", { name: /back to projects/i });
-  expect(back.getAttribute("href")).toBe("/staff/ventures/VNT-1?tab=projects");
+  expect(back.getAttribute("href")).toBe("/staff/lead-manager/ventures/VNT-1?tab=projects");
 });

@@ -1,0 +1,15 @@
+-- =============================================================================
+-- Venture reporting — Phase 2 (ADDITIVE ONLY)
+-- Monthly report (append-only, versioned) + the calculated metrics table.
+-- Nothing here touches an existing table.
+--
+-- Contract of scripts/db-audit/apply-schema-file.mjs: one statement per line,
+-- each terminated by ';', no ';' inside string literals.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS venture_monthly_report (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_uuid UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE, venture_code TEXT NOT NULL, reporting_period DATE NOT NULL, version INTEGER NOT NULL DEFAULT 1, status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','submitted','validated','rejected')), mrr_mode TEXT CHECK (mrr_mode IN ('exact','band')), mrr_value NUMERIC, mrr_band TEXT, other_revenue_mode TEXT CHECK (other_revenue_mode IN ('exact','band')), other_revenue_value NUMERIC, other_revenue_band TEXT, expenses_mode TEXT CHECK (expenses_mode IN ('exact','band')), expenses_value NUMERIC, expenses_band TEXT, cash_mode TEXT CHECK (cash_mode IN ('exact','band')), cash_value NUMERIC, cash_band TEXT, financing_received BOOLEAN NOT NULL DEFAULT FALSE, active_users INTEGER, paying_customers INTEGER, new_paying_customers INTEGER, full_time INTEGER, part_time INTEGER, part_time_days NUMERIC, full_time_founders INTEGER, north_star_value NUMERIC, narrative TEXT, submitted_at TIMESTAMPTZ, submitted_by TEXT, validated_at TIMESTAMPTZ, validated_by TEXT, rejected_at TIMESTAMPTZ, rejected_by TEXT, rejection_reason TEXT, superseded_at TIMESTAMPTZ, superseded_by TEXT, superseded_reason TEXT, created_by TEXT, created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE (venture_uuid, reporting_period, version));
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vmr_one_validated ON venture_monthly_report (venture_uuid, reporting_period) WHERE status = 'validated' AND superseded_at IS NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vmr_one_open ON venture_monthly_report (venture_uuid, reporting_period) WHERE status IN ('draft','submitted');
+CREATE INDEX IF NOT EXISTS idx_vmr_venture_period ON venture_monthly_report (venture_uuid, reporting_period DESC);
+CREATE TABLE IF NOT EXISTS venture_metrics_monthly (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), venture_uuid UUID NOT NULL REFERENCES ventures(id) ON DELETE CASCADE, venture_code TEXT NOT NULL, reporting_period DATE NOT NULL, metric_key TEXT NOT NULL, value NUMERIC, value_low NUMERIC, value_high NUMERIC, is_approximate BOOLEAN NOT NULL DEFAULT FALSE, status TEXT NOT NULL DEFAULT 'computed' CHECK (status IN ('computed','not_applicable','self_sustaining')), source_report_id UUID REFERENCES venture_monthly_report(id) ON DELETE CASCADE, computed_at TIMESTAMPTZ DEFAULT NOW(), UNIQUE (venture_uuid, reporting_period, metric_key));
+CREATE INDEX IF NOT EXISTS idx_vmm_venture_metric ON venture_metrics_monthly (venture_uuid, metric_key, reporting_period DESC);

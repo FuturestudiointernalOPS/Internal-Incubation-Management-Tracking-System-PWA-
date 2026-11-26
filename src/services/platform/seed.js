@@ -19,3 +19,4 @@
 
 export * from "./seed/founderAssessment";
 export * from "./seed/investorApplication";
+export * from "./seed/investorNetworkForm";

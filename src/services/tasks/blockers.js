@@ -4,9 +4,9 @@
  * The domain work behind `/api/blockers` and `/api/blockers/discuss`. A blocker
  * is always tied to a task, so it lives with the tasks domain. What lives here:
  *
- *   - the READ scope: a Super Admin sees everything; everyone else sees only the
- *     blockers of the tasks they own, are assigned to, or supervise, and a
- *     supervisor may additionally read a supervisee's blockers;
+ *   - the READ scope: a caller holding `tasks.view_all` sees everything; everyone
+ *     else sees only the blockers of the tasks they own, are assigned to, or
+ *     supervise, and a supervisor may additionally read a supervisee's blockers;
  *   - the CREATE rules: the task must exist and not be closed, and only the task
  *     owner, its assignee, its supervisor or a Super Admin may raise one; the
  *     same person raising the same open blocker again gets the existing one; the
@@ -25,7 +25,7 @@
 
 import { isSupervisorOf } from "@/models/authorization/accessQueries";
 import { getTaskTitleById } from "@/models/tasks";
-import { canAccessTask } from "./access";
+import { canAccessTaskFor, resolveTaskModerate } from "./access";
 import {
   createBlocker,
   createBlockerDiscussion,
@@ -54,14 +54,17 @@ const CLOSED_STATUSES = ["completed", "archived", "carried_over"];
 /**
  * List blockers, scoped to what the caller may see.
  *
- * @param {{session: Object, filters: {id?: string, task_id?: string, user_id?: string, status?: string}}} args
+ * `canSeeAll` is the caller's `tasks.view_all` verdict, resolved by the route
+ * through the authorization engine.
+ *
+ * @param {{session: Object, filters: {id?: string, task_id?: string, user_id?: string, status?: string}, canSeeAll?: boolean}} args
  * @returns {Promise<{status: number, body?: Object, error?: string}>}
  */
-export async function listBlockers({ session, filters }) {
-  if (session.role !== "super_admin") {
-    // SECURITY (Phase 0): Non-SA users can only see blockers on their own tasks
-    // or tasks assigned to them. (Phase 3B): a supervisor may also read their
-    // supervisee's blockers.
+export async function listBlockers({ session, filters, canSeeAll = false }) {
+  if (!canSeeAll) {
+    // SECURITY (Phase 0): callers without `tasks.view_all` can only see blockers
+    // on their own tasks or tasks assigned to them. (Phase 3B): a supervisor may
+    // also read their supervisee's blockers.
     const viewingOther =
       filters.user_id && String(filters.user_id) !== String(session.cid);
     const isSupervisor = viewingOther
@@ -77,7 +80,7 @@ export async function listBlockers({ session, filters }) {
     return { status: 200, body: { success: true, blockers: result.rows } };
   }
 
-  // SA: unrestricted access with optional filters
+  // The caller may see every person's blockers: optional filters only.
   const result = await getAllBlockers(filters);
   return { status: 200, body: { success: true, blockers: result.rows } };
 }
@@ -114,12 +117,13 @@ export async function createBlockerForTask({ session, input }) {
   }
   const task = taskCheck.rows[0];
 
-  // SECURITY: Only task owner, assignee, supervisor, or SA can add a blocker
+  // SECURITY: Only task owner, assignee, supervisor, or a holder of
+  // `tasks.moderate` can add a blocker to somebody else's task.
   if (
-    session.role !== "super_admin" &&
     String(task.user_id) !== String(session.cid) &&
     String(task.assigned_to || "") !== String(session.cid) &&
-    String(task.supervisor_id || "") !== String(session.cid)
+    String(task.supervisor_id || "") !== String(session.cid) &&
+    !(await resolveTaskModerate({ role: session.role, cid: session.cid }))
   ) {
     return {
       status: 403,
@@ -270,10 +274,10 @@ export async function deleteBlockerRecord({ session, id }) {
   if (blockerCheck.rows.length > 0) {
     const blocker = blockerCheck.rows[0];
 
-    // SECURITY: Only creator or SA can delete (using session identity)
+    // SECURITY: Only the creator or a holder of `tasks.moderate` can delete.
     if (
-      session.role !== "super_admin" &&
-      String(blocker.user_id) !== String(session.cid)
+      String(blocker.user_id) !== String(session.cid) &&
+      !(await resolveTaskModerate({ role: session.role, cid: session.cid }))
     ) {
       return {
         status: 403,
@@ -290,7 +294,7 @@ export async function deleteBlockerRecord({ session, id }) {
 /**
  * The blocker row and the task-access decision that guards its discussion.
  * A discussion is part of the task, so it follows the SAME rule as comments,
- * resources and logs: portfolio roles, or the task's owner/assignee/supervisor.
+ * resources and logs: `tasks.act_any`, or the task's owner/assignee/supervisor.
  */
 async function guardBlockerDiscussion({ blocker_id, role, sessionCid }) {
   const blockerCheck = await getBlockerForDiscussion(blocker_id);
@@ -300,7 +304,7 @@ async function guardBlockerDiscussion({ blocker_id, role, sessionCid }) {
   const blocker = blockerCheck.rows[0];
   const taskResult = await getTaskForBlockerCheck(blocker.task_id);
   const task = taskResult.rows[0];
-  if (!task || !canAccessTask({ task, role, cid: sessionCid })) {
+  if (!task || !(await canAccessTaskFor({ task, role, cid: sessionCid }))) {
     return { denied: { status: 403, error: "errors.insufficientPermissions" } };
   }
   return { blocker };

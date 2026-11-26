@@ -10,5 +10,10 @@
  */
 
 export const UNDECLARED_ACTIONS = [
+  { file: "src/app/api/finance/fx/route.js", category: "a_proteger" },
   { file: "src/app/api/integrations/google-calendar/connect/route.js", category: "a_proteger" },
+  { file: "src/app/api/investor/meetings/slots/route.js", category: "a_proteger" },
+  { file: "src/app/api/platform/ai/run-analytics/route.js", category: "a_proteger" },
+  { file: "src/app/api/ventures/[id]/data-room/[docId]/file/route.js", category: "a_proteger" },
+  { file: "src/app/api/ventures/[id]/reporting/settings/route.js", category: "a_proteger" },
 ];

@@ -4,7 +4,7 @@ import {
   getRecentNotifications,
   countUnreadNotifications,
   getNotificationRecipientById,
-  markNotificationRead,
+  markNotificationRead, markAllNotificationsRead,
   markNotificationUnread,
   getParticipantAnnouncementHistory,
   getParticipantNotificationHistory,
@@ -131,6 +131,12 @@ export async function publishInboxNotification({ session, recipient_id, title, m
 }
 
 export async function applyInboxNotificationAction({ session, id, action }) {
+  if (action === "read_all") {
+    const recipientId = session.cid || session.id;
+    if (!recipientId) return { denied: { error: "errors.authRequired", status: 401 } };
+    await markAllNotificationsRead(recipientId);
+    return { ok: true };
+  }
   if (action === "read" || action === "unread") {
     const recipientResult = await getNotificationRecipientById(parseInt(id));
     if (!recipientResult.rows || recipientResult.rows.length === 0) {

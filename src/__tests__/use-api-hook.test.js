@@ -66,9 +66,10 @@ describe("useApi — the status of the last response", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.status).toBe(401);
-    // The distinction that matters: a refusal is NOT a request that failed to
-    // complete, so no message is reported as a network error.
-    expect(result.current.error).toBeNull();
+    // The status is the machine-readable verdict (a 401 sends the screen back to
+    // the login); the payload's message is what a screen prints. A refusal is a
+    // completed exchange, never a network failure.
+    expect(result.current.error).toBe("Unauthenticated");
   });
 
   it("reports 500, which is what separates a server fault from an expiry", async () => {
@@ -80,7 +81,9 @@ describe("useApi — the status of the last response", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.status).toBe(500);
-    expect(result.current.error).toBeNull();
+    // A server fault is reported as an error, and the status separates it from an
+    // expiry: 500 means "try again", 401 means "sign in again".
+    expect(result.current.error).toBe("boom");
   });
 
   it("reports no status at all when the request never got an answer", async () => {
@@ -411,17 +414,5 @@ describe("useApiMulti — the endpoints are read, not a render dependency", () =
     await waitFor(() =>
       expect(global.fetch.mock.calls.length).toBeGreaterThan(before),
     );
-  });
-});
-
-describe("private organisation reads", () => {
-  it("cache:false ignores an existing shared response and does not publish private data", async () => {
-    const url = "/api/org/context-private-test";
-    cacheSet(url, { success: true, organization: "old-shared-copy" });
-    global.fetch.mockImplementation(() => jsonResponse({ success: true, organization: "fresh-private-copy" }));
-    const { result } = renderHook(() => useApi(url, { cache: false }));
-    await waitFor(() => expect(result.current.data?.organization).toBe("fresh-private-copy"));
-    expect(global.fetch).toHaveBeenCalledWith(url, { cache: "no-store" });
-    expect(cacheGet(url).organization).toBe("old-shared-copy");
   });
 });

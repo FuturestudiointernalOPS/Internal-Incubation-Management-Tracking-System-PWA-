@@ -8,7 +8,7 @@
  *   view   — the platform owner sees the roster; otherwise an active membership
  *            OR an active staff assignment on this Venture is required.
  *   mutate — founders manage the roster. Staff may too, but only when their
- *            assignment grants `founders:manage` (Lead Manager by default;
+ *            assignment grants `founders:manage` (Venture Manager by default;
  *            Coach / Facilitator do not).
  */
 

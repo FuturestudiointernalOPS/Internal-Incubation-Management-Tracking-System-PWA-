@@ -6,10 +6,10 @@
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-jest.mock("@/components/ventures/journey/FounderSessionBooking", () => () => null);
+jest.mock("@/components/shared/ventures/console/journey/FounderSessionBooking", () => () => null);
 
 const { I18nProvider } = require("@/lib/i18n");
-const FounderMilestoneDeliverables = require("@/components/ventures/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables").default;
+const FounderMilestoneDeliverables = require("@/components/shared/ventures/console/workspace/tabs/JourneyPlaybookTabs/FounderMilestoneDeliverables").default;
 
 const milestone = {
   id: "m1",

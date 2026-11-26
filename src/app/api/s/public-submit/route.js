@@ -98,7 +98,7 @@ export async function POST(req) {
     }
 
     body = await req.json();
-    const { data, slug, consent, language, whatsapp_opt_in } = body;
+    const { data, slug, consent, language, whatsapp_opt_in, venture_id } = body;
 
     const result = await submitPublicResponse({
       data,
@@ -109,6 +109,7 @@ export async function POST(req) {
       browserToken: readBrowserToken(req),
       after,
       whatsappOptIn: whatsapp_opt_in === true,
+      ventureId: venture_id || data?.venture_id || null,
     });
 
     return withBrowserCookie(

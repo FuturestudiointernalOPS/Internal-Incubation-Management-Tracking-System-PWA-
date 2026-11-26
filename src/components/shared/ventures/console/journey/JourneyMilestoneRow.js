@@ -1,0 +1,313 @@
+"use client";
+
+import React from "react";
+import { useI18n } from "@/lib/i18n";
+import { earliestStoredDate, nextMilestoneDate, todayDateInput } from "@/lib/ventureMilestoneDates";
+import { datePickerCeiling, datePickerFloor } from "@/components/shared/ventures/console/journey/journeyShapers";
+import { Flag, ChevronRight, Loader2, Save } from "lucide-react";
+import AppMenu from "@/components/ui/AppMenu";
+import AppModal from "@/components/ui/AppModal";
+import VenturePersonField from "@/components/shared/ventures/console/VenturePersonField";
+import ScopedNotes from "@/components/shared/ventures/console/ScopedNotes";
+import MilestoneReviewInbox from "@/components/shared/ventures/console/journey/MilestoneReviewInbox";
+import MilestoneDeliverables from "@/components/shared/ventures/console/journey/MilestoneDeliverables";
+import MilestoneSessionsList from "@/components/shared/ventures/console/journey/MilestoneSessionsList";
+
+/**
+ * ONE milestone inside a journey: its edit form, its header row, its review
+ * inbox, its deliverables, its session booking and its booked sessions.
+ *
+ * Moved verbatim out of JourneyManagerPanel: every prop carries the panel
+ * value of the same name (state, setter, handler or loop value), so the markup
+ * and its behaviour are unchanged. The panel keeps all state and all writes.
+ */
+export default function JourneyMilestoneRow({
+  milestone,
+  milestoneIndex,
+  milestones,
+  stage,
+  stages,
+  access,
+  milestoneEditId,
+  setMilestoneEditId,
+  milestoneEditForm,
+  setMilestoneEditForm,
+  saveMilestoneEdit,
+  milestoneOpenId,
+  toggleMilestoneOpen,
+  milestoneAuthority,
+  milestoneBusy,
+  milestoneMenuItems,
+  milestoneDotClass,
+  milestoneStatusClass,
+  milestoneStatusKey,
+  fmtDate,
+  milestoneSubmissions,
+  submissionReview,
+  submissionComment,
+  submissionsBusy,
+  decideSubmission,
+  setSubmissionReview,
+  setSubmissionComment,
+  DELIVERABLE_TYPES,
+  addDeliverable,
+  deliverableAction,
+  deliverableAddFor,
+  deliverableBusy,
+  deliverableFile,
+  deliverableForm,
+  deliverableMenuItems,
+  canApproveDeliverable,
+  deliverableNewUrl,
+  deliverableSaving,
+  deliverableStatus,
+  deliverableText,
+  emptyDeliverableForm,
+  reviewDeliverable,
+  saveDeliverableEdit,
+  setDeliverableAction,
+  setDeliverableAddFor,
+  setDeliverableFile,
+  setDeliverableForm,
+  setDeliverableNewFile,
+  setDeliverableNewUrl,
+  setDeliverableText,
+  submitDeliverableEvidence,
+  autoGrow,
+  bookFor,
+  bookForm,
+  bookSaving,
+  bookSession,
+  coachOptions,
+  openBooking,
+  setBookFor,
+  setBookForm,
+  ventureId,
+  ventureSessions,
+  sessionStatusKey,
+  noteEditFor,
+  noteDraft,
+  setNoteDraft,
+  noteSaving,
+  saveSessionNote,
+  setNoteEditFor,
+  notesMilestoneId,
+}) {
+  const { t } = useI18n();
+  const deliverableList = milestone.deliverables || [];
+
+  // ONE authoritative Owner (and Support / Start / Finish) for the work: the
+  // activity's. A milestone that carries no owner of its own displays its first
+  // activity's — the same values the deliverable card shows, never a second
+  // copy stored on the milestone. A milestone-level owner stated by the source,
+  // or set by hand, still wins.
+  const primaryActivity = deliverableList.find((deliverable) => deliverable.activity)?.activity || null;
+  const milestoneOwner = milestone.owner_name || primaryActivity?.owner_name || null;
+  const milestoneSupport = milestone.support_name || primaryActivity?.support_name || null;
+  const milestoneStart = milestone.start_date || primaryActivity?.start_date || null;
+  const milestoneFinish = milestone.target_date || primaryActivity?.due_date || null;
+  // A milestone may not be dated after what it owes, nor
+  // after a milestone that follows it: the picker stops at
+  // whichever of the two comes first.
+  const milestoneDateCeiling = earliestStoredDate([
+    nextMilestoneDate(stages, { milestoneId: milestone.id }),
+    earliestStoredDate(deliverableList.map((deliverable) => deliverable.due_date)),
+  ]);
+  const isOpen = milestoneOpenId !== null && String(milestoneOpenId) === String(milestone.id);
+  return (
+    <div className={`jy-m ${isOpen ? "is-open" : ""}`}>
+      {milestoneEditId === milestone.id ? (
+        <form onSubmit={saveMilestoneEdit} className="space-y-2 py-1">
+          <input
+            value={milestoneEditForm.title || ""}
+            onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, title: event.target.value })}
+            placeholder={t("venture.manager.milestoneTitlePlaceholder")}
+            className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-sm text-[var(--text-primary)]"
+            required
+          />
+          <textarea
+            value={milestoneEditForm.description || ""}
+            onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, description: event.target.value })}
+            rows={2}
+            placeholder={t("venture.manager.milestoneDescPlaceholder")}
+            className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+          />
+          <input
+            value={milestoneEditForm.objective || ""}
+            onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, objective: event.target.value })}
+            placeholder={t("venture.manager.stageObjectivePlaceholder")}
+            className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+          />
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-[var(--text-secondary)]">{t("venture.manager.milestoneOwner")}</label>
+            <VenturePersonField
+              value={{ cid: milestoneEditForm.owner_cid, name: milestoneEditForm.owner_name }}
+              onChange={({ cid, name }) =>
+                setMilestoneEditForm({ ...milestoneEditForm, owner_cid: cid || "", owner_name: name || "" })
+              }
+              listId="milestone-owner-options"
+            />
+          </div>
+          <input
+            type="date"
+            value={milestoneEditForm.target_date || ""}
+            min={datePickerFloor(todayDateInput(), milestone.target_date)}
+            max={datePickerCeiling(milestoneDateCeiling, milestone.target_date) || undefined}
+            onChange={(event) => setMilestoneEditForm({ ...milestoneEditForm, target_date: event.target.value })}
+            className="w-full px-2 py-1.5 rounded-lg outline-none border bg-[var(--surface-1)] text-xs text-[var(--text-primary)]"
+          />
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={() => { setMilestoneEditId(null); setMilestoneEditForm({}); }} className="stf-btn sm">
+              {t("common.cancel")}
+            </button>
+            <button type="submit" className="stf-btn sm pr">
+              <Save className="w-3 h-3" /> {t("common.save")}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+        <div className="jy-mrow">
+          <button
+            type="button"
+            onClick={() => toggleMilestoneOpen(milestone.id)}
+            aria-haspopup="dialog"
+            className="jy-mtog"
+          >
+            <span className={`jy-dot ${milestoneDotClass(milestone.status)}`} />
+            <span className={`jy-mt ${milestone.status === "completed" ? "is-done" : ""}`}>
+              {milestone.title}
+            </span>
+            {deliverableList.length > 0 && (
+              <span className="jy-cnt" title={t("venture.manager.tasksHeading")}>
+                <Flag size={13} /> {deliverableList.length}
+              </span>
+            )}
+            <ChevronRight size={15} className="shrink-0 text-[var(--text-secondary)]" />
+          </button>
+          <span className={`${milestoneStatusClass(milestone.status)} shrink-0`}>
+            {milestoneStatusKey(milestone.status)}
+          </span>
+          {milestoneAuthority && !stage.is_archived && (
+            <AppMenu
+              label={t("venture.manager.milestoneActions")}
+              align="right"
+              buttonClassName="!p-1"
+              items={milestoneMenuItems(stage, milestone, milestoneIndex, milestones)}
+            />
+          )}
+          {milestoneBusy === milestone.id && <Loader2 size={14} className="animate-spin text-[var(--text-secondary)] shrink-0" />}
+        </div>
+
+        {/* The milestone's tasks open in a pop-up, not inline: its metadata, review
+            inbox, activities and deliverables, booked sessions and notes. The row
+            stays one line; the state (which milestone is open) is still the panel's. */}
+        <AppModal isOpen={isOpen} onClose={() => toggleMilestoneOpen(milestone.id)} title={milestone.title} size="xl">
+        <div className="space-y-4">
+        {/* The milestone's metadata, label → value: people first, then timing.
+            Progress is deliberately absent from this view. */}
+        {isOpen && (
+          <div className="jy-facts in">
+            <div><span>{t("venture.manager.milestoneOwner")}</span><b>{milestoneOwner || "—"}</b></div>
+            <div><span>{t("venture.manager.supporting")}</span><b>{milestoneSupport || "—"}</b></div>
+            <div><span>{t("venture.manager.startDate")}</span><b>{milestoneStart ? fmtDate(milestoneStart) : "—"}</b></div>
+            <div><span>{t("venture.manager.finishDate")}</span><b>{milestoneFinish ? fmtDate(milestoneFinish) : "—"}</b></div>
+          </div>
+        )}
+
+        {/* Review inbox: what the Venture submitted for the tasks in this milestone */}
+        {isOpen && (milestoneSubmissions[milestone.id] || []).length > 0 && (
+          <MilestoneReviewInbox
+            decideSubmission={decideSubmission}
+            milestone={milestone}
+            milestoneSubmissions={milestoneSubmissions}
+            setSubmissionComment={setSubmissionComment}
+            setSubmissionReview={setSubmissionReview}
+            submissionComment={submissionComment}
+            submissionReview={submissionReview}
+            submissionsBusy={submissionsBusy}
+          />
+        )}
+
+        {isOpen && (deliverableList.length > 0 || (milestone.activities || []).length > 0 || milestoneAuthority) && (
+          <MilestoneDeliverables
+            DELIVERABLE_TYPES={DELIVERABLE_TYPES}
+            addDeliverable={addDeliverable}
+            autoGrow={autoGrow}
+            bookFor={bookFor}
+            bookForm={bookForm}
+            bookSaving={bookSaving}
+            bookSession={bookSession}
+            canBook={Boolean(milestoneAuthority || access.manage) && !stage.is_archived}
+            coachOptions={coachOptions}
+            openBooking={openBooking}
+            setBookFor={setBookFor}
+            setBookForm={setBookForm}
+            stage={stage}
+            sessionStatusKey={sessionStatusKey}
+            ventureSessions={ventureSessions}
+            deliverableAction={deliverableAction}
+            deliverableAddFor={deliverableAddFor}
+            deliverableBusy={deliverableBusy}
+            deliverableFile={deliverableFile}
+            deliverableForm={deliverableForm}
+            deliverableList={deliverableList}
+            deliverableMenuItems={deliverableMenuItems}
+            canApproveDeliverable={canApproveDeliverable}
+            deliverableNewUrl={deliverableNewUrl}
+            deliverableSaving={deliverableSaving}
+            deliverableStatus={deliverableStatus}
+            deliverableText={deliverableText}
+            emptyDeliverableForm={emptyDeliverableForm}
+            fmtDate={fmtDate}
+            milestone={milestone}
+            milestoneAuthority={milestoneAuthority}
+            reviewDeliverable={reviewDeliverable}
+            saveDeliverableEdit={saveDeliverableEdit}
+            setDeliverableAction={setDeliverableAction}
+            setDeliverableAddFor={setDeliverableAddFor}
+            setDeliverableFile={setDeliverableFile}
+            setDeliverableForm={setDeliverableForm}
+            setDeliverableNewFile={setDeliverableNewFile}
+            setDeliverableNewUrl={setDeliverableNewUrl}
+            setDeliverableText={setDeliverableText}
+            submitDeliverableEvidence={submitDeliverableEvidence}
+            ventureId={ventureId}
+          />
+        )}
+
+        {/* Sessions already booked on this milestone — the milestone stays the home of its sessions. */}
+        {isOpen && (() => {
+          const mine = ventureSessions.filter((session) => String(session.milestone_ref) === String(milestone.id) && session.status !== "cancelled");
+          if (mine.length === 0) return null;
+          return (
+            <MilestoneSessionsList
+              sessions={mine}
+              deliverables={deliverableList}
+              statusKey={sessionStatusKey}
+              noteEditFor={noteEditFor}
+              noteDraft={noteDraft}
+              onNoteDraftChange={setNoteDraft}
+              noteSaving={noteSaving}
+              onEditNote={(session) => { setNoteEditFor(session.id); setNoteDraft(session.description || ""); }}
+              onCancelNote={() => { setNoteEditFor(null); setNoteDraft(""); }}
+              onSaveNote={saveSessionNote}
+              autoGrow={autoGrow}
+              ventureId={ventureId}
+            />
+          );
+        })()}
+
+        {/* Internal notes are milestone-scoped — they never exist outside a milestone. */}
+        {isOpen && notesMilestoneId !== null && String(notesMilestoneId) === String(milestone.id) && (
+          <div className="mt-2 ml-5">
+            <ScopedNotes ventureId={ventureId} scopeType="milestone" scopeId={milestone.id} />
+          </div>
+        )}
+        </div>
+        </AppModal>
+        </>
+      )}
+    </div>
+  );
+}

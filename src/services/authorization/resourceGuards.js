@@ -20,8 +20,8 @@
 import { requireSession } from "@/server/auth/guards";
 import { getSession } from "@/server/auth/session";
 import { getAuthorizationContext } from "./contextCache";
+import { explainAuthorization } from "./contextDecisions";
 import { isProgramManagerSession } from "./programManagement";
-import { isInternalProgramAvailable } from "@/services/organizations/internalPrograms";
 import { resolveProgramAssignment, getFacilitatorPermissionLevel } from "@/server/authz/programAccess";
 import {
   PROGRAM_MANAGER_PROFILE,
@@ -40,15 +40,26 @@ const ALLOWED = { allowed: true, status: 200, errorKey: null };
 const denied = (status, errorKey) => ({ allowed: false, status, errorKey });
 
 /**
- * Project-scoped access. Allowed when the caller is a super_admin, the project
- * owner or a project member; 404 when the project does not exist.
+ * Project-scoped access. Allowed when the caller is a project member or the
+ * project owner; 404 when the project does not exist.
+ *
+ * The platform owner is NOT given a role shortcut: the action capability
+ * (`projects.view` for a read, `projects.edit` for a write) is read from the
+ * effective matrix, so a right revoked from the owner's profile denies them on
+ * project routes too. A project MEMBER keeps membership access without needing
+ * the capability — membership is the contextual relationship, not a right.
  */
-export async function evaluateProjectAccess(projectId) {
+export async function evaluateProjectAccess(projectId, capability = "view") {
   try {
     const session = await requireSession(); // any authenticated user
 
-    // Platform-owner bypass
-    if (isPlatformOwnerRole(session.role)) return ALLOWED;
+    // Platform-owner path: the right decides, not the role.
+    if (isPlatformOwnerRole(session.role)) {
+      const context = await getAuthorizationContext(session);
+      const decision = explainAuthorization(context, "projects", capability);
+      if (decision.allowed) return ALLOWED;
+      return denied(403, "errors.insufficientPermissions");
+    }
 
     if (!(await projectExists(projectId))) return denied(404, "errors.projectNotFound");
 
@@ -71,7 +82,6 @@ export async function evaluateProgramFacilitator(programId) {
   try {
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
-    if (!(await isInternalProgramAvailable(programId))) return denied(403, "errors.insufficientPermissions");
     if (isPlatformOwnerRole(session.role)) return ALLOWED;
     const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
     if (!resolved) return denied(403, "errors.insufficientPermissions");
@@ -90,7 +100,6 @@ export async function evaluateFacilitatorProgramAccess(programId, capability = n
   try {
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
-    if (!(await isInternalProgramAvailable(programId))) return denied(403, "errors.insufficientPermissions");
     if (isPlatformOwnerRole(session.role)) return ALLOWED;
     const resolved = await resolveProgramAssignment(programId, session.cid, session.email);
     if (!resolved) return denied(403, "errors.insufficientPermissions");
@@ -176,10 +185,9 @@ export async function evaluateAssignmentAccess({
     const session = await getSession();
     if (!session) return denied(401, "errors.authRequired");
 
-    if (resource !== "program") return denied(403, "errors.insufficientPermissions");
-    if (!(await isInternalProgramAvailable(contextId))) return denied(403, "errors.insufficientPermissions");
-
     if (await isProgramManagerSession(session)) return ALLOWED;
+
+    if (resource !== "program") return denied(403, "errors.insufficientPermissions");
 
     const base = await evaluateFacilitatorProgramAccess(contextId, capability, minLevel);
     if (!base.allowed) return base;

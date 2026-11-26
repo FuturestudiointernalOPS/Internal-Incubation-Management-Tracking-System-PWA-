@@ -192,11 +192,13 @@ export default function KnowledgeBank() {
     }
   };
 
-  const filteredNotes = allNotes.filter(note => {
-    const matchesTab = activeTab === 'archive' ? !!note.is_archived : !note.is_archived;
-    const matchesSearch = note.title.toLowerCase().includes(search.toLowerCase());
-    return matchesTab && matchesSearch;
-  });
+  const tabNotes = allNotes.filter(note =>
+    activeTab === 'archive' ? !!note.is_archived : !note.is_archived
+  );
+
+  const filteredNotes = tabNotes.filter(note =>
+    note.title.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <>
@@ -266,10 +268,53 @@ export default function KnowledgeBank() {
                       <iframe src={`${activeFileUrl}#toolbar=0`} className="w-full h-full" title={t("adminMisc.knowledge.viewer")} />
                    </div>
                 </div>
-             ) : (
+             ) : tabNotes.length === 0 ? (
                 <div className="card py-40 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
                    <BookOpen className="w-16 h-16 mb-4" />
                    <h3 className="text-xl font-bold uppercase">{t("adminMisc.knowledge.selectNode")}</h3>
+                </div>
+             ) : filteredNotes.length === 0 ? (
+                <div className="card py-40 flex flex-col items-center justify-center text-center opacity-40 border-dashed">
+                   <Search className="w-16 h-16 mb-4" />
+                   <h3 className="text-xl font-bold uppercase">{t("adminMisc.knowledge.libraryEmpty")}</h3>
+                </div>
+             ) : (
+                <div className="space-y-6">
+                   <div className="flex items-center justify-between border-b border-[var(--border-primary)] pb-4">
+                      <div className="flex items-center gap-3">
+                         <Library className="w-5 h-5 text-[var(--brand-orange)]" />
+                         <h2 className="text-lg font-bold uppercase tracking-tight text-[var(--text-primary)]">{t("adminMisc.knowledge.allNodes")}</h2>
+                      </div>
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)]">{filteredNotes.length}</span>
+                   </div>
+
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {filteredNotes.map(note => (
+                         <button
+                            key={note.id}
+                            type="button"
+                            onClick={() => setViewingNote(note)}
+                            className="card !p-5 text-left space-y-4 border-[var(--border-primary)] hover:border-[var(--brand-orange)] transition-all group"
+                         >
+                            <div className="flex items-start justify-between gap-3">
+                               <div className="w-10 h-10 rounded-xl bg-brand-orange/10 flex items-center justify-center text-[var(--brand-orange)] shrink-0">
+                                  <BookOpen className="w-5 h-5" />
+                               </div>
+                               {note.is_archived && (
+                                  <span className="text-[10px] font-bold uppercase text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">{t("adminMisc.knowledge.archive")}</span>
+                               )}
+                            </div>
+                            <div className="space-y-1">
+                               <h3 className="text-sm font-bold uppercase tracking-tight text-[var(--text-primary)] truncate group-hover:text-[var(--brand-orange)] transition-colors">{note.title}</h3>
+                               <p className="text-[11px] font-medium text-[var(--text-secondary)] line-clamp-2 min-h-[2.5em]">{note.description}</p>
+                            </div>
+                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[var(--text-secondary)] border-t border-[var(--border-primary)] pt-3">
+                               <Paperclip className="w-3.5 h-3.5" />
+                               <span>{t("adminMisc.knowledge.fileCount", { count: note.files?.length || 0 })}</span>
+                            </div>
+                         </button>
+                      ))}
+                   </div>
                 </div>
              )}
           </div>

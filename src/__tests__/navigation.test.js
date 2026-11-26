@@ -24,29 +24,40 @@ const FIXTURE = {
       id: "crm",
       href: null,
       subItems: [
-        { id: "crm_dashboard", href: "/crm", subItems: null },
-        { id: "all_contacts", href: "/crm/contacts", subItems: null },
-        { id: "crm_organizations", href: "/crm/organizations", subItems: null },
-        { id: "crm_leads", href: "/crm/leads", subItems: null },
-        { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },
-        { id: "crm_pipelines", href: "/crm/pipelines", subItems: null },
-        { id: "crm_activities", href: "/crm/activities", subItems: null },
-        { id: "crm_segments", href: "/crm/segments", subItems: null },
-        { id: "crm_automations", href: "/crm/automations", subItems: null },
-        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
-        { id: "crm_membership", href: "/crm/membership", subItems: null },
-        { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
-        { id: "pending_users", href: "/admin/pending-users", subItems: null },
-        { id: "bulk_upload", href: "/admin/bulk-upload", subItems: null },
+        { id: "crm_dashboard", href: "/staff/crm", subItems: null },
+        { id: "all_contacts", href: "/staff/crm/contacts", subItems: null },
+        { id: "crm_organizations", href: "/staff/crm/organizations", subItems: null },
+        { id: "crm_leads", href: "/staff/crm/leads", subItems: null },
+        { id: "crm_opportunities", href: "/staff/crm/opportunities", subItems: null },
+        { id: "crm_pipelines", href: "/staff/crm/pipelines", subItems: null },
+        { id: "crm_activities", href: "/staff/crm/activities", subItems: null },
+        { id: "crm_segments", href: "/staff/crm/segments", subItems: null },
+        { id: "crm_automations", href: "/staff/crm/automations", subItems: null },
+        { id: "crm_timeline", href: "/staff/crm/timeline", subItems: null },
+        { id: "crm_membership", href: "/staff/crm/membership", subItems: null },
+        { id: "crm_duplicates", href: "/staff/crm/duplicates", subItems: null },
+        { id: "pending_users", href: "/admin/security/pending-users", subItems: null },
+        { id: "bulk_upload", href: "/admin/crm/bulk-upload", subItems: null },
       ],
     },
     {
       id: "communication",
       href: null,
       subItems: [
-        { id: "messages", href: "/admin/internal-comms", subItems: null },
-        { id: "announcements", href: "/admin/announcements", subItems: null },
-        { id: "forms", href: "/platform", subItems: null },
+        { id: "messages", href: "/admin/communication/messages", subItems: null },
+        { id: "announcements", href: "/admin/communication/announcements", subItems: null },
+        {
+          id: "forms",
+          href: null,
+          subItems: [
+            { id: "forms_dashboard", href: "/admin/communication/forms", subItems: null },
+            { id: "forms_list", href: "/admin/communication/forms/list", subItems: null },
+            { id: "forms_runs", href: "/admin/communication/forms/runs", subItems: null },
+            { id: "forms_import", href: "/admin/communication/forms/import", subItems: null },
+            { id: "forms_identity_review", href: "/admin/communication/forms/import/review", subItems: null },
+            { id: "forms_scores", href: "/admin/communication/forms/scores", subItems: null },
+          ],
+        },
       ],
     },
     {
@@ -55,7 +66,7 @@ const FIXTURE = {
       subItems: [
         { id: "all_programs", href: "/admin/programs", subItems: null },
         { id: "create_program", href: "/admin/programs/new", subItems: null },
-        { id: "progress", href: "/admin/progress", subItems: null },
+        { id: "progress", href: "/admin/programs/progress", subItems: null },
       ],
     },
     {
@@ -76,6 +87,10 @@ const FIXTURE = {
         { id: "investors_review", href: "/admin/investors/review", subItems: null },
         { id: "investors_campaigns", href: "/admin/investors/campaigns", subItems: null },
         { id: "investors_relationships", href: "/admin/investors/relationships", subItems: null },
+        { id: "investors_portfolio", href: "/admin/investors/portfolio", subItems: null },
+        { id: "investors_deal_flow", href: "/admin/investors/deal-flow", subItems: null },
+        { id: "investors_introductions", href: "/admin/investors/introductions", subItems: null },
+        { id: "investors_metrics", href: "/admin/investors/metrics", subItems: null },
       ],
     },
     { id: "finance", href: "/admin/finance", subItems: null },
@@ -83,11 +98,11 @@ const FIXTURE = {
       id: "operations",
       href: null,
       subItems: [
-        { id: "internal_ops_board", href: "/admin/work", subItems: null },
-        { id: "all_projects", href: "/admin/projects", subItems: null },
-        { id: "create_project", href: "/admin/projects?action=create", subItems: null },
-        { id: "tasks", href: "/admin/tasks", subItems: null },
-        { id: "blockers", href: "/admin/blockers", subItems: null },
+        { id: "internal_ops_board", href: "/admin/operations/board", subItems: null },
+        { id: "all_projects", href: "/admin/operations/projects", subItems: null },
+        { id: "create_project", href: "/admin/operations/projects?action=create", subItems: null },
+        { id: "tasks", href: "/admin/operations/tasks", subItems: null },
+        { id: "blockers", href: "/admin/operations/blockers", subItems: null },
         { id: "standup", href: "/staff/op-report?tab=standup", subItems: null },
         { id: "retro", href: "/staff/op-report?tab=retro", subItems: null },
       ],
@@ -102,8 +117,8 @@ const FIXTURE = {
       href: null,
       subItems: [
         { id: "program_reports", href: "/admin/reports/responses", subItems: null },
-        { id: "internal_reports", href: "/admin/op-reports", subItems: null },
-        { id: "metrics", href: "/admin/metrics", subItems: null },
+        { id: "internal_reports", href: "/admin/reports/op-reports", subItems: null },
+        { id: "metrics", href: "/admin/reports/metrics", subItems: null },
       ],
     },
     {
@@ -125,11 +140,11 @@ const FIXTURE = {
       id: "settings",
       href: null,
       subItems: [
-        { id: "system", href: "/admin/system", subItems: null },
+        { id: "system", href: "/admin/settings/system", subItems: null },
         // Security & compliance live under Settings, not as a section of their own.
         { id: "security", href: "/admin/security", subItems: null },
-        { id: "audit_logs", href: "/admin/audit-logs", subItems: null },
-        { id: "access_summary", href: "/admin/access", subItems: null },
+        { id: "audit_logs", href: "/admin/security/audit-logs", subItems: null },
+        { id: "access_summary", href: "/admin/security/access", subItems: null },
         { id: "permissions", href: "/admin/security/permissions", subItems: null },
       ],
     },
@@ -141,53 +156,47 @@ const FIXTURE = {
   program_manager: [
     { id: "dashboard", href: "/staff", subItems: null },
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
-    { id: "programs", href: "/pm/programs", subItems: null },
+    { id: "programs", href: "/staff/program-manager/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
       href: null,
-      subItems: [
-        { id: "messages", href: "/staff/messages", subItems: null },
-        { id: "forms", href: "/platform", subItems: null },
-      ],
+      subItems: [{ id: "messages", href: "/staff/messages", subItems: null }],
     },
   ],
 
   staff: [
     { id: "dashboard", href: "/staff", subItems: null },
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
-    { id: "programs", href: "/pm/programs", subItems: null },
+    { id: "programs", href: "/staff/program-manager/programs", subItems: null },
     { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
       href: null,
-      subItems: [
-        { id: "messages", href: "/staff/messages", subItems: null },
-        { id: "forms", href: "/platform", subItems: null },
-      ],
+      subItems: [{ id: "messages", href: "/staff/messages", subItems: null }],
     },
   ],
 
-  facilitator: [{ id: "dashboard", href: "/participant", subItems: null }],
+  facilitator: [{ id: "dashboard", href: "/member/dashboard", subItems: null }],
 
-  member: [{ id: "dashboard", href: "/participant", subItems: null }],
+  member: [{ id: "dashboard", href: "/member/dashboard", subItems: null }],
 
   // Phase H — participant / founder have no role mask any more: their surfaces
   // are relationship-driven, so the mask projects to the member baseline.
-  participant: [{ id: "dashboard", href: "/participant", subItems: null }],
+  participant: [{ id: "dashboard", href: "/member/dashboard", subItems: null }],
 
-  founder: [{ id: "dashboard", href: "/participant", subItems: null }],
+  founder: [{ id: "dashboard", href: "/member/dashboard", subItems: null }],
 
   team: [
-    { id: "dashboard", href: "/team", subItems: null },
-    { id: "programs", href: "/team", subItems: null },
+    { id: "dashboard", href: "/member/team", subItems: null },
+    { id: "programs", href: "/member/team", subItems: null },
   ],
 
-  investor: [{ id: "dashboard", href: "/participant", subItems: null }],
+  investor: [{ id: "dashboard", href: "/member/dashboard", subItems: null }],
 
   finance: [
-    { id: "dashboard", href: "/finance", subItems: null },
-    { id: "profile", href: "/participant/profile", subItems: null },
+    { id: "dashboard", href: "/staff/finance", subItems: null },
+    { id: "profile", href: "/member/participant/profile", subItems: null },
   ],
 
   crm: [
@@ -195,28 +204,22 @@ const FIXTURE = {
       id: "crm",
       href: null,
       subItems: [
-        { id: "crm_dashboard", href: "/crm", subItems: null },
-        { id: "all_contacts", href: "/crm/contacts", subItems: null },
-        { id: "crm_organizations", href: "/crm/organizations", subItems: null },
-        { id: "crm_leads", href: "/crm/leads", subItems: null },
-        { id: "crm_opportunities", href: "/crm/opportunities", subItems: null },
-        { id: "crm_pipelines", href: "/crm/pipelines", subItems: null },
-        { id: "crm_activities", href: "/crm/activities", subItems: null },
-        { id: "crm_segments", href: "/crm/segments", subItems: null },
-        { id: "crm_automations", href: "/crm/automations", subItems: null },
-        { id: "crm_timeline", href: "/crm/timeline", subItems: null },
-        { id: "crm_membership", href: "/crm/membership", subItems: null },
-        { id: "crm_duplicates", href: "/crm/duplicates", subItems: null },
+        { id: "crm_dashboard", href: "/staff/crm", subItems: null },
+        { id: "all_contacts", href: "/staff/crm/contacts", subItems: null },
+        { id: "crm_organizations", href: "/staff/crm/organizations", subItems: null },
+        { id: "crm_leads", href: "/staff/crm/leads", subItems: null },
+        { id: "crm_opportunities", href: "/staff/crm/opportunities", subItems: null },
+        { id: "crm_pipelines", href: "/staff/crm/pipelines", subItems: null },
+        { id: "crm_activities", href: "/staff/crm/activities", subItems: null },
+        { id: "crm_segments", href: "/staff/crm/segments", subItems: null },
+        { id: "crm_automations", href: "/staff/crm/automations", subItems: null },
+        { id: "crm_timeline", href: "/staff/crm/timeline", subItems: null },
+        { id: "crm_membership", href: "/staff/crm/membership", subItems: null },
+        { id: "crm_duplicates", href: "/staff/crm/duplicates", subItems: null },
       ],
     },
-    // Forms and runs live under Communication, never under CRM.
-    {
-      id: "communication",
-      href: null,
-      subItems: [
-        { id: "forms", href: "/platform", subItems: null },
-      ],
-    },
+    // Forms and runs have no non-admin address: they live under the admin
+    // Communication section, so this role mask does not advertise them.
   ],
 };
 
@@ -230,7 +233,7 @@ describe("Master navigation — role projections", () => {
   it("falls back to a neutral view for unknown roles", () => {
     expect(serialize(buildRoleNav("unknown_role"))).toEqual([
       { id: "dashboard", href: "/admin", subItems: null },
-      { id: "projects", href: "/admin/projects", subItems: null },
+      { id: "projects", href: "/admin/operations/projects", subItems: null },
       { id: "reports", href: "/admin/reports", subItems: null },
     ]);
   });
@@ -298,8 +301,8 @@ describe("Master navigation — role projections", () => {
 
     // Same master node consumed by multiple roles (no per-role copies):
     // "messages" is a communication child for super_admin/pm and top-level
-    // for staff; "programs" is a section for super_admin and a leaf for staff;
-    // "forms" is shared too.
+    // for staff; "programs" is a section for super_admin and a leaf for staff.
+    // Forms is the owner's alone now that it lives under /admin/communication.
     const findIn = (items, id) => {
       for (const item of items || []) {
         if (item.id === id) return item;
@@ -315,7 +318,6 @@ describe("Master navigation — role projections", () => {
       ["super_admin", "programs"],
       ["staff", "programs"],
       ["super_admin", "forms"],
-      ["crm", "forms"],
     ];
     for (const [role, id] of shared) {
       const projected = findIn(buildRoleNav(role), id);
@@ -378,9 +380,9 @@ describe("capability projection — buildAccessNav contract", () => {
       "crm_timeline",
     ]);
     expect(crm.subItems.map((subItem) => subItem.href)).toEqual([
-      "/crm",
-      "/crm/contacts",
-      "/crm/timeline",
+      "/staff/crm",
+      "/staff/crm/contacts",
+      "/staff/crm/timeline",
     ]);
   });
 
@@ -399,14 +401,14 @@ describe("capability projection — buildAccessNav contract", () => {
       "crm_automations",
     ]);
     expect(crm.subItems.map((subItem) => subItem.href)).toEqual([
-      "/crm",
-      "/crm/organizations",
-      "/crm/leads",
-      "/crm/opportunities",
-      "/crm/pipelines",
-      "/crm/activities",
-      "/crm/segments",
-      "/crm/automations",
+      "/staff/crm",
+      "/staff/crm/organizations",
+      "/staff/crm/leads",
+      "/staff/crm/opportunities",
+      "/staff/crm/pipelines",
+      "/staff/crm/activities",
+      "/staff/crm/segments",
+      "/staff/crm/automations",
     ]);
   });
 
@@ -415,7 +417,7 @@ describe("capability projection — buildAccessNav contract", () => {
     const crm = nav.find((item) => item.id === "crm");
     expect(crm).toBeDefined();
     expect(crm.subItems.map((subItem) => subItem.id)).toEqual(["crm_membership"]);
-    expect(crm.subItems[0].href).toBe("/crm/membership");
+    expect(crm.subItems[0].href).toBe("/staff/crm/membership");
   });
 
   test("membership appears only when org_membership.view is held", () => {
@@ -429,19 +431,19 @@ describe("capability projection — buildAccessNav contract", () => {
     const crm = withMembership.find((item) => item.id === "crm");
     const membership = crm.subItems.find((subItem) => subItem.id === "crm_membership");
     expect(membership).toBeDefined();
-    expect(membership.href).toBe("/crm/membership");
+    expect(membership.href).toBe("/staff/crm/membership");
   });
 
   test("a granted leaf (finance) is added through its non-admin fallback", () => {
     const nav = buildAccessNav("staff", { finance: { view: 1 } });
     const finance = nav.find((item) => item.id === "finance");
     expect(finance).toBeDefined();
-    expect(finance.href).toBe("/finance");
+    expect(finance.href).toBe("/staff/finance");
   });
 
   test("a role's own doors keep their hrefs (no /admin surgery on the base)", () => {
     const nav = buildAccessNav("unknown_role", null);
-    expect(nav.map((item) => item.href)).toEqual(["/admin", "/admin/projects", "/admin/reports"]);
+    expect(nav.map((item) => item.href)).toEqual(["/admin", "/admin/operations/projects", "/admin/reports"]);
   });
 
   test("role-only sections (rituals) are never granted by a capability", () => {
@@ -475,7 +477,7 @@ describe("capability projection — buildAccessNav contract", () => {
     // Program manager → the non-admin landing (never an /admin link).
     const pmLms = buildAccessNav("program_manager", everything).find((item) => item.id === "lms");
     expect(pmLms).toBeDefined();
-    expect(pmLms.subItems[0].href).toBe("/pm/lms/courses");
+    expect(pmLms.subItems[0].href).toBe("/staff/program-manager/lms/courses");
   });
 
   test("non-admin navigation never renders an /admin link", () => {

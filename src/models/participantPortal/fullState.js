@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Legacy participant portal full-state model — data access for GET /api/participant/full-state
@@ -14,7 +13,7 @@ export async function getFullStateContactCidByEmail(email) {
 
 export async function getFullStateProgramByName(groupName) {
   return db.execute({
-    sql: `SELECT * FROM v2_programs WHERE name = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT * FROM v2_programs WHERE name = ?",
     args: [groupName],
   });
 }

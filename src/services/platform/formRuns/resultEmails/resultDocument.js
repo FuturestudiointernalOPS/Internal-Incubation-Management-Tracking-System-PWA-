@@ -25,12 +25,18 @@ import {
 } from "@/models/formRuns";
 import { getPlatformFormFields, getPlatformFormSections } from "@/models/forms";
 import { getRunReportFileTextByRunId } from "@/models/platform/reportFiles";
+import { formatCountryAnswer } from "@/lib/countries";
 
 import { logTimeline } from "./decisionEmail";
 
 /** Render one submission answer value for the result PDF (phone JSON → text). */
-function formatResultAnswer(value) {
+function formatResultAnswer(value, field, locale = "en") {
   if (value === undefined || value === null || value === "") return "";
+  if (field?.field_type === "country") {
+    return Array.isArray(value)
+      ? value.map((item) => formatCountryAnswer(item, locale)).filter(Boolean).join(", ")
+      : formatCountryAnswer(value, locale);
+  }
   if (typeof value === "string") {
     const trimmedValue = value.trim();
     if (trimmedValue.startsWith("{") && trimmedValue.includes('"code"')) {
@@ -41,7 +47,7 @@ function formatResultAnswer(value) {
     }
     return trimmedValue;
   }
-  if (Array.isArray(value)) return value.map(formatResultAnswer).filter(Boolean).join(", ");
+  if (Array.isArray(value)) return value.map((item) => formatResultAnswer(item, field, locale)).filter(Boolean).join(", ");
   if (typeof value === "object") {
     try {
       return JSON.stringify(value);
@@ -205,7 +211,7 @@ export async function buildResultDocument({ submission_id, forceReport = false }
       for (const field of fieldRows) {
         if (String(field.section_id) !== String(section.id)) continue;
         if (isHidden(field)) continue;
-        const value = formatResultAnswer(getVal(field));
+        const value = formatResultAnswer(getVal(field), field, lang);
         if (value === "") continue;
         matchedKeys.add(String(field.id));
         if (field.label) matchedKeys.add(field.label);
@@ -219,7 +225,7 @@ export async function buildResultDocument({ submission_id, forceReport = false }
     for (const field of fieldRows) {
       if (sectionsRows.some((section) => String(section.id) === String(field.section_id))) continue;
       if (isHidden(field)) continue;
-      const value = formatResultAnswer(getVal(field));
+      const value = formatResultAnswer(getVal(field), field, lang);
       if (value === "") continue;
       matchedKeys.add(String(field.id));
       if (field.label) matchedKeys.add(field.label);

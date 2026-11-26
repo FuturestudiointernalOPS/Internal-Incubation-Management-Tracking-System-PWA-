@@ -22,11 +22,11 @@ const { readSurface } = require("./helpers/sourceSurface");
 const read = (relativePath) => fs.readFileSync(path.join(process.cwd(), relativePath), "utf8");
 
 const COURSE_ID = "crs-1";
-const ENCODED_NEXT = encodeURIComponent(`/participant/learning/${COURSE_ID}`);
+const ENCODED_NEXT = encodeURIComponent(`/member/participant/learning/${COURSE_ID}`);
 
 describe("an explicit `next` is only ever an INTERNAL path", () => {
   test("a bare path is accepted", () => {
-    expect(safeNextPath("/participant/learning/crs-1")).toBe("/participant/learning/crs-1");
+    expect(safeNextPath("/member/participant/learning/crs-1")).toBe("/member/participant/learning/crs-1");
     expect(safeNextPath("/courses/venture-2026")).toBe("/courses/venture-2026");
   });
 
@@ -64,7 +64,7 @@ describe("the server mints links that carry the course destination", () => {
 
   test("the checkout email's password link carries the same `next`", () => {
     const src = read("src/lib/lms/checkoutMail.js");
-    expect(src).toContain("?next=${encodeURIComponent(`/participant/learning/${registration.course_id}`)}");
+    expect(src).toContain("?next=${encodeURIComponent(`/member/participant/learning/${registration.course_id}`)}");
   });
 });
 
@@ -86,6 +86,6 @@ describe("the client pages consume the destination", () => {
   });
 
   test("the encoded course path is the one the server mints", () => {
-    expect(ENCODED_NEXT).toBe("%2Fparticipant%2Flearning%2Fcrs-1");
+    expect(ENCODED_NEXT).toBe("%2Fmember%2Fparticipant%2Flearning%2Fcrs-1");
   });
 });

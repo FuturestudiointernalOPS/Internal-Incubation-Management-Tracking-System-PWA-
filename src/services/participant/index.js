@@ -15,6 +15,8 @@
  *   rituals.js     — the weekly rituals (check-in, stand-up, retro, reflection)
  *   timeline.js    — the self timeline page size
  *   submissions.js — participant / team submissions (access + view-only gate)
+ *   participation.js — the ONE "is this person a participant?" decision (menu,
+ *                      dashboard, workspace hub, landing)
  */
 
 export * from "./assignments";
@@ -25,3 +27,4 @@ export * from "./fullState";
 export * from "./rituals";
 export * from "./timeline";
 export * from "./submissions";
+export * from "./participation";

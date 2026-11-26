@@ -1,12 +1,11 @@
 /**
- * Run read-only audit queries against an explicitly selected database.
+ * RUN-ONLY READ-ONLY AUDIT QUERIES AGAINST THE PRODUCTION DATABASE.
  *
  * Usage:
- *   node scripts/db-audit/run-readonly.mjs <sql-file> [env-file]
+ *   node scripts/db-audit/run-readonly.mjs <sql-file>
  *
- * Reads DATABASE_URL from the supplied env file, or
- * <project-root>/.env.audit-readonly by default. Env files are local and their
- * names do not prove which database they select.
+ * Reads DATABASE_URL from <project-root>/.env.audit-readonly
+ * (a gitignored file you create — never commit it).
  *
  * SAFETY:
  *   - This script ONLY executes statements that start with
@@ -24,7 +23,7 @@ import pg from "pg";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.resolve(__dirname, "..", "..");
-// Optional env-file argument (default .env.audit-readonly).
+// Optional: node run-readonly.mjs <sql-file> <env-file> (default .env.audit-readonly)
 const ENV_FILE = path.join(PROJECT_ROOT, process.argv[3] || ".env.audit-readonly");
 
 const sqlFile = process.argv[2];
@@ -50,7 +49,7 @@ try {
 if (!databaseUrl) {
   console.error(
     "Missing DATABASE_URL.\n" +
-      "Provide an env file with one line:\n" +
+      "Create the file  .env.audit-readonly  at the project root with one line:\n" +
       "  DATABASE_URL=postgresql://user:password@host:port/database\n" +
       "(the file is gitignored; delete it after the audit).",
   );

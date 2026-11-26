@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
-import { requireAuthorization } from "@/models/authorization/index";
+import {
+  requireAuthorization,
+  getAuthorizationContext,
+  authorize,
+} from "@/models/authorization/index";
 import { getCrmLeadById, updateCrmLead, softDeleteCrmLead } from "@/models/crm/leads";
 import { ensureCrmNextActionColumns } from "@/models/crm/schema";
 import { addContactTimelineEvent } from "@/services/contacts/timeline";
@@ -60,10 +64,20 @@ export const PATCH = createHandler(
       );
     }
 
-    // Next action — the owner (or a platform owner) alone may set it. The
-    // decision and its validation live in the service, like every other rule.
+    // Next action — the record owner alone may set it, unless the caller holds
+    // `crm.next_action_any` (the support/repair exception). The decision and its
+    // validation live in the service, like every other rule.
     const plan = touchesNextAction(body)
-      ? planNextActionWrite({ body, existing: existingLead, session })
+      ? planNextActionWrite({
+          body,
+          existing: existingLead,
+          session,
+          canSetAny: authorize(
+            await getAuthorizationContext(session),
+            "crm",
+            "next_action_any",
+          ),
+        })
       : null;
     if (plan?.error) {
       return NextResponse.json(

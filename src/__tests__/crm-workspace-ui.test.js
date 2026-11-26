@@ -23,10 +23,10 @@ jest.mock("@/components/ui/DialogProvider", () => ({
 }));
 jest.mock("next/navigation", () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
-const OrganizationsPage = require("@/app/crm/organizations/page").default;
-const LeadsPage = require("@/app/crm/leads/page").default;
-const OpportunitiesPage = require("@/app/crm/opportunities/page").default;
-const SegmentsPage = require("@/app/crm/segments/page").default;
+const OrganizationsPage = require("@/app/staff/crm/organizations/page").default;
+const LeadsPage = require("@/app/staff/crm/leads/page").default;
+const OpportunitiesPage = require("@/app/staff/crm/opportunities/page").default;
+const SegmentsPage = require("@/app/staff/crm/segments/page").default;
 const CrmScorePanel = require("@/components/ui/CrmScorePanel").default;
 
 const ORG = { id: "org-1", name: "E2E-MTN Benin", type: "company", industry: "Telecoms", website: "https://mtn.example" };

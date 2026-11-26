@@ -1,13 +1,5 @@
 {
   "creation": {
-    "kicker": "Nouvel enregistrement",
-    "title": "Créer",
-    "subtitle": "Commencez quelque chose de nouveau. Seuls les éléments que vous êtes autorisé à créer apparaissent ici.",
-    "backToCreate": "Retour à Créer",
-    "section": {
-      "title": "Que souhaitez-vous créer ?",
-      "subtitle": "Chaque porte ci-dessous est ouverte par une permission que vous détenez."
-    },
     "program": {
       "title": "Programme",
       "createAction": "Créer un programme",

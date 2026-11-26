@@ -112,13 +112,24 @@ jest.mock("@/server/auth/session", () => ({
   getSession: jest.fn().mockResolvedValue(mockSession),
 }));
 
-const mockAuthzContext = { isSuperAdmin: false, eligibility: {}, effective: {} };
+const mockAuthzContext = {
+  isSuperAdmin: false,
+  eligibility: {},
+  effective: {},
+  restrictions: {},
+};
 let mockCapabilityDecision = { allowed: true }; // the decision the service returns
 // The scoped-access service gets its capability decision from the
 // authorization-context SERVICE (same layer). jest.mock is hoisted.
 jest.mock("@/services/authorization/context", () => ({
   getAuthorizationContext: jest.fn().mockImplementation(async () => mockAuthzContext),
   evaluateAuthorization: jest.fn().mockImplementation(async () => mockCapabilityDecision),
+  explainAuthorization: jest.fn((ctx, module, capability, minLevel = 1) => {
+    const level = Number(ctx?.effective?.[module]?.[capability] ?? 0);
+    return level >= minLevel
+      ? { allowed: true, reason: "granted", minLevel }
+      : { allowed: false, reason: "missing_permission", minLevel };
+  }),
 }));
 
 // requireScopedAccess is the HTTP boundary (decision -> response);
@@ -144,6 +155,7 @@ beforeEach(() => {
   mockDbRows.projectMembers = [];
   mockDbRows.ventureMembers = [];
   mockAuthzContext.isSuperAdmin = false;
+  mockAuthzContext.effective = {};
   mockCapabilityDecision = { allowed: true };
   jest.clearAllMocks();
 });
@@ -260,12 +272,20 @@ describe("H/I — venture & project scoping", () => {
   });
 });
 
-describe("L — Super Admin bypass + context integrity", () => {
-  test("SA passes without assignment (existing resolver semantics)", async () => {
+describe("L — Super Admin: the right decides, the assignment is waived", () => {
+  test("SA holding the capability passes without assignment", async () => {
     mockAuthzContext.isSuperAdmin = true;
+    mockAuthzContext.effective = { programs: { view: 5 } };
     const res = await requireScopedAccess(allow);
     expect(await status(res)).toBe(200);
     expect(evaluateAuthorization).not.toHaveBeenCalled();
+  });
+
+  test("SA without the capability is denied (a revoked right applies to the owner)", async () => {
+    mockAuthzContext.isSuperAdmin = true;
+    mockAuthzContext.effective = {};
+    const res = await requireScopedAccess(allow);
+    expect(await status(res)).toBe(403);
   });
 
   test("missing contextId → 403 (no URL/body manipulation can target nothing)", async () => {

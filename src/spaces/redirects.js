@@ -1,0 +1,103 @@
+/**
+ * The address migration — every legacy route and where it now lives.
+ *
+ * These entries are the ONLY record of the addresses the spaces moved. They are
+ * kept in a plain module rather than inline in the Next config so they can be
+ * tested: order matters (a specific alias must be checked before its parent),
+ * destinations must point into a real space, and a legacy destination would be
+ * a redirect loop waiting to happen.
+ *
+ * ── Flipping to permanent ───────────────────────────────────────────────────
+ * While the migration is being validated in production every entry answers a
+ * TEMPORARY redirect (307): browsers do not cache it, so a mistake is
+ * reversible. Once `docs/PRODUCTION_TEST.md` passes on the new addresses, set
+ * `SPACE_REDIRECTS_PERMANENT=1` in the production build environment and
+ * redeploy. No code change is needed — this module reads the flag.
+ *
+ * A permanent redirect (308) is cached by browsers. Turning it off later does
+ * NOT un-cache it for people who already followed it; that is exactly why the
+ * default is temporary.
+ */
+
+import { screenRedirects } from "../lib/routes/index.js";
+
+/** Whether the migration redirects answer permanently (308). */
+export const SPACE_REDIRECTS_PERMANENT =
+  process.env.SPACE_REDIRECTS_PERMANENT === "1" ||
+  String(process.env.SPACE_REDIRECTS_PERMANENT).toLowerCase() === "true";
+
+/**
+ * Ordered: an alias with more path segments comes before its parent, so
+ * `/founder/ventures` is resolved before the generic `/founder` rule.
+ */
+export const SPACE_REDIRECTS = [
+  // ── Member space ────────────────────────────────────────────────────────
+  // The founder's venture screens always lived with the participant ventures.
+  { source: "/founder/ventures/:path*", destination: "/member/participant/ventures/:path*" },
+  { source: "/founder/ventures", destination: "/member/participant/ventures" },
+  { source: "/participant/:path*", destination: "/member/participant/:path*" },
+  { source: "/participant", destination: "/member/participant" },
+  { source: "/founder/:path*", destination: "/member/founder/:path*" },
+  { source: "/founder", destination: "/member/founder" },
+  { source: "/investor/:path*", destination: "/member/investor/:path*" },
+  { source: "/investor", destination: "/member/investor" },
+  { source: "/facilitator/:path*", destination: "/member/facilitator/:path*" },
+  { source: "/facilitator", destination: "/member/facilitator" },
+  { source: "/team/:path*", destination: "/member/team/:path*" },
+  { source: "/team", destination: "/member/team" },
+  { source: "/workspaces", destination: "/member" },
+
+  // ── Staff space ─────────────────────────────────────────────────────────
+  { source: "/pm/:path*", destination: "/staff/program-manager/:path*" },
+  { source: "/pm", destination: "/staff/program-manager" },
+  { source: "/finance/:path*", destination: "/staff/finance/:path*" },
+  { source: "/finance", destination: "/staff/finance" },
+  { source: "/crm/:path*", destination: "/staff/crm/:path*" },
+  { source: "/crm", destination: "/staff/crm" },
+  { source: "/create/:path*", destination: "/staff/create/:path*" },
+  { source: "/create", destination: "/staff/create" },
+];
+
+/** The redirect list expected by Next, with the permanence flag applied. */
+export function spaceRedirects({ permanent = SPACE_REDIRECTS_PERMANENT } = {}) {
+  return SPACE_REDIRECTS.map((entry) => ({ ...entry, permanent }));
+}
+
+/**
+ * THE RETIRED DASHBOARDS.
+ *
+ * Every member now opens ONE dashboard (`/member/dashboard`). These four addresses
+ * used to be a separate home per profile, so a founder, an investor, a
+ * facilitator and a participant each saw a different page. They stay as
+ * addresses (bookmarks, links in emails) and lead to the one dashboard; their
+ * own detail screens — my programmes, my courses, the investor workspace, the
+ * facilitator's programme screens, the founder's meetings — are untouched.
+ *
+ * Declared here rather than inline in the Next config so the list is testable
+ * and shares the same temporary/permanent switch as the space migration.
+ */
+export const RETIRED_DASHBOARD_REDIRECTS = [
+  { source: "/member/participant", destination: "/member/dashboard" },
+  { source: "/member/founder", destination: "/member/dashboard" },
+  { source: "/member/facilitator", destination: "/member/dashboard" },
+  { source: "/member/investor/dashboard", destination: "/member/dashboard" },
+];
+
+/** The retired-dashboard list, with the permanence flag applied. */
+export function retiredDashboardRedirects({
+  permanent = SPACE_REDIRECTS_PERMANENT,
+} = {}) {
+  return RETIRED_DASHBOARD_REDIRECTS.map((entry) => ({ ...entry, permanent }));
+}
+
+/**
+ * THE SCREEN ADDRESSES.
+ *
+ * Generated from the address catalogue (`src/lib/routes/`), not written here:
+ * a screen that has finished its move lists its old addresses, and every one of
+ * them redirects to the screen's canonical address. Empty while every move is
+ * still pending, so adding this module changes no behaviour.
+ */
+export function screenRedirectsForNext() {
+  return screenRedirects({ permanent: SPACE_REDIRECTS_PERMANENT });
+}

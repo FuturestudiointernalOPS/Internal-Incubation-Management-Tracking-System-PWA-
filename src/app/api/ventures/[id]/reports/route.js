@@ -5,7 +5,7 @@ import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
 import { getSession } from "@/server/auth/session";
 import { hasHistoricalVentureAccess } from "@/services/authorization/historicalReadScope";
 import { resolveVentureDbId } from "@/lib/ventureOwnership";
-import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProductivity, getExportData } from "@/services/ventures/analytics";
+import { getVentureAnalytics, getMilestonesReport, getTasksReport, getTeamProductivity, getExportData, getExecutionTimeline } from "@/services/ventures/analytics";
 
 /**
  * GET /api/ventures/[id]/reports?type=analytics|milestones|tasks|productivity|export&format=csv
@@ -67,6 +67,12 @@ export const GET = createHandler(async (req, { params }) => {
   if (type === "productivity") {
     const team = await getTeamProductivity(dbId);
     return NextResponse.json({ success: true, team });
+  }
+
+  // "Work vs outcome": deliverables approved and stages completed, per month.
+  if (type === "execution-timeline") {
+    const timeline = await getExecutionTimeline(dbId);
+    return NextResponse.json({ success: true, ...timeline });
   }
 
   if (type === "export") {

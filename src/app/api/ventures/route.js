@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { createHandler } from "@/lib/api/createHandler";
 import { getSession } from "@/server/auth/session";
-import { getAuthorizationContext, requireAuthorization } from "@/models/authorization/index";
-import { isWithinScope, resolveVentureScopeId } from "@/services/authorization/scope";
+import { getAuthorizationContext } from "@/models/authorization/index";
+import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
+import { holdsVenturePortfolioRight } from "@/services/ventures/portfolioAccess";
 import { updateVenture } from "@/services/ventures/record";
 import { listDataRoomReadiness } from "@/services/ventures/dataRoom/readiness";
 import {
@@ -47,16 +48,28 @@ export const GET = createHandler(async (req) => {
     return NextResponse.json({ success: false, error: "errors.authRequired" }, { status: 401 });
   }
 
-  // Access scoping (Phase 2 — assignment-aware):
-  //  - GLOBAL roles (super_admin) may list every Venture.
-  //  - Delegated staff/program_manager see the Ventures they are ASSIGNED to —
-  //    never the whole directory.
+  // Access scoping (Phase 2 — assignment-aware, perimeter by right):
+  //  - Whoever holds `ventures.view_all` may list every Venture. The right is
+  //    assignable and revocable, and a Super Admin holds it by default through
+  //    their profile — not because of the role string.
+  //  - Delegated staff/program_manager without it see the Ventures they are
+  //    ASSIGNED to — never the whole directory.
   //  - Every other person sees ONLY the Ventures they belong to, by membership.
-  //    The identifier in the address narrows a GLOBAL role's view; it can never
+  //    The identifier in the address narrows a portfolio view; it can never
   //    widen anyone else's, because the session's own identity overwrites it.
   let effectiveContactId = contactId;
   let assignedStaffId = null;
-  if (!["super_admin"].includes(session.role)) {
+
+  let seesWholePortfolio = false;
+  try {
+    const authContext = await getAuthorizationContext(session);
+    seesWholePortfolio = holdsVenturePortfolioRight(authContext, "view");
+  } catch (_) {
+    // Fail closed: an unreadable context scopes the caller to their own record.
+    seesWholePortfolio = false;
+  }
+
+  if (!seesWholePortfolio) {
     if (["staff", "program_manager"].includes(session.role)) {
       assignedStaffId = session.cid;
     } else {
@@ -128,68 +141,52 @@ export const POST = createHandler(async () => {
  * Update a venture. Expects { id: venture_id, ...fields } in body.
  */
 export const PUT = createHandler(async (req) => {
-  const capError = await requireAuthorization("ventures", "edit");
-  if (capError) return capError;
   const body = await req.json();
-    const { id, ...updates } = body;
-    if (!id) {
-      return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
-    }
+  const { id, ...updates } = body;
+  if (!id) {
+    return NextResponse.json({ success: false, error: "id (venture_id) is required" }, { status: 400 });
+  }
 
-    // Phase 5c — capability is not enough: the venture must be THEIRS. Scope is
-    // checked here so granting ventures.edit can never open unscoped writes.
-    {
-      const session = await getSession();
-      const authzContext = await getAuthorizationContext(session);
-      if (!authzContext?.isSuperAdmin) {
-        const scopeId = await resolveVentureScopeId(id);
-        const within =
-          Boolean(scopeId) &&
-          (await isWithinScope("venture_own", session?.cid, scopeId));
-        if (!within) {
-          const response = NextResponse.json(
-            {
-              success: false,
-              error: "errors.insufficientPermissions",
-              missing: { capability: "ventures.edit", scope: "venture_own" },
-            },
-            { status: 403 },
-          );
-          response.headers.set("X-Authz-Decision", "out-of-scope");
-          return response;
-        }
+  // The canonical write gate: capability + perimeter (an assigned Venture, or
+  // the explicit `ventures.edit_all` right). No role bypass.
+  const access = await requireVentureScopedAccess({
+    ventureId: id,
+    module: "ventures",
+    capability: "edit",
+  });
+  if (access.error) return access.error;
+
+  // Lifecycle guardrail: only a portfolio editor or delegated staff with an
+  // active assignment may change a Venture's status (founder/member edits keep
+  // all other profile fields; status is silently preserved as-is).
+  if (updates.status) {
+    try {
+      const isPortfolioEditor = access.path === "portfolio" || access.path === "super-admin";
+      if (!isPortfolioEditor) {
+        const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
+        const assigned = access.session?.cid
+          ? await hasActiveVentureAssignment(id, access.session.cid)
+          : false;
+        if (!assigned) delete updates.status;
       }
-    }
-    // Lifecycle guardrail: only global roles or delegated staff with an active
-    // assignment may change a Venture's status (founder/member edits keep all
-    // other profile fields; status is silently preserved as-is).
-    if (updates.status) {
-      try {
-        const session = await getSession();
-        const globalRoles = ["super_admin"];
-        if (!session || !globalRoles.includes(session.role)) {
-          const { hasActiveVentureAssignment } = await import("@/lib/ventureAuth");
-          const assigned = session?.cid ? await hasActiveVentureAssignment(id, session.cid) : false;
-          if (!assigned) delete updates.status;
-        }
-      } catch (_) {}
-    }
-    // Convert social_media/branding objects to JSON strings for SQLite
-    if (updates.social_media) updates.social_media = JSON.stringify(updates.social_media);
-    if (updates.branding) updates.branding = JSON.stringify(updates.branding);
-    const result = await updateVenture(id, updates);
+    } catch (_) {}
+  }
+  // Convert social_media/branding objects to JSON strings for SQLite
+  if (updates.social_media) updates.social_media = JSON.stringify(updates.social_media);
+  if (updates.branding) updates.branding = JSON.stringify(updates.branding);
+  const result = await updateVenture(id, updates);
 
-    // Timeline event
-    if (result.updated) {
-      try {
-        const { getSession } = await import("@/server/auth/session");
-        const session = await getSession();
-        if (session?.cid) {
-          const updatedFields = Object.keys(updates).filter(field => field !== "social_media" && field !== "branding");
-          await recordVentureUpdatedTimeline({ contact_cid: session.cid, venture_id: id, updated_fields: updatedFields });
-        }
-      } catch (_) {}
-    }
+  // Timeline event
+  if (result.updated) {
+    try {
+      const { getSession } = await import("@/server/auth/session");
+      const session = await getSession();
+      if (session?.cid) {
+        const updatedFields = Object.keys(updates).filter(field => field !== "social_media" && field !== "branding");
+        await recordVentureUpdatedTimeline({ contact_cid: session.cid, venture_id: id, updated_fields: updatedFields });
+      }
+    } catch (_) {}
+  }
 
-    return NextResponse.json({ success: true, ...result });
+  return NextResponse.json({ success: true, ...result });
 });

@@ -220,6 +220,8 @@
       "archive": "Archives",
       "viewer": "Visionneuse",
       "selectNode": "Sélectionnez un nœud opérationnel",
+      "allNodes": "Toutes les bases de connaissances",
+      "fileCount": "Fichiers : {count}",
       "filterLibrary": "Filtrer la bibliothèque...",
       "libraryEmpty": "Bibliothèque vide",
       "newKnowledgeNode": "Nouveau nœud de connaissances",

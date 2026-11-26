@@ -1,6 +1,6 @@
 import { initDb } from "@/lib/db";
 import { NextResponse } from "next/server";
-import { getSession } from "@/server/auth/session";
+import { getSession, forgetCachedSession } from "@/server/auth/session";
 import { hashPassword } from "@/server/auth/password";
 import { hashToken } from "@/lib/token-hashing";
 import {
@@ -258,6 +258,8 @@ export async function PUT(req) {
 
     if (updates.length > 0) {
       await updateContactCoreFields(session.cid, updates, args);
+      // The session carries the name and photo: the next read must see the new ones.
+      await forgetCachedSession();
       // Changing the password signs out every OTHER session; the one making the
       // change stays, so the user is not thrown out mid-action.
       if (password !== undefined) {

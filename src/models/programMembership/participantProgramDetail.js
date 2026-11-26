@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * ProgramMembership model — participant program detail reads (REPOSITORY layer).
@@ -26,7 +25,7 @@ export async function getParticipantProgramEnrollmentByCid(cid) {
 /** Program row by text id. */
 export async function getParticipantProgramDetailById(programId) {
   return db.execute({
-    sql: `SELECT * FROM v2_programs WHERE id::text = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT * FROM v2_programs WHERE id::text = ?",
     args: [programId],
   });
 }
@@ -87,11 +86,11 @@ export async function getParticipantProgramFollowups(programId) {
   });
 }
 
-/** The non-archived knowledge-bank resource explicitly linked to a program. */
-export async function getParticipantKnowledgeBankItemById(noteId) {
+/** Non-archived knowledge-bank resources, newest first. */
+export async function getParticipantKnowledgeBankItems() {
   return db.execute({
-    sql: "SELECT * FROM v2_knowledge_bank WHERE id::text = ? AND is_archived = 0",
-    args: [noteId],
+    sql: "SELECT * FROM v2_knowledge_bank WHERE is_archived = 0 ORDER BY created_at DESC",
+    args: [],
   });
 }
 

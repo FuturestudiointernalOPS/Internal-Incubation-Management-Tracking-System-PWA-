@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
-import ReportDetailModal from "@/components/admin/reports/responses/ReportDetailModal";
+import ReportDetailModal from "@/spaces/admin/components/reports/responses/ReportDetailModal";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -128,7 +128,7 @@ export default function ReportResponses() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={t("adminMisc.reportsResponses.searchPlaceholder")}
-              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-white outline-none focus:border-[var(--brand-orange)] transition-all"
+              className="w-full bg-secondary border border-[var(--border-primary)] rounded-xl py-4 pl-12 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[var(--brand-orange)] transition-all"
             />
           </div>
 

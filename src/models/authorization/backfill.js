@@ -24,7 +24,12 @@ import {
   ensureProfileCatalogueSeed,
   ensureFacilitatorProfileSeed,
   ensureVentureMemberEditBackfill,
+  ensureVentureOpsProfileSeed,
+  ensureLmsAuthorProfileSeed,
+  ensureVentureAdminProfileSeed,
   ensureDelegatedCapabilityDefaults,
+  ensureVenturePortfolioCapabilityDefaults,
+  ensureSuperAdminFullMatrix,
 } from "./profileCatalogueSeed";
 import { backfillFacilitatorProfileKeys } from "./programAssignmentProfileKey";
 import { dropAccessProfileTables } from "./profileTakeoverDrop";
@@ -181,6 +186,18 @@ export function ensureCapabilityBackfills() {
           // recorded once per database, so an existing one never receives a
           // profile added later; this key seeds it (insert-only).
           runAuthzMigration("facilitator-profile-seed-v1", ensureFacilitatorProfileSeed),
+          // The delegable Venture Ops Contributor profile (LMS + Programs +
+          // Ventures, create/edit only). Same one-time-seed reason as above.
+          runAuthzMigration("venture-ops-profile-seed-v1", ensureVentureOpsProfileSeed),
+          // The delegable LMS AUTHOR profile (create + publish). Same one-time
+          // seed reason: the catalogue seed is recorded once per database, so a
+          // profile added later never reaches an existing one. Also writes the
+          // profile's eligibility row, so its grants are not inert.
+          runAuthzMigration("lms-author-profile-seed-v1", ensureLmsAuthorProfileSeed),
+          // The portfolio-wide Venture Admin profile (staff-only). It carries the
+          // Staff Default bundle plus the two portfolio rights, so a database
+          // seeded before it existed receives it (insert-only).
+          runAuthzMigration("venture-admin-profile-seed-v1", ensureVentureAdminProfileSeed),
           // Lot 5 / D-7 — the Venture Member profile gains `ventures.edit`, so
           // the canonical write gate preserves the access the legacy
           // membership gate gave every active member.
@@ -192,6 +209,23 @@ export function ensureCapabilityBackfills() {
           runAuthzMigration(
             "profile-capability-defaults-v1",
             ensureDelegatedCapabilityDefaults,
+          ),
+          // The Venture portfolio perimeter (`view_all` / `edit_all`) replaces
+          // the Super Admin role bypass on Venture routes. The platform owner
+          // keeps the access as a RIGHT on their default profile; insert-only,
+          // so an administrator's later revocation survives the next boot.
+          runAuthzMigration(
+            "venture-portfolio-capabilities-v1",
+            ensureVenturePortfolioCapabilityDefaults,
+          ),
+          // The owner's rights are exhaustive: the decision layer no longer grants
+          // a capability by ROLE, so the Super Admin profile must carry the whole
+          // catalogue — including the registry-only modules (`duplicates`,
+          // `bulk_upload`) that `PERMISSION_MODULES` leaves out. Insert-only, so an
+          // administrator's revocation survives the next boot.
+          runAuthzMigration(
+            "super-admin-full-matrix-v1",
+            ensureSuperAdminFullMatrix,
           ),
           // The per-assignment profile override moved from an access-profile id
           // (`v2_program_staff.access_profile_id`) to a profile KEY. That

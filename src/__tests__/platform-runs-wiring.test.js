@@ -1,9 +1,9 @@
 /**
  * The platform runs screen wiring.
  *
- * The page (src/app/platform/runs/page.js) keeps every state value and every
+ * The page (src/app/admin/communication/forms/runs/page.js) keeps every state value and every
  * data read; its writes live in ./actions (one factory per concern) and its
- * markup in four blocks under components/platform/runs. Nothing at the type
+ * markup in four blocks under components/shared/platform/runs. Nothing at the type
  * level connects those three sides, and no behavioural test renders this screen,
  * so a name that stops reaching a block is invisible: a factory reads
  * `undefined`, or a block reads a value that is not there. ESLint cannot see it
@@ -22,10 +22,10 @@ const path = require("node:path");
 const parser = require("@babel/parser");
 
 const ROOT = path.join(__dirname, "..");
-const PAGE = path.join(ROOT, "app", "platform", "runs", "page.js");
-const HOOK = path.join(ROOT, "app", "platform", "runs", "useRunsState.js");
-const ACTIONS_DIR = path.join(ROOT, "app", "platform", "runs", "actions");
-const BLOCKS_DIR = path.join(ROOT, "components", "platform", "runs");
+const PAGE = path.join(ROOT, "app", "admin", "communication", "forms", "runs", "page.js");
+const HOOK = path.join(ROOT, "app", "admin", "communication", "forms", "runs", "useRunsState.js");
+const ACTIONS_DIR = path.join(ROOT, "app", "admin", "communication", "forms", "runs", "actions");
+const BLOCKS_DIR = path.join(ROOT, "components", "shared", "platform", "runs");
 const BLOCKS = ["RunResponsesPanel.js", "RunAdminTabs.js", "RunDetailModals.js", "RunListView.js", "RunDetailView.js"];
 
 // the refs, and the two abortable batch loops that read them: handed over as

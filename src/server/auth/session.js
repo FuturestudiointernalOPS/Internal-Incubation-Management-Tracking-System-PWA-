@@ -162,7 +162,7 @@ export async function getSession() {
 
     const pending = readSessionFromToken(token)
       .then((session) => {
-        if (session && _sessionInflight.get(cacheKey) === pending) cacheSession(cacheKey, session);
+        if (session) cacheSession(cacheKey, session);
         return session;
       })
       .finally(() => {
@@ -253,15 +253,26 @@ async function readSessionFromToken(token) {
     email: session.email,
     role: session.role,
     group_name: session.group_name,
+    image: session.image || null,
     token: session.token,
-    activeOrganizationId: session.active_organization_id || null,
   };
 }
 
-/** Evict only the changed token; detached in-flight reads may not re-cache it. */
-export function invalidateSessionCache(token) {
-  _sessionCache.delete(token);
-  _sessionInflight.delete(token);
+/**
+ * Forgets this request's cached session, so the next read sees a profile change
+ * (name, photo) at once instead of after the cache's remaining TTL. Never throws:
+ * the change is already saved, and the cache would expire by itself anyway.
+ */
+export async function forgetCachedSession() {
+  try {
+    const token = await readSessionToken();
+    if (token) {
+      _sessionCache.delete(token);
+      _sessionInflight.delete(token);
+    }
+  } catch (error) {
+    console.error("Session cache eviction error:", error.message);
+  }
 }
 
 /**

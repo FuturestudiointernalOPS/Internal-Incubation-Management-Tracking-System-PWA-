@@ -9,9 +9,8 @@
  *
  * HTTP-free: it answers `{ status, body }` and the controller turns that into a
  * response. The controller keeps the `permissions.assign_capabilities` gate, the
- * session, the required-field validation and the ROLE gate on
- * promote/remove (a role change is never a capability grant — it stays in the
- * HTTP boundary, not here).
+ * session, the required-field validation and the two dedicated rights on
+ * promote/remove (`permissions.promote_super_admin` / `remove_super_admin`).
  *
  * It imports the same model/service homes the controller used, so module-level
  * test mocks keep intercepting the calls.
@@ -25,6 +24,7 @@ import {
   MODULE_TO_FEATURE,
 } from "@/models/authorization/index";
 import { getFeatureEligibilityRows } from "@/models/authorization/contextReads";
+import { normalizeIdentityForStorage } from "@/lib/identity";
 import { evaluateEligibility } from "./eligibility";
 import {
   contactExistsById,
@@ -119,8 +119,8 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
     if (action === "grant") {
       const targetAuthorization = await getAuthorizationContext({ cid: userCid, role: targetRole });
       const targetEligible =
-        targetAuthorization?.isSuperAdmin ||
-        targetAuthorization?.eligibility?.[featureKey] === true;
+        targetAuthorization?.eligibility?.[featureKey] === true ||
+        (targetAuthorization?.isSuperAdmin && !targetAuthorization?.ownerThroughEngine);
       if (!targetEligible) {
         return {
           status: 403,
@@ -249,9 +249,13 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
       if (!payload.role) {
         return { status: 400, body: { success: false, error: "role is required" } };
       }
+      // The column holds a BASELINE identity: an intake label (`applicant`) or a
+      // retired contextual label is translated, exactly like every creation and
+      // approval write. The audit records the value that was actually stored.
+      const nextRole = normalizeIdentityForStorage(payload.role);
       const priorContact = await getContactForAssignment(userCid);
       const priorRole = priorContact.rows[0]?.role;
-      await setUserRole(payload.role, userCid);
+      await setUserRole(nextRole, userCid);
       await logPermissionAudit({
         actorCid: actor.cid,
         actorName: actor.name,
@@ -259,8 +263,8 @@ export async function applyPermissionChange({ action, userCid, module, capabilit
         targetName,
         action: "role_changed",
         previousValue: priorRole || "none",
-        newValue: payload.role,
-        details: `Role changed to ${payload.role}`,
+        newValue: nextRole,
+        details: `Role changed to ${nextRole}`,
       });
       break;
     }

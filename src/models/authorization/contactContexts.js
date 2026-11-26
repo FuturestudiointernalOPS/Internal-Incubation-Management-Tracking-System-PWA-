@@ -25,7 +25,6 @@
  */
 
 import db from "@/lib/db";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 import { resolveScopeIds, SCOPE_POLICIES } from "@/services/authorization/scope";
 
 /** A pathological membership list must not blow up the payload or the query. */
@@ -60,9 +59,8 @@ async function courseLabels(ids) {
   const result = await db.execute({
     sql: `SELECT CAST(id AS TEXT) AS id, title AS label
           FROM lms_courses
-          WHERE owner_organization_id = ?
-            AND CAST(id AS TEXT) IN (${placeholders(ids.length)})`,
-    args: [PLATFORM_ORGANIZATION_ID, ...ids],
+          WHERE CAST(id AS TEXT) IN (${placeholders(ids.length)})`,
+    args: ids,
   });
   return Object.fromEntries(result.rows.map((row) => [String(row.id), row.label]));
 }

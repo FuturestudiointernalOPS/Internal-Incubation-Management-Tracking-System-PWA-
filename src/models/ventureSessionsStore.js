@@ -45,6 +45,24 @@ export function selectSessionNotes(sessionId) {
   return db.execute({ sql: "SELECT * FROM venture_session_notes WHERE session_id = ? ORDER BY created_at ASC", args: [sessionId] });
 }
 
+/**
+ * Every note of every session of one Venture, oldest first.
+ *
+ * The Notes panel reads the session memos; without this it saw only the memo on
+ * the session row and never the coach feedback written from the Sessions tab.
+ */
+export async function selectSessionNotesForVenture(ventureRef) {
+  const ventureId = await resolveVentureInternalId(ventureRef);
+  return db.execute({
+    sql: `SELECT sn.id, sn.session_id, sn.note_type, sn.content, sn.author_cid, sn.author_name, sn.created_at
+            FROM venture_session_notes sn
+            JOIN venture_sessions s ON s.id = sn.session_id
+           WHERE s.venture_id = ?
+           ORDER BY sn.created_at ASC`,
+    args: [ventureId],
+  });
+}
+
 /** A session's attendance rows. */
 export function selectSessionAttendance(sessionId) {
   return db.execute({ sql: "SELECT * FROM venture_session_attendance WHERE session_id = ?", args: [sessionId] });

@@ -16,7 +16,6 @@
  */
 
 import db from "@/lib/db";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
 
 /** Founder-shaped membership rows (both legacy and current shapes). */
 const FOUNDER_MATCH_SQL =
@@ -123,8 +122,7 @@ export function listActiveLearnerCourses(cid) {
   return db.execute({
     sql: `SELECT DISTINCT CAST(course_id AS TEXT) AS course_id
           FROM lms_enrollments
-          WHERE user_cid = ? AND status <> 'suspended'
-            AND organization_id = '${PLATFORM_ORGANIZATION_ID}'::uuid`,
+          WHERE user_cid = ? AND status <> 'suspended'`,
     args: [String(cid)],
   });
 }
@@ -133,8 +131,7 @@ export function listActiveLearnerCourses(cid) {
 export function listLearnerRelationshipCids() {
   return db.execute({
     sql: `SELECT DISTINCT user_cid AS cid FROM lms_enrollments
-          WHERE status <> 'suspended' AND user_cid IS NOT NULL
-            AND organization_id = '${PLATFORM_ORGANIZATION_ID}'::uuid`,
+          WHERE status <> 'suspended' AND user_cid IS NOT NULL`,
   });
 }
 
@@ -144,7 +141,7 @@ export function listActiveVentureManagerVentures(cid) {
   return db.execute({
     sql: `SELECT DISTINCT CAST(venture_id AS TEXT) AS venture_id
           FROM venture_staff_assignments
-          WHERE staff_contact_id = ? AND responsibility_code = 'lead_manager' AND status = 'active'`,
+          WHERE staff_contact_id = ? AND responsibility_code = 'venture_manager' AND status = 'active'`,
     args: [String(cid)],
   });
 }
@@ -153,7 +150,7 @@ export function listActiveVentureManagerVentures(cid) {
 export function listVentureManagerCids() {
   return db.execute({
     sql: `SELECT DISTINCT staff_contact_id AS cid FROM venture_staff_assignments
-          WHERE responsibility_code = 'lead_manager' AND status = 'active'
+          WHERE responsibility_code = 'venture_manager' AND status = 'active'
             AND staff_contact_id IS NOT NULL`,
   });
 }

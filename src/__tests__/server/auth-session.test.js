@@ -161,8 +161,8 @@ describe("getSession", () => {
       email: "USR6@example.com",
       role: "staff",
       group_name: "FUTURE STUDIO",
+      image: null,
       token: "token-shape",
-      activeOrganizationId: null,
     });
   });
 

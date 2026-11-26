@@ -17,7 +17,14 @@ const {
   companyStatusOptions,
 } = require("@/lib/ventureCompanyStatus");
 
-const t = (key) => ({ "status.active": "Active", "status.paused": "Paused" }[key] || key);
+const t = (key) =>
+  ({
+    "status.prospect": "Prospect",
+    "status.active": "Active",
+    "status.paused": "Paused",
+    "status.graduated": "Graduated",
+    "status.archived": "Archived",
+  })[key] || key;
 
 describe("ventureCompanyStatus — vocabulary", () => {
   test("the legal states are the company lifecycle, in order", () => {
@@ -82,11 +89,11 @@ describe("ventureCompanyStatus — words and labels", () => {
 
   test("options are the vocabulary, in order, already labelled", () => {
     expect(companyStatusOptions(t)).toEqual([
-      { value: "prospect", label: "status.prospect" },
+      { value: "prospect", label: "Prospect" },
       { value: "active", label: "Active" },
       { value: "paused", label: "Paused" },
-      { value: "graduated", label: "status.graduated" },
-      { value: "archived", label: "status.archived" },
+      { value: "graduated", label: "Graduated" },
+      { value: "archived", label: "Archived" },
     ]);
   });
 });

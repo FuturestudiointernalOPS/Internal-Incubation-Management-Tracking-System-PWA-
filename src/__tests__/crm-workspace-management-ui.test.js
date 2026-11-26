@@ -20,10 +20,10 @@ jest.mock("@/components/ui/DialogProvider", () => ({
   useDialogs: () => ({ alert: mockAlert, confirm: jest.fn(async () => true), prompt: jest.fn() }),
 }));
 
-const PipelinesPage = require("@/app/crm/pipelines/page").default;
-const SegmentsPage = require("@/app/crm/segments/page").default;
-const AutomationsPage = require("@/app/crm/automations/page").default;
-const OrganizationsPage = require("@/app/crm/organizations/page").default;
+const PipelinesPage = require("@/app/staff/crm/pipelines/page").default;
+const SegmentsPage = require("@/app/staff/crm/segments/page").default;
+const AutomationsPage = require("@/app/staff/crm/automations/page").default;
+const OrganizationsPage = require("@/app/staff/crm/organizations/page").default;
 const CrmScorePanel = require("@/components/ui/CrmScorePanel").default;
 
 const PIPELINE = { id: "pipe-1", name: "Partnerships", is_active: true };

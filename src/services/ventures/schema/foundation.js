@@ -28,6 +28,24 @@ export default [
 // venture_milestones: runtime columns the code already reads/writes
 "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS progress INTEGER DEFAULT 0",
 "ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS target_date TIMESTAMP",
+// WHEN the milestone was completed — a system timestamp, never typed. Until
+// now `updated_at` was the only date, and ANY edit moved it, so "how much work
+// landed in March" could not be answered without guessing. The trigger below is
+// the single guarantee: whichever writer sets status to 'completed' stamps this
+// column, and reopening the milestone clears it.
+"ALTER TABLE venture_milestones ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ",
+`CREATE OR REPLACE FUNCTION venture_milestones_stamp_completed_at() RETURNS trigger AS $$
+BEGIN
+  IF NEW.status = 'completed' THEN
+    NEW.completed_at := COALESCE(NEW.completed_at, NOW());
+  ELSE
+    NEW.completed_at := NULL;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql`,
+"DROP TRIGGER IF EXISTS trg_venture_milestones_completed_at ON venture_milestones",
+"CREATE TRIGGER trg_venture_milestones_completed_at BEFORE INSERT OR UPDATE ON venture_milestones FOR EACH ROW EXECUTE FUNCTION venture_milestones_stamp_completed_at()",
 // v2_teams: promotion columns the promote route already writes
 "ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS venture_id TEXT",
 "ALTER TABLE v2_teams ADD COLUMN IF NOT EXISTS promoted_at TIMESTAMP",

@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Rocket,
   Send,
@@ -20,7 +20,7 @@ import {
 import { useApi } from "@/lib/hooks/useApi";
 import { useI18n } from "@/lib/i18n";
 import { isSystemActor } from "@/lib/ventureActivity";
-import VentureDetailView from "@/components/admin/ventures/VentureDetailView";
+import VentureDetailView from "@/spaces/admin/components/ventures/VentureDetailView";
 
 // ─── Module-scope readers ────────────────────────────────────────────────────
 // The reading hook keys its internal work on these, so they are made once here
@@ -112,10 +112,8 @@ export default function VentureDetailPage({ params }) {
   const { t, lang } = useI18n();
   // The open tab lives in the address (`?tab=`): the Venture's navigation bar links
   // to it, and a reload or a shared link lands on the same tab.
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const activeTab = searchParams?.get("tab") || "dashboard";
-  const setActiveTab = (next) => router.replace(next === "dashboard" ? pathname : `${pathname}?tab=${next}`, { scroll: false });
 
   // The Venture, through the shared hook: it owns the cache, the cache-first
   // paint and the discarding of a stale answer, so the page keeps no copy of its
@@ -175,7 +173,6 @@ export default function VentureDetailPage({ params }) {
     memberSummary,
     members,
     router,
-    setActiveTab,
     t,
     venture,
   };

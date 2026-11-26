@@ -1,13 +1,5 @@
 {
   "creation": {
-    "kicker": "New record",
-    "title": "Create",
-    "subtitle": "Start something new. Only what you are allowed to create appears here.",
-    "backToCreate": "Back to Create",
-    "section": {
-      "title": "What do you want to create?",
-      "subtitle": "Each door below is opened by a permission you hold."
-    },
     "program": {
       "title": "Program",
       "createAction": "Create Program",

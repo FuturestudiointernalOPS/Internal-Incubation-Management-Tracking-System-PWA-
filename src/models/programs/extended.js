@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // /api/pm/programs/[id] — program detail (3 queries)
@@ -13,7 +12,7 @@ export async function getProgramDetailById(id) {
           LEFT JOIN contacts c1 ON p.assigned_pm_id = c1.cid
           LEFT JOIN contacts c2 ON p.assigned_assistant_id = c2.cid
           LEFT JOIN v2_knowledge_bank k ON p.note_id = CAST(k.id AS TEXT)
-          WHERE p.id = ? AND ${platformProgramPredicate("p")}`,
+          WHERE p.id = ?`,
     args: [id],
   });
 }
@@ -57,7 +56,7 @@ export async function getFacilitatorsForProgram(programId) {
  */
 export async function updateProgramAssignmentColumn(column, contactCid, programId) {
   return db.execute({
-    sql: `UPDATE v2_programs SET ${column} = ? WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: `UPDATE v2_programs SET ${column} = ? WHERE id = ?`,
     args: [contactCid, programId],
   });
 }
@@ -69,7 +68,7 @@ export async function updateProgramAssignmentColumn(column, contactCid, programI
 /** Template list (id/name/description/type/duration/created). Used by GET templates. */
 export async function listProgramTemplates() {
   return db.execute({
-    sql: `SELECT id, name, description, program_type, duration_weeks, created_at FROM v2_programs WHERE is_template = 1 AND ${platformProgramPredicate()} ORDER BY name ASC`,
+    sql: "SELECT id, name, description, program_type, duration_weeks, created_at FROM v2_programs WHERE is_template = 1 ORDER BY name ASC",
     args: [],
   });
 }
@@ -77,7 +76,7 @@ export async function listProgramTemplates() {
 /** Full program row by id — source of a template save. Used by POST templates. */
 export async function getProgramSourceById(programId) {
   return db.execute({
-    sql: `SELECT * FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT * FROM v2_programs WHERE id = ?",
     args: [programId],
   });
 }
@@ -111,7 +110,7 @@ export async function saveProgramAsTemplate(templateId, templateName, sourceProg
 /** Template row lookup (is_template=1). Used by POST templates (apply). */
 export async function getProgramTemplateById(templateId) {
   return db.execute({
-    sql: `SELECT * FROM v2_programs WHERE id = ? AND is_template = 1 AND ${platformProgramPredicate()}`,
+    sql: "SELECT * FROM v2_programs WHERE id = ? AND is_template = 1",
     args: [templateId],
   });
 }

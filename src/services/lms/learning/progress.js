@@ -77,3 +77,32 @@ export function findContinueLesson(sections = [], progress = {}) {
   }
   return null;
 }
+
+/**
+ * Whether a learner may take an assessment yet.
+ *   - chapter assessment: every required lesson of that chapter is completed;
+ *   - course-level (final) assessment: every required lesson of the course is
+ *     completed AND every required chapter assessment is passed.
+ *
+ * @param {{section_id?: string|null}} assessment
+ * @param {Array<{id, lessons: Array, assessment?: {id, is_required}|null}>} structure
+ * @param {Record<string,string>} progress  lessonId -> status
+ * @param {Record<string,boolean>} passedById  assessmentId -> passed
+ */
+export function isAssessmentUnlocked(assessment, structure = [], progress = {}, passedById = {}) {
+  const sectionId = assessment?.section_id ? String(assessment.section_id) : null;
+  const scope = sectionId
+    ? structure.filter((section) => String(section.id) === sectionId)
+    : structure;
+  const lessons = scope.flatMap((section) => section.lessons || []);
+  const required = lessons.filter((lesson) => lesson.is_required !== false);
+  const gate = required.length > 0 ? required : lessons;
+  const lessonsDone = gate.every((lesson) => progress[String(lesson.id)] === "completed");
+  if (!lessonsDone) return false;
+  if (sectionId) return true;
+  return structure.every((section) => {
+    const chapterAssessment = section.assessment;
+    if (!chapterAssessment || chapterAssessment.is_required === false) return true;
+    return !!passedById[String(chapterAssessment.id)];
+  });
+}

@@ -7,6 +7,14 @@ import { archiveTask } from "@/services/ventures/archive";
 import { scheduleVentureTranslationWarmup } from "@/services/translations/ventureContent";
 import { ventureOwned, ventureNotFound } from "@/lib/ventureOwnership";
 import {
+  isGlobalRole,
+  resolveVentureCode,
+  getAssignmentScopes,
+  hasVentureWideReach,
+  isTaskInScope,
+  resolveTaskContext,
+} from "@/services/ventures/scope";
+import {
   getVentureDbIdForTasks,
   insertVentureTaskReview,
 } from "@/models/ventureWorkspace";
@@ -29,6 +37,28 @@ async function resolveVentureDbId(ventureId) {
  * PATCH /api/ventures/[id]/tasks?id=X — update task (also supports comments/attachments via actions)
  * DELETE /api/ventures/[id]/tasks?id=X — delete task
  */
+/**
+ * Assignment scope for a task EDIT (Vinance 3).
+ *
+ * The same helpers the review routes use, so there is one definition of "their
+ * work". A `venture_manager` passes through `hasVentureWideReach` by definition
+ * — lead managers lead the whole Venture regardless of the scope column — and an
+ * actor holding no assignment rows keeps the legacy behaviour.
+ *
+ * Fails CLOSED when the scope lookup itself errors: this guards a WRITE, and a
+ * bug must never widen one.
+ */
+async function isTaskInCallerScope({ session, ventureId, task }) {
+  if (!session?.cid || isGlobalRole(session.role)) return true;
+  const code = await resolveVentureCode(ventureId);
+  if (!code) return true;
+  const scopes = await getAssignmentScopes({ code, cid: session.cid });
+  if (scopes === null) return false;
+  if (scopes.length === 0) return true;
+  if (hasVentureWideReach(scopes)) return true;
+  return isTaskInScope(scopes, await resolveTaskContext(task));
+}
+
 export const GET = createHandler(async (req, { params }) => {
   const { id } = await params;
   const access = await requireVentureScopedAccess({ ventureId: id, module: "ventures", capability: "view" });
@@ -194,6 +224,17 @@ export const PATCH = createHandler(async (req, { params }) => {
     const { status, ...payload } = refused;
     return NextResponse.json({ success: false, ...payload }, { status });
   }
+
+  // Assignment scope: an editor restricted to one milestone may not change a
+  // task that lives outside it. Enforced here, not in the screen — the screen
+  // only decides whether to show the controls.
+  if (!(await isTaskInCallerScope({ session, ventureId: id, task: existingTask }))) {
+    return NextResponse.json(
+      { success: false, error: "errors.outOfAssignmentScope" },
+      { status: 403 },
+    );
+  }
+
   await updateTask(parseInt(taskId), body);
   // The title, the description or the Definition of Done may have changed.
   scheduleVentureTranslationWarmup(id);

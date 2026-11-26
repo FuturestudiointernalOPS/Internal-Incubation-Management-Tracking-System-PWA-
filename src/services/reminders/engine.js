@@ -34,7 +34,7 @@ import {
 import { reminderKey } from "./rules";
 import { hasPlatformAccount, normalizeEmail, resolveWorkItemRecipients, splitReachable } from "./recipients";
 
-/** The addresses a reminder is COPIED to: the Venture's active Lead Managers. */
+/** The addresses a reminder is COPIED to: the Venture's active Venture Managers. */
 async function leadManagerAddresses(ventureCode) {
   const rows = (await selectLeadManagerRecipients(ventureCode).catch(() => ({ rows: [] }))).rows || [];
   const seen = new Set();
@@ -191,7 +191,7 @@ async function deliver({
   });
   const { reachable, unreachable } = splitReachable(recipients);
 
-  // The COPY list, resolved once: the Venture's Lead Managers, plus the person
+  // The COPY list, resolved once: the Venture Managers, plus the person
   // who pressed Send on a manual reminder. It only applies to an ACTIVITY — the
   // level a tracker row's reminders are about — so chasing a milestone or a
   // deliverable does not fan a copy out for the same tracker line.

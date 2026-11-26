@@ -64,11 +64,11 @@ export default function SystemConfigPage() {
                  <div className="space-y-6">
                     <div className="space-y-2">
                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.settings.baseDeploymentUrl")}</label>
-                       <input type="text" defaultValue="https://internal.futurestudio.com" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600]/80/50 transition-colors" />
+                       <input type="text" defaultValue="https://internal.futurestudio.com" className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/80/50 transition-colors" />
                     </div>
                     <div className="space-y-2">
                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{t("adminMisc.settings.maintenanceMode")}</label>
-                       <select className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-white outline-none focus:border-[#FF6600]/80/50 appearance-none">
+                       <select className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold text-[var(--text-primary)] outline-none focus:border-[#FF6600]/80/50 appearance-none">
                           <option value="off" className="bg-[#080810]">{t("adminMisc.settings.offlineModeDisabled")}</option>
                           <option value="on" className="bg-[#080810]">{t("adminMisc.settings.activeLockdownEnabled")}</option>
                        </select>

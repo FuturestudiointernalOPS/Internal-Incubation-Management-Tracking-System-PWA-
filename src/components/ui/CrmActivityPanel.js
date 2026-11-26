@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { useDialogs } from "@/components/ui/DialogProvider";
 import { useI18n } from "@/lib/i18n";
 import { formatDate } from "@/lib/constants";
-import { isOverdue, toDateInputValue } from "@/components/crm/nextActionState";
+import { isOverdue, toDateInputValue } from "@/components/shared/crm/nextActionState";
 
 const ACTIVITY_ICONS = {
   call:       <Phone className="w-4 h-4" />,

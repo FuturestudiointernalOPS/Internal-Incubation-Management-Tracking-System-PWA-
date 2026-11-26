@@ -45,7 +45,7 @@ export function selectReadinessMilestoneStatuses(ownersSql, args) {
 /** Task statuses across the owner values (archived tasks excluded). */
 export function selectReadinessTaskStatuses(ownersSql, args) {
   return db.execute({
-    sql: `SELECT status FROM venture_tasks WHERE venture_id::text ${ownersSql} AND COALESCE(is_archived, FALSE) = FALSE`,
+    sql: `SELECT id, status FROM venture_tasks WHERE venture_id::text ${ownersSql} AND COALESCE(is_archived, FALSE) = FALSE`,
     args,
   });
 }
@@ -80,7 +80,7 @@ export function selectReadinessSubmissionStates(ownersSql, args) {
  */
 export function selectReadinessDeliverableStates(ownersSql, args) {
   return db.execute({
-    sql: `SELECT d.status, d.approval_status, t.status AS task_status
+    sql: `SELECT d.status, d.approval_status, d.task_id, t.status AS task_status
             FROM venture_deliverables d
             LEFT JOIN venture_tasks t ON t.id = d.task_id
             WHERE d.venture_id::text ${ownersSql}`,

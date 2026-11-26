@@ -1,8 +1,8 @@
 /**
- * Lead Manager home dashboard (SERVICE layer).
+ * Venture Manager home dashboard (SERVICE layer).
  *
  * Builds the "My day" KPIs, the urgency queue and the enriched Mes Ventures
- * cards for staff whose active responsibility is `lead_manager`. Never invents
+ * cards for staff whose active responsibility is `venture_manager`. Never invents
  * Super Admin power — the code list comes only from their own assignments.
  */
 
@@ -198,7 +198,7 @@ export async function buildLeadManagerHome(staffCid) {
       venture_name: venture?.company_name || venture?.name || code,
       milestone_id: milestone.id,
       milestone_title: milestone.title,
-      href: `/staff/ventures/${encodeURIComponent(code)}?tab=journey`,
+      href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=journey`,
     };
     if (isBlockedMilestone(milestone)) {
       queue.push({
@@ -242,7 +242,7 @@ export async function buildLeadManagerHome(staffCid) {
       venture_name: venture?.company_name || venture?.name || code,
       title: item.task_title || item.milestone_title || String(item.task_id),
       detail: item.submitted_by_name || null,
-      href: `/staff/ventures/${encodeURIComponent(code)}?tab=overview`,
+      href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=overview`,
       created_at: item.created_at || null,
     });
   }
@@ -258,7 +258,7 @@ export async function buildLeadManagerHome(staffCid) {
       venture_name: venture?.company_name || venture?.name || code,
       title: item.title,
       detail: item.status || item.approval_status || null,
-      href: `/staff/ventures/${encodeURIComponent(code)}?tab=journey`,
+      href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=journey`,
       created_at: item.updated_at || null,
     });
   }
@@ -278,7 +278,7 @@ export async function buildLeadManagerHome(staffCid) {
         venture_name: venture?.company_name || venture?.name || code,
         title: stage.name,
         detail: null,
-        href: `/staff/ventures/${encodeURIComponent(code)}?tab=journey`,
+        href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=journey`,
       });
     }
     if (stageMilestones.length === 0 && !["completed", "locked"].includes(statusOf(stage))) {
@@ -289,7 +289,7 @@ export async function buildLeadManagerHome(staffCid) {
         venture_name: venture?.company_name || venture?.name || code,
         title: stage.name,
         detail: null,
-        href: `/staff/ventures/${encodeURIComponent(code)}?tab=journey`,
+        href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=journey`,
       });
     }
   }
@@ -305,7 +305,7 @@ export async function buildLeadManagerHome(staffCid) {
         venture_name: venture.company_name || venture.name || code,
         title: venture.company_name || venture.name || code,
         detail: last,
-        href: `/staff/ventures/${encodeURIComponent(code)}`,
+        href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}`,
       });
     }
   }
@@ -320,7 +320,7 @@ export async function buildLeadManagerHome(staffCid) {
       venture_name: venture?.company_name || venture?.name || code,
       title: session.title,
       detail: session.start_time || null,
-      href: `/staff/ventures/${encodeURIComponent(code)}?tab=sessions`,
+      href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=sessions`,
     };
     if (!hasMemo && Number.isFinite(startMs) && startMs < Date.now()) {
       queue.push({ id: `nomemo:${session.id}`, kind: "session_no_memo", ...base });
@@ -339,7 +339,7 @@ export async function buildLeadManagerHome(staffCid) {
       venture_name: venture?.company_name || venture?.name || code,
       title: report.title || String(report.id),
       detail: report.status || null,
-      href: `/staff/ventures/${encodeURIComponent(code)}?tab=plan`,
+      href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}?tab=plan`,
     });
   }
 
@@ -373,12 +373,12 @@ export async function buildLeadManagerHome(staffCid) {
       milestones_blocked: blocked.length,
       next_deadline: nextDue,
       last_activity_at: activityByCode.get(code) || venture.updated_at || null,
-      href: `/staff/ventures/${encodeURIComponent(code)}`,
+      href: `/staff/lead-manager/ventures/${encodeURIComponent(code)}`,
     };
   });
 
   return {
-    is_lead_manager: true,
+    is_venture_manager: true,
     kpis,
     queue: queue.slice(0, 60),
     ventures: cards,
@@ -388,7 +388,7 @@ export async function buildLeadManagerHome(staffCid) {
 
 function emptyHome() {
   return {
-    is_lead_manager: false,
+    is_venture_manager: false,
     kpis: {
       ventures_total: 0,
       ventures_by_phase: [],

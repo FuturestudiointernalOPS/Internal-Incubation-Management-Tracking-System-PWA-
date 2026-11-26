@@ -12,18 +12,18 @@
 
 const STAFF_SURFACE = {
   venture: (ventureId) => `/admin/ventures/${ventureId}`,
-  journey_stage: (ventureId) => `/admin/ventures/${ventureId}/journey`,
-  milestone: (ventureId) => `/admin/ventures/${ventureId}/milestones`,
-  task: (ventureId) => `/admin/ventures/${ventureId}/tasks`,
-  session: (ventureId) => `/admin/ventures/${ventureId}/sessions`,
+  journey_stage: (ventureId) => `/admin/ventures/${ventureId}?tab=journey`,
+  milestone: (ventureId) => `/admin/ventures/${ventureId}?tab=journey`,
+  task: (ventureId) => `/admin/ventures/${ventureId}?tab=tasks`,
+  session: (ventureId) => `/admin/ventures/${ventureId}?tab=sessions`,
 };
 
 const MEMBER_SURFACE = {
-  venture: (ventureId) => `/participant/ventures/${ventureId}`,
-  journey_stage: (ventureId) => `/participant/ventures/${ventureId}/journey`,
-  milestone: (ventureId) => `/participant/ventures/${ventureId}/journey`,
-  task: (ventureId) => `/participant/ventures/${ventureId}/journey`,
-  session: (ventureId) => `/participant/ventures/${ventureId}/journey`,
+  venture: (ventureId) => `/member/participant/ventures/${ventureId}`,
+  journey_stage: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
+  milestone: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
+  task: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
+  session: (ventureId) => `/member/participant/ventures/${ventureId}/journey`,
 };
 
 /** Deepest entity present on the row wins (venture < journey < milestone < task/session). */

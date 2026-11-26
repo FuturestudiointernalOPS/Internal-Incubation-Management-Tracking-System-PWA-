@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramPredicate } from "@/models/organizations/programScope";
 
 /**
  * Contact ↔ program / venture membership store — the enrollment writes, the
@@ -48,7 +47,7 @@ export async function deleteContactPrograms(cid) {
 /** Verify a program exists before assigning a contact to it. */
 export async function getProgramById(id) {
   return db.execute({
-    sql: `SELECT id FROM v2_programs WHERE id = ? AND ${platformProgramPredicate()}`,
+    sql: "SELECT id FROM v2_programs WHERE id = ?",
     args: [id],
   });
 }

@@ -118,7 +118,7 @@ export async function POST(req, { params }) {
         { status: 400 },
       );
     }
-    // Staff (Super Admin, Lead Manager) may add team members; a founder adds
+    // Staff (Super Admin, Venture Manager) may add team members; a founder adds
     // founders, so an invite that names no type is a founder invite for them.
     const staffActor = await isVentureStaffActor(id, session);
     const memberType = member_type || (staffActor ? "team_member" : "founder");
@@ -130,7 +130,7 @@ export async function POST(req, { params }) {
     }
 
     // A founder adds FOUNDERS only. Team members and the roles people carry are the
-    // Venture's staff decision (Super Admin, Lead Manager), never a founder's.
+    // Venture's staff decision (Super Admin, Venture Manager), never a founder's.
     if (memberType !== "founder" && !staffActor) {
       return NextResponse.json({ success: false, error: "errors.founderInviteOnly" }, { status: 403 });
     }

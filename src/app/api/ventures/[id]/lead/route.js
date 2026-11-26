@@ -26,7 +26,7 @@ import {
 } from "@/models/ventureJourney";
 import { resolveVentureInternalId } from "@/services/ventures/identity";
 import { requireVentureScopedAccess } from "@/lib/ventureScopedAccess";
-import { isPlatformOwnerRole } from "@/lib/identity";
+
 
 export async function POST(req, { params }) {
   await initDb();
@@ -66,9 +66,11 @@ export async function POST(req, { params }) {
       }
     } catch (_) {}
 
-    // Beyond the platform owner, only the CURRENT lead founder may hand the
+    // Beyond a portfolio editor (the explicit `ventures.edit_all` right, or a
+    // Super Admin still holding it), only the CURRENT lead founder may hand the
     // lead over. The gate above already bounded this to the Venture.
-    if (!isPlatformOwnerRole(session.role)) {
+    const isPortfolioEditor = access.path === "portfolio" || access.path === "super-admin";
+    if (!isPortfolioEditor) {
       const leadCheck = await findLeadFounderMembership(ventureId, session.cid);
       if (leadCheck.rows.length === 0) {
         return NextResponse.json(
@@ -101,7 +103,7 @@ export async function POST(req, { params }) {
       const { createVentureNotification } = await import("@/services/ventures/activity");
       await createVentureNotification({
         recipient_id: session.cid || "sa",
-        title: "Venture Lead Changed",
+        title: "Venture Manager Changed",
         message: `The lead founder of ${ventureId} has been changed.`,
       });
     } catch (_) {}

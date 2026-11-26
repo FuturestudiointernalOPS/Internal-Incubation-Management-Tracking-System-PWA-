@@ -38,7 +38,7 @@ export async function insertSession({ token, tokenHash, userCid, role, expiresAt
 /** Preferred lookup: hits the unique partial index on `token_hash`. */
 export async function findSessionByTokenHash(tokenHash) {
   return db.execute({
-    sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+    sql: `SELECT s.*, c.name, c.email, c.status, c.group_name, c.image
           FROM user_sessions s
           LEFT JOIN contacts c ON s.user_cid = c.cid
           WHERE s.expires_at > NOW() AND s.token_hash = ?`,
@@ -49,7 +49,7 @@ export async function findSessionByTokenHash(tokenHash) {
 /** Fallback for rows written before hashing existed (PK-indexed token). */
 export async function findSessionByToken(token) {
   return db.execute({
-    sql: `SELECT s.*, c.name, c.email, c.status, c.group_name
+    sql: `SELECT s.*, c.name, c.email, c.status, c.group_name, c.image
           FROM user_sessions s
           LEFT JOIN contacts c ON s.user_cid = c.cid
           WHERE s.expires_at > NOW() AND s.token = ?`,

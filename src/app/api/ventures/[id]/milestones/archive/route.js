@@ -22,9 +22,9 @@ export const POST = createHandler(async (req, { params }) => {
   if (access.error) return access.error;
   const { session } = access;
 
-  // Removing/restoring a milestone is a STRUCTURE action: Lead Manager or
+  // Removing/restoring a milestone is a STRUCTURE action: Venture Manager or
   // Super Admin only.
-  const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role });
+  const allowed = await canManageMilestones({ id, cid: session?.cid, role: session?.role, session });
   if (!allowed) {
     return NextResponse.json(
       { success: false, error: "errors.ventureManagerOnly" },

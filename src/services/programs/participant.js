@@ -1,6 +1,6 @@
 import {
   getKnowledgeBankAttachmentsByNoteIds,
-  getParticipantKnowledgeBankItemById,
+  getParticipantKnowledgeBankItems,
   getParticipantProgramDetailAttendance,
   getParticipantProgramDetailById,
   getParticipantProgramDetailDeliverables,
@@ -13,23 +13,21 @@ import {
   getParticipantProgramFollowups,
   getProgramDetailAttendanceCount,
 } from "@/models/programMembership";
-import { isParticipantInProgram } from "@/models/participant-membership";
+import { resolveProgramSeat } from "@/services/participant/participation";
 import { getProgramLearningForParticipant } from "@/models/lms/programRequirements";
 import { buildCurriculumWeeks } from "./participantCurriculum";
 import { computeParticipantMetrics } from "./participantMetrics";
 import { shapeParticipantResources } from "./participantResources";
 
 export async function getParticipantProgramDetailService({ cid, email, programId }) {
-  // Verify the participant is actually assigned to this program.
+  // Verify the participant is actually assigned to this program, through the
+  // SAME rule the menu and the dashboard use. A seat that is completed keeps
+  // full read access — the screen then renders it read-only.
   const enrollmentResult = await getParticipantProgramEnrollmentByCid(cid);
   const contact = enrollmentResult.rows[0];
 
-  const isAssigned = await isParticipantInProgram({
-    cid,
-    email,
-    programId,
-    contact,
-  });
+  const seat = await resolveProgramSeat({ cid, email, programId, contact });
+  const isAssigned = Boolean(seat);
 
   if (!isAssigned) {
     return {
@@ -56,9 +54,7 @@ export async function getParticipantProgramDetailService({ cid, email, programId
       getParticipantProgramDetailKpis(programId),
       getParticipantProgramDetailStaff(programId),
       getParticipantProgramFollowups(programId),
-      program.note_id
-        ? getParticipantKnowledgeBankItemById(program.note_id)
-        : Promise.resolve({ rows: [] }),
+      getParticipantKnowledgeBankItems(),
     ]);
 
   const sessions = sessionsResult.rows || [];
@@ -75,15 +71,17 @@ export async function getParticipantProgramDetailService({ cid, email, programId
   const knowledgeItems = knowledgeResult.rows || [];
 
   // Fetch actual file URLs from knowledge_attachments
-  const attachmentsByNote = {};
+  let attachmentsByNote = {};
   if (knowledgeItems.length > 0) {
-    const attachmentsResult = await getKnowledgeBankAttachmentsByNoteIds(
-      knowledgeItems.map((knowledgeItem) => knowledgeItem.id),
-    );
-    for (const attachment of attachmentsResult.rows || []) {
-      if (!attachmentsByNote[attachment.note_id]) attachmentsByNote[attachment.note_id] = [];
-      attachmentsByNote[attachment.note_id].push({ name: attachment.name, url: attachment.url });
-    }
+    try {
+      const attachmentsResult = await getKnowledgeBankAttachmentsByNoteIds(
+        knowledgeItems.map((knowledgeItem) => knowledgeItem.id),
+      );
+      for (const attachment of attachmentsResult.rows || []) {
+        if (!attachmentsByNote[attachment.note_id]) attachmentsByNote[attachment.note_id] = [];
+        attachmentsByNote[attachment.note_id].push({ name: attachment.name, url: attachment.url });
+      }
+    } catch (_) {}
   }
 
   let pmName = null;
@@ -162,6 +160,11 @@ export async function getParticipantProgramDetailService({ cid, email, programId
         name: program.name,
         description: program.description,
         status: program.status,
+        // A completed seat (or a program that is no longer running) is shown
+        // read-only instead of being refused: the door stays open.
+        readOnly: seat.readOnly === true || String(program.status || "active").toLowerCase() === "completed",
+        seatStatus: seat.status || null,
+        completedAt: seat.completed_at || null,
         startDate: program.start_date,
         endDate: program.end_date,
         durationWeeks: program.duration_weeks,

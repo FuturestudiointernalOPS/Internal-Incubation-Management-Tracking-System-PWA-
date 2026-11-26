@@ -39,7 +39,7 @@ export async function GET(req) {
     }
 
     const session = await getSession();
-    if (needsProjectObjectCheck({ role: session?.role })) {
+    if (await needsProjectObjectCheck({ role: session?.role, cid: session?.cid })) {
       const accessError = await requireProjectAccess(projectId);
       if (accessError) return accessError;
     }
@@ -72,7 +72,7 @@ export async function POST(req) {
     // Object-level authorization: `projects.edit` alone is a global capability.
     // A non-staff holder may only invite into a project they own or belong to.
     const session = await getSession();
-    if (needsProjectObjectCheck({ role: session?.role })) {
+    if (await needsProjectObjectCheck({ role: session?.role, cid: session?.cid })) {
       const accessError = await requireProjectAccess(project_id);
       if (accessError) return accessError;
     }
@@ -113,7 +113,7 @@ export async function DELETE(req) {
     // Object-level authorization: only a member/owner of the project (or staff)
     // may remove a member — otherwise `projects.edit` removes anyone anywhere.
     const session = await getSession();
-    if (needsProjectObjectCheck({ role: session?.role })) {
+    if (await needsProjectObjectCheck({ role: session?.role, cid: session?.cid })) {
       const accessError = await requireProjectAccess(projectId);
       if (accessError) return accessError;
     }

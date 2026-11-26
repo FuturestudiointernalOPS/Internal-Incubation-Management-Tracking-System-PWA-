@@ -1,7 +1,8 @@
 "use client";
 
 import { Sun, Moon, Monitor, Bell, ChevronRight, ChevronDown, Menu } from "lucide-react";
-import { tnav, navCrumb } from "./navigation";
+import Link from "next/link";
+import { tnav, navCrumb, profileHrefFor } from "./navigation";
 import {
   carriesContextualValue,
   isInternalStaffRole,
@@ -11,8 +12,9 @@ import {
 } from "@/lib/identity";
 import ContextSwitcher from "@/components/layout/ContextSwitcher";
 import { notificationText } from "@/lib/notificationText";
-import { useGoogleCalendar } from "@/components/integrations/useGoogleCalendar";
-import GoogleCalendarConnect from "@/components/integrations/GoogleCalendarConnect";
+import { useGoogleCalendar } from "@/components/shared/integrations/useGoogleCalendar";
+import GoogleCalendarConnect from "@/components/shared/integrations/GoogleCalendarConnect";
+import UserAvatar from "@/components/ui/UserAvatar";
 
 export default function ShellHeader({
   pathname,
@@ -33,6 +35,8 @@ export default function ShellHeader({
   NOTIFICATIONS_PREVIEW,
   router,
   user,
+  role,
+  profiles,
   setPendingInvites,
   setPendingAssignments,
   setMobileMenuOpen,
@@ -60,7 +64,7 @@ export default function ShellHeader({
                 onDisconnect={googleCalendar.disconnect}
               />
               {/* Context Switcher — navigate between legitimate contexts (Phase 2C) */}
-              {!pathname?.startsWith("/participant") && <ContextSwitcher />}
+              {!pathname?.startsWith("/member/participant") && <ContextSwitcher />}
               {/* Theme Selector */}
               <div className="relative hidden sm:block">
                 <button
@@ -126,16 +130,17 @@ export default function ShellHeader({
               <div className="relative">
                 <button
                   onClick={() => {
-                    // The bell leads to the Announcements page, where the
-                    // notifications are read in full.
-                    router.push(isMemberSurfaceRole(user?.role) ? "/participant/announcements" : "/admin/announcements");
+                    // Opening the panel re-asks, so the list it shows agrees with
+                    // the badge the bell displayed a moment ago.
+                    if (!showNotifications) fetchNotifications();
+                    setShowNotifications((prev) => !prev);
                   }}
                   aria-label={
                     unreadCount > 0
                       ? `${t("navigation.notifications")} (${unreadCount})`
                       : t("navigation.notifications")
                   }
-                  className={pathname?.startsWith("/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
+                  className={pathname?.startsWith("/member/participant") ? "p-2 rounded-lg border border-[var(--border-primary)] bg-surface-1 text-[var(--text-secondary)] hover:text-[var(--text-primary)]" : "p-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}
                 >
                   <Bell className="w-4 h-4" aria-hidden="true" />
                   {unreadCount > 0 && (
@@ -145,10 +150,33 @@ export default function ShellHeader({
                   )}
                 </button>
                 {showNotifications && (
-                  <div className="absolute right-0 top-10 w-72 bg-secondary border border-[var(--border-primary)] rounded-lg p-4 z-[200]">
-                    <h4 className="text-[10px] font-bold uppercase mb-3 text-[var(--text-secondary)]">
-                      {t(tnav("intel_feed"))}
-                    </h4>
+                  <>
+                    <div className="fixed inset-0 z-[190]" onClick={() => setShowNotifications(false)} />
+                    <div className="absolute right-0 top-10 w-80 bg-secondary border border-[var(--border-primary)] rounded-xl shadow-2xl p-4 z-[200]">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-[10px] font-bold uppercase text-[var(--text-secondary)]">
+                        {t(tnav("intel_feed"))}
+                      </h4>
+                      {unreadCount > 0 && (
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            try {
+                              await fetch("/api/notifications", {
+                                method: "PATCH",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ action: "read_all" }),
+                              });
+                              fetchNotifications({ force: true });
+                            } catch (_) {}
+                          }}
+                          className="text-[10px] font-bold text-[var(--brand-orange)] hover:underline cursor-pointer"
+                        >
+                          {t("common.markAllAsRead") || "Mark all as read"}
+                        </button>
+                      )}
+                    </div>
                     <div className="max-h-48 overflow-y-auto space-y-2">
                       {notifications.length > 0 ? (
                         (showAllNotifications
@@ -177,23 +205,23 @@ export default function ShellHeader({
                                 notification.type === "verification" ||
                                 notification.title.includes("ACCESS")
                               ) {
-                                router.push("/crm/contacts");
+                                router.push("/staff/crm/contacts");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "announcement" && isMemberSurfaceRole(user?.role)) {
-                                router.push("/participant/announcements");
+                                router.push("/member/participant/announcements");
                                 setShowNotifications(false);
                               }
                               if (notification.type === "message") {
                                 const role = user?.role || "";
                                 if (isPlatformOwnerRole(role))
-                                  router.push("/admin/internal-comms");
+                                  router.push("/admin/communication/messages");
                                 else if (isLegacyProgramManagerRole(role))
-                                  router.push("/pm/messages");
+                                  router.push("/staff/program-manager/messages");
                                 else if (isInternalStaffRole(role))
                                   router.push("/staff/messages");
                                 else if (carriesContextualValue(role, "participant"))
-                                  router.push("/participant/messages");
+                                  router.push("/member/participant/messages");
                                 setShowNotifications(false);
                               }
                               if (
@@ -206,7 +234,7 @@ export default function ShellHeader({
                               if (notification.type === "blocker_discussion") {
                                 const role = user?.role || "";
                                 if (isPlatformOwnerRole(role))
-                                  router.push("/admin/blockers");
+                                  router.push("/admin/operations/blockers");
                                 else router.push("/staff/op-report");
                                 setShowNotifications(false);
                               }
@@ -458,18 +486,24 @@ export default function ShellHeader({
                       </button>
                     )}
                   </div>
+                  </>
                 )}
               </div>
 
-              <div className="flex items-center gap-3 pl-4 border-l border-[var(--border-primary)]">
-                <div className="text-right hidden sm:block">
-                  <p className="text-[11px] font-bold leading-none">
-                    {user?.name || t("common.user")}
-                  </p>
-                </div>
-                <div className="w-8 h-8 rounded bg-primary border border-[var(--border-primary)] flex items-center justify-center font-bold text-xs">
-                  {String(user?.name || "U").charAt(0)}
-                </div>
+              <div className="pl-4 border-l border-[var(--border-primary)]">
+                <Link
+                  href={profileHrefFor(role, profiles)}
+                  title={t(tnav("profile"))}
+                  aria-label={t(tnav("profile"))}
+                  className="flex items-center gap-3 rounded hover:opacity-80 transition-opacity"
+                >
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[11px] font-bold leading-none">
+                      {user?.name || t("common.user")}
+                    </p>
+                  </div>
+                  <UserAvatar name={user?.name} image={user?.image} />
+                </Link>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(true)}

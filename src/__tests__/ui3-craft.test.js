@@ -15,9 +15,9 @@ const read = (rel) => fs.readFileSync(path.join(process.cwd(), rel), "utf8");
 const resolveKey = (bundle, dotted) =>
   dotted.split(".").reduce((acc, part) => (acc == null ? undefined : acc[part]), bundle);
 
-const SHELL = "src/components/permissions/PermissionCenter.js";
-const UI = "src/components/permissions/center/centerUi.js";
-const SECTIONS = "src/components/permissions/center/sections";
+const SHELL = "src/spaces/admin/permissions/PermissionCenter.js";
+const UI = "src/spaces/admin/permissions/center/centerUi.js";
+const SECTIONS = "src/spaces/admin/permissions/center/sections";
 
 const sectionFiles = fs
   .readdirSync(path.join(process.cwd(), SECTIONS))

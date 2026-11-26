@@ -15,7 +15,7 @@
  *
  * Authority (unchanged): a milestone may ONLY be created, restructured or
  * marked completed by a holder of the permission matrix cell `milestones.edit`
- * — which the seeded Lead Manager holds and a Coach does not — or by a Super
+ * — which the seeded Venture Manager holds and a Coach does not — or by a Super
  * Admin. Authority is read from the matrix and nowhere else.
  *
  * Founders see future work through the visibility projection (sealed, with its

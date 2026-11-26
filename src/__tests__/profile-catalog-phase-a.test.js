@@ -57,8 +57,12 @@ const EXPECTED_KEYS = [
   "facilitator",
   "program_manager",
   "venture_manager",
+  // The portfolio-wide Venture profile (staff-only).
+  "venture_admin",
   // Phase 7 (D6) — the dedicated course-management profile.
   "course_manager",
+  // Delegated LMS authoring — create AND publish, assigned per person.
+  "lms_author",
 ];
 
 /** SQL of a mock call, whether it was passed as a string or as { sql, args }. */
@@ -107,6 +111,7 @@ describe("profile catalogue — the seeded catalogue", () => {
   test("the program/venture managers are staff-restricted; the member profiles are member-restricted", () => {
     expect(getProfileDefinition("program_manager").allowedRoles).toEqual(["staff"]);
     expect(getProfileDefinition("venture_manager").allowedRoles).toEqual(["staff"]);
+    expect(getProfileDefinition("venture_admin").allowedRoles).toEqual(["staff"]);
     expect(getProfileDefinition("participant").allowedRoles).toEqual(["member"]);
     expect(getProfileDefinition("founder").allowedRoles).toEqual(["member"]);
   });

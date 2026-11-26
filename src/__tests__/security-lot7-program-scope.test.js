@@ -1,4 +1,3 @@
-jest.mock("@/services/organizations/internalPrograms", () => ({ isInternalProgramAvailable: jest.fn(async (id) => id != null && String(id).trim() !== "") }));
 /**
  * SECURITY — Lot 7 (program scope on the team/group management surfaces).
  *

@@ -64,7 +64,7 @@ export const submissionRules = [
           userId: run.owner_id,
           title: "New Submission Received",
           body: `${submission.submitter_name || submission.submitter_id} submitted to "${run.name}"`,
-          actionUrl: `/platform/runs?id=${run.id}`,
+          actionUrl: `/admin/communication/forms/runs?id=${run.id}`,
           type: "submission",
         });
       }

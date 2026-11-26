@@ -23,6 +23,7 @@ import {
   selectWorkDependencyEdges,
 } from "@/models/workItems";
 import { buildWorkItems } from "@/services/workItems";
+import { STATUS_CATEGORIES } from "@/lib/workItemStatus";
 
 const TODAY = "2026-10-15";
 
@@ -253,7 +254,9 @@ describe("filter options come from the loaded work", () => {
     expect(options.supporting).toEqual(["David", "Grace"]);
     expect(options.journeys).toEqual([{ id: "s-1", name: "KoraHome Market Expansion" }]);
     expect(options.milestones.map((milestone) => milestone.title)).toEqual(["Market Expansion"]);
-    expect(options.statuses.length).toBeGreaterThan(0);
+    // One filter for every kind: the canonical categories the loaded work implies.
+    expect(options.status_categories.length).toBeGreaterThan(0);
+    expect(options.status_categories.every((entry) => STATUS_CATEGORIES.includes(entry.id))).toBe(true);
   });
 });
 

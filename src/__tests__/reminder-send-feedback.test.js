@@ -12,7 +12,7 @@ const path = require("path");
 const ROOT = path.join(__dirname, "..", "..");
 const read = (file) => fs.readFileSync(path.join(ROOT, file), "utf8");
 
-const BAR = "src/components/ventures/projects/WorkItemReminderBar.js";
+const BAR = "src/components/shared/ventures/console/projects/WorkItemReminderBar.js";
 
 describe("the reminder bar reports the outcome of a send", () => {
   test("it announces the result of the send it just made", () => {

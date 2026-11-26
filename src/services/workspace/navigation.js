@@ -12,17 +12,17 @@ import { roleHomeHref } from "@/models/platform/roles";
 import { isBaselineIdentity } from "@/lib/identity";
 import { getEffectiveGroupsAndHistory } from "@/services/authorization/membership";
 import { learnerHasEnrollments } from "@/services/lms/learning";
+import { resolveParticipantParticipation } from "@/services/participant/participation";
 import {
   getStaffAssignmentsForUser,
   getProgramAssignmentsFromContactRoles,
-  getParticipantProgramMemberships,
   getActiveResponsibilitiesForUser,
   getActiveVentureMembershipsForContact,
 } from "@/models/workspace";
 
 function assignmentHref(role, programId) {
   const normalizedRole = String(role || "").toLowerCase();
-  if (normalizedRole === "facilitator") return `/facilitator/program/${programId}`;
+  if (normalizedRole === "facilitator") return `/member/facilitator/program/${programId}`;
   return roleHomeHref(normalizedRole);
 }
 
@@ -70,7 +70,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
     contextsOnly
       ? notNeeded()
       : getProgramAssignmentsFromContactRoles(session.cid),
-    getParticipantProgramMemberships(session.cid),
+    resolveParticipantParticipation({ cid: session.cid, email: session.email }),
     getEffectiveGroupsAndHistory(session.cid),
     getActiveResponsibilitiesForUser(session.cid),
     getActiveVentureMembershipsForContact(session.cid),
@@ -78,24 +78,14 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
   ]);
 
   const staffRows = rowsOf(staffSettled);
-  const memberships = rowsOf(membershipsSettled);
-
-  // The active participant enrollments are DERIVED from the membership rows
-  // already in hand, reproducing the query they used to be read by: the
-  // programme has to exist (that query's inner join), the status has to be
-  // active or absent, and the list is ordered by programme name. `filter`
-  // copies before `sort`, so the membership order below is untouched.
-  const partRows = memberships
-    .filter(
-      (row) => row.program_exists && (row.status == null || row.status === "active"),
-    )
-    .sort((first, second) =>
-      String(first.program_name || "").localeCompare(String(second.program_name || "")),
-    );
+  // The ONE participation rule (active, pending AND completed seats, plus the
+  // older links). Completed seats stay listed, marked read-only, instead of
+  // disappearing from the hub.
+  const participations = valueOf(membershipsSettled, { memberships: [] }).memberships || [];
 
   // 1. Program staff assignments (facilitator / staff / ...)
   // 2. Participant enrollments (excluded when already a staff member there)
-  const staffProgramIds = new Set(staffRows.map((row) => row.program_id));
+  const staffProgramIds = new Set(staffRows.map((row) => String(row.program_id)));
 
   const workspaces = [];
 
@@ -106,18 +96,21 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
       title: role,
       program_id: row.program_id,
       program_name: row.program_name || row.program_id,
-      href: assignmentHref(role, row.program_id) || "/workspaces",
+      href: assignmentHref(role, row.program_id) || "/member",
     });
   }
 
-  for (const row of partRows) {
-    if (staffProgramIds.has(row.program_id_text)) continue;
+  for (const row of participations) {
+    if (staffProgramIds.has(String(row.program_id))) continue;
     workspaces.push({
       type: "program",
       title: "participant",
-      program_id: row.program_id_text,
-      program_name: row.program_name || row.program_id_text,
-      href: "/participant",
+      program_id: row.program_id,
+      program_name: row.program_name || row.program_id,
+      completed: row.completed === true,
+      // The participant HOME is the unified dashboard now, so a seat opens the
+      // program's own screen instead of an address that redirects away.
+      href: `/member/participant/${row.program_id}`,
     });
   }
 
@@ -146,8 +139,8 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
         completed: false,
         href:
           roleKey === "facilitator"
-            ? `/facilitator/program/${row.program_id}`
-            : roleHomeHref(roleKey) || "/workspaces",
+            ? `/member/facilitator/program/${row.program_id}`
+            : roleHomeHref(roleKey) || "/member",
       };
     });
     const mirroredKeys = new Set(
@@ -176,30 +169,26 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
         completed: false,
         href:
           roleKey === "facilitator"
-            ? `/facilitator/program/${row.program_id}`
-            : roleHomeHref(roleKey) || "/workspaces",
+            ? `/member/facilitator/program/${row.program_id}`
+            : roleHomeHref(roleKey) || "/member",
       });
     }
   } catch (_) {}
 
-  // 2. All participant memberships with lifecycle status (incl. completed).
+  // 2. All participant seats with lifecycle status (incl. completed). The rule
+  //    that decided they exist is the same one the menu and the dashboard use.
   try {
-    // The two columns the active-enrollment list is derived from are internal
-    // to this endpoint and are not part of a context's shape.
-    contexts.program_participations = memberships.map(
-      ({ program_exists: _pe, program_id_text: _pit, ...row }) => {
-        const completed =
-          String(row.status || "").toLowerCase() === "completed" ||
-          !!row.completed_at ||
-          String(row.program_status || "").toLowerCase() === "completed";
-        return {
-          ...row,
-          completed,
-          readonly: completed,
-          href: `/participant/${row.program_id}`,
-        };
-      },
-    );
+    contexts.program_participations = participations.map((membership) => ({
+      program_id: membership.program_id,
+      program_name: membership.program_name,
+      status: membership.status,
+      completed: membership.completed,
+      readonly: membership.readOnly,
+      completed_at: membership.completed_at || null,
+      outcome: membership.outcome || null,
+      certificate_issued: membership.certificate_issued === true,
+      href: `/member/participant/${membership.program_id}`,
+    }));
   } catch (_) {}
 
   // 3. Organizational memberships — ACTIVE memberships only (Phase 1:
@@ -221,7 +210,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
     });
     contexts.org_memberships = [...groups].sort().map((groupName) => ({
       group_name: groupName,
-      href: roleHomeHref(session.role) || "/workspaces",
+      href: roleHomeHref(session.role) || "/member",
     }));
     contexts.org_history = history;
   } catch (_) {}
@@ -231,10 +220,10 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
     contexts.responsibilities = rowsOf(responsibilitiesSettled).map((row) => ({
       ...row,
       href: String(row.key || "").toLowerCase().includes("finance")
-        ? "/finance"
+        ? "/staff/finance"
         : String(row.key || "").toLowerCase().includes("crm")
-          ? "/crm"
-          : "/workspaces",
+          ? "/staff/crm"
+          : "/member",
     }));
   } catch (_) {}
 
@@ -242,7 +231,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
   try {
     contexts.venture_memberships = rowsOf(venturesSettled).map((row) => ({
       ...row,
-      href: `/participant/ventures/${row.venture_id}`,
+      href: `/member/participant/ventures/${row.venture_id}`,
     }));
   } catch (_) {}
 
@@ -251,7 +240,7 @@ export async function buildWorkspaceNavigation(session, contextsOnly) {
   //    nav gate). Learner access itself is always enforced server-side by
   //    the LMS routes from lms_enrollments.
   contexts.learning = valueOf(learningSettled, false)
-    ? { enrolled: true, href: "/participant/learning" }
+    ? { enrolled: true, href: "/member/participant/learning" }
     : { enrolled: false };
 
   return { workspaces, contexts };

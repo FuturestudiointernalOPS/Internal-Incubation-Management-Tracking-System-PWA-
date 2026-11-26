@@ -60,7 +60,7 @@
 ### 1.2 Roles and access
 
 - **Super Admin:** `/admin/ventures/[id]` hub tabs (dashboard, journey, investment, reports, Data Room, activity, profile, team). **11 admin sub-pages have no inbound links** (analytics, coaches, feedback, fundraising, investors, knowledge, notes, sessions, tasks, history, dashboard) `[V]`.
-- **Lead Manager:** `/staff/ventures/[id]` (overview, journey, projects, investment, tasks, sessions, notes, Data Room, **profile read-only**) `[V]`.
+- **Venture Manager:** `/staff/ventures/[id]` (overview, journey, projects, investment, tasks, sessions, notes, Data Room, **profile read-only**) `[V]`.
 - **Founder:** `/participant/ventures/[id]` (Dashboard, Journey, Investment, Data Room, Profile, Team) `[V]`.
 - **Enforcement:** capability + record scope (`venture_own`) is used nearly everywhere; the fine-grained permission matrix (13 areas × 12 actions; 205 staging cells) is actually read only by notes, Data Room, milestone authority, session scheduling and `/my-access` `[V]`.
 

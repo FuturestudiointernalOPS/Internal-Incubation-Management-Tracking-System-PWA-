@@ -141,3 +141,32 @@ test("un appelant sans le droit d'attribuer un rôle n'écrit pas et n'audite pa
   expect(getContactIdentityByCid).not.toHaveBeenCalled();
   expect(logPermissionAudit).not.toHaveBeenCalled();
 });
+
+test("the applicant intake label is written as the member baseline", async () => {
+  mockState.priorRole = "member";
+
+  const res = await PUT(put({ cid: "C1", role: "applicant" }));
+
+  expect(res.status).toBe(200);
+  // The column stored the baseline identity, not the intake stage.
+  const [, args] = updateContactFields.mock.calls.at(-1);
+  expect(args).toContain("member");
+  expect(args).not.toContain("applicant");
+  // Stored value did not actually change, so nothing is traced.
+  expect(logPermissionAudit).not.toHaveBeenCalled();
+});
+
+test("a legacy applicant row is corrected to member by the write itself", async () => {
+  mockState.priorRole = "applicant";
+
+  await PUT(put({ cid: "C1", role: "applicant" }));
+
+  // The form sent the stored label; the write still corrected it.
+  expect(logPermissionAudit).toHaveBeenCalledWith(
+    expect.objectContaining({
+      action: "role_changed",
+      previousValue: "applicant",
+      newValue: "member",
+    }),
+  );
+});

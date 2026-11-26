@@ -69,7 +69,8 @@ const publicPaths = [
   "/join",
   "/open",
   "/verify",
-  "/investor/setup-password",
+  "/member/investor/setup-password",
+  "/investor/setup-password", // legacy address, kept for the redirect
   "/s",
   "/_next",
   "/brand",
@@ -109,6 +110,11 @@ const publicApiPaths = [
   // configured rather than degrading into an open send button.
   "/api/reminders/sweep",
   "/api/platform/scheduled-result-emails",
+  // The daily VENTURE STAGE SWEEP. Same reasoning as the reminder sweep: a clock
+  // holds no session cookie, so without this entry the request is refused at the
+  // edge with 401 and the job silently never runs. The route's own x-cron-secret
+  // gate is the credential and answers 503 when no secret is configured.
+  "/api/reporting/stage-sweep",
   // The daily deadline reminder. A clock holds no session cookie, so without
   // this the request is refused at the edge with 401 and the route never runs —
   // the job would look "configured" and silently never notify anyone. The
@@ -122,6 +128,9 @@ const publicApiPaths = [
   "/api/s",
   "/api/investor/register",
   "/api/investor/setup-password",
+  // The invitation link's validation call. The token in the address is the
+  // credential and the response only carries the invited email/name.
+  "/api/investor/invitations",
   // Health probes: a load balancer / uptime monitor holds no session cookie.
   // They expose no data (see the routes), only liveness / readiness.
   "/api/health",
@@ -134,14 +143,16 @@ const publicApiPaths = [
 // Includes /api/participant and /api/notifications so routes with their own
 // requireAuth() check can handle auth themselves instead of being blocked here.
 const softAuthPaths = [
-  "/participant",
+  "/member/participant",
+  "/participant", // legacy address, kept so its redirect is not masked by auth
   "/api/participant",
   "/api/notifications",
   "/api/dashboard",
   "/api/engineering",
   "/api/user-groups",
   "/api/migrate",
-  "/finance",
+  "/finance", // legacy address, kept for the redirect to the staff space
+  "/staff/finance",
   "/api/finance",
 ];
 
@@ -187,33 +198,9 @@ function nextWithId(request, requestId) {
   }
 }
 
-function isOrganizationApi(pathname) {
-  return pathname === "/api/org" || pathname.startsWith("/api/org/")
-    || pathname === "/api/platform/organizations" || pathname.startsWith("/api/platform/organizations/");
-}
-
-function privateOrganizationResponse(response, pathname) {
-  if (isOrganizationApi(pathname)) {
-    response.headers.set("Cache-Control", "private, no-store");
-    response.headers.append("Vary", "Cookie");
-  }
-  return response;
-}
-
-function isLocalOrganizationPreview(request) {
-  if (process.env.NODE_ENV !== "development"
-    || request.nextUrl.searchParams?.get("preview") !== "1") return false;
-  return /^\/o\/(?!select(?:\/|$))[^/]+(?:\/(?:lms(?:\/[^/]+)?|venture|programs))?$/.test(request.nextUrl.pathname);
-}
-
 export function proxy(request) {
   const { pathname } = request.nextUrl;
   const requestId = correlationId(request);
-
-  // The explicitly requested mock portal is available only in local development.
-  if (isLocalOrganizationPreview(request)) {
-    return nextWithId(request, requestId);
-  }
 
   // Static assets never require a session.
   if (STATIC_ASSET_RE.test(pathname)) {
@@ -248,11 +235,11 @@ export function proxy(request) {
     // For API routes, return 401
     if (pathname.startsWith("/api/")) {
       const response = NextResponse.json(
-        { success: false, error: isOrganizationApi(pathname) ? "errors.authRequired" : "Authentication required." },
+        { success: false, error: "Authentication required." },
         { status: 401 },
       );
       response.headers.set("x-request-id", requestId);
-      return privateOrganizationResponse(response, pathname);
+      return response;
     }
 
     // For page routes, redirect to login
@@ -261,7 +248,7 @@ export function proxy(request) {
     return NextResponse.redirect(loginUrl);
   }
 
-  return privateOrganizationResponse(nextWithId(request, requestId), pathname);
+  return nextWithId(request, requestId);
 }
 
 export const config = {

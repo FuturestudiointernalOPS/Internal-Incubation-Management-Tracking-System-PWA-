@@ -54,24 +54,22 @@ export async function PUT(req, { params }) {
 
     // The repair path. `programs.edit` alone is not enough: you must either be
     // staffed on the program (the ordinary case) or hold the authority to
-    // configure access, which is what changing its manager is. Without the second
-    // branch an unmanaged program could only ever be repaired by Super Admin.
+    // configure access, which is what changing its manager is. There is no
+    // Super Admin shortcut: the owner holds `permissions.assign_capabilities` in
+    // their profile, and that right can be revoked like any other.
     const session = await getSession();
-    const isSuperAdmin = session?.role === "super_admin";
-    if (!isSuperAdmin) {
-      const staffedOnProgram = await isWithinScope(
-        "program_staffed",
-        session?.cid,
-        id,
-        { email: session?.email },
+    const staffedOnProgram = await isWithinScope(
+      "program_staffed",
+      session?.cid,
+      id,
+      { email: session?.email },
+    );
+    if (!staffedOnProgram) {
+      const consoleAuthority = await requireAuthorization(
+        "permissions",
+        "assign_capabilities",
       );
-      if (!staffedOnProgram) {
-        const consoleAuthority = await requireAuthorization(
-          "permissions",
-          "assign_capabilities",
-        );
-        if (consoleAuthority) return consoleAuthority;
-      }
+      if (consoleAuthority) return consoleAuthority;
     }
 
     const body = await req.json().catch(() => ({}));

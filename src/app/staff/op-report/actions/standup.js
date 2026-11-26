@@ -9,7 +9,7 @@
 import {
   getWeekNumber,
   getCurrentWeek,
-} from "@/components/staff/op-report/dates";
+} from "@/spaces/staff/core/components/op-report/dates";
 
 export function standupActions({
   handleSubmit,

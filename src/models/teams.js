@@ -1,5 +1,4 @@
 import db from "@/lib/db";
-import { platformProgramRelationPredicate } from "@/models/organizations/programScope";
 
 /**
  * Teams model — data access for the program-teams controller
@@ -19,11 +18,11 @@ import { platformProgramRelationPredicate } from "@/models/organizations/program
 
 /** All teams, optionally narrowed to one program (v2_programs id). */
 export async function getTeams(programId) {
-  let sql = `SELECT * FROM v2_teams WHERE (program_id IS NULL OR ${platformProgramRelationPredicate("v2_teams")})`;
+  let sql = "SELECT * FROM v2_teams";
   let args = [];
 
   if (programId) {
-    sql += " AND program_id = ?";
+    sql += " WHERE program_id = ?";
     args.push(programId);
   }
 
@@ -138,7 +137,7 @@ export async function setTeamVentureReady(team_id, is_venture_ready) {
 /** Full team row by id (PATCH member-update path / 404 gate). */
 export async function getTeamById(team_id) {
   return db.execute({
-    sql: `SELECT * FROM v2_teams WHERE id = ? AND (program_id IS NULL OR ${platformProgramRelationPredicate("v2_teams")})`,
+    sql: "SELECT * FROM v2_teams WHERE id = ?",
     args: [team_id],
   });
 }

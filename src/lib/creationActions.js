@@ -11,7 +11,7 @@
  * This module is the ONE list of those doors, shared by:
  *   - `CreateActions`, the button row rendered on the dashboards and on the
  *     Programmes / Ventures views (never a sidebar section of its own);
- *   - the `/create` guard and hub page;
+ *   - the `/create` guard;
  *   - each `/create/*` page's own gate.
  *
  * Server routes stay authoritative: they check the capability themselves.
@@ -23,7 +23,7 @@ export const CREATION_ACTIONS = [
     id: "program",
     module: "programs",
     capability: "create",
-    href: "/create/program",
+    href: "/staff/create/program",
     icon: "briefcase",
     titleKey: "creation.program.title",
     actionKey: "creation.program.createAction",
@@ -33,7 +33,7 @@ export const CREATION_ACTIONS = [
     id: "venture",
     module: "ventures",
     capability: "create",
-    href: "/create/venture",
+    href: "/staff/create/venture",
     icon: "rocket",
     titleKey: "creation.venture.title",
     actionKey: "creation.venture.createAction",
@@ -43,7 +43,7 @@ export const CREATION_ACTIONS = [
     id: "investor",
     module: "investor",
     capability: "create",
-    href: "/create/investor",
+    href: "/staff/create/investor",
     icon: "userPlus",
     titleKey: "creation.investor.title",
     actionKey: "creation.investor.createAction",

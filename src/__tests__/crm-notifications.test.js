@@ -88,21 +88,21 @@ test("each candidate becomes one linked, localized notification for its owner", 
   expect(byType.crm_overdue).toMatchObject({
     recipientId: "owner-1",
     templateKey: "crm.notifications.overdue",
-    link: "/crm/leads/l-1",
+    link: "/staff/crm/leads/l-1",
     dedupeKey: "crm:overdue:lead:l-1:2026-10-13",
     params: { name: "MTN", action: "Call back", date: "2026-10-01" },
   });
   expect(byType.crm_dormant).toMatchObject({
     recipientId: "owner-1",
     templateKey: "crm.notifications.dormant",
-    link: "/crm/opportunities/o-1",
+    link: "/staff/crm/opportunities/o-1",
     dedupeKey: "crm:dormant:opportunity:o-1:2026-10-13",
     params: { name: "Moov", days: 14 },
   });
   expect(byType.crm_stuck).toMatchObject({
     recipientId: "owner-1",
     templateKey: "crm.notifications.stuck",
-    link: "/crm/opportunities/o-2",
+    link: "/staff/crm/opportunities/o-2",
     params: { name: "Bank", stage: "Proposal", days: 12, target: 7 },
   });
 });

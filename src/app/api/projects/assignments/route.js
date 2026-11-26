@@ -8,9 +8,10 @@ import { listProjectAssignments } from "@/services/projects/collaboration";
  * GET /api/projects/assignments?user_cid=X
  *
  * Returns projects grouped by relationship to the user:
- *   owned:     projects where owner_id = user
- *   collab:    projects where user is in project_members
- *   all_active: all active projects (for dropdown)
+ *   owned:      projects where owner_id = user
+ *   collab:     projects where user is in project_members
+ *   all_active: every active project — the dropdown, served to every INTERNAL
+ *               caller. Choosing a task's project never depends on owning it.
  *
  * The scope rule, the fail-open reads and the deduplication live in
  * `@/services/projects/collaboration`.

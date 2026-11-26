@@ -223,7 +223,7 @@ export async function logAssignmentChange({ id, task, input, sessionCid }) {
  *
  * @returns {{status: number, error: string}|null}
  */
-export function assertStrictOwnerChange({ task, input, role, sessionCid }) {
+export function assertStrictOwnerChange({ task, input, canModerate = false, sessionCid }) {
   const cid = String(sessionCid);
   const isTaskOwner = String(task.user_id) === cid;
   const isAssignee = task.assigned_to && String(task.assigned_to) === cid;
@@ -232,7 +232,7 @@ export function assertStrictOwnerChange({ task, input, role, sessionCid }) {
       (key) => key !== "id" && key !== "status" && key !== "force_complete",
     ).length === 0;
 
-  if (role !== "super_admin" && !isTaskOwner && !isAssignee && !isOnlyStatusChange) {
+  if (!canModerate && !isTaskOwner && !isAssignee && !isOnlyStatusChange) {
     return { status: 403, error: "errors.ownTasksUpdateOnly" };
   }
 

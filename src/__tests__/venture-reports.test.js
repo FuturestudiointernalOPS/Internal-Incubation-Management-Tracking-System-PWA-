@@ -36,7 +36,7 @@ jest.mock("@/server/auth/guards", () => ({
 }));
 
 jest.mock("@/services/ventures/operatingPlans", () => ({
-  resolvePlanAccess: jest.fn().mockResolvedValue({ ok: true, global: false, code: "VNT-TEST", assignments: [{ responsibility_code: "lead_manager", scope_type: "venture_wide" }] }),
+  resolvePlanAccess: jest.fn().mockResolvedValue({ ok: true, global: false, code: "VNT-TEST", assignments: [{ responsibility_code: "venture_manager", scope_type: "venture_wide" }] }),
   allowsPlanAction: jest.fn().mockResolvedValue(true),
   resolveVentureCode: jest.fn(async () => "VNT-TEST"),
 }));

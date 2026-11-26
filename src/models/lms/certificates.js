@@ -1,9 +1,6 @@
 import { randomBytes } from "crypto";
 import db from "@/lib/db";
 import { LmsError } from "./errors";
-import { PLATFORM_ORGANIZATION_ID } from "@/models/organizations/programScope";
-
-const PLATFORM_ORGANIZATION = `'${PLATFORM_ORGANIZATION_ID}'::uuid`;
 
 /**
  * LMS certificates (Phase 5).
@@ -61,8 +58,7 @@ function toPublicCertificate(cert) {
 
 async function getCertificateByEnrollment(enrollmentId) {
   const res = await db.execute({
-    sql: `SELECT * FROM lms_certificates WHERE enrollment_id = ?
-          AND organization_id = ${PLATFORM_ORGANIZATION}`,
+    sql: "SELECT * FROM lms_certificates WHERE enrollment_id = ?",
     args: [enrollmentId],
   });
   return parseCertificate(res.rows[0]);
@@ -70,8 +66,7 @@ async function getCertificateByEnrollment(enrollmentId) {
 
 export async function getCertificateById(certificateId) {
   const res = await db.execute({
-    sql: `SELECT * FROM lms_certificates WHERE id = ?
-          AND organization_id = ${PLATFORM_ORGANIZATION}`,
+    sql: "SELECT * FROM lms_certificates WHERE id = ?",
     args: [certificateId],
   });
   return parseCertificate(res.rows[0]);
@@ -172,8 +167,7 @@ export async function ensureCertificateForEnrollment({ course, enrollment }) {
 /** The authenticated learner's own certificates. */
 export async function getCertificatesForLearner(userCid) {
   const res = await db.execute({
-    sql: `SELECT * FROM lms_certificates WHERE user_cid = ?
-          AND organization_id = ${PLATFORM_ORGANIZATION} ORDER BY issued_at DESC`,
+    sql: "SELECT * FROM lms_certificates WHERE user_cid = ? ORDER BY issued_at DESC",
     args: [userCid],
   });
   return res.rows.map(parseCertificate);
@@ -205,8 +199,7 @@ export async function getCertificatePublic(tokenOrNumber) {
   if (!value) throw new LmsError("lms.errors.certificateNotFound", 404);
 
   const byToken = await db.execute({
-    sql: `SELECT * FROM lms_certificates WHERE verification_token = ?
-          AND organization_id = ${PLATFORM_ORGANIZATION}`,
+    sql: "SELECT * FROM lms_certificates WHERE verification_token = ?",
     args: [value],
   });
   const cert = parseCertificate(byToken.rows[0]);
@@ -231,8 +224,7 @@ export async function revokeCertificate(certificateId) {
     return { success: true, certificate: cert };
   }
   await db.execute({
-    sql: `UPDATE lms_certificates SET status = 'revoked', revoked_at = NOW(), updated_at = NOW()
-          WHERE id = ? AND organization_id = ${PLATFORM_ORGANIZATION}`,
+    sql: "UPDATE lms_certificates SET status = 'revoked', revoked_at = NOW(), updated_at = NOW() WHERE id = ?",
     args: [certificateId],
   });
   return { success: true, certificate: await getCertificateById(certificateId) };

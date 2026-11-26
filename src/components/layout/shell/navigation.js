@@ -1,3 +1,28 @@
+import { holdsProfile, normalizeRole, PROGRAM_MANAGER_PROFILE } from "@/lib/identity";
+
+// The profile page lives in the person's own SECTION. This is a ROUTING table
+// (where the page is), never a permission decision: each section gates its own
+// profile page server-side. `program_manager` stays for the D-1 rollback.
+const PROFILE_SECTION = {
+  super_admin: "admin",
+  program_manager: "staff/program-manager",
+  facilitator: "member/facilitator",
+  investor: "member/investor",
+};
+
+/**
+ * Where this person's profile page is. D-1 — a staff identity carrying the
+ * program-manager PROFILE belongs in the PM space; the role alone no longer says
+ * so. The legacy value stays in the table for the rollback.
+ */
+function profileHrefFor(role, profiles = []) {
+  const section =
+    holdsProfile(profiles, PROGRAM_MANAGER_PROFILE) && normalizeRole(role) === "staff"
+      ? "staff/program-manager"
+      : PROFILE_SECTION[normalizeRole(role)] || "member/participant";
+  return `/${section}/profile`;
+}
+
 // Map legacy sidebar keys to new namespaced i18n keys
 const NAV_KEY_MAP = {
   dashboard: "navigation.dashboard",
@@ -14,6 +39,12 @@ const NAV_KEY_MAP = {
   administration: "navigation.administration",
 
   forms: "navigation.forms",
+  forms_dashboard: "platformMisc.nav.dashboard",
+  forms_list: "platformMisc.nav.forms",
+  forms_runs: "platformMisc.nav.runs",
+  forms_import: "platformMisc.nav.historicalImport",
+  forms_identity_review: "platformMisc.nav.identityReview",
+  forms_scores: "platformMisc.nav.scores",
   all_contacts: "navigation.contacts",
   knowledge: "navigation.knowledgeBase",
   knowledge_base: "navigation.knowledgeBase",
@@ -44,6 +75,9 @@ const NAV_KEY_MAP = {
   watchlist: "navigation.watchlist",
   ventures: "navigation.ventures",
   all_ventures: "navigation.allVentures",
+  venture_admin: "navigation.ventureAdmin",
+  venture_admin_home: "navigation.ventureAdminOverview",
+  venture_reporting_settings: "vadmin.list.reportingSettings",
   journey_reports: "navigation.journeyReports",
   document_types: "navigation.documentTypes",
   investors: "navigation.investors",
@@ -53,6 +87,10 @@ const NAV_KEY_MAP = {
   investors_review: "navigation.investorsReview",
   investors_campaigns: "navigation.investorsCampaigns",
   investors_relationships: "navigation.investorsRelationships",
+  investors_portfolio: "navigation.investorsPortfolio",
+  investors_deal_flow: "navigation.investorsDealFlow",
+  investors_introductions: "navigation.investorsIntroductions",
+  investors_metrics: "navigation.investorsMetrics",
   operations: "navigation.operations",
   standup: "navigation.standup",
   retro: "navigation.retro",
@@ -98,7 +136,7 @@ function tnav(key) {
 // Map last path segment -> translation key for the topbar breadcrumb.
 // Keys must be unique: a duplicated key silently wins over the earlier one.
 // When one segment means different things under different parents (e.g.
-// /admin/reports/responses vs /platform/responses) disambiguate in
+// /admin/reports/responses vs /admin/communication/forms/responses) disambiguate in
 // CRUMB_FULL_PATH_MAP below instead of adding a second entry here.
 const CRUMB_PATH_MAP = {
   admin: "navigation.dashboard",
@@ -173,7 +211,17 @@ const CRUMB_PATH_MAP = {
 // different things in different sections still resolves to the right crumb.
 const CRUMB_FULL_PATH_MAP = {
   "/admin/reports/responses": "navigation.reportResponses",
-  "/platform/responses": "navigation.forms",
+  "/admin/communication/forms/responses": "navigation.forms",
+};
+
+// A record id in the address (a UUID or a number) is never a label: the crumb
+// names the section it belongs to instead.
+const ID_SEGMENT = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\d+)$/i;
+
+// The crumb for "/<section>/<id>" when the section itself does not name the
+// record (e.g. /participant/<programId> is a program).
+const CRUMB_ID_PARENT_MAP = {
+  participant: "navigation.programs",
 };
 
 function navCrumb(pathname) {
@@ -182,7 +230,13 @@ function navCrumb(pathname) {
     .split("#")[0]
     .replace(/\/+$/, "");
   if (CRUMB_FULL_PATH_MAP[clean]) return CRUMB_FULL_PATH_MAP[clean];
-  const segment = clean.split("/").filter(Boolean).pop() || "";
+  const segments = clean.split("/").filter(Boolean);
+  while (segments.length > 1 && ID_SEGMENT.test(segments[segments.length - 1])) {
+    segments.pop();
+    const parent = segments[segments.length - 1];
+    if (CRUMB_ID_PARENT_MAP[parent]) return CRUMB_ID_PARENT_MAP[parent];
+  }
+  const segment = segments.pop() || "";
   return CRUMB_PATH_MAP[segment] || (NAV_KEY_MAP[segment] ? NAV_KEY_MAP[segment] : segment);
 }
 
@@ -229,4 +283,4 @@ function getActivePathIds(navItems, pathname) {
  * Simplified, high-performance frame with i18n and theme support.
  */
 
-export { tnav, navCrumb, getActivePathIds };
+export { tnav, navCrumb, getActivePathIds, profileHrefFor };

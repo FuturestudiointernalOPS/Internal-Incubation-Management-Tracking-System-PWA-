@@ -1,0 +1,174 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { Loader2, History, ShieldCheck, ClipboardList, FileText, CalendarClock } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+
+/**
+ * Admin → Ventures → [Venture] → History
+ * Venture institutional memory (Vinance 3 — Phase 2): events, staff notes,
+ * session records and submission review decisions assembled read-only.
+ */
+/**
+ * Section wrapper for the history lists. Declared at module scope, not inside
+ * the page: a component created during render is a new element type on every
+ * render, so React remounts its whole subtree each time (and would silently
+ * reset any state a child gains later).
+ */
+const Section = ({ icon: Icon, title, count, children }) => (
+  <section className="card">
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-8 h-8 rounded-lg bg-brand-orange/10 flex items-center justify-center">
+        <Icon className="w-4 h-4 text-[var(--brand-orange)]" />
+      </div>
+      <h2 className="text-[11px] font-black text-[var(--text-primary)] uppercase tracking-wide">
+        {title} {count > 0 && <span className="text-slate-500">({count})</span>}
+      </h2>
+    </div>
+    {children}
+  </section>
+);
+
+// Reads the language itself so the definition can live outside the page body.
+const Empty = () => {
+  const { t } = useI18n();
+  return (
+    <p className="text-xs text-[var(--text-secondary)] py-2">
+      {t("venture.history.empty")}
+    </p>
+  );
+};
+
+export default function VentureHistoryView() {
+  const { t } = useI18n();
+  const { id } = useParams();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await fetch(`/api/ventures/${id}/venture-history`);
+        const payload = await response.json();
+        if (payload.success) setData(payload);
+        else setError(payload.error || "Failed to load history.");
+      } catch {
+        setError("Failed to load history.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id]);
+
+  const fmtDate = (value) => (value ? new Date(value).toLocaleString() : "");
+
+  return (
+    <div className="p-6 space-y-6 max-w-4xl mx-auto">
+
+      <div className="card">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-brand-orange/10 flex items-center justify-center">
+            <History className="w-6 h-6 text-[var(--brand-orange)]" />
+          </div>
+          <div>
+            <h1 className="text-xl font-black text-[var(--text-primary)]">{t("venture.history.title")}</h1>
+            <p className="text-[10px] text-slate-400 mt-0.5">{t("venture.history.subtitle")}</p>
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-6 h-6 animate-spin text-[var(--brand-orange)]" />
+        </div>
+      ) : error ? (
+        <div className="card text-sm text-rose-400 p-4">{error}</div>
+      ) : (
+        <div className="space-y-5">
+          {/* Events */}
+          <Section icon={FileText} title={t("venture.history.events")} count={(data.timeline.events || []).length}>
+            {(data.timeline.events || []).length === 0 ? (
+              <Empty />
+            ) : (
+              <ul className="space-y-2">
+                {(data.timeline.events || []).map((event, index) => (
+                  <li key={index} className="flex items-start gap-3 text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--brand-orange)] mt-1.5 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[var(--text-primary)] font-medium break-words">{event.description || event.event_type}</p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">{fmtDate(event.created_at)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          {/* Review decisions */}
+          <Section icon={ShieldCheck} title={t("venture.history.reviews")} count={(data.timeline.review_decisions || []).length}>
+            {(data.timeline.review_decisions || []).length === 0 ? (
+              <Empty />
+            ) : (
+              <ul className="space-y-2">
+                {(data.timeline.review_decisions || []).map((decision, index) => (
+                  <li key={index} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-[var(--text-primary)]">{decision.task_title}</span>
+                      {decision.review_decision === "approved" ? (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold">{t("venture.history.decisionApproved")}</span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold">{t("venture.history.decisionChanges")}</span>
+                      )}
+                      <span className="text-[10px] text-slate-500">v{decision.version} · {fmtDate(decision.reviewed_at || decision.created_at)}</span>
+                    </div>
+                    {decision.review_comment && <p className="mt-1 text-[var(--text-secondary)] break-words">{decision.review_comment}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Section>
+
+          {/* Staff notes (staff only) */}
+          {data.staff && (
+            <Section icon={ClipboardList} title={t("venture.history.staffNotes")} count={(data.timeline.notes || []).length}>
+              {(data.timeline.notes || []).length === 0 ? (
+                <Empty />
+              ) : (
+                <ul className="space-y-2">
+                  {(data.timeline.notes || []).map((note) => (
+                    <li key={note.id} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                      <p className="font-semibold text-[var(--text-primary)]">{note.title}</p>
+                      <p className="text-[var(--text-secondary)] mt-0.5 break-words whitespace-pre-line">{note.body}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{note.author_name || ""}{note.author_name && " · "}{fmtDate(note.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
+
+          {/* Session records (staff only) */}
+          {data.staff && (
+            <Section icon={CalendarClock} title={t("venture.history.sessionNotes")} count={(data.timeline.session_notes || []).length}>
+              {(data.timeline.session_notes || []).length === 0 ? (
+                <Empty />
+              ) : (
+                <ul className="space-y-2">
+                  {(data.timeline.session_notes || []).map((session) => (
+                    <li key={session.id} className="text-xs py-1.5 border-b border-[var(--border-primary)] last:border-0">
+                      <p className="font-semibold text-[var(--text-primary)]">{session.session_title}</p>
+                      <p className="text-[var(--text-secondary)] mt-0.5 break-words whitespace-pre-line">{session.content}</p>
+                      <p className="text-[10px] text-slate-500 mt-1">{session.author_name || ""}{session.author_name && " · "}{fmtDate(session.created_at)}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </Section>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

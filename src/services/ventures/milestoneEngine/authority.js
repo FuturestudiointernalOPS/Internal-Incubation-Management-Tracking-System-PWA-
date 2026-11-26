@@ -1,5 +1,5 @@
 /**
- * milestoneEngine — Who may manage and complete milestones (Lead Manager / Super Admin).
+ * milestoneEngine — Who may manage and complete milestones (Venture Manager / Super Admin).
  *
  * Part of `services/ventures/milestoneEngine` (split out of the former single
  * 548-line module, lane L2; code moved verbatim). The public surface is
@@ -9,7 +9,7 @@ import {
   selectVentureIdAndCodeByIdOrCode,
 } from "@/models/ventureMilestoneEngineStore";
 import { hasVentureCapability } from "@/services/ventures/permissions";
-import { isPlatformOwnerRole } from "@/lib/identity";
+import { resolveVenturePortfolioAccess } from "@/services/ventures/portfolioAccess";
 import { rowsOf } from "./status";
 
 /**
@@ -21,8 +21,13 @@ import { rowsOf } from "./status";
  * milestone-scoped assignment does not confer the right to restructure the
  * roadmap.
  */
-export async function isMilestoneLeadAuthority({ code, cid, role }) {
-  if (isPlatformOwnerRole(role)) return true;
+export async function isMilestoneLeadAuthority({ code, cid, session }) {
+  // The explicit portfolio WRITE right replaces the Super Admin role bypass, so
+  // a revoked owner falls back to the assignment matrix like anyone else.
+  if (session) {
+    const portfolio = await resolveVenturePortfolioAccess({ session, action: "edit" });
+    if (portfolio.allowed) return true;
+  }
   if (!cid || !code) return false;
   try {
     return await hasVentureCapability({
@@ -51,10 +56,9 @@ export async function resolveVentureCode(id) {
  * deliberately NOT gated here — only structure and completion are (see the
  * milestones route).
  */
-export async function canManageMilestones({ id, cid, role }) {
-  if (isPlatformOwnerRole(role)) return true;
-  if (!cid) return false;
+export async function canManageMilestones({ id, cid, session }) {
+  if (!cid && !session) return false;
   const code = await resolveVentureCode(id);
   if (!code) return false;
-  return isMilestoneLeadAuthority({ code, cid, role });
+  return isMilestoneLeadAuthority({ code, cid, session });
 }
