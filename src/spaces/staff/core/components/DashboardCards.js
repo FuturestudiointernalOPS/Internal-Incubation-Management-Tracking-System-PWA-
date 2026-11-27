@@ -305,7 +305,7 @@ export function HistoryFold({ activity, record }) {
   );
 }
 
-/** History & shortcuts — four doors: projects, forms, messages, Weekly Ops. */
+/** History & shortcuts — three doors: forms, messages, Weekly Ops. */
 export function ShortcutsSection({ onGo }) {
   const { t } = useI18n();
   const link = (title, text, route, tone) => <LinkCard title={title} text={text} tone={tone || ""} onClick={() => onGo(route)} />;
@@ -319,8 +319,7 @@ export function ShortcutsSection({ onGo }) {
         subtitle={t("staffMisc.front.sectionD.subtitleShort")}
         action={{ label: t("staffMisc.front.sectionD.archive"), onClick: () => onGo("/staff/op-report?tab=summary") }}
       />
-      <div className="stf-grid c4">
-        {link(t("staffMisc.front.sectionD.projects"), t("staffMisc.front.sectionD.projectsText"), "/staff/projects", "g")}
+      <div className="stf-grid c3">
         {link(t("staffMisc.front.sectionD.forms"), t("staffMisc.front.sectionD.formsText"), "/admin/communication/forms", "b")}
         {link(t("staffMisc.front.sectionD.messages"), t("staffMisc.front.sectionD.messagesText"), "/staff/messages")}
         {link(t("staffMisc.front.sectionD.weeklyOps"), t("staffMisc.front.sectionD.weeklyOpsText"), "/staff/op-report?tab=standup", "b")}

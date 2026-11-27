@@ -56,7 +56,7 @@ export const ROLE_ACCESS = {
   // surfaces are relationship-driven, so an account not yet aligned still gets a
   // working sidebar instead of the neutral fallback.
   staff: {
-    top: ["dashboard", "weekly_ops", "programs", "my_projects", "communication"],
+    top: ["dashboard", "weekly_ops", "programs", "communication"],
     children: {
       // The Forms workspace lives in the admin Communication section now, so a
       // staff mask keeps only the messages door.

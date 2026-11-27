@@ -183,10 +183,10 @@ describe("what the dashboard shows, and from where", () => {
     expect(container.querySelectorAll(".stf-wday.today").length).toBe(1);
   });
 
-  test("the shortcuts are projects, forms, messages and Weekly Ops — no tasks, no report history", async () => {
+  test("the shortcuts are forms, messages and Weekly Ops — no projects, no tasks, no report history", async () => {
     renderDashboard();
     await ready();
-    expect(screen.getByText(/Mes projets|My projects/)).toBeTruthy();
+    expect(screen.queryByText(/Mes projets|My projects/)).toBeNull();
     expect(screen.getByText(/^Forms$|^Formulaires$/)).toBeTruthy();
     expect(screen.getByText(/^Messages$|^Messagerie$/)).toBeTruthy();
     expect(screen.getAllByText(/Weekly Ops/).length).toBeGreaterThan(0);
@@ -363,15 +363,13 @@ describe("the hero button", () => {
 });
 
 describe("navigation from the dashboard", () => {
-  test("the tasks and blockers doors, and the shortcuts, go to the existing staff routes", async () => {
+  test("the tasks and blockers doors, and the Weekly Ops shortcut, go to the existing staff routes", async () => {
     renderDashboard();
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Toutes mes tâches|All my tasks/ }));
     expect(push).toHaveBeenCalledWith("/staff/tasks");
     fireEvent.click(screen.getByRole("button", { name: /Voir tous les blocages|See all blockers/ }));
     expect(push).toHaveBeenCalledWith("/staff/op-report?tab=summary");
-    fireEvent.click(screen.getByText(/Mes projets|My projects/));
-    expect(push).toHaveBeenCalledWith("/staff/projects");
     fireEvent.click(screen.getByText(/Open my stand-ups|Ouvrir mes stand-ups/));
     expect(push).toHaveBeenCalledWith("/staff/op-report?tab=standup");
   });

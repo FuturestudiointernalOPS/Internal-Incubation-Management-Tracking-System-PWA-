@@ -59,6 +59,7 @@
 .stf-grid.g1 { grid-template-columns: minmax(0, 1fr); }
 .stf-grid.c2 { grid-template-columns: 2fr 1fr; }
 .stf-grid.c4 { grid-template-columns: repeat(4, 1fr); }
+.stf-grid.c3 { grid-template-columns: repeat(3, 1fr); }
 .stf-grid.c5 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 @media (max-width: 1100px) { .stf-grid.c4 { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 900px) { .stf-grid.g2, .stf-grid.g3, .stf-grid.c2, .stf-grid.c3 { grid-template-columns: 1fr; } }

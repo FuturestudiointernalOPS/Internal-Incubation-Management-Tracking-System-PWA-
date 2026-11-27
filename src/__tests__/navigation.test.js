@@ -157,7 +157,6 @@ const FIXTURE = {
     { id: "dashboard", href: "/staff", subItems: null },
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/staff/program-manager/programs", subItems: null },
-    { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
       href: null,
@@ -169,7 +168,6 @@ const FIXTURE = {
     { id: "dashboard", href: "/staff", subItems: null },
     { id: "weekly_ops", href: "/staff/op-report", subItems: null },
     { id: "programs", href: "/staff/program-manager/programs", subItems: null },
-    { id: "my_projects", href: "/staff/projects", subItems: null },
     {
       id: "communication",
       href: null,

@@ -5,9 +5,6 @@
  * sidebar shows at the top level.
  */
 
-import { myProjectsNode } from "./shared";
-
 export const STAFF_NODES = [
   { id: "weekly_ops", name: "WEEKLY OPS", icon: "calendar", href: "/staff/op-report" },
-  myProjectsNode,
 ];
