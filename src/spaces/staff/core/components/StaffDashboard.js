@@ -1,30 +1,20 @@
 "use client";
 
 import PageHero from "@/components/ui/PageHero";
-import KpiCard from "@/components/ui/KpiCard";
+import AppModal from "@/components/ui/AppModal";
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, BarChart3, FolderKanban, ListChecks, Users } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useApi } from "@/lib/hooks/useApi";
 import { useSessionUser } from "@/lib/hooks/useSessionUser";
 import TaskDetailModal from "@/components/ui/TaskDetailModal";
 import { pickDashboard } from "@/components/shared/dashboard/pickDashboard";
 import StaffCalendar from "@/components/shared/calendar/StaffCalendar";
-import {
-  AssignmentsCard,
-  BlockersCard,
-  MeetingsCard,
-  OperationsSection,
-  ProgramsSection,
-  ProjectsCard,
-  RegularitySection,
-  ShortcutsSection,
-  TodayTasksCard,
-  WeeklyReportsCard,
-} from "./DashboardCards";
+import { HistoryFold, NeedsYouCard, ShortcutsSection, WeekCard } from "./DashboardCards";
+import StaffMiniCalendar from "./StaffMiniCalendar";
+import QuickCreateModal from "./QuickCreateModal";
 import { buildMeetingPayload, buildTaskPayload, dateKey, isoWeek, normalizeEvents } from "@/components/shared/calendar/calendarModel";
-import { operationTotals, recentWeeks, regularity, todayTasks, uniquePrograms, weekRecord } from "@/components/shared/dashboardModel";
+import { recentWeeks, todayTasks, uniquePrograms, weekRecord } from "@/components/shared/dashboardModel";
 import { notify } from "@/components/shared/notify";
 import CreateActions from "@/components/shared/create/CreateActions";
 
@@ -78,7 +68,8 @@ export default function StaffDashboard() {
   const [busyTask, setBusyTask] = useState(null);
   const [resolving, setResolving] = useState(null);
   const [actionId, setActionId] = useState(null);
-  const [sectionOpen, setSectionOpen] = useState(true);
+  // null | { mode: "mini" | "full", key } — which calendar is open, and on which day.
+  const [calendar, setCalendar] = useState(null);
 
   // The month the calendar is on, and — when a week reaches into another month —
   // that month as well. Each answers the same question, so a screen with only
@@ -132,14 +123,11 @@ export default function StaffDashboard() {
 
   // ── Derived figures ──
   const todayKey = dateKey(now);
-  const summary = data?.summary || {};
   const quick = data?.quickAccess || {};
   const reports = reportsRead.data;
   const programs = useMemo(() => uniquePrograms(quick.programs, facilitatorRead.data), [quick.programs, facilitatorRead.data]);
   const record = useMemo(() => recentWeeks(now).map((week) => weekRecord(reports, week)), [reports, now]);
   const thisWeek = isoWeek(now);
-  const currentWeek = record[record.length - 1];
-  const standing = regularity(record, now);
   const tasks = useMemo(() => todayTasks(items, todayKey, data?.attention?.overdueTasks), [items, todayKey, data]);
   const meetings = useMemo(() => items.filter((item) => item.kind === "meeting" && item.key === todayKey), [items, todayKey]);
   const openCount = tasks.filter((task) => task.status !== "completed").length;
@@ -231,66 +219,65 @@ export default function StaffDashboard() {
         }
       />
 
-      {/* KPIs */}
-      <div className="stf-grid">
-        <KpiCard label={t("staffMisc.front.dashboard.kpiPrograms")} value={activePrograms} icon={FolderKanban} loading={loading} />
-        <KpiCard label={t("staffMisc.front.dashboard.kpiProjects")} value={summary.projects || 0} icon={Users} loading={loading} />
-        <KpiCard label={t("staffMisc.front.dashboard.kpiTasks")} value={summary.tasks?.open || 0} icon={ListChecks} loading={loading} />
-        <KpiCard label={t("staffMisc.front.dashboard.kpiReports")} value={`${(currentWeek.standup ? 1 : 0) + (currentWeek.retro ? 1 : 0)} / 2`} icon={BarChart3} loading={loading} />
-      </div>
-
-      {/* Calendar */}
-      <StaffCalendar
-        events={events}
-        now={now}
-        loading={loading}
-        onRangeChange={onRangeChange}
-        onOpenTask={onOpenTask}
-        onSetStatus={(item, status) => setStatus(item.relatedId, status)}
-        onCreateTask={onCreateTask}
-        onCreateMeeting={onCreateMeeting}
-        formRequest={formRequest}
-      />
-
-      {/* Today */}
-      <div className="stf-grid g3">
-        <TodayTasksCard tasks={tasks} busyId={busyTask} onToggle={onToggleTask} onAdd={() => ask("task")} onOpenAll={() => go("/staff/tasks")} />
-        <MeetingsCard meetings={meetings} onAdd={() => ask("meeting")} />
-        <WeeklyReportsCard
-          week={thisWeek}
-          status={currentWeek}
-          regularity={standing}
-          loading={reportsRead.loading}
-          onOpen={(tab) => go(`/staff/op-report?tab=${tab}`)}
+      {/* This week · what needs the person today */}
+      <div className="stf-grid wk">
+        <WeekCard now={now} items={items} week={thisWeek.week} onOpenCalendar={(key) => setCalendar({ mode: "mini", key })} />
+        <NeedsYouCard
+          tasks={tasks}
+          blockers={quick.blockers || EMPTY}
+          meetings={meetings}
+          assignments={data?.assignments || EMPTY}
+          busyTask={busyTask}
+          resolvingId={resolving}
+          actionId={actionId}
+          onToggleTask={onToggleTask}
+          onAddTask={() => ask("task")}
+          onAddMeeting={() => ask("meeting")}
+          onResolve={onResolveBlocker}
+          onAssignmentAction={onAssignmentAction}
+          onOpenTasks={() => go("/staff/tasks")}
+          onOpenBlockers={() => go("/staff/op-report?tab=summary")}
         />
       </div>
 
-      <div className="stf-grid g3">
-        <BlockersCard blockers={quick.blockers || EMPTY} resolvingId={resolving} onResolve={onResolveBlocker} onOpenAll={() => go("/staff/op-report?tab=summary")} />
-        {(data?.assignments || []).length > 0 ? (
-          <AssignmentsCard assignments={data.assignments} actionId={actionId} onAction={onAssignmentAction} onOpenAll={() => go("/staff/tasks")} />
-        ) : (
-          <div className="stf-card">
-            <h3>
-              <AlertTriangle size={16} />
-              {t("dashboard.assignedToMe")}
-            </h3>
-            <div className="stf-empty">{t("staffMisc.front.dashboard.noAssignments")}</div>
-          </div>
-        )}
-        <ProjectsCard projects={quick.projects || EMPTY} onOpen={(project) => go(`/staff/projects/${project.id}`)} onOpenAll={() => go("/staff/projects")} />
-      </div>
-
-      {/* Sections A–D */}
-      <ProgramsSection
-        activity={data?.activity || EMPTY}
-        programs={programs}
-        onOpenProgram={(program) => go(`/staff/program-manager/programs/${program.id}`)}
-        onOpenAll={() => go("/staff/program-manager/programs")}
-      />
-      <OperationsSection totals={operationTotals(reports)} summary={summary} onGo={go} />
-      <RegularitySection record={record} regularity={standing} open={sectionOpen} onToggle={() => setSectionOpen(!sectionOpen)} />
       <ShortcutsSection onGo={go} />
+
+      <HistoryFold activity={data?.activity || EMPTY} record={record} />
+
+      {/* The compact calendar, and the full one behind its "Full calendar" link */}
+      <AppModal isOpen={calendar?.mode === "mini"} onClose={() => setCalendar(null)} title={t("staffMisc.front.dashboard.myCalendar")} size="sm">
+        <StaffMiniCalendar
+          items={items}
+          now={now}
+          initialKey={calendar?.key}
+          onMonthChange={(month) => onRangeChange([month])}
+          onFull={() => setCalendar({ mode: "full" })}
+          onOpenItem={(item) => {
+            if (item.kind !== "task" || item.relatedId == null) return;
+            setCalendar(null);
+            onOpenTask(item);
+          }}
+        />
+      </AppModal>
+      <AppModal isOpen={calendar?.mode === "full"} onClose={() => setCalendar(null)} title={t("staffMisc.front.calendar.title")} size="xl">
+        {calendar?.mode === "full" && (
+          <StaffCalendar
+            events={events}
+            now={now}
+            loading={loading}
+            onRangeChange={onRangeChange}
+            onOpenTask={(item) => {
+              setCalendar(null);
+              onOpenTask(item);
+            }}
+            onSetStatus={(item, status) => setStatus(item.relatedId, status)}
+            onCreateTask={onCreateTask}
+            onCreateMeeting={onCreateMeeting}
+          />
+        )}
+      </AppModal>
+
+      <QuickCreateModal request={formRequest} now={now} onCreateTask={onCreateTask} onCreateMeeting={onCreateMeeting} />
 
       {openTask && <TaskDetailModal task={openTask} onClose={() => setOpenTask(null)} />}
     </div>

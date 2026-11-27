@@ -3,6 +3,11 @@
  *
  * STAFF DASHBOARD — the data is connected, end to end.
  *
+ * Layout: the hero, "This week" and "Needs you today" (tasks, blockers,
+ * meetings, assignments — each a closed fold showing two rows), the shortcuts,
+ * a folded history. The calendar is a modal: the compact one ("Open calendar"),
+ * and the full one behind its "Full calendar" link.
+ *
  * The screen is rendered with its real components and a fake network, and the
  * assertions are about WIRING: what each block shows from which payload, and
  * which endpoint each action reaches with which body. The sidebar is not part of
@@ -108,6 +113,14 @@ beforeEach(() => {
   installFetch();
 });
 
+const seeAll = () => {
+  for (const button of screen.queryAllByRole("button", { name: /Tout voir|See all/ })) fireEvent.click(button);
+};
+const openCompactCalendar = async () => {
+  fireEvent.click(screen.getByRole("button", { name: /Ouvrir le calendrier|Open calendar/ }));
+  return screen.findByRole("dialog");
+};
+
 describe("what the dashboard shows, and from where", () => {
   test("it reads the dashboard for the signed-in person and the weekly reports", async () => {
     renderDashboard();
@@ -121,31 +134,63 @@ describe("what the dashboard shows, and from where", () => {
     expect(calls.some((call) => call.url === "/api/pm/programs?my_facilitator=1")).toBe(true);
   });
 
-  test("the hero counts today's open tasks and meetings; the KPIs come from the summary", async () => {
+  test("the hero greets the person; the removed blocks are gone", async () => {
     renderDashboard();
     await ready();
-    // two of today's tasks + the overdue one are listed; none is completed
     expect(screen.getByText(/Léa|Lea|Bonjour|Hello/)).toBeTruthy();
-    expect(screen.getAllByText("Valider le budget").length).toBeGreaterThan(0);
-    expect(screen.getByText("Tâche en retard")).toBeTruthy(); // overdue joins the today card
-    expect(screen.getAllByText("Atelier mentors").length).toBeGreaterThan(0);
+    // KPI tiles, the programs list, the projects card and the internal-operations
+    // block no longer sit on the dashboard.
+    expect(screen.queryByText("COME UP")).toBeNull();
+    expect(screen.queryByText("ATELIER PRO")).toBeNull();
+    expect(screen.queryByText("ImpactOS")).toBeNull();
+    expect(screen.queryByText(/1 \/ 2/)).toBeNull();
   });
 
-  test("blockers, assignments, projects, programs and activity each come from their own field", async () => {
+  test("tasks, meetings, blockers and assignments each come from their own field, folded", async () => {
     renderDashboard();
     await ready();
+    seeAll();
+    expect(screen.getByText("Valider le budget")).toBeTruthy();
+    expect(screen.getByText("Tâche en retard")).toBeTruthy(); // overdue joins today's tasks
+    expect(screen.getByText("Atelier mentors")).toBeTruthy(); // today's meeting
     expect(screen.getByText("Accès API paiement")).toBeTruthy();
     expect(screen.getByText("Préparer le Demo Day")).toBeTruthy();
-    expect(screen.getByText("ImpactOS")).toBeTruthy();
-    expect(screen.getByText("COME UP")).toBeTruthy(); // from quickAccess.programs
-    expect(screen.getByText("ATELIER PRO")).toBeTruthy(); // from the facilitator programs read
-    expect(screen.getByText("Envoyer le rapport")).toBeTruthy(); // activity
+    expect(screen.getByText("Envoyer le rapport")).toBeTruthy(); // recent activity, in the history fold
   });
 
-  test("this week's stand-up is shown as handed in, the retro as still to do", async () => {
+  test("every fold is closed on arrival, and the two cards are not folds", async () => {
+    const { container } = renderDashboard();
+    await ready();
+    const folds = container.querySelectorAll("details.stf-fold");
+    expect(folds.length).toBeGreaterThanOrEqual(4); // tasks, blockers, meetings, assignments (+ history)
+    folds.forEach((fold) => expect(fold.hasAttribute("open")).toBe(false));
+    expect(screen.getByText(/Needs you today|À faire aujourd'hui/).closest("details")).toBeNull();
+    expect(screen.getByText(/This week|Cette semaine/).closest("details")).toBeNull();
+  });
+
+  test("a fold shows two rows and the rest behind See all", async () => {
     renderDashboard();
     await ready();
-    await waitFor(() => expect(screen.getAllByText(/1 \/ 2/).length).toBeGreaterThan(0));
+    expect(screen.queryAllByRole("checkbox").length).toBe(2);
+    seeAll();
+    expect(screen.queryAllByRole("checkbox").length).toBe(3);
+  });
+
+  test("the week strip shows seven days with today marked", async () => {
+    const { container } = renderDashboard();
+    await ready();
+    expect(container.querySelectorAll(".stf-wday").length).toBe(7);
+    expect(container.querySelectorAll(".stf-wday.today").length).toBe(1);
+  });
+
+  test("the shortcuts are forms, messages and Weekly Ops — no projects, no tasks, no report history", async () => {
+    renderDashboard();
+    await ready();
+    expect(screen.queryByText(/Mes projets|My projects/)).toBeNull();
+    expect(screen.getByText(/^Forms$|^Formulaires$/)).toBeTruthy();
+    expect(screen.getByText(/^Messages$|^Messagerie$/)).toBeTruthy();
+    expect(screen.getAllByText(/Weekly Ops/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/My report history|Mon historique de rapports/)).toBeNull();
   });
 });
 
@@ -153,6 +198,7 @@ describe("what each action sends", () => {
   test("ticking a task completes it through PUT /api/tasks", async () => {
     renderDashboard();
     await ready();
+    seeAll();
     fireEvent.click(screen.getByRole("checkbox", { name: "Valider le budget" }));
     await waitFor(() => expect(calls.find((call) => call.method === "PUT" && call.url === "/api/tasks")).toBeTruthy());
     expect(calls.find((call) => call.method === "PUT" && call.url === "/api/tasks").body).toEqual({ id: 11, status: "completed" });
@@ -176,20 +222,56 @@ describe("what each action sends", () => {
       body: { task_id: 71, user_id: "C-LEA", user_name: "Léa Wembo", action: "accepted" },
     });
   });
+});
 
-  test("a task title in the calendar opens the full task, read from /api/tasks?id=", async () => {
+describe("the calendar", () => {
+  test("Open calendar shows the compact month and today's events", async () => {
     renderDashboard();
     await ready();
-    const inCalendar = screen.getAllByRole("button", { name: "Valider le budget" })[0];
-    fireEvent.click(inCalendar);
+    const dialog = await openCompactCalendar();
+    expect(within(dialog).getAllByText(/My calendar|Mon calendrier/).length).toBeGreaterThan(0);
+    expect(within(dialog).getByText("Valider le budget")).toBeTruthy();
+    expect(within(dialog).getByText("Atelier mentors")).toBeTruthy();
+    expect(within(dialog).getByText(/Full calendar|Calendrier complet/)).toBeTruthy();
+  });
+
+  test("a task in the compact calendar opens the full task, read from /api/tasks?id=", async () => {
+    renderDashboard();
+    await ready();
+    const dialog = await openCompactCalendar();
+    fireEvent.click(within(dialog).getByText("Valider le budget"));
     await waitFor(() => expect(calls.some((call) => call.url === "/api/tasks?id=11")).toBe(true));
     expect(await screen.findByRole("dialog", { name: "task-detail" })).toBeTruthy();
   });
+
+  test("moving to another month reads that month", async () => {
+    renderDashboard();
+    await ready();
+    const dialog = await openCompactCalendar();
+    fireEvent.click(within(dialog).getByRole("button", { name: /Next|Suivant/ }));
+    const next = new Date(NOW.getFullYear(), NOW.getMonth() + 1, 1);
+    await waitFor(() =>
+      expect(calls.some((call) => call.url.startsWith("/api/dashboard") && call.url.includes(`year=${next.getFullYear()}`) && call.url.includes(`month=${next.getMonth() + 1}`))).toBe(true),
+    );
+  });
+
+  test("Full calendar opens the full one, and a task status changes through PUT /api/tasks", async () => {
+    renderDashboard();
+    await ready();
+    const dialog = await openCompactCalendar();
+    fireEvent.click(within(dialog).getByText(/Full calendar|Calendrier complet/));
+    const kebab = (await screen.findAllByRole("button", { name: /Valider le budget/ })).find((node) => node.getAttribute("data-kebab"));
+    fireEvent.click(kebab);
+    const menu = await screen.findByRole("menu");
+    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Terminé|Done/ }));
+    await waitFor(() => expect(calls.find((call) => call.method === "PUT" && call.url === "/api/tasks")).toBeTruthy());
+    expect(calls.find((call) => call.method === "PUT" && call.url === "/api/tasks").body).toEqual({ id: 11, status: "completed" });
+  });
 });
 
-describe("what the calendar sends", () => {
+describe("what the creation form sends", () => {
   const openForm = async () => {
-    fireEvent.click(screen.getByRole("button", { name: /^(Ajouter|Add)$/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Nouvelle tâche \/ réunion|New task \/ meeting/ }));
     return screen.findByRole("dialog");
   };
 
@@ -211,6 +293,14 @@ describe("what the calendar sends", () => {
       end_date: TODAY,
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  test("the Schedule button of the Meetings fold opens the form on a meeting", async () => {
+    renderDashboard();
+    await ready();
+    fireEvent.click(screen.getByRole("button", { name: /Planifier|Schedule/ }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByLabelText(/Lieu|Place/)).toBeTruthy();
   });
 
   test("a meeting from the form goes to /api/events with its start and end as instants", async () => {
@@ -256,17 +346,6 @@ describe("what the calendar sends", () => {
     expect(await within(dialog).findByText("Start date cannot be in the past")).toBeTruthy();
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
-
-  test("changing a task's status from the calendar menu goes through PUT /api/tasks", async () => {
-    renderDashboard();
-    await ready();
-    const kebab = screen.getAllByRole("button", { name: /Valider le budget/ }).find((node) => node.getAttribute("data-kebab"));
-    fireEvent.click(kebab);
-    const menu = await screen.findByRole("menu");
-    fireEvent.click(within(menu).getByRole("menuitemradio", { name: /Terminé|Done/ }));
-    await waitFor(() => expect(calls.find((call) => call.method === "PUT" && call.url === "/api/tasks")).toBeTruthy());
-    expect(calls.find((call) => call.method === "PUT" && call.url === "/api/tasks").body).toEqual({ id: 11, status: "completed" });
-  });
 });
 
 describe("the hero button", () => {
@@ -284,16 +363,14 @@ describe("the hero button", () => {
 });
 
 describe("navigation from the dashboard", () => {
-  test("the weekly card, the tasks door and the projects door go to the existing staff routes", async () => {
+  test("the tasks and blockers doors, and the Weekly Ops shortcut, go to the existing staff routes", async () => {
     renderDashboard();
     await ready();
     fireEvent.click(screen.getByRole("button", { name: /Toutes mes tâches|All my tasks/ }));
     expect(push).toHaveBeenCalledWith("/staff/tasks");
-    fireEvent.click(screen.getByRole("button", { name: /Tous mes projets|All my projects/ }));
-    expect(push).toHaveBeenCalledWith("/staff/projects");
-    fireEvent.click(screen.getByText("ImpactOS"));
-    expect(push).toHaveBeenCalledWith("/staff/projects/4");
-    fireEvent.click(screen.getByText("COME UP"));
-    expect(push).toHaveBeenCalledWith("/staff/program-manager/programs/7");
+    fireEvent.click(screen.getByRole("button", { name: /Voir tous les blocages|See all blockers/ }));
+    expect(push).toHaveBeenCalledWith("/staff/op-report?tab=summary");
+    fireEvent.click(screen.getByText(/Open my stand-ups|Ouvrir mes stand-ups/));
+    expect(push).toHaveBeenCalledWith("/staff/op-report?tab=standup");
   });
 });
