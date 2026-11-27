@@ -466,3 +466,55 @@
 .dr-act-when b { font-weight: 700; color: var(--text-primary); }
 .dr-act-when i { font-style: normal; }
 .dr-act-more { margin: 2px 18px 14px; }
+
+/* ── Staff dashboard: this week · needs you · folds · compact calendar ── */
+.stf-grid.wk { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); align-items: start; }
+@media (max-width: 900px) { .stf-grid.wk { grid-template-columns: 1fr; } }
+
+.stf-week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.stf-wday { display: grid; justify-items: center; gap: 2px; padding: 8px 0; border: 1px solid var(--border-primary); border-radius: 10px; background: none; color: var(--text-primary); }
+.stf-wday span { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-secondary); }
+.stf-wday b { font-size: 15px; }
+.stf-wday .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--brand-orange); }
+.stf-wday .dot.off { background: transparent; }
+.stf-wday:hover { border-color: var(--brand-orange); }
+.stf-wday.today { background: var(--brand-orange); border-color: var(--brand-orange); color: #fff; }
+.stf-wday.today span { color: inherit; }
+.stf-wday.today .dot { background: #fff; }
+
+.stf-fold { border-top: 1px solid var(--border-primary); padding: 10px 0; }
+.stf-fold:first-of-type { border-top: 0; padding-top: 0; }
+.stf-fold.nb { border-top: 0; padding: 0; }
+.stf-fold > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+.stf-fold > summary::-webkit-details-marker { display: none; }
+.stf-fold-title { display: inline-flex; align-items: center; gap: 8px; }
+.stf-fold-title svg { color: var(--brand-orange); }
+.stf-fold-chev { margin-left: auto; color: var(--text-secondary); transition: transform 0.15s; }
+.stf-fold[open] > summary .stf-fold-chev { transform: rotate(180deg); }
+.stf-fold-body { padding-top: 6px; }
+.stf-fold-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.stf-empty-line { color: var(--text-secondary); padding: 4px 0; font-size: 14px; }
+
+.stf-mini-top { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.stf-mini-top h4 { margin: 0; font-size: 17px; display: flex; gap: 8px; align-items: center; }
+.stf-mini-top h4 svg { color: var(--brand-orange); }
+.stf-mini-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 6px; }
+.stf-mini-nav b { font-size: 17px; text-transform: capitalize; }
+.stf-mini-nav span { display: inline-flex; align-items: center; gap: 6px; }
+.stf-mini-ar { background: none; border: 0; padding: 4px; border-radius: 8px; color: var(--text-primary); }
+.stf-mini-ar:hover { background: var(--surface-2); }
+.stf-mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); row-gap: 4px; text-align: center; }
+.stf-mini-grid .wd { font-size: 12px; color: var(--text-secondary); padding: 8px 0; text-transform: capitalize; }
+.stf-mini-grid button { position: relative; height: 38px; border: 0; background: none; border-radius: 10px; font-size: 14px; color: var(--text-primary); }
+.stf-mini-grid button:hover { background: var(--surface-2); }
+.stf-mini-grid button.out { color: var(--text-tertiary); }
+.stf-mini-grid button.sel { background: var(--text-primary); color: var(--bg-primary); }
+.stf-mini-grid .dot { position: absolute; left: 50%; bottom: 5px; width: 4px; height: 4px; border-radius: 50%; background: var(--brand-orange); transform: translateX(-50%); }
+.stf-mini-agenda { border-top: 1px solid var(--border-primary); margin-top: 14px; padding-top: 12px; }
+.stf-mini-ah { display: flex; justify-content: space-between; gap: 8px; color: var(--text-secondary); font-size: 13px; margin-bottom: 8px; text-transform: capitalize; }
+.stf-mini-ev { display: grid; grid-template-columns: 52px 3px minmax(0, 1fr); gap: 10px; width: 100%; text-align: left; background: none; border: 0; padding: 8px 0; color: var(--text-primary); }
+.stf-mini-ev .tm { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.stf-mini-ev .bar { background: var(--border-primary); border-radius: 2px; }
+.stf-mini-ev.hot .bar { background: var(--brand-orange); }
+.stf-mini-ev b { display: block; font-size: 14px; }
+.stf-mini-ev small { color: var(--text-secondary); font-size: 12px; }
