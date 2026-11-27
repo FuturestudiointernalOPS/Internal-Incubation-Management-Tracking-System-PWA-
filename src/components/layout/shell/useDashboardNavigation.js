@@ -269,34 +269,22 @@ export function useDashboardNavigation({
     // the user's effective capabilities grant, deduped and href-safe.
     const items = attachIcons(buildAccessNav(activeRole, effectiveCaps));
 
-    // A non-empty manager list is what opens the manager sub-menu: the shell
-    // only reads it for someone carrying the program-manager profile, and it
-    // is empty for a manager who manages none.
-    if (hasStaffContext({ pmPrograms }, "program-manager")) {
+    // Preserve the owner's programme submenu; staff uses a direct link below.
+    if (isPlatformOwnerRole(activeRole) && hasStaffContext({ pmPrograms }, "program-manager")) {
       const progIndex = items.findIndex((navItem) => navItem.id === "programs");
       if (progIndex !== -1) {
-        const baseSubItems =
-          isPlatformOwnerRole(activeRole)
-            ? [
-                {
-                  id: "all_programs",
-                  name: "ALL PROGRAMS",
-                  href: "/admin/programs",
-                },
-                {
-                  id: "create_program",
-                  name: "CREATE PROGRAM",
-                  href: "/admin/programs/new",
-                },
-              ]
-            : [
-                { id: "all_programs", name: "OVERVIEW", href: "/staff/program-manager/programs" },
-                {
-                  id: "submissions",
-                  name: "SUBMISSIONS",
-                  href: "/staff/program-manager/submissions",
-                },
-              ];
+        const baseSubItems = [
+          {
+            id: "all_programs",
+            name: "ALL PROGRAMS",
+            href: "/admin/programs",
+          },
+          {
+            id: "create_program",
+            name: "CREATE PROGRAM",
+            href: "/admin/programs/new",
+          },
+        ];
 
         // Only static menu items — no dynamic program listing
         items[progIndex] = {
@@ -306,9 +294,16 @@ export function useDashboardNavigation({
       }
     }
 
-    // Staff-side surfaces keep their capability-projected doors; the learner
-    // door is added inside the personal branch above.
-    return withVentureConsole(items);
+    // Staff opens the programme overview directly. Keep the underlying routes
+    // and capability checks, but omit Operations and the programme submenu.
+    const staffItems = spaceForRole(activeRole) === "staff"
+      ? items.filter((item) => item.id !== "operations").map((item) =>
+          item.id === "programs"
+            ? { ...item, href: "/staff/program-manager/programs", children: undefined, subItems: undefined }
+            : item,
+        )
+      : items;
+    return withVentureConsole(staffItems);
   }, [
     activeRole,
     pmPrograms,
@@ -343,12 +338,30 @@ export function useDashboardNavigation({
     return next;
   }, [activePathKey, menuToggles]);
 
-  // Toggle one section; several can stay open together.
+  // Staff uses an accordion: opening a group closes other branches, including
+  // Profile. Retain its ancestors so a nested group's contents stay reachable.
+  // Other spaces retain their existing menu behaviour.
   const toggleMenu = useCallback(
     (id) => {
       if (!id) return;
       setMenuToggles((prev) => {
         const map = prev.key === activePathKey ? { ...prev.map } : {};
+        if (spaceForRole(activeRole) === "staff") {
+          const findBranch = (items, parents = []) => {
+            for (const item of items) {
+              const branch = [...parents, item.id];
+              if (item.id === id) return branch;
+              const found = findBranch(item.children || item.subItems || [], branch);
+              if (found) return found;
+            }
+            return null;
+          };
+          const branch = findBranch(navItems) || [id];
+          const opening = !openMenus[id];
+          for (const key of Object.keys(openMenus)) map[key] = false;
+          for (const key of branch) map[key] = key === id ? opening : true;
+          return { key: activePathKey, map };
+        }
         if (openMenus[id]) {
           map[id] = false;
           return { key: activePathKey, map };
@@ -358,7 +371,7 @@ export function useDashboardNavigation({
         return { key: activePathKey, map };
       });
     },
-    [activePathKey, openMenus],
+    [activePathKey, openMenus, activeRole, navItems],
   );
 
   return { navItems, activePathIds, openMenus, toggleMenu, activeRole };
